@@ -1,0 +1,36 @@
+# Runtime and local configuration
+/.env
+/.env.local
+/.env.*.local
+/config/secrets/*/*.decrypt.private.php
+/var/
+/vendor/
+
+# First-run proof and private material
+/.emailer-install-proof
+*.key
+*.pem
+*.p12
+*.pfx
+
+# Uploaded/private/operational data
+*.log
+*.csv
+*.tsv
+*.sql
+*.sqlite
+*.sqlite3
+*.bak
+*.backup
+*.dump
+/backups/
+/exports/
+/uploads/
+/private/
+
+# Development tools
+/.idea/
+/.vscode/
+.phpunit.result.cache
+.phpstan.cache
+coverage/
