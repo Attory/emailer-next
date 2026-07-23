@@ -2,6 +2,11 @@
 
 This checklist is mandatory before every phase and release.
 
+Keep this canonical copy reusable. Record pass, fail, not-applicable rationale,
+evidence, and reviewer in a phase-specific report; do not mark an item complete
+without observable evidence or an explicit operator attestation. Any unresolved
+secret/private-data, origin, or network-safety item blocks the phase.
+
 ## Repository origin
 
 - [ ] The workspace was created from a new empty directory or the approved specification starter.

@@ -1,19 +1,36 @@
-# Runtime and local configuration
-/.env
-/.env.local
-/.env.*.local
+# Runtime and local configuration. Only the placeholder example is tracked.
+**/.env
+**/.env.*
+!/.env.example
+/auth.json
+/.netrc
+/.npmrc
+/.pypirc
 /config/secrets/*/*.decrypt.private.php
-/var/
-/vendor/
 
-# First-run proof and private material
+# Dependencies, generated state, and local tooling
+/vendor/
+/var/
+/.cache/
+/.phpunit.cache/
+/.phpunit.result.cache
+/.phpstan.cache
+/coverage/
+/build/
+/dist/
+/artifacts/
+
+# First-run proof, secret material, and credential containers
 /.emailer-install-proof
 *.key
 *.pem
 *.p12
 *.pfx
+*.jks
+*.keystore
+*.kdbx
 
-# Uploaded/private/operational data
+# Uploaded, private, and operational data
 *.log
 *.csv
 *.tsv
@@ -23,14 +40,19 @@
 *.bak
 *.backup
 *.dump
-/backups/
-/exports/
-/uploads/
-/private/
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+**/backups/
+**/exports/
+**/uploads/
+**/private/
 
-# Development tools
+# Editors and operating systems
 /.idea/
 /.vscode/
-.phpunit.result.cache
-.phpstan.cache
-coverage/
+*.swp
+*~
+.DS_Store
+Thumbs.db
