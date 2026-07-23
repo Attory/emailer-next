@@ -1,32 +1,57 @@
 # Emailer Next
 
 Emailer Next is the clean-room successor to Emailer: a self-hosted email
-campaign application for exactly one organisation per installation. This
-repository currently contains the **Phase 0 design baseline only**. It has no
-application runtime, setup wizard, database schema, web routes, worker, or mail
-delivery capability.
+campaign application for exactly one organisation per installation. The
+repository has completed **Phase 1 only**: a reproducible Symfony platform
+scaffold and its safety gates.
+
+There is no setup wizard, authentication UI, contact/template/campaign
+functionality, worker, or production sending. The only application route is the
+coarse `GET|HEAD /health/live` liveness endpoint.
+
+## Safe local bootstrap
+
+Docker with the Compose plugin and `curl` are required. From a reviewed clean
+checkout:
+
+```bash
+./bin/bootstrap
+```
+
+The command builds the pinned PHP image, installs exactly from
+`composer.lock`, starts MariaDB and Mailpit, runs `composer check`, and verifies
+the liveness response. Application and Mailpit ports bind to loopback only;
+MariaDB has no host port. The local stack uses synthetic placeholders and
+Mailpit, never live SMTP.
+
+See [Installation](docs/installation.md) and
+[Development](docs/development.md) before changing the stack.
 
 ## Safety status
 
-- The reachable history starts with the approved specification starter and
-  contains documentation and placeholder configuration only.
+- The platform targets Symfony 7.4 LTS on tested PHP 8.4 and 8.5 branches.
+- Test kernel startup rejects every mail DSN except credential-free Mailpit on
+  port 1025, and CI repeats tests on an internal Docker network without external
+  egress.
+- Structured JSON logs pass through a central redaction processor.
+- Composer validation/audit, formatting, static and boundary analysis,
+  PHPUnit, MariaDB migration smoke, artifact exposure, and current/history
+  secret/private-data scans are aggregated by `composer check`.
+- The production-shaped artifact is assembled from an explicit allowlist and
+  is not a release or deployment.
 - Legacy source, history, templates, dependencies, credentials, and private
-  records are prohibited.
-- No live SMTP, production service, deployment, release, or DNS operation is
-  part of Phase 0.
-- Symfony scaffolding begins only in a separately approved Phase 1 job.
+  records remain prohibited.
 
-See the [Phase 0 record](docs/phase-0-report.md) for evidence and open
-decisions.
+See the [Phase 1 report](docs/phase-1-report.md) for the exact implementation,
+checks, migration, limitations, and manual actions.
 
-## Design map
+## Documentation map
 
 - [Master specification](docs/spec/EMAILER-NEXT-MASTER-SPEC.md)
 - [Bounded phase jobs](docs/spec/PHASE-JOBS.md)
+- [Clean-room checklist](docs/spec/CLEAN-ROOM-CHECKLIST.md)
 - [Architecture](docs/architecture.md)
 - [Module boundaries](docs/module-boundaries.md)
-- [Data model](docs/data-model.md)
-- [Route inventory](docs/route-inventory.md)
 - [Threat model](docs/threat-model.md)
 - [Security model](docs/security-model.md)
 - [Quality gates](docs/quality-gates.md)
@@ -34,14 +59,7 @@ decisions.
 - [Open decisions](docs/open-decisions.md)
 - [Architecture decisions](docs/adr/)
 
-The remaining required product and operator documents are indexed in
-[the documentation status page](docs/README.md).
-
-## Working in this repository
-
-Read [development.md](docs/development.md) and the
-[clean-room checklist](docs/spec/CLEAN-ROOM-CHECKLIST.md) before every phase.
-Each phase is a separate reviewed job and must stop at its stated boundary.
+Each phase is a separately authorized job and must stop at its stated boundary.
 Never place a real credential, recipient address, private template, production
-log, backup, export, or key in the tree, history, fixtures, screenshots, prompts,
-or test output.
+log, backup, export, or key in the tree, history, fixtures, screenshots,
+prompts, or test output.

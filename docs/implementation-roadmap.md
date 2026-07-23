@@ -7,7 +7,7 @@ evidence; it does not authorize chaining phases.
 | Phase | Outcome | Key design inputs | Exit evidence |
 | --- | --- | --- | --- |
 | 0 | Clean-room foundation and design lock | Master spec, ADRs, architecture, threat/security model, modules, data, routes, gates | Documentation set, repository safeguards, tree/history/private-key/PII scans, diff check |
-| 1 | Reproducible Symfony platform | ADR 0002/0003/0004/0008; quality gates | Locked Composer install, MariaDB/Mailpit dev stack, CI, coarse liveness, aggregate check, safe artifact |
+| 1 | Reproducible Symfony platform | ADR 0002/0003/0004/0008/0010; quality gates | Locked Composer install, MariaDB/Mailpit dev stack, CI, coarse liveness, aggregate check, safe artifact |
 | 2 | Ownership proof and setup state machine | Setup threats TM-01/TM-02/TM-12; setup routes | Proof edge/race tests, HTTPS gate, permanent lock/reset behavior, redacted logs |
 | 3 | Secure wizard, database, key, Owner, mail setup | Secret hierarchy, initial data model, setup route inventory | Crypto/fail-closed tests, MariaDB migrations, fake SMTP only, irreversible setup completion |
 | 4 | Identity, admin shell, sessions and audit | Role model, admin route inventory, TM-06–TM-09 | Generated route-role/CSRF matrix, session tests, last-Owner invariant, audit redaction |
@@ -16,6 +16,9 @@ evidence; it does not authorize chaining phases.
 | 7 | Public recipient actions and optional tracking/RSVP | Public route inventory, recipient-token model, TM-17–TM-19 | Token/redirect/privacy tests, RFC 8058 behavior, suppression after unsubscribe |
 | 8 | Doctor, backups, restore, retention and operations | Health/Backup boundaries, TM-20/TM-24/TM-25 | Every sending gate, redacted report, clean restore drill, retention reruns |
 | 9 | Release hardening and v1 acceptance | Entire design and accumulated phase reports | Full aggregate check, mandatory safety properties, SBOM/checksum, accessibility/load review, RC report |
+
+Phase 1 is the current completed boundary. Phases 2–9 remain unstarted; this
+status statement does not authorize the next phase.
 
 ## Per-phase workflow
 

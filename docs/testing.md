@@ -1,10 +1,10 @@
 # Testing
 
-**Status:** Phase 0 scan baseline; executable application tests begin in Phase 1.
+**Status:** Phase 1 executable test baseline.
 
-The stable gate order and exact Phase 0 scan recipes are in
-[quality-gates.md](quality-gates.md). Phase results are recorded in a phase
-report without matched secret/private content.
+The stable gate order and executable commands are in
+[quality-gates.md](quality-gates.md). Results are recorded in the phase report
+without matched secret/private content.
 
 ## Test-data policy
 
@@ -33,6 +33,34 @@ report without matched secret/private content.
 - Deployment tests for Nginx/Apache public exposure and immutable artifact
   allowlist.
 
+## Phase 1 coverage
+
+Phase 1 implements:
+
+- kernel boot and exact coarse `GET|HEAD /health/live` behavior;
+- redaction of sensitive keys, exception detail, address-like values,
+  credential assignments, DSN user information, and control characters;
+- an allowlist policy that rejects test mail DSNs with non-Mailpit hosts,
+  credentials, options, fragments, paths, or a port other than 1025;
+- a real Symfony Mailer transport check against loopback-only Mailpit using
+  synthetic `example.test` sender and recipient values;
+- MariaDB connection, migration execution, up-to-date status, and mapping
+  validation;
+- production-artifact contents and public exposure probes;
+- maximum-level static analysis and module-boundary checks.
+
+The local aggregate suite expects the Compose MariaDB and Mailpit services:
+
+```bash
+docker compose run --rm app composer check
+```
+
+CI runs the matrix documented in
+[ADR 0010](adr/0010-phase-1-toolchain-and-test-isolation.md). It then repeats
+PHPUnit with the app, MariaDB, and Mailpit attached only to an internal Docker
+network. A negative socket probe to the reserved TEST-NET address
+`192.0.2.1:25` must fail before the isolated test run.
+
 ## Mandatory safety properties
 
 Every release must prove all fifteen properties in master specification section
@@ -47,10 +75,10 @@ Each property maps to named tests and at least one negative case. “Covered by
 framework” without a repository test is insufficient for route/role/CSRF,
 session, proxy, or serialization behavior.
 
-## Phase 0 evidence
+## Historical Phase 0 evidence
 
-Phase 0 runs no PHP tests because no application exists. Its required checks
-are:
+Phase 0 ran no PHP tests because the application did not yet exist. Its required
+checks were:
 
 - current-tree high-confidence secret scan;
 - full reachable-history high-confidence secret scan;
@@ -62,4 +90,6 @@ are:
   (none), and manual actions.
 
 See [phase-0-report.md](phase-0-report.md) for the executed command outcomes and
-scanner limitations.
+scanner limitations. Phase 1 replaced those fallback expressions with the
+pinned scanner and executable platform tests recorded in
+[phase-1-report.md](phase-1-report.md).

@@ -1,10 +1,32 @@
 # Security model
 
-**Status:** Phase 0 design lock
+**Status:** Phase 1 controls plus locked product design.
 
 Security controls are default-deny and layered. A UI-hidden action is not a
 security boundary; every protected invariant is checked at the route,
 application-service, persistence, and operational boundary appropriate to it.
+
+## Implemented Phase 1 controls
+
+- Symfony Dotenv loading is disabled; runtime values are supplied externally,
+  while `.env.example` contains placeholders only.
+- Development Compose exposes the application and Mailpit UI on loopback and
+  does not publish MariaDB.
+- Test kernel construction accepts only credential-free Mailpit on port 1025
+  via the Compose alias or loopback; CI also repeats tests on an internal
+  network with an external-socket negative probe.
+- Logs are structured JSON and use a central redaction processor. Exception
+  messages are replaced, sensitive-key values and unsafe objects are removed,
+  and address/credential/control-character patterns are sanitized.
+- The only public route is fixed coarse liveness. It creates no session and
+  discloses no version, database, migration, key, queue, worker, or transport
+  state.
+- Locked dependencies, maximum-level static checks, current/full-history
+  secret/private-data scans, and an allowlisted artifact are blocking gates.
+
+These controls do not imply setup completion or sending readiness. No identity,
+secret-encryption, suppression, campaign, worker, or production mail feature is
+present.
 
 ## Fail-closed states
 

@@ -1,0 +1,17 @@
+includes:
+    - vendor/phpstan/phpstan-doctrine/extension.neon
+    - vendor/phpstan/phpstan-strict-rules/rules.neon
+    - vendor/phpstan/phpstan-symfony/extension.neon
+
+parameters:
+    level: max
+    paths:
+        - migrations
+        - src
+        - tests
+    excludePaths:
+        analyse:
+            - config/reference.php
+    tmpDir: var/cache/phpstan
+    reportUnmatchedIgnoredErrors: true
+    treatPhpDocTypesAsCertain: true

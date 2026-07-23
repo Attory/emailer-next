@@ -1,6 +1,6 @@
 # Delivery worker
 
-**Status:** Phase 0 design; implementation is Phase 6.
+**Status:** Design only; implementation is Phase 6.
 
 The worker is a CLI-only Symfony Messenger consumer. No HTTP endpoint can start
 delivery. Campaign state survives browser closure and process restart because
@@ -20,7 +20,7 @@ A long-running worker under systemd or Supervisor:
 - never exposes credentials in command line, environment diagnostics, or logs.
 
 Phase 6 will provide reviewed unit files/configurations and tested commands.
-None exists in Phase 0.
+None exists through Phase 1.
 
 ## Restricted cron profile
 

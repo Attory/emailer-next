@@ -1,6 +1,11 @@
 # Initial data model
 
-**Status:** Phase 0 conceptual design; no schema or migration exists
+**Status:** Conceptual product design; Phase 1 has no business schema.
+
+The only current migration is
+`DoctrineMigrations\Version20260723000000`. It executes a MariaDB `SELECT 1`
+smoke check and creates no business table; Doctrine creates only its migration
+metadata table. Every entity below remains planned for its owning later phase.
 
 **Identifier policy:** UUIDv7 internally where ordering helps; random opaque
 identifiers or token handles externally

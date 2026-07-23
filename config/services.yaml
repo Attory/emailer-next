@@ -1,0 +1,13 @@
+parameters:
+
+services:
+    _defaults:
+        autowire: true
+        autoconfigure: true
+
+    App\:
+        resource: '../src/'
+
+    App\Infrastructure\Logging\RedactionProcessor:
+        tags:
+            - { name: monolog.processor }

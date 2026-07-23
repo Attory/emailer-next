@@ -1,0 +1,3 @@
+health:
+    resource: ../src/Module/Health/Presentation/Http/
+    type: attribute

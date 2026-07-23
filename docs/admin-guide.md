@@ -1,6 +1,6 @@
 # Administrator guide
 
-**Status:** Product behavior baseline; no administrative UI exists in Phase 0.
+**Status:** Product behavior baseline; no administrative UI exists in Phase 1.
 
 Emailer Next has one organisation per installation and individual
 administrator accounts. There is no self-registration, shared global password,

@@ -1,6 +1,6 @@
 # Threat model
 
-**Status:** Phase 0 baseline
+**Status:** Phase 1 reviewed baseline.
 
 **Method:** Asset/trust-boundary review with STRIDE-style misuse cases and
 privacy-abuse review
@@ -125,6 +125,23 @@ message does not prove inbox delivery.
   re-enable delivery.
 - Diagnostics, Doctor exports, screenshots, test snapshots, and incident
   bundles exclude raw recipient data and message bodies by default.
+
+## Phase 1 control status
+
+Phase 1 supplies the first controls for the threats assigned to it:
+
+| Threat | Implemented evidence | Remaining work |
+| --- | --- | --- |
+| TM-03 | Only `public/index.php` is a web entry point; an allowlisted production-shaped artifact is inspected and probed for forbidden paths | Representative Nginx/Apache profiles and Doctor boundary checks remain Phases 8–9 |
+| TM-16 | JSON logging and a central processor redact sensitive keys, exception messages, address-like values, credential assignments, DSN user information, and controls | Identifier-only queue payloads and feature-specific safe exception mapping arrive with their owning phases |
+| TM-21 | Placeholder configuration, pinned Gitleaks current/full-history scans, private-key/private-data checks, artifact scanning, and no-value output | Every later phase must retain and extend these gates |
+| TM-22 | Test kernel Mailpit allowlist, negative DSN tests, loopback Mailpit integration, and CI internal-network egress denial | Delivery-specific fake-provider tests arrive in Phase 6 |
+| TM-23 | Locked dependencies, strict validation/audit, pinned build tools, static/tests, and allowlisted artifact | SBOM/checksum and release acceptance remain Phase 9 |
+| TM-25 | Public liveness returns only fixed coarse JSON without a session | Authenticated Doctor is Phase 8 |
+
+The scaffold contains no business send command, queue message, worker, or
+arbitrary-send HTTP route. The Mailpit integration uses only reserved synthetic
+addresses.
 
 ## Residual risks and non-guarantees
 

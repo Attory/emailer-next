@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-07-23
 - **Decision owners:** Emailer Next maintainers
-- **Related phase:** 0
+- **Related phases:** 0–1
 
 ## Context
 
@@ -26,6 +26,10 @@ transport.
 Use database constraints for unique/integrity invariants and transactional
 state transitions where supported. Store UTC timestamps. Do not use SQLite as a
 production or concurrency-equivalent test substitute.
+
+Phase 1 resolves the initial test matrix to MariaDB 10.11.18 and 11.8.8. The
+local default is 10.11.18; CI runs Doctrine boot, connection, migration, and
+mapping checks on both branches.
 
 ## Consequences
 
@@ -52,8 +56,10 @@ ledger failures.
 
 ## Validation
 
-CI runs migrations and integration/concurrency tests against the supported
-MariaDB matrix. Doctor checks connectivity, version, pending migrations,
-constraints/indexes, suppression integrity, backup age, and restore evidence.
+CI runs migrations and available integration tests against the supported
+MariaDB matrix. Phase 1 has only the no-schema platform baseline migration;
+feature concurrency tests arrive with their owning phases. Doctor will check
+connectivity, version, pending migrations, constraints/indexes, suppression
+integrity, backup age, and restore evidence.
 
 Reference: https://mariadb.org/about/#maintenance-policy

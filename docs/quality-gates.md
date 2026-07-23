@@ -1,10 +1,60 @@
 # CI and quality gates
 
-**Status:** Phase 0 design; CI implementation begins in Phase 1
+**Status:** Phase 1 implemented baseline.
 
-One aggregate command, `composer check`, will run the complete local quality
-pipeline once Composer exists. CI invokes the same version-pinned commands
-rather than maintaining a second policy.
+One aggregate command, `composer check`, runs every executable Phase 1 quality
+gate. CI invokes the same version-pinned commands rather than maintaining a
+second policy.
+
+## Phase 1 commands and CI
+
+The safe container path performs a clean lockfile install before the aggregate
+gate:
+
+```bash
+./bin/bootstrap
+```
+
+With MariaDB and Mailpit already running, the aggregate command is:
+
+```bash
+docker compose run --rm app composer check
+```
+
+It runs, in order:
+
+1. `composer validate --strict` and
+   `composer audit --locked --abandoned=fail`;
+2. PHP-CS-Fixer in check mode;
+3. maximum-level PHPStan, Deptrac, and the project module-boundary check;
+4. shell syntax checks;
+5. PHPUnit, including the MariaDB and Mailpit integration tests;
+6. Doctrine migration execution/up-to-date status and mapping validation;
+7. production-artifact build, current/reachable-history secret scans,
+   private-data scans, artifact inspection, and loopback exposure probes.
+
+The GitHub Actions workflow builds from the Dockerfile and tests:
+
+| PHP | MariaDB |
+| --- | --- |
+| 8.4.23 | 10.11.18 |
+| 8.4.23 | 11.8.8 |
+| 8.5.8 | 10.11.18 |
+
+It checks out full history without persisting credentials, starts only MariaDB
+and Mailpit, runs the aggregate gate, then repeats PHPUnit on an internal Docker
+network after proving a connection to `192.0.2.1:25` is impossible. CI has no
+release or deployment step.
+
+Gitleaks 8.30.1 is checksum-pinned. It scans all reachable commits and the
+current directory, including ignored/untracked dependencies, artifacts, and
+generated logs. Reproducible framework/static-analysis caches are removed
+before the directory scan to avoid duplicate third-party source. The
+line-specific `.gitleaksignore` entries are reviewed dependency false positives;
+no directory is blanket-allowlisted. The private-data check scans project-owned
+source/history and generated output, permits only reserved example domains, and
+does not classify public upstream author metadata in Composer lockfiles as
+application recipient data.
 
 ## Stable gate order
 
@@ -28,7 +78,9 @@ release.
 
 ## Phase 0 checks
 
-Phase 0 has no runtime or dependencies. The following read-only scans cover the
+The following commands are retained as historical Phase 0 evidence.
+
+Phase 0 had no runtime or dependencies. The following read-only scans covered the
 working tree, including ignored/untracked files except `.git`, and every
 reachable commit. They print file names only on a finding, never matched
 content.
@@ -144,33 +196,38 @@ git fsck --full --strict --no-reflogs --unreachable
 git diff --check
 ```
 
-These high-confidence expressions are a transparent Phase 0 fallback because
-no scanner dependency is present yet. They do not replace provenance review or
-manual diff review. Phase 1 must pin a maintained secret scanner, scan generic
-credential assignments and entropy safely, prevent secret values from being
-printed, and retain full reachable-history coverage. Scanner configuration may
-allowlist exact synthetic placeholders, never broad directories.
+These high-confidence expressions were the transparent Phase 0 fallback before
+a scanner dependency existed. They do not replace provenance review or manual
+diff review. Phase 1 supersedes them with the pinned scan described above while
+retaining full reachable-history coverage.
 
 ## Test environment isolation
 
-Phase 1 must make Mailpit the only permitted SMTP target in development/CI and
-add a negative test proving arbitrary hosts cannot be contacted. CI should
-enforce egress denial or a narrow allowlist at the job/network layer in
-addition to application configuration. Test recipient rewriting is not a
-substitute for network isolation.
+The test kernel validates `MAILER_DSN` before framework boot. It accepts only
+credential-free `smtp` to the Compose `mailpit` alias or an IP loopback address,
+always on port 1025 and without options/path/fragment. Unit tests reject all
+other shapes. CI adds the internal-network egress control described above.
+Development Compose defaults to Mailpit and binds its UI to loopback.
 
-CI uses synthetic, reserved-domain data only. Logs and snapshots are scanned
-after tests even when tests fail. Secret environment values are masked and
-never echoed for diagnostics.
+CI uses synthetic, reserved-domain data only. The quality gate scans generated
+logs and artifacts without printing matched values. No production hostname,
+credential, or recipient is present.
 
 ## Artifact policy
 
-The production artifact is assembled from an explicit runtime allowlist. It
-excludes at minimum `.git`, local environment files, documentation not needed
-at runtime, prompts, tests, CI files, caches, logs, sessions, temporary uploads,
-fixtures, backups, exports, development dependencies/tools, and the master key.
-An exposure test starts representative Nginx and Apache configurations and
-probes prohibited paths before artifact acceptance.
+The production-shaped artifact is assembled from
+`tools/artifact/allowlist.txt`, installs locked production dependencies only,
+compiles AssetMapper assets, and removes dependency documentation/tests. It
+excludes `.git`, local environment files, project documentation, prompts, tests,
+CI files, caches, logs, sessions, uploads, fixtures, backups, exports,
+development dependencies/tools, and key material.
+
+Phase 1 inspection compares the exact top-level allowlist, scans content,
+rejects extra PHP entry points and public symlinks, starts the artifact on a
+loopback PHP server, verifies the exact liveness body, and probes prohibited
+paths for 404 responses. Representative Nginx and Apache profiles, checksum,
+SBOM, and release-candidate production verification remain later release
+hardening; the Phase 1 artifact is not published or deployed.
 
 ## Gate ownership and exceptions
 

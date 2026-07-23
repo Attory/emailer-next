@@ -1,0 +1,12 @@
+assets
+bin
+composer.json
+composer.lock
+config
+importmap.php
+migrations
+public
+src
+symfony.lock
+templates
+vendor
