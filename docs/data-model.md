@@ -1,0 +1,105 @@
+# Initial data model
+
+**Status:** Phase 0 conceptual design; no schema or migration exists
+
+**Identifier policy:** UUIDv7 internally where ordering helps; random opaque
+identifiers or token handles externally
+
+There is exactly one organisation-settings record per installation. No entity
+has `tenant_id`, an organisation discriminator, or tenant-switching state.
+Database constraints enforce invariants in addition to application services.
+
+## Relationship overview
+
+```mermaid
+erDiagram
+    User ||--o{ MfaCredential : owns
+    User ||--o{ UserSession : owns
+    User ||--o{ AuditEvent : acts_in
+    EncryptedSecret ||--o{ SenderIdentity : secures
+    Contact ||--o{ ContactAttribute : has
+    Contact ||--o{ ListMembership : joins
+    ContactList ||--o{ ListMembership : contains
+    Contact ||--o{ Suppression : identifies
+    Template ||--o{ TemplateVersion : versions
+    TemplateVersion ||--o{ Campaign : selected_by
+    Campaign ||--|| CampaignAudienceSnapshot : freezes
+    Campaign ||--o{ CampaignRecipient : includes
+    Contact ||--o{ CampaignRecipient : references
+    CampaignRecipient ||--o{ DeliveryAttempt : attempts
+    CampaignRecipient ||--o{ RecipientToken : authorizes
+    CampaignRecipient ||--o{ TrackingEvent : produces
+    Campaign ||--o{ TrackingEvent : groups
+    Campaign ||--o{ AuditEvent : audited_by
+    BackupRecord ||--o{ AuditEvent : audited_by
+```
+
+The diagram shows logical associations. Security-sensitive relationships may
+store a keyed comparison digest or opaque reference rather than reusable raw
+values.
+
+## Entity ownership and invariants
+
+| Entity | Module | Key fields and invariants |
+| --- | --- | --- |
+| `User` | Identity | UUIDv7; unique normalized login; Argon2id hash; role enum; active state; at least one active Owner globally |
+| `MfaCredential` | Identity | User FK; encrypted TOTP seed reference or hashed single-use recovery code; type and lifecycle timestamps; never plaintext recovery material |
+| `UserSession` | Identity | Hashed session identifier, user FK, idle/absolute expiry, revocation and safe source metadata |
+| `OrganisationSettings` | Configuration | Singleton installation row; installation UUID, display name, canonical base URL, locale and time zone; no tenant key |
+| `EncryptedSecret` | Secrets | UUIDv7; record type; versioned ciphertext, nonce, key version and AAD schema version; creation/rotation timestamps; no plaintext |
+| `SenderIdentity` | Configuration | Verified address metadata, display name, reply-to, active transport type, encrypted-secret reference; one active primary transport in version 1 |
+| `Contact` | Contacts | UUIDv7; entered address when policy permits, conservative comparison value, names, locale/time zone, status, consent/source and lifecycle timestamps |
+| `ContactAttribute` | Contacts | Contact FK plus approved schema key; bounded typed value; unique per contact/key |
+| `ContactList` | Contacts | UUIDv7; unique name under the one installation; archived state |
+| `ListMembership` | Contacts | Contact/list FKs; unique pair; source and timestamps |
+| `Suppression` | Suppression | UUIDv7; stable keyed address comparison, reason/source and timestamps; idempotent uniqueness; retained independently of analytics |
+| `Template` | Templates | UUIDv7; metadata, draft/published/archived state; no mutable content referenced by a campaign |
+| `TemplateVersion` | Templates | Template FK and immutable version; subject, preheader, sanitized HTML, text, merge schema, link manifest, content digest; unique template/version |
+| `Campaign` | Campaigns | UUIDv7; immutable selected template-version FK after approval; state and UTC schedule; sender/config snapshots; valid transitions only |
+| `CampaignAudienceSnapshot` | Campaigns | Campaign-unique snapshot metadata, selection criteria digest, included/excluded counts and creation time |
+| `CampaignRecipient` | Delivery | Campaign/contact FKs; template snapshot; deterministic Message-ID; state, attempt count, next attempt, accepted time, classified error and provider reference; unique campaign/contact |
+| `DeliveryAttempt` | Delivery | Ledger FK, sequence, timestamps, classification and redacted diagnostics; unique ledger/sequence; no credentials or rendered body |
+| `RecipientToken` | RecipientActions | Random token handle digest or authenticated-envelope reference, recipient/campaign scope, purpose, issue/expiry, key version and consumption policy; never raw address |
+| `TrackingEvent` | Analytics | Opaque recipient/campaign references, event type and UTC time, minimized/redacted request metadata; policy-controlled retention |
+| `AuditEvent` | Audit | Append-only UUIDv7, actor or system identity, action, opaque target, UTC time, redacted source/result/change summary; no update/delete UI |
+| `HealthCheckResult` | Health | Check key, severity, redacted evidence/remediation, sending-block flag and observation timestamps |
+| `BackupRecord` | Backup | UUIDv7, format/application/migration versions, encrypted artifact reference, manifest digest, verification and restore-drill timestamps; no master key |
+
+Additional workflow records such as import jobs, password-reset tokens, campaign
+list selections, RSVP submissions, rate-limit buckets, worker heartbeats, and
+release manifests may be introduced in their owning phase. They must follow the
+same identifier, classification, retention, and ownership rules and be added to
+this document before their migration is accepted.
+
+## Transaction and constraint design
+
+- Every unique business invariant is represented by a database constraint when
+  MariaDB can enforce it.
+- Audience snapshot and campaign-recipient creation are idempotent and
+  transactional.
+- A delivery claim uses a conditional state transition or database lock; the
+  worker never treats queue possession alone as authority to send.
+- Suppression writes are idempotent. A delivery rechecks suppression after a
+  claim and immediately before transport.
+- Secret rotation re-encrypts records transactionally and rolls back the whole
+  operation on any authentication or write failure.
+- Audit append failure follows a defined fail-closed policy for sensitive
+  mutations; this policy must be finalized before Phase 4.
+- Timestamps are stored in UTC. Installation time zone is presentation and
+  scheduling input only.
+- Soft deletion/archive is used where history, audit, campaign snapshots, or
+  suppression retention prohibits physical deletion.
+
+## Data classification
+
+| Class | Examples | Storage and exposure rule |
+| --- | --- | --- |
+| Secret | Master key, SMTP credential, TOTP seed | External restrictive file or authenticated ciphertext only; never logs/URLs/queue |
+| Restricted personal | Full address, contact attributes, RSVP values | MariaDB/private storage; role checked; masked in ordinary operations |
+| Internal | Campaign names, counts, health evidence, audit metadata | Authenticated access; redact exports and logs as needed |
+| Public-token data | Unsubscribe/view/tracking token | Opaque in URL; purpose scoped; no embedded raw address |
+| Public | Static application assets, coarse liveness state | Explicit allowlist under `public/` |
+
+Schema names, indexes, column lengths, and MariaDB collation remain migration
+decisions for the phase that owns each entity. They may not weaken these
+relations or invariants.
