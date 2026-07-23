@@ -3,7 +3,7 @@
 **Status:** Approved development baseline  
 **Product model:** One installation, one organisation, one server  
 **Development workspace name:** `emailer-next`  
-**Intended final repository:** `Attory/emailer` after the compromised repository is deleted  
+**Intended final repository:** `Attory/emailer-next` after the compromised repository is deleted  
 **Clean-room rule:** The legacy Emailer repository is reference-only. No source file, Git object, dependency bundle, template, secret, private record, or executable code may be copied from it.
 
 ---

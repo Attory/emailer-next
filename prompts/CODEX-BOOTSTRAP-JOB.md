@@ -1,6 +1,6 @@
 # Mitek → Codex master bootstrap job
 
-Use this prompt only in a **new, empty, clean-room workspace** named `emailer-next`. The intended final GitHub repository is `Attory/emailer` after the compromised repository has been deleted.
+Use this prompt only in a **new, empty, clean-room workspace** named `emailer-next`. The intended final GitHub repository is `Attory/emailer-next` after the compromised repository has been deleted.
 
 ```text
 Create the clean-room foundation for Emailer Next.
