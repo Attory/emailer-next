@@ -121,7 +121,7 @@
         "check:style": "php-cs-fixer --using-cache=no fix --dry-run --diff",
         "check:static": [
             "phpstan analyse --memory-limit=512M",
-            "deptrac analyse --no-progress",
+            "deptrac analyse --no-progress --cache-file=var/cache/deptrac.cache",
             "@php tools/quality/check-module-boundaries.php"
         ],
         "test": "phpunit",
