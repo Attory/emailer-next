@@ -45,6 +45,9 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Prepare writable generated-output directories
+        run: sudo install -d -o 1000 -g 1000 -m 0755 build .cache
+
       - name: Build locked PHP application image
         run: docker compose build --pull app
 
