@@ -118,7 +118,7 @@
             "@composer validate --strict",
             "@composer audit --locked --abandoned=fail"
         ],
-        "check:style": "php-cs-fixer check --diff --verbose",
+        "check:style": "php-cs-fixer --using-cache=no fix --dry-run --diff",
         "check:static": [
             "phpstan analyse --memory-limit=512M",
             "deptrac analyse --no-progress",

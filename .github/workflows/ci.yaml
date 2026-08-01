@@ -59,12 +59,7 @@ jobs:
           '
 
       - name: Run aggregate Phase 1 checks
-        run: |
-          docker compose run --rm app sh -euc '
-            composer check:composer
-            composer check:style -- --using-cache=no
-            COMPOSER_SKIP_SCRIPTS=check:composer,check:style composer check
-          '
+        run: docker compose run --rm app composer check
 
       - name: Repeat test suite with external egress disabled
         run: bash tools/ci/run-network-isolated-tests.sh
