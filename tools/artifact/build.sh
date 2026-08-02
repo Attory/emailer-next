@@ -61,15 +61,20 @@ done < <(
         -prune -print0
 )
 
-APP_ENV=prod \
-APP_DEBUG=0 \
-APP_SECRET=phase1-artifact-only \
-DATABASE_URL='mysql://emailer:local-only@database:3306/emailer_test?serverVersion=10.11.18-MariaDB&charset=utf8mb4' \
-DEFAULT_URI='https://emailer.example.test' \
-EMAILER_PRIVATE_DIR="$runtime_root" \
-LOCK_DSN=flock \
-MAILER_DSN='smtp://mailpit:1025' \
-MESSENGER_TRANSPORT_DSN='doctrine://default' \
-php "$artifact_root/bin/console" asset-map:compile --no-debug --env=prod
+run_artifact_console() {
+    APP_ENV=prod \
+    APP_DEBUG=0 \
+    APP_SECRET=phase1-artifact-only \
+    LOCK_DSN=flock \
+    MAILER_DSN='smtp://mailpit:1025' \
+    MESSENGER_TRANSPORT_DSN='in-memory://' \
+    DATABASE_URL='mysql://emailer:local-only@database:3306/emailer_test?serverVersion=10.11.18-MariaDB&charset=utf8mb4' \
+    DEFAULT_URI='https://emailer.example.test' \
+    EMAILER_PRIVATE_DIR="$runtime_root" \
+    php "$artifact_root/bin/console" "$@"
+}
+
+run_artifact_console importmap:install --no-debug --env=prod --no-interaction
+run_artifact_console asset-map:compile --no-debug --env=prod
 
 composer --working-dir="$artifact_root" check-platform-reqs --no-dev
