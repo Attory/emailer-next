@@ -21,9 +21,9 @@ trap cleanup EXIT
 
 database_id="$(docker compose ps --quiet database)"
 mailpit_id="$(docker compose ps --quiet mailpit)"
-app_image="$(docker compose config --images app)"
+app_image="${COMPOSE_PROJECT_NAME:-emailer-next}-app"
 
-if [ -z "$database_id" ] || [ -z "$mailpit_id" ] || [ -z "$app_image" ]; then
+if [ -z "$database_id" ] || [ -z "$mailpit_id" ] || ! docker image inspect "$app_image" >/dev/null 2>&1; then
     printf 'The Compose services and application image must exist before isolation testing.\n' >&2
     exit 1
 fi
