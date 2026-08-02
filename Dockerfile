@@ -17,6 +17,7 @@ RUN apt-get update \
         libicu-dev \
         libonig-dev \
         libzip-dev \
+        ripgrep \
         unzip \
     && docker-php-ext-install -j2 curl intl mbstring pdo_mysql zip \
     && curl --fail --silent --show-error --location \
