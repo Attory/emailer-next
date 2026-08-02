@@ -1,6 +1,7 @@
 # Planned route and command inventory
 
-**Status:** Phase 0 design inventory; no route or command is implemented
+**Status:** Phase 1 implementation inventory. Only coarse liveness is
+implemented; every other route and command below remains planned.
 
 This inventory is the security review baseline. Every implemented route must be
 added here with method, authentication boundary, authorization rule, CSRF
@@ -12,7 +13,7 @@ CSRF unless it is a purpose-scoped public recipient action.
 
 | Method and path | Purpose | Authority | Mutation / special policy | Phase |
 | --- | --- | --- | --- | --- |
-| `GET /health/live` | Coarse process liveness only | Public | No detail, no session cookie, short fixed response | 1 |
+| `GET|HEAD /health/live` | Coarse process liveness only | Public | No detail, no session cookie, short fixed response | 1 |
 | `GET /setup` | Show setup-required state and ownership instructions | Public only while unlocked | Rate limited; exact proof path is the only disclosed path | 2 |
 | `POST /setup/proof/verify` | Read and verify fixed proof file | Setup session | CSRF, rate limit, generic failure, never accepts code in request | 2 |
 | `GET /setup/preflight` | Safe system preflight | Verified setup session | HTTPS gate before any secret field | 2 |
@@ -36,6 +37,14 @@ CSRF unless it is a purpose-scoped public recipient action.
 After installation lock, every `/setup` path returns 404. Public recipient
 responses never reveal a raw address, internal identifier, stack trace, secret,
 or filesystem path.
+
+### Implemented Phase 1 route
+
+`health_live` accepts only `GET` and `HEAD` at `/health/live`. `GET` returns
+HTTP 200 with the exact JSON body `{"status":"ok"}`, JSON content type,
+`Cache-Control: no-store`, and no session cookie. `HEAD` returns HTTP 200 with
+no body. It deliberately does not inspect or disclose database, migrations,
+configuration, keys, Mailpit, worker, queue, or version state.
 
 ## Authenticated administration surface
 

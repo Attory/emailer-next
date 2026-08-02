@@ -1,6 +1,6 @@
 # Privacy and retention
 
-**Status:** Phase 0 policy architecture; concrete periods require operator
+**Status:** Policy architecture only; concrete periods require operator
 approval in Phases 7–8.
 
 Emailer Next minimizes data to the approved sending, suppression, response,

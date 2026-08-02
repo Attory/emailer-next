@@ -1,6 +1,6 @@
 # Architecture
 
-**Status:** Phase 0 design lock
+**Status:** Phase 1 platform baseline plus locked product design.
 
 **Last reviewed:** 2026-07-23
 
@@ -17,6 +17,25 @@ AssetMapper, and small Stimulus controllers provide the server-rendered
 administrative UI. A supervised CLI worker performs delivery through Symfony
 Messenger; an HTTP request can enqueue approved durable work but can never run
 the delivery worker.
+
+## Implemented Phase 1 baseline
+
+The repository currently implements only the platform shell:
+
+- a final Symfony kernel with externally supplied runtime configuration;
+- Doctrine DBAL/ORM and Migrations configured for MariaDB, without business
+  entities or schema;
+- Mailer, Doctrine Messenger transports, Security, Twig, AssetMapper/Stimulus,
+  Validator, RateLimiter, Lock, and Monolog framework wiring;
+- central structured JSON log processing with conservative redaction;
+- the `Health` module's coarse liveness controller;
+- Docker Compose application, MariaDB, and Mailpit services;
+- CI, static architecture enforcement, isolated mail tests, and an allowlisted
+  production-shaped artifact.
+
+No setup/identity/content/campaign/delivery flow described below is implemented
+yet. Messenger has no business routing or messages, and there is no path that
+performs production sending.
 
 ```mermaid
 flowchart LR
@@ -144,11 +163,12 @@ Doctor must identify the selected profile, verify heartbeats, and block new
 production sends when its required execution mechanism is unavailable.
 
 Releases are immutable artifacts built from committed source and the lockfile.
-Writable state is external to the release. Deployment, release, and rollback
-remain explicit operator actions and are not implemented in Phase 0.
+Writable state is external to the release. Phase 1 tests the artifact boundary
+but does not create a release. Deployment, release, and rollback remain explicit
+operator actions and are not implemented.
 
 ## Decision records
 
-The design is governed by accepted ADRs `0001` through `0009` in
+The design is governed by accepted ADRs `0001` through `0010` in
 [docs/adr](adr/). A change to an invariant requires a superseding ADR, updated
 threat model, route/data review where relevant, and passing quality gates.

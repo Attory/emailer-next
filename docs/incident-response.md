@@ -1,6 +1,6 @@
 # Incident response
 
-**Status:** Phase 0 baseline; deployment-specific contacts and authority remain
+**Status:** Phase 1 baseline; deployment-specific contacts and authority remain
 operator-controlled outside this repository.
 
 ## Priorities

@@ -1,67 +1,95 @@
 # Installation
 
-**Status:** Design baseline only. Phase 0 is not installable.
+**Status:** Phase 1 local-development bootstrap only. Production installation is
+not implemented.
 
-There is no `composer.json`, framework runtime, container stack, console, web
-entry point, or database migration in Phase 0. Do not point a web server at this
-repository or attempt production setup. Phase 1 will add and test local
-bootstrap instructions; Phases 2 and 3 will add first-run installation.
+Phase 1 can create a safe local Symfony/MariaDB/Mailpit platform. It cannot
+create an Emailer installation, Owner, transport credential, contacts,
+templates, or campaigns, and it cannot send production mail. Phases 2 and 3 own
+the first-run installation flow.
 
-## Target prerequisites
+## Tested platform matrix
 
-- Supported Linux host.
-- PHP 8.4 or a newer project-tested supported branch with the extensions in the
-  master specification.
-- Composer 2 for build/install, with a committed lockfile.
-- MariaDB 10.11 or a newer project-tested supported release.
-- Nginx or Apache with TLS; document root exactly `public/`.
-- A supervised CLI process via systemd or Supervisor, or the documented
-  restricted cron fallback.
-- A CLI scheduler.
-- Private data directory outside `public/`, preferably outside the release.
-- External master-key path outside `public/`, preferably under `/etc`, owned by
-  the application operator and not Git.
+The Phase 1 CI matrix is:
 
-The exact compatibility matrix is resolved in Phase 1 and checked by the
-Configuration Doctor in Phase 8.
+| Component | Tested versions |
+| --- | --- |
+| PHP | 8.4.23 and 8.5.8 |
+| Symfony | locked 7.4 LTS packages (core 7.4.14 at Phase 1 completion) |
+| MariaDB | 10.11.18 and 11.8.8 |
+| Composer | 2.10.2 |
+| Mailpit | 1.30.5 |
 
-## Target production layout
+PHP 8.4 is the minimum. A newer PHP or MariaDB branch is not supported merely
+because it can start; it must be added to and pass the matrix. See
+[ADR 0002](adr/0002-php-84-and-symfony-74-lts.md),
+[ADR 0003](adr/0003-mariadb-primary-store.md), and
+[ADR 0010](adr/0010-phase-1-toolchain-and-test-isolation.md).
 
-```text
-/srv/emailer/releases/<version>/   immutable application release
-/srv/emailer/current               operator-managed release pointer
-/srv/emailer-private/              uploads, exports, backups, setup/private state
-/etc/emailer/master.key            external master key
+## Safe local bootstrap
+
+Prerequisites:
+
+- a supported Linux Docker host;
+- Docker Engine with the Compose plugin;
+- `curl` for the final loopback liveness check;
+- no local environment file, production credential, or recipient data.
+
+Run:
+
+```bash
+./bin/bootstrap
 ```
 
-These are examples, not commands and not mandatory literal paths. Only the
-release's `public/` subdirectory is web-served. The web process must not write
-application source or Git metadata.
+The command:
 
-## Installation safety gates
+1. builds the application image from the pinned PHP patch and Composer image;
+2. verifies and installs the pinned Gitleaks binary;
+3. starts the pinned MariaDB and Mailpit services;
+4. refreshes the dependency volume from a clean `composer.lock` install;
+5. runs the complete `composer check` pipeline and baseline migration;
+6. starts the application and verifies the exact coarse liveness response.
 
-Before setup can collect a password or secret, the implementation must verify:
+On success, the scaffold is available only on
+`http://127.0.0.1:8080`; Mailpit's UI is only on
+`http://127.0.0.1:8025`. MariaDB has no host port. The Compose database
+passwords and application secret are fixed, obvious local-only placeholders.
+They are not suitable for production.
 
-- supported runtime and required extensions;
-- `public/` document-root boundary;
-- TLS and explicit trusted-proxy handling;
-- safe ownership/modes for private and key directories;
-- MariaDB driver/connectivity;
-- writable cache/private locations;
-- worker/scheduler capability;
-- fake-only mail configuration in development/test.
+Stop containers while preserving the local test database:
 
-Real database or mail credentials are entered only into operator-controlled
-runtime configuration or the HTTPS/CLI setup flow once implemented. They never
-belong in `.env.example`, documentation, prompts, screenshots, Git, CI output,
-or issue text.
+```bash
+docker compose down
+```
 
-## Completion criteria
+Deleting Compose volumes irreversibly discards local test state and is not part
+of bootstrap.
 
-Installation is complete only after ownership proof, migrations, external key,
-individual Owner, encrypted transport configuration, privacy/delivery policy,
-worker/scheduler check, final critical Doctor pass, and private installation
-lock. Until then, normal routes and delivery remain unavailable.
+## Configuration boundary
 
-See [first-run-setup.md](first-run-setup.md) for the designed sequence. No
-installation manual action is available or required in Phase 0.
+`.env.example` is a placeholder schema, not a credential store. Symfony Dotenv
+loading is disabled; Compose/CI pass runtime values explicitly. A non-container
+operator must likewise provide values through an external runtime mechanism and
+must not copy real secrets into this repository.
+
+In `APP_ENV=test`, kernel construction rejects every mail transport except
+credential-free Mailpit on port 1025 using the `mailpit` service name or a
+loopback address. Development Compose also defaults to Mailpit. No test or
+bootstrap step contacts live SMTP.
+
+## Phase 1 migration
+
+`DoctrineMigrations\Version20260723000000` is the platform baseline. It executes
+`SELECT 1` in both directions to prove MariaDB migration wiring and creates no
+business table. Doctrine itself creates its migration-version metadata table
+when migrations run. No manual production migration is authorized in Phase 1.
+
+## Future production prerequisites
+
+The target remains PHP-FPM behind Nginx or Apache with TLS and document root
+exactly `public/`, MariaDB, external private storage, an external restrictive
+master-key path, a supervised CLI worker or documented cron fallback, and a CLI
+scheduler. Those operational profiles, ownership proof, key creation, runtime
+credentials, and Configuration Doctor gates are not implemented by Phase 1.
+
+See [first-run-setup.md](first-run-setup.md) for the designed later sequence.

@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-07-23
 - **Decision owners:** Emailer Next maintainers
-- **Related phase:** 0
+- **Related phases:** 0–1
 
 ## Context
 
@@ -48,3 +48,9 @@ exclusions remain necessary defense in depth.
 Functional/deployment tests request `.git`, `.env`, config, dependency, log,
 backup, JSON, private, setup, and key paths through representative Nginx and
 Apache profiles. Doctor checks the resolved document root and storage paths.
+
+Phase 1 supplies the first layer: the artifact contains only
+`public/index.php` as a PHP web entry point, rejects public symlinks, starts with
+`public/` as the loopback document root, and probes representative forbidden
+paths for 404 responses. Representative Nginx/Apache profiles and Doctor checks
+remain later acceptance work.

@@ -3,7 +3,7 @@
 - **Status:** Accepted
 - **Date:** 2026-07-23
 - **Decision owners:** Emailer Next maintainers
-- **Related phase:** 0
+- **Related phases:** 0–1
 
 ## Context
 
@@ -23,8 +23,10 @@ by the project test matrix. Use Symfony 7.4 LTS and pin packages to a supported
 patch through `composer.lock`. Do not float to Symfony's latest feature branch
 or unbounded dependency versions.
 
-Phase 1 selects the exact supported PHP matrix and Symfony patch after repeating
-the official support check.
+Phase 1 resolves the initial matrix to PHP 8.4.23 and 8.5.8. Composer requires
+`>=8.4 <8.6`, and CI runs the aggregate platform gate on both branches. Symfony
+components remain constrained to `7.4.*`; the Phase 1 lockfile resolves the core
+framework to 7.4.14.
 
 ## Consequences
 
@@ -51,8 +53,9 @@ packages and modes remain absent from production artifacts/configuration.
 ## Validation
 
 CI tests every declared PHP branch, validates the lockfile, runs dependency
-audit/static analysis/tests, and rejects unsupported versions. Configuration
-Doctor reports runtime/framework support and patch status.
+audit/static analysis/tests, and rejects unsupported versions. The initial
+Phase 1 matrix covers PHP 8.4.23 and 8.5.8. Configuration Doctor will report
+runtime/framework support and patch status when implemented.
 
 References:
 

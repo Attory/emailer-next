@@ -1,6 +1,6 @@
 # Development
 
-**Status:** Phase 0 process baseline; reproducible runtime setup is Phase 1.
+**Status:** Phase 1 executable platform baseline.
 
 ## Clean-room rule
 
@@ -17,9 +17,11 @@ CI output, or build artifacts.
 
 ## Current state
 
-Phase 0 has documentation and repository policy only. There is no Composer
-project or runnable test suite. Do not scaffold Symfony until a separately
-approved Phase 1 job.
+Phase 1 provides Symfony 7.4, a locked Composer project, Docker Compose services
+for the application/MariaDB/Mailpit, executable quality gates, coarse liveness,
+structured redaction, and an inspected production-shaped artifact. It has no
+setup, authentication, contacts, templates, campaigns, delivery worker, or
+production sending.
 
 ## Phase workflow
 
@@ -58,5 +60,38 @@ production service, rotate a provider credential, or change DNS/account state.
 or runtime configuration. Production values never belong in a developer
 workspace. Do not print environment files or use real SMTP for convenience.
 
-Phase 1 will provide one tested bootstrap command, pinned dependencies, container
-services, formatting/static-analysis tools, and `composer check`.
+The supported path needs no copied environment file:
+
+```bash
+./bin/bootstrap
+```
+
+This builds and starts the loopback-only development stack, performs a clean
+locked dependency install, runs every Phase 1 gate, and verifies
+`http://127.0.0.1:8080/health/live`. Mailpit's local UI is available at
+`http://127.0.0.1:8025`; MariaDB is reachable only on the Compose network.
+
+After the stack is ready, rerun the aggregate gate with:
+
+```bash
+docker compose run --rm app composer check
+```
+
+Use `docker compose down` to stop containers while preserving the local
+database volume. Removing volumes discards local test state and must be an
+intentional operator action.
+
+## Toolchain
+
+- PHP-CS-Fixer performs deterministic style checks.
+- PHPStan runs at maximum level with strict, Symfony, and Doctrine extensions.
+- Deptrac and the project boundary check enforce modular-monolith direction,
+  framework-free Domain code, Presentation controller placement, and the
+  prohibition on tenant discriminators.
+- PHPUnit provides unit, framework/HTTP, MariaDB, Mailpit, SMTP-policy, and
+  redaction tests.
+- Gitleaks 8.30.1 is checksum-pinned in the application image; exact
+  line-specific third-party false positives are reviewed in `.gitleaksignore`.
+
+Host-side tool installation is not the supported bootstrap. The container image
+owns runtime extensions and tool versions; CI builds the same Dockerfile.

@@ -1,19 +1,27 @@
 # Open decisions
 
-**Status:** Phase 0 handoff
+**Status:** Phase 1 handoff
 
 **Last reviewed:** 2026-07-23
 
-The core architecture in ADRs `0001`–`0009` is accepted. The items below are
-deliberately deferred to the phase with enough implementation evidence. None
-authorizes a weaker security outcome.
+The core architecture in ADRs `0001`–`0010` is accepted. Phase 1 resolved its
+four bounded decisions:
+
+| ID | Resolution |
+| --- | --- |
+| OD-01 | CI supports PHP 8.4 and 8.5, with patches 8.4.23 and 8.5.8 pinned at Phase 1 completion. |
+| OD-02 | CI tests MariaDB 10.11.18 and the newer long-term branch 11.8.8. |
+| OD-03 | PHP-CS-Fixer, maximum-level PHPStan, Deptrac, and a project boundary checker are the baseline; no static-analysis baseline or ignored error was added. |
+| OD-04 | Compose uses one internal application/database/Mailpit network, loopback host bindings only, no database host port, a strict test-kernel Mailpit DSN allowlist, and a CI-only internal network with an external-egress negative probe. |
+
+The implementation rationale and consequences are in
+[ADR 0010](adr/0010-phase-1-toolchain-and-test-isolation.md).
+
+The remaining items below are deliberately deferred to the phase with enough
+implementation evidence. None authorizes a weaker security outcome.
 
 | ID | Decision | Must be resolved by | Required evidence / constraint |
 | --- | --- | --- | --- |
-| OD-01 | Phase 1 PHP CI matrix: minimum 8.4 plus which newer supported branches | Phase 1 | Official PHP support table; Symfony 7.4 compatibility; same aggregate checks on each supported branch |
-| OD-02 | MariaDB compatibility matrix above the 10.11 minimum | Phase 1 | Test 10.11 and a selected newer LTS; Doctrine/migration behavior; documented support window |
-| OD-03 | Coding-standard/formatter and architecture-rule tooling | Phase 1 | Maintained tools, deterministic Composer install, no unreviewed baseline |
-| OD-04 | Exact local container topology and CI network denial used to make live SMTP unreachable | Phase 1 | Negative egress test; Mailpit-only default; no production hostname or credential |
 | OD-05 | Canonical account login identifier and normalization rules | Phase 3 | Individual accounts; generic recovery; conservative address handling; uniqueness behavior in MariaDB |
 | OD-06 | Session idle/absolute limits, re-authentication window, TOTP parameters, and recovery-code count | Phase 4 | OWASP/current framework guidance, usability review, clock-boundary tests |
 | OD-07 | Audit-sink failure behavior for each sensitive transaction class | Phase 4 | Fail-closed matrix that preserves data integrity and operator-visible recovery |

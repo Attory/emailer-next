@@ -1,6 +1,6 @@
 # Module boundaries and dependency rules
 
-**Status:** Phase 0 design lock
+**Status:** Phase 1 rules with executable enforcement.
 
 The application is a modular monolith. A module owns its rules, tables,
 repositories, application services, and presentation adapters. Ownership is a
@@ -87,17 +87,23 @@ Audit emission is omitted from the diagram because every mutating module uses
 the same narrow audit sink. Cycles shown by future static analysis are a design
 failure unless an ADR explicitly replaces the contracts involved.
 
-## Enforcement plan
+## Enforcement
 
-Phase 1 must add namespace/dependency rules to static analysis. Each later phase
-adds architecture tests for the modules it introduces. CI must reject:
+Phase 1 added `deptrac.yaml` plus
+`tools/quality/check-module-boundaries.php`; both run under
+`composer check`. The current checks reject:
 
 - imports across forbidden namespaces;
 - controllers using repositories directly;
 - domain namespaces importing framework or persistence classes;
-- queue messages containing entity objects or sensitive fields;
 - a column or symbol named `tenant_id`, `tenantId`, or an equivalent
   cross-organisation discriminator.
+
+Deptrac currently sees the implemented `Health` Presentation adapter and shared
+Infrastructure adapters; zero dependency violations are allowed. The custom
+check examines all project PHP files even when a future namespace is not yet
+represented in Deptrac's graph. Each later phase must extend fixtures/rules for
+its modules, including identifier-only queue-message shape once messages exist.
 
 Exceptions require a reviewed ADR and updated threat model; a PHPStan ignore or
 baseline entry alone is not an exception.

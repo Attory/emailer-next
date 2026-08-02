@@ -1,13 +1,15 @@
 # Operator runbook
 
-**Status:** Phase 0 repository runbook; runtime operations are not implemented.
+**Status:** Phase 1 local-platform runbook; production operations are not
+implemented.
 
 ## Current repository state
 
-Phase 0 contains specifications, architecture/security/operator documentation,
-ADRs, and placeholder-only repository safeguards. There is no application,
-dependency install, database migration, mail transport, worker, artifact,
-release, or deployment to operate.
+Phase 1 contains the Symfony scaffold, locked dependencies, local
+application/MariaDB/Mailpit Compose stack, one baseline migration, quality
+pipeline, coarse liveness, logging redaction, and an inspected
+production-shaped artifact. There is no product installation, account,
+campaign, delivery worker, release, or deployment to operate.
 
 Before any work, confirm the repository path and clean status without opening
 credential files:
@@ -32,11 +34,43 @@ provenance through an operator-approved, redacted process.
 4. Run current-tree/history secret, private-key, and private-data scans.
 5. Identify migrations and manual actions before implementation.
 
-The exact Phase 0 commands and limitations are in
+The executable Phase 1 commands and limitations are in
 [quality-gates.md](quality-gates.md). Results are recorded in
-[phase-0-report.md](phase-0-report.md).
+[phase-1-report.md](phase-1-report.md).
 
-## Runtime operating model (future)
+## Local platform operations
+
+Bootstrap and validate:
+
+```bash
+./bin/bootstrap
+```
+
+Verify liveness without exposing detail:
+
+```bash
+curl --fail --silent http://127.0.0.1:8080/health/live
+```
+
+The exact response is `{"status":"ok"}`. It is only process liveness, not
+database, migration, worker, key, suppression, or sending readiness.
+
+Rerun the aggregate gate:
+
+```bash
+docker compose run --rm app composer check
+```
+
+Stop the local stack without discarding its test volume:
+
+```bash
+docker compose down
+```
+
+Do not substitute a live SMTP hostname, add real runtime values, expose Compose
+ports beyond loopback, or treat this stack as production.
+
+## Production operating model (future)
 
 When implemented, operators will maintain:
 
@@ -68,10 +102,17 @@ failure, stop risky work and follow
 [incident-response.md](incident-response.md). Preserve redacted evidence; never
 paste secrets, raw recipient lists, message bodies, or tokens into chat/issues.
 
-## Phase 0 manual actions
+## Phase 1 migrations and manual actions
 
-- No migration, dependency install, external contact, credential, service,
-  release, or deployment action is required.
-- The inherited local, non-final `origin` reference was removed without
-  accessing its target. A future remote may be added only after an operator
-  confirms the approved clean destination; pushing remains a separate action.
+- Local bootstrap automatically applies
+  `DoctrineMigrations\Version20260723000000`. It creates no business table;
+  only Doctrine's migration metadata is persisted.
+- No production migration, credential, recipient data, service account, release,
+  or deployment action is required or authorized.
+- The worktree initially exposed a local `origin` reference. It was removed
+  without accessing its target. A future remote may be added only after an
+  operator confirms the approved clean destination; pushing remains a separate
+  action.
+- Operators who do not run bootstrap need take no action. To exercise the
+  scaffold later, install Docker/Compose and run the documented command with
+  synthetic local data only.

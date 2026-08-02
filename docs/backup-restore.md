@@ -1,6 +1,6 @@
 # Backup and restore
 
-**Status:** Phase 0 design; implementation and first restore drill are Phase 8.
+**Status:** Design only; implementation and first restore drill are Phase 8.
 
 ## Backup scope
 

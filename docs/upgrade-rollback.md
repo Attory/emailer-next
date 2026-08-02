@@ -1,10 +1,24 @@
 # Upgrade and rollback
 
-**Status:** Phase 0 design; tooling begins in Phase 8 and is rehearsed in Phase 9.
+**Status:** Phase 1 migration baseline; production tooling begins in Phase 8
+and is rehearsed in Phase 9.
 
 There is no unattended update. Build, approval, deployment, migration, health
 verification, and rollback are explicit operator actions using an immutable,
 verified artifact.
+
+## Current migration state
+
+Phase 1 contains one reversible no-schema baseline migration:
+`DoctrineMigrations\Version20260723000000`. Its `up()` and `down()` each execute
+`SELECT 1`; applying it only records the version in Doctrine's metadata table.
+It exists to smoke-test MariaDB and migration wiring, not to authorize a
+production upgrade.
+
+The Phase 1 gate runs migrations with `--all-or-nothing`, confirms there are no
+pending migrations, and validates mapping metadata. There is no data conversion,
+worker compatibility issue, backup requirement, or manual rollback action in
+this phase.
 
 ## Preconditions
 
