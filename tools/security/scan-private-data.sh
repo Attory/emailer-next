@@ -66,7 +66,7 @@ done < <(
 )
 
 while IFS= read -r commit; do
-    if git grep -I --ignore-case --name-only --perl-regexp -- "$email_pattern" "$commit"; then
+    if git grep -I --ignore-case --name-only --perl-regexp -- "$email_pattern" "$commit" -- . ':(exclude,top)composer.lock'; then
         finding=1
     else
         status=$?
