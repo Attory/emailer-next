@@ -109,8 +109,8 @@ docker compose run --rm app composer check
 
 | Check | Result |
 | --- | --- |
-| Focused Phase 3 repair suite | Pass: 19 tests, 283 assertions |
-| Complete Phase 0–3 PHPUnit | Pass: 72 tests, 663 assertions in the final aggregate run |
+| Focused Phase 3 repair suite | Pass: 21 tests, 300 assertions |
+| Complete Phase 0–3 PHPUnit | Pass: 72 tests, 674 assertions in the final aggregate run |
 | PHPStan maximum level | Pass; no baseline or ignored error |
 | Deptrac/custom module checks | Pass; zero violation/error |
 | Migration/up-to-date/mapping | Pass; Phase 3 migration applied, mappings valid |
@@ -137,6 +137,13 @@ one shared writer/finalizer lifecycle lock, and credential-verified Owner plus
 cleanup-safe MFA resumption. A new real two-process test delays a mutation while
 finalization races for the same lock, then verifies every setup-owned table is
 unchanged by attempted post-lock mutations.
+
+The first independent-review repair CI run (`31909398571`) correctly rejected
+the test key path because a clean GitHub checkout bind-mounted at `/app` is
+owned by the runner rather than the unprivileged container user. Test
+configuration now uses the explicit isolated external path
+`/tmp/emailer-next-test/emailer-secrets/master.key`; its private descendants
+are created and validated by the same production-strength filesystem checks.
 
 ## Security and privacy evidence
 
