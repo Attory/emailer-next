@@ -118,6 +118,16 @@ healthy and returned the exact `{"status":"ok"}` liveness body. The override
 was then deleted. Releasing host port 8080 remains a manual host action if the
 stock bootstrap endpoint is required.
 
+The first GitHub matrix run (`31913795626`) exposed a clean-runner-only test
+harness defect in the external-egress-disabled pass: its explicitly synthetic
+`APP_SECRET` was only 14 bytes, while Phase 4 purpose-separated HMAC services
+correctly fail closed below 16 bytes. The isolated runner now supplies a longer
+test-only value; no production default or runtime fallback was added. Its trap
+also disconnects MariaDB and Mailpit before removing the temporary internal
+network. The repaired local isolated pass proves blocked external egress and
+passes all 89 tests with 5,213 assertions, then proves the temporary network is
+absent.
+
 ## Security and privacy evidence
 
 - Synthetic reserved `example.test` identities and local Mailpit were the only
