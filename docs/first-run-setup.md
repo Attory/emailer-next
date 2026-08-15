@@ -1,6 +1,7 @@
 # First-run setup
 
-**Status:** Design baseline; implementation is split across Phases 2 and 3.
+**Status:** Phase 2 ownership proof and state machine implemented; Phase 3
+credential wizard remains design only.
 
 ## State model
 
@@ -66,7 +67,24 @@ secret step must require re-entry rather than storing the secret for later.
 
 ## Reset and recovery
 
-Reset is CLI-only through the planned `emailer:setup:reset` command. It requires
+Reset is CLI-only through `emailer:setup:reset`. It requires
 interactive confirmation and a recent backup, refuses when production data
 exists unless the explicit destructive flag is supplied, and never prints or
-exports existing secrets. Exact command behavior and tests are Phase 2 work.
+exports existing secrets. The backup must be a recent regular, non-symlink,
+non-group/world-writable file outside `public/`. Non-interactive destructive
+reset is refused.
+
+## Implemented Phase 2 boundary
+
+- `GET /setup`, `POST /setup/proof/verify`, and `GET /setup/preflight` implement
+  the proof and preflight sequence; setup pages are script-free and `no-store`.
+- Challenge issuance is limited to 6 per 15 minutes per client and proof posts
+  to 10 per 15 minutes, in addition to the challenge's ten-attempt ceiling.
+- `emailer:setup:install` runs safe preflight and records only a
+  credential-free CLI ownership marker. It does not collect credentials or
+  create the final installation lock.
+- `emailer:setup:reset` removes only setup transients and the installation lock
+  after its backup/data/confirmation guards succeed.
+- Phase 2 adds no database schema, master key, Owner, organisation, SMTP
+  transport, recipient data, worker, or sending behavior. Those remain bounded
+  to later phases.

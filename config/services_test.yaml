@@ -1,0 +1,7 @@
+parameters:
+    emailer.private_dir: '%kernel.cache_dir%/emailer-private'
+    emailer.setup_dir: '%emailer.private_dir%/setup'
+    emailer.setup_state_file: '%emailer.setup_dir%/challenge.json'
+    emailer.setup_cli_state_file: '%emailer.setup_dir%/cli-state.json'
+    emailer.proof_file: '%kernel.cache_dir%/.emailer-install-proof'
+    emailer.install_lock_file: '%emailer.private_dir%/install.lock'

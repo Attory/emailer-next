@@ -1,10 +1,18 @@
 # Testing
 
-**Status:** Phase 1 executable test baseline.
+**Status:** Phase 2 executable test baseline.
 
 The stable gate order and executable commands are in
 [quality-gates.md](quality-gates.md). Results are recorded in the phase report
 without matched secret/private content.
+
+Phase 2 adds focused setup tests under `tests/Module/Setup` and
+`tests/Platform/SetupFlowTest.php`. They exercise challenge
+entropy/normalization, missing/wrong/expired/replayed proof, filesystem object
+and permission rejection, attempt limits, setup routing, session rotation,
+HTTPS gating, CLI ownership, installation locks, and guarded reset. All use
+generated synthetic values and temporary files; no real credential or recipient
+data is accepted.
 
 ## Test-data policy
 

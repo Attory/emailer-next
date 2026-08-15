@@ -1,4 +1,10 @@
 parameters:
+    emailer.private_dir: '%kernel.project_dir%/var/private'
+    emailer.setup_dir: '%emailer.private_dir%/setup'
+    emailer.setup_state_file: '%emailer.setup_dir%/challenge.json'
+    emailer.setup_cli_state_file: '%emailer.setup_dir%/cli-state.json'
+    emailer.proof_file: '%kernel.project_dir%/.emailer-install-proof'
+    emailer.install_lock_file: '%emailer.private_dir%/install.lock'
 
 services:
     _defaults:
@@ -11,3 +17,62 @@ services:
     App\Infrastructure\Logging\RedactionProcessor:
         tags:
             - { name: monolog.processor }
+
+    App\Module\Setup\Application\Contract\ChallengeStore:
+        class: App\Module\Setup\Infrastructure\FilesystemChallengeStore
+        arguments:
+            $stateFile: '%emailer.setup_state_file%'
+
+    App\Module\Setup\Application\Contract\InstallationLock:
+        class: App\Module\Setup\Infrastructure\FilesystemInstallationLock
+        arguments:
+            $lockFile: '%emailer.install_lock_file%'
+
+    App\Module\Setup\Application\Contract\ProofFile:
+        class: App\Module\Setup\Infrastructure\FilesystemProofFile
+        arguments:
+            $proofFile: '%emailer.proof_file%'
+
+    App\Module\Setup\Application\Contract\Clock:
+        class: App\Module\Setup\Infrastructure\SystemClock
+
+    App\Module\Setup\Application\Contract\RandomBytes:
+        class: App\Module\Setup\Infrastructure\SecureRandomBytes
+
+    App\Module\Setup\Application\Contract\ProductionDataDetector:
+        class: App\Module\Setup\Infrastructure\DoctrineProductionDataDetector
+
+    App\Module\Setup\Application\ChallengeIssuer:
+        arguments:
+            $lockFactory: '@lock.factory'
+
+    App\Module\Setup\Application\ProofVerifier:
+        arguments:
+            $lockFactory: '@lock.factory'
+
+    App\Module\Setup\Infrastructure\CliSetupStateStore:
+        arguments:
+            $stateFile: '%emailer.setup_cli_state_file%'
+
+    App\Module\Setup\Application\Contract\CliSetupState: '@App\Module\Setup\Infrastructure\CliSetupStateStore'
+
+    App\Module\Setup\Infrastructure\RecentBackupValidator:
+        arguments:
+            $publicDirectory: '%kernel.project_dir%/public'
+
+    App\Module\Setup\Application\Contract\BackupValidator: '@App\Module\Setup\Infrastructure\RecentBackupValidator'
+
+    App\Module\Setup\Infrastructure\SystemPreflight:
+        arguments:
+            $projectDirectory: '%kernel.project_dir%'
+            $privateDirectory: '%emailer.private_dir%'
+
+    App\Module\Setup\Application\Contract\Preflight: '@App\Module\Setup\Infrastructure\SystemPreflight'
+
+    App\Module\Setup\Presentation\Http\SetupController:
+        arguments:
+            $proofPath: '%emailer.proof_file%'
+
+    App\Module\Setup\Presentation\Cli\SetupInstallCommand:
+        arguments:
+            $publicDirectory: '%kernel.project_dir%/public'

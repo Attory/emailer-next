@@ -1,0 +1,17 @@
+{% extends 'setup/layout.html.twig' %}
+
+{% block title %}Verify deployment ownership{% endblock %}
+
+{% block body %}
+    <main>
+        <h1>Verify deployment ownership</h1>
+        <p>Create the following file and place only the displayed code inside it:</p>
+        <p><code>{{ proof_path }}</code></p>
+        <p><code>{{ challenge_code }}</code></p>
+        <p>This challenge expires in 15 minutes and permits at most 10 verification attempts.</p>
+        <form method="post" action="{{ path('setup_proof_verify') }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('setup-proof') }}">
+            <button type="submit">Verify proof file</button>
+        </form>
+    </main>
+{% endblock %}

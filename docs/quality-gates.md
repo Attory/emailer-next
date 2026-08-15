@@ -1,12 +1,12 @@
 # CI and quality gates
 
-**Status:** Phase 1 implemented baseline.
+**Status:** Phase 2 implemented baseline.
 
-One aggregate command, `composer check`, runs every executable Phase 1 quality
+One aggregate command, `composer check`, runs every executable current quality
 gate. CI invokes the same version-pinned commands rather than maintaining a
 second policy.
 
-## Phase 1 commands and CI
+## Current commands and CI
 
 The safe container path performs a clean lockfile install before the aggregate
 gate:
@@ -32,6 +32,11 @@ It runs, in order:
 6. Doctrine migration execution/up-to-date status and mapping validation;
 7. production-artifact build, current/reachable-history secret scans,
    private-data scans, artifact inspection, and loopback exposure probes.
+
+Phase 2 expands PHPUnit with ownership-code, proof-file edge, expiry, replay,
+attempt ceiling, setup-mode, HTTPS, session-rotation, lock, reset, CLI, and
+preflight coverage. Static architecture gates enforce the Setup module's inward
+dependency direction.
 
 The GitHub Actions workflow builds from the Dockerfile and tests:
 

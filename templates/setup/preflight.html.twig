@@ -1,0 +1,23 @@
+{% extends 'setup/layout.html.twig' %}
+
+{% block title %}Setup preflight{% endblock %}
+
+{% block body %}
+    <main>
+        <h1>Setup preflight</h1>
+        <p>Filesystem ownership is verified. No credentials are collected in this phase.</p>
+        <table>
+            <thead><tr><th scope="col">Check</th><th scope="col">Result</th><th scope="col">Guidance</th></tr></thead>
+            <tbody>
+            {% for check in checks %}
+                <tr>
+                    <th scope="row">{{ check.name }}</th>
+                    <td>{{ check.passed ? 'Pass' : 'Needs attention' }}</td>
+                    <td>{{ check.message }}</td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        <p>Database credentials, installation keys, Owner identity, and mail transport belong to Phase 3 and are not available yet.</p>
+    </main>
+{% endblock %}

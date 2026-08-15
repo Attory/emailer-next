@@ -1,11 +1,11 @@
 # Threat model
 
-**Status:** Phase 1 reviewed baseline.
+**Status:** Phase 2 setup controls reviewed.
 
 **Method:** Asset/trust-boundary review with STRIDE-style misuse cases and
 privacy-abuse review
 
-**Last reviewed:** 2026-07-23
+**Last reviewed:** 2026-08-15
 
 ## Scope and security objectives
 

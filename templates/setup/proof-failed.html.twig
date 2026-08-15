@@ -1,0 +1,11 @@
+{% extends 'setup/layout.html.twig' %}
+
+{% block title %}Ownership proof not accepted{% endblock %}
+
+{% block body %}
+    <main>
+        <h1>Ownership proof not accepted</h1>
+        <p>The proof could not be verified. Start a new setup challenge and try again.</p>
+        <a href="{{ path('setup_index') }}">Start a new challenge</a>
+    </main>
+{% endblock %}
