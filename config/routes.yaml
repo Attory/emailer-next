@@ -5,3 +5,11 @@ health:
 setup:
     resource: ../src/Module/Setup/Presentation/Http/
     type: attribute
+
+identity:
+    resource: ../src/Module/Identity/Presentation/Http/
+    type: attribute
+
+audit:
+    resource: ../src/Module/Audit/Presentation/Http/
+    type: attribute

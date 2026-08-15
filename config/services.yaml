@@ -8,6 +8,8 @@ parameters:
     emailer.install_lock_file: '%emailer.private_dir%/install.lock'
     emailer.default_master_key_file: ''
     emailer.master_key_file: '%env(default:emailer.default_master_key_file:EMAILER_SECRET_KEY_FILE)%'
+    emailer.default_trusted_proxies: '127.0.0.1,::1'
+    emailer.trusted_proxies: '%env(default:emailer.default_trusted_proxies:TRUSTED_PROXIES)%'
 
 services:
     _defaults:
@@ -92,6 +94,15 @@ services:
     App\Module\Identity\Application\Contract\RecoveryCodeConsumer: '@App\Module\Identity\Infrastructure\DoctrineRecoveryCodeConsumer'
     App\Module\Health\Application\Contract\SetupDoctor: '@App\Module\Health\Infrastructure\Phase3SetupDoctor'
     App\Module\Setup\Application\Contract\InstallationFinalizer: '@App\Module\Setup\Infrastructure\DoctrineInstallationFinalizer'
+    App\Module\Audit\Application\Contract\AuditSink: '@App\Module\Audit\Infrastructure\DoctrineAuditSink'
+
+    App\Module\Identity\Application\SensitiveValueHasher:
+        arguments:
+            $key: '%env(APP_SECRET)%'
+
+    App\Module\Identity\Infrastructure\HybridSessionHandler:
+        arguments:
+            $setupSessionDirectory: '%emailer.private_dir%/sessions'
 
     App\Module\Configuration\Infrastructure\DoctrineConfigurationSetup:
         arguments:

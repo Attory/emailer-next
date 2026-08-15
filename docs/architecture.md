@@ -1,6 +1,6 @@
 # Architecture
 
-**Status:** Phase 3 secure first-run wizard plus locked product design.
+**Status:** Phase 4 identity, administration, sessions, and audit plus locked product design.
 
 **Last reviewed:** 2026-08-15
 
@@ -18,7 +18,7 @@ administrative UI. A supervised CLI worker performs delivery through Symfony
 Messenger; an HTTP request can enqueue approved durable work but can never run
 the delivery worker.
 
-## Implemented through Phase 3
+## Implemented through Phase 4
 
 The repository implements the platform shell and secure setup boundary:
 
@@ -46,10 +46,19 @@ optional encrypted TOTP plus hashed recovery codes, bounded delivery/privacy
 defaults, exact plaintext/unauthenticated Mailpit-only transport evidence,
 critical setup preflight, and compensating installation-lock finalization. All
 Phase 3 writers and finalization share one cross-process lifecycle lock. The
-fixed installation-completion
-event is not the general Phase 4 audit system. Login, sessions, the admin shell,
-content, campaigns, Messenger business messages, workers, and production
-sending remain unimplemented.
+fixed installation-completion event remains separate from general audit.
+
+Phase 4 adds individual administrative accounts, the four-role hierarchy,
+deny-by-default route and service authorization, password/TOTP authentication,
+purpose-bound re-authentication, database sessions, password recovery through
+Mailpit, a server-rendered administration shell, and append-only redacted audit
+events. Session identifiers and source metadata are stored only as
+purpose-separated HMACs. Sessions have 30-minute idle and 12-hour absolute
+limits and rotate when authentication authority changes. A central registry
+defines every `admin_` route's methods and minimum role; an unregistered route
+fails closed. Identity services repeat authorization and serialize final-Owner
+mutations with row locks. Content, campaigns, delivery workers, production
+sending, backup/restore, release, and deployment remain unimplemented.
 
 ### Setup state transition
 

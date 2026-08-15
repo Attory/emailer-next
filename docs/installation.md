@@ -1,12 +1,13 @@
 # Installation
 
-**Status:** Phase 3 secure first-run setup is implemented for MariaDB and local
-Mailpit. Production deployment and production SMTP remain unavailable.
+**Status:** Phase 4 secure administration is implemented over the Phase 3
+MariaDB/Mailpit setup. Production deployment and production SMTP remain unavailable.
 
-The current repository can create a completed setup-only installation with an
+The current repository can create a completed installation with an
 external key, initial Owner, exact local Mailpit test evidence, sender identity,
-safe policies, and irreversible lock. It has no login/admin shell,
-contacts, templates, campaigns, worker, or production sending.
+safe policies, irreversible lock, individual administrator login, session and
+account management, MFA, recovery, and redacted audit UI. It has no contacts,
+templates, campaigns, delivery worker, backup engine, or production sending.
 
 ## Tested platform matrix
 
@@ -124,6 +125,20 @@ Phase 3 migrations are `DoctrineMigrations\Version20260815000000` and the
 mail-integrity repair `DoctrineMigrations\Version20260816000000`. MariaDB DDL
 may auto-commit, so migration failure is a blocking operator condition; never
 manually mark it complete.
+
+## Phase 4 authentication configuration
+
+Phase 4 adds forward-only migration `DoctrineMigrations\Version20260817000000`.
+Run it with the normal reviewed migration gate; do not hand-create session,
+throttle, reset, or audit tables. Configure `TRUSTED_PROXIES` as an explicit
+comma-separated allowlist for the actual TLS proxy hops. The default trusts
+loopback only. Never use a wildcard or an unreviewed private network range.
+
+Serve administration through verified HTTPS. The `EMAILERSESSID` cookie is
+host-only, path `/`, `HttpOnly`, `SameSite=Lax`, and becomes `Secure` on HTTPS.
+HSTS is emitted only for requests Symfony has verified as secure. Password
+reset mail remains restricted to the persisted local Mailpit transport; Phase 4
+does not unlock or test a live provider.
 
 ## Future production prerequisites
 

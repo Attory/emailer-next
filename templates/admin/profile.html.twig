@@ -1,0 +1,15 @@
+{% extends 'admin/layout.html.twig' %}
+{% block title %}Profile — Emailer Next{% endblock %}
+{% block admin_body %}
+<h1>Profile</h1>
+<dl><dt>Individual account</dt><dd>{{ user.userIdentifier }}</dd><dt>Role</dt><dd>{{ user.role.label }}</dd></dl>
+<h2>Change password</h2>
+<p><a href="{{ path('admin_reauthenticate', {purpose: 'password_change'}) }}">Re-authenticate for password change</a></p>
+<form method="post" action="{{ path('admin_password_change') }}">
+    <input type="hidden" name="_token" value="{{ csrf_token('admin-password-change') }}">
+    <label>Current password <input type="password" name="current_password" autocomplete="current-password" required></label>
+    <label>New password <input type="password" name="new_password" autocomplete="new-password" minlength="14" required></label>
+    <label>Confirm new password <input type="password" name="password_confirmation" autocomplete="new-password" minlength="14" required></label>
+    <button type="submit">Change password</button>
+</form>
+{% endblock %}

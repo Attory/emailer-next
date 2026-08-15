@@ -6,6 +6,7 @@ namespace App\Module\Identity\Infrastructure;
 
 use App\Module\Identity\Application\Contract\MfaEnrollment;
 use App\Module\Identity\Application\Contract\OwnerSetup;
+use App\Module\Identity\Application\OwnerPasswordSubject;
 use App\Module\Identity\Application\Totp;
 use App\Module\Secrets\Application\Contract\SecretVault;
 use App\Module\Setup\Application\Contract\SetupLifecycle;
@@ -50,13 +51,16 @@ final readonly class DoctrineOwnerSetup implements OwnerSetup
             }
 
             $ownerId = self::uuidV7();
+            $now = self::now();
             $this->connection->insert('app_user', [
                 'id' => $ownerId,
                 'login_identifier' => $login,
                 'password_hash' => $hash,
                 'role' => 'ROLE_OWNER',
                 'active' => 1,
-                'created_at' => self::now(),
+                'created_at' => $now,
+                'updated_at' => $now,
+                'password_changed_at' => $now,
             ]);
 
             return $ownerId;

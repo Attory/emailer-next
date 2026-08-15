@@ -1,12 +1,12 @@
 # Security model
 
-**Status:** Phase 3 setup, key, identity, and secret controls plus locked product design.
+**Status:** Phase 4 identity, authorization, browser session, recovery, and audit controls plus locked product design.
 
 Security controls are default-deny and layered. A UI-hidden action is not a
 security boundary; every protected invariant is checked at the route,
 application-service, persistence, and operational boundary appropriate to it.
 
-## Implemented controls through Phase 3
+## Implemented controls through Phase 4
 
 - Symfony Dotenv loading is disabled; runtime values are supplied externally,
   while `.env.example` contains placeholders only.
@@ -116,6 +116,19 @@ Sessions are server-side in MariaDB and have idle and absolute expiry. Session
 IDs rotate on login, logout, privilege/password/MFA change, recovery,
 re-authentication, and setup proof success as applicable. Users can view and
 revoke their sessions.
+
+The Phase 4 implementation stores session IDs and source/user-agent metadata as
+purpose-separated HMACs, applies 30-minute idle and 12-hour absolute deadlines,
+and revokes durable authority on logout, reset, account/role, password, or MFA
+changes. Login failure and recovery responses are generic. Account and source
+throttles use bounded progressive delays and temporary locks whose locked
+requests do not extend the denial window.
+
+Every implemented `admin_` route is covered by a central deny-by-default policy
+registry and every privileged identity/audit application service checks its
+actor again. Recent authentication is purpose-bound and expires after five
+minutes. Audit summaries reject secret/address/control-bearing keys and values;
+MariaDB triggers independently reject audit update and deletion.
 
 Production cookies are `Secure`, `HttpOnly`, and `SameSite=Lax` or stricter
 after compatibility tests, with narrow host/path scope. Trusted hosts/proxies

@@ -1,6 +1,6 @@
 # Threat model
 
-**Status:** Phase 3 setup, key, secret, Owner, and fake-mail controls reviewed.
+**Status:** Phase 4 identity, authorization, session, recovery, and audit controls reviewed.
 
 **Method:** Asset/trust-boundary review with STRIDE-style misuse cases and
 privacy-abuse review
@@ -165,6 +165,30 @@ addresses.
 - TM-22 mail setup/tests persist exactly the plaintext, unauthenticated Mailpit
   probe and reject TLS/auth/live destinations. No production transport,
   recipient, provider credential, DNS action, or delivery path exists.
+
+## Phase 4 control status
+
+- TM-06 now has individual Argon2id accounts, combined password/TOTP or
+  single-use recovery authentication, account/source throttles, generic login
+  and recovery errors, HMAC-indexed MariaDB sessions, fixed idle/absolute
+  limits, rotation, listing, revocation, and short-lived hashed reset tokens.
+- TM-07 is enforced by the exhaustive route registry and application services.
+  Administrators cannot promote/remove Owners, and row-locked concurrent
+  demote/disable/delete tests prove one active Owner survives.
+- TM-08/TM-09 have an all-mutation CSRF/method matrix, purpose-bound five-minute
+  re-authentication, host-only Secure/HttpOnly/SameSite-Lax cookies, explicit
+  trusted proxies, untrusted-forwarded-header rejection, CSP, HSTS on verified
+  HTTPS, no-sniff/frame/referrer/permissions policies, and private no-store
+  responses.
+- TM-16/TM-21 audit events contain opaque IDs and bounded redacted summaries;
+  application validation and database triggers make the store append-only.
+  Mail remains local Mailpit only and no Phase 5 data surface exists.
+
+Residual risk remains from distributed authentication abuse, database
+availability affecting sessions, stolen active browser authority before its
+deadline, and root/process-memory compromise. Owner MFA health enforcement is
+still owned by the later authenticated Doctor; Phase 4 does not claim a green
+production sending state.
 
 ## Residual risks and non-guarantees
 

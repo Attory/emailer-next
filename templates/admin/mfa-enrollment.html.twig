@@ -1,0 +1,13 @@
+{% extends 'admin/layout.html.twig' %}
+{% block title %}MFA enrollment — Emailer Next{% endblock %}
+{% block admin_body %}
+<h1>Save MFA recovery material</h1>
+<p>Enter this seed in your authenticator. It is displayed only in this response: <code>{{ enrollment.seed }}</code></p>
+<ul>{% for code in enrollment.recoveryCodes %}<li><code>{{ code }}</code></li>{% endfor %}</ul>
+<form method="post" action="{{ path('admin_mfa_confirm') }}">
+    <input type="hidden" name="_token" value="{{ csrf_token('admin-mfa-confirm') }}">
+    <label>Authenticator code <input type="text" name="totp_code" inputmode="numeric" autocomplete="one-time-code" required></label>
+    <label><input type="checkbox" name="recovery_saved" value="1" required> I saved the recovery codes</label>
+    <button type="submit">Confirm MFA</button>
+</form>
+{% endblock %}

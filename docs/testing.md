@@ -1,6 +1,6 @@
 # Testing
 
-**Status:** Phase 3 executable secure-setup test baseline.
+**Status:** Phase 4 executable identity, session, recovery, authorization, and audit baseline.
 
 The stable gate order and executable commands are in
 [quality-gates.md](quality-gates.md). Results are recorded in the phase report
@@ -61,6 +61,24 @@ data is accepted.
   one completion event, permanent lock, post-lock setup-row immutability, and
   post-lock 404.
 - End-to-end HTTPS wizard coverage without retaining plaintext secret state.
+
+## Phase 4 coverage
+
+- Unauthenticated and all-role route matrix plus exhaustive central-policy
+  matching, service-layer escalation denial, and safe-method checks.
+- Generic login/recovery failures; account and source progressive throttling,
+  lockout, non-extension and expiry recovery.
+- Framework session-fixation rotation, HMAC-at-rest identifiers, idle/absolute
+  expiry, listing, revocation, logout/reset/role/password/MFA invalidation, and
+  hardened cookie attributes.
+- TOTP and recovery authentication, recovery replay rejection, restart/confirm/
+  regenerate/disable cleanup, and five-minute purpose-bound re-authentication.
+- CSRF-negative coverage for every administrative mutation, trusted/untrusted
+  forwarded-protocol behavior, CSP/HSTS/cache and browser headers.
+- Hashed expiring single-use password reset, generic request result, URL-fragment
+  token transport, Mailpit capture, completion and replay rejection.
+- Real two-process final-Owner demotion, disabling, and deletion races.
+- Audit summary redaction plus database-triggered update/delete rejection.
 
 ## Phase 1 coverage
 

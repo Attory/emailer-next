@@ -1,0 +1,21 @@
+{% extends 'admin/layout.html.twig' %}
+{% block title %}Users — Emailer Next{% endblock %}
+{% block admin_body %}
+<h1>Individual administrative accounts</h1>
+<p><a href="{{ path('admin_reauthenticate', {purpose: 'user_management'}) }}">Re-authenticate for user and role changes</a></p>
+<table><thead><tr><th>Account</th><th>Role</th><th>Active</th><th>Actions</th></tr></thead><tbody>
+{% for account in users %}<tr><td>{{ account.login_identifier }}</td><td>{{ account.role }}</td><td>{{ account.active ? 'Yes' : 'No' }}</td><td>
+<form method="post" action="{{ path('admin_user_update', {id: account.id}) }}">
+<input type="hidden" name="_token" value="{{ csrf_token('admin-user-update-' ~ account.id) }}">
+<select name="role" aria-label="Role for {{ account.login_identifier }}">{% for role in roles %}{% if is_granted('ROLE_OWNER') or role.value != 'ROLE_OWNER' %}<option value="{{ role.value }}" {{ role.value == account.role ? 'selected' : '' }}>{{ role.label }}</option>{% endif %}{% endfor %}</select>
+<label><input type="checkbox" name="active" value="1" {{ account.active ? 'checked' : '' }}> Active</label><button type="submit">Update</button></form>
+<form method="post" action="{{ path('admin_user_delete', {id: account.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('admin-user-delete-' ~ account.id) }}"><button type="submit">Delete</button></form>
+</td></tr>{% endfor %}</tbody></table>
+<h2>Create account</h2>
+<form method="post" action="{{ path('admin_user_create') }}">
+<input type="hidden" name="_token" value="{{ csrf_token('admin-user-create') }}">
+<label>Email <input type="email" name="login_identifier" autocomplete="off" required></label>
+<label>Initial password <input type="password" name="password" autocomplete="new-password" minlength="14" required></label>
+<label>Role <select name="role">{% for role in roles %}{% if is_granted('ROLE_OWNER') or role.value != 'ROLE_OWNER' %}<option value="{{ role.value }}">{{ role.label }}</option>{% endif %}{% endfor %}</select></label>
+<button type="submit">Create account</button></form>
+{% endblock %}

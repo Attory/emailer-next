@@ -1,7 +1,7 @@
 # Route and command inventory
 
-**Status:** Phase 3 implementation inventory. Coarse liveness and the secure
-first-run setup routes are implemented; authenticated/later routes remain planned.
+**Status:** Phase 4 implementation inventory. Coarse liveness, secure first-run,
+identity/recovery, and authenticated administration-foundation routes are implemented.
 
 This inventory is the security review baseline. Every implemented route must be
 added here with method, authentication boundary, authorization rule, CSRF
@@ -75,6 +75,15 @@ critical-preflight gated, and single-use.
 The prefix is `/admin`. Read routes require at least the role shown. Mutation
 routes additionally require CSRF; entries marked **recent auth** require a
 fresh re-authentication assertion.
+
+Phase 4 implements `/admin`, `/admin/logout`, `/admin/reauthenticate`,
+`/admin/profile`, `/admin/profile/password`, `/admin/sessions`,
+`/admin/sessions/revoke`, `/admin/mfa` and its start/confirm/disable/recovery
+mutations, `/admin/users` and its create/update/delete mutations, and
+`/admin/audit`. `RoutePolicyRegistry` is exhaustive for every resolved
+`admin_` route and rejects an absent policy or unapproved method. Settings,
+content, campaign, delivery, Doctor, backup, release, and other later rows
+below remain planned.
 
 | Methods and family | Minimum role | Mutations and constraints | Phase |
 | --- | --- | --- | --- |
