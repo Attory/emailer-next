@@ -69,6 +69,9 @@ inspected, fetched as a source, merged, copied, or used.
 
 - Composer dependency changes: none.
 - `composer.lock` changes: none.
+- The aggregate Composer check now establishes and validates migrations before
+  PHPUnit so clean-room test databases have the Phase 3 schema. No package
+  requirement or resolved dependency changed.
 - Migration added: `DoctrineMigrations\Version20260815000000`.
 - Tables added: `installation_state`, `organisation_settings`,
   `encrypted_secret`, `app_user`, `mfa_credential`, `sender_identity`,
@@ -98,8 +101,8 @@ docker compose run --rm app composer check
 
 | Check | Result |
 | --- | --- |
-| Focused Phase 3 suite | Pass: 17 tests, 185 assertions |
-| Complete Phase 0–3 PHPUnit | Pass: 68 tests, 557 assertions in final aggregate run |
+| Focused Phase 3 suite | Pass: 17 tests, 208 assertions |
+| Complete Phase 0–3 PHPUnit | Pass: 68 tests, 571 assertions in the empty-database aggregate run |
 | PHPStan maximum level | Pass; no baseline or ignored error |
 | Deptrac/custom module checks | Pass; zero violation/error |
 | Migration/up-to-date/mapping | Pass; Phase 3 migration applied, mappings valid |
@@ -108,6 +111,16 @@ docker compose run --rm app composer check
 | Composer validation/audit | Pass; no advisory or abandoned-package failure |
 | Secret/private-data scans | Pass for current tree, reachable history, and generated output |
 | Production artifact/public probes | Pass |
+
+The first draft-PR CI run (`31881598420`) exposed a clean-room ordering defect:
+all three matrix jobs reached PHPUnit before the new Phase 3 tables had been
+created. The repair moves the existing migration gate ahead of the existing
+test gate in `composer check`; it does not alter application behavior, schema,
+dependencies, or the lockfile. The end-to-end wizard fixture now derives its
+submitted database identity from the active external DBAL configuration rather
+than assuming a fixed test database name. A local run against a separately
+created empty database then passed the complete aggregate suite; that temporary
+database was removed after validation.
 
 ## Security and privacy evidence
 

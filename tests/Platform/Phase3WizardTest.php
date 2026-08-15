@@ -51,12 +51,23 @@ final class Phase3WizardTest extends WebTestCase
         self::assertResponseRedirects('/setup/preflight', 303);
 
         $client->request('GET', '/setup/database', server: $server);
+        $databaseParams = $connection->getParams();
+        $databaseHost = $databaseParams['host'] ?? null;
+        $databasePort = $databaseParams['port'] ?? 3306;
+        $databaseName = $databaseParams['dbname'] ?? null;
+        $databaseUser = $databaseParams['user'] ?? null;
+        $databasePassword = $databaseParams['password'] ?? null;
+        self::assertIsString($databaseHost);
+        self::assertTrue(\is_int($databasePort) || \is_string($databasePort));
+        self::assertIsString($databaseName);
+        self::assertIsString($databaseUser);
+        self::assertIsString($databasePassword);
         $databaseForm = $client->getCrawler()->selectButton('Verify database and install schema')->form([
-            'host' => 'database',
-            'port' => '3306',
-            'database' => 'emailer_test',
-            'username' => 'emailer',
-            'password' => 'local-only',
+            'host' => $databaseHost,
+            'port' => (string) $databasePort,
+            'database' => $databaseName,
+            'username' => $databaseUser,
+            'password' => $databasePassword,
         ]);
         $client->submit($databaseForm, [], $server);
         self::assertResponseRedirects('/setup/organisation', 303);
