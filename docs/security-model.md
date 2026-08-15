@@ -37,6 +37,13 @@ Public failures are generic, and structured proof logs contain only the opaque
 challenge identifier and result. Setup preflight accepts no secrets and stops
 at an HTTPS gate.
 
+The issuance and verification paths share one lock. An active unexpired
+challenge cannot be overwritten by another visitor, while the authorized
+session can make up to ten generic proof attempts without receiving the raw
+code again. Backup-gated reset fails closed because Phase 2 cannot authenticate
+a meaningful backup artifact; a restrictive file with a self-declared digest
+is insufficient authority.
+
 ## Fail-closed states
 
 The application does not send when setup is incomplete/reopened, HTTPS is

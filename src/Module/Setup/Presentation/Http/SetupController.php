@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Setup\Presentation\Http;
 
+use App\Module\Setup\Application\ActiveChallengeExists;
 use App\Module\Setup\Application\ChallengeIssuer;
 use App\Module\Setup\Application\Contract\Preflight;
 use App\Module\Setup\Application\ProofVerificationResult;
@@ -47,7 +48,21 @@ final class SetupController extends AbstractController
             ));
         }
 
-        $challenge = $this->challengeIssuer->issue($clientKey);
+        try {
+            $challenge = $this->challengeIssuer->issue($clientKey);
+        } catch (ActiveChallengeExists $exception) {
+            $sessionIdentifier = $request->getSession()->get(self::SESSION_CHALLENGE_ID);
+
+            if (!\is_string($sessionIdentifier) || !hash_equals($exception->identifier, $sessionIdentifier)) {
+                $request->getSession()->remove(self::SESSION_CHALLENGE_ID);
+            }
+
+            return $this->noStore($this->render(
+                'setup/challenge-active.html.twig',
+                response: new Response(status: Response::HTTP_CONFLICT),
+            ));
+        }
+
         $request->getSession()->set(self::SESSION_CHALLENGE_ID, $challenge->identifier);
         $request->getSession()->remove(self::SESSION_PROOF_VERIFIED);
 
@@ -76,7 +91,7 @@ final class SetupController extends AbstractController
         $identifier = $request->getSession()->get(self::SESSION_CHALLENGE_ID);
         $result = \is_string($identifier)
             ? $this->proofVerifier->verify($identifier, $clientKey)
-            : ProofVerificationResult::Invalid;
+            : ProofVerificationResult::InvalidAuthority;
 
         $this->logger->info('Setup ownership proof verification completed.', [
             'challenge_id' => \is_string($identifier) ? $identifier : 'missing',
@@ -84,7 +99,9 @@ final class SetupController extends AbstractController
         ]);
 
         if (ProofVerificationResult::Success !== $result) {
-            $request->getSession()->remove(self::SESSION_CHALLENGE_ID);
+            if (!$result->isRetryable()) {
+                $request->getSession()->remove(self::SESSION_CHALLENGE_ID);
+            }
 
             return $this->genericProofFailure(Response::HTTP_BAD_REQUEST);
         }

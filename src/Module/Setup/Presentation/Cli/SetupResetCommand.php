@@ -57,7 +57,7 @@ final class SetupResetCommand extends Command
         $backupPath = $input->getOption('backup');
 
         if (!\is_string($backupPath) || !$this->backupValidator->isValid($backupPath, $this->clock->now())) {
-            $io->error('Reset requires a regular, restrictive backup file created within the last 24 hours and stored outside public/.');
+            $io->error('Reset requires a supported integrity-authenticated backup artifact. Phase 2 cannot validate one, so reset remains unavailable until backup tooling is implemented.');
 
             return self::FAILURE;
         }

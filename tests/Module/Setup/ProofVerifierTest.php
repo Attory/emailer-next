@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Setup;
 
+use App\Module\Setup\Application\ActiveChallengeExists;
 use App\Module\Setup\Application\ChallengeCode;
 use App\Module\Setup\Application\ChallengeIssuer;
 use App\Module\Setup\Application\Contract\Clock;
@@ -59,17 +60,17 @@ final class ProofVerifierTest extends TestCase
         self::assertSame(ProofVerificationResult::Success, $this->verifier->verify($challenge->identifier, '192.0.2.10'));
         self::assertFileDoesNotExist($this->proofFile);
         self::assertFileDoesNotExist($this->stateFile);
-        self::assertSame(ProofVerificationResult::Invalid, $this->verifier->verify($challenge->identifier, '192.0.2.10'));
+        self::assertSame(ProofVerificationResult::InvalidAuthority, $this->verifier->verify($challenge->identifier, '192.0.2.10'));
     }
 
     public function testMissingWrongAndDifferentIpProofsAreGenericFailures(): void
     {
         $challenge = $this->issuer->issue('192.0.2.10');
-        self::assertSame(ProofVerificationResult::Invalid, $this->verifier->verify($challenge->identifier, '192.0.2.10'));
+        self::assertSame(ProofVerificationResult::RetryableFailure, $this->verifier->verify($challenge->identifier, '192.0.2.10'));
 
         $this->writeProof(ChallengeCode::display(str_repeat('0', 32)));
-        self::assertSame(ProofVerificationResult::Invalid, $this->verifier->verify($challenge->identifier, '192.0.2.10'));
-        self::assertSame(ProofVerificationResult::Invalid, $this->verifier->verify($challenge->identifier, '192.0.2.11'));
+        self::assertSame(ProofVerificationResult::RetryableFailure, $this->verifier->verify($challenge->identifier, '192.0.2.10'));
+        self::assertSame(ProofVerificationResult::InvalidAuthority, $this->verifier->verify($challenge->identifier, '192.0.2.11'));
         self::assertSame(3, $this->store->load()?->failedAttempts);
     }
 
@@ -88,10 +89,11 @@ final class ProofVerifierTest extends TestCase
     {
         $challenge = $this->issuer->issue('192.0.2.10');
 
-        for ($attempt = 1; $attempt <= 10; ++$attempt) {
-            self::assertSame(ProofVerificationResult::Invalid, $this->verifier->verify($challenge->identifier, '192.0.2.10'));
+        for ($attempt = 1; $attempt < 10; ++$attempt) {
+            self::assertSame(ProofVerificationResult::RetryableFailure, $this->verifier->verify($challenge->identifier, '192.0.2.10'));
         }
 
+        self::assertSame(ProofVerificationResult::AttemptsExceeded, $this->verifier->verify($challenge->identifier, '192.0.2.10'));
         self::assertFileDoesNotExist($this->stateFile);
     }
 
@@ -102,7 +104,7 @@ final class ProofVerifierTest extends TestCase
         $challenge = $this->issuer->issue('192.0.2.10');
         $makeUnsafeProof($this->proofFile);
 
-        self::assertSame(ProofVerificationResult::Invalid, $this->verifier->verify($challenge->identifier, '192.0.2.10'));
+        self::assertSame(ProofVerificationResult::RetryableFailure, $this->verifier->verify($challenge->identifier, '192.0.2.10'));
     }
 
     /** @return iterable<string, array{callable(string): void}> */
@@ -138,6 +140,42 @@ final class ProofVerifierTest extends TestCase
         self::assertStringNotContainsString(str_replace('-', '', $challenge->displayCode), $contents);
         self::assertSame(0o600, fileperms($this->stateFile) & 0o777);
         self::assertSame(0o700, fileperms(\dirname($this->stateFile)) & 0o777);
+    }
+
+    public function testActiveChallengeCannotBeReplaced(): void
+    {
+        $challenge = $this->issuer->issue('192.0.2.10');
+
+        try {
+            $this->issuer->issue('192.0.2.11');
+            self::fail('An active challenge was replaced.');
+        } catch (ActiveChallengeExists $exception) {
+            self::assertSame($challenge->identifier, $exception->identifier);
+        }
+
+        self::assertSame($challenge->identifier, $this->store->load()?->identifier);
+    }
+
+    public function testExpiredOrExhaustedChallengeCanBeReplaced(): void
+    {
+        $expired = $this->issuer->issue('192.0.2.10');
+        $this->clock->timestamp = $expired->expiresAt;
+        $replacement = $this->issuer->issue('192.0.2.11');
+        self::assertNotSame($expired->identifier, $replacement->identifier);
+
+        $state = $this->store->load();
+        self::assertNotNull($state);
+        $this->store->save(new \App\Module\Setup\Domain\ChallengeState(
+            $state->identifier,
+            $state->codeHash,
+            $state->createdAt,
+            $state->expiresAt,
+            10,
+            $state->requestIpHash,
+        ));
+
+        $afterExhaustion = $this->issuer->issue('192.0.2.12');
+        self::assertNotSame($replacement->identifier, $afterExhaustion->identifier);
     }
 
     private function writeProof(string $contents): void

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Setup;
 
+use App\Module\Setup\Application\Contract\BackupValidator;
 use App\Module\Setup\Application\Contract\Clock;
 use App\Module\Setup\Application\Contract\ProductionDataDetector;
 use App\Module\Setup\Domain\ChallengeState;
@@ -78,8 +79,10 @@ final class SetupCommandsTest extends TestCase
         self::assertSame(Command::FAILURE, $tester->execute([], ['interactive' => false]));
         self::assertTrue($this->installationLock->exists());
 
-        $backup = $this->createRecentBackup();
-        self::assertSame(Command::FAILURE, $tester->execute(['--backup' => $backup], ['interactive' => false]));
+        $command = $this->resetCommand(new FixedProductionDataDetector(true), new AcceptingBackupValidator());
+        $tester = new CommandTester($command);
+        self::assertSame(Command::FAILURE, $tester->execute(['--backup' => '/synthetic/accepted'], ['interactive' => false]));
+        self::assertStringContainsString('--destructive', $tester->getDisplay());
         self::assertTrue($this->installationLock->exists());
     }
 
@@ -97,11 +100,14 @@ final class SetupCommandsTest extends TestCase
         self::assertNotFalse(file_put_contents($this->directory.'/.emailer-install-proof', str_repeat('0', 32)));
         self::assertTrue(chmod($this->directory.'/.emailer-install-proof', 0o600));
         $this->cliStateStore->recordOwnershipVerified($this->clock->now());
-        $tester = new CommandTester($this->resetCommand(new FixedProductionDataDetector(true)));
+        $tester = new CommandTester($this->resetCommand(
+            new FixedProductionDataDetector(true),
+            new AcceptingBackupValidator(),
+        ));
         $tester->setInputs(['yes']);
 
         self::assertSame(Command::SUCCESS, $tester->execute([
-            '--backup' => $this->createRecentBackup(),
+            '--backup' => '/synthetic/accepted',
             '--destructive' => true,
         ]));
         self::assertFalse($this->installationLock->exists());
@@ -112,27 +118,19 @@ final class SetupCommandsTest extends TestCase
         self::assertStringNotContainsString('password=', strtolower($tester->getDisplay()));
     }
 
-    private function resetCommand(ProductionDataDetector $detector): SetupResetCommand
-    {
+    private function resetCommand(
+        ProductionDataDetector $detector,
+        ?BackupValidator $backupValidator = null,
+    ): SetupResetCommand {
         return new SetupResetCommand(
             $this->installationLock,
             $this->challengeStore,
             $this->proofFile,
             $this->cliStateStore,
-            new RecentBackupValidator($this->publicDirectory),
+            $backupValidator ?? new RecentBackupValidator($this->publicDirectory),
             $detector,
             $this->clock,
         );
-    }
-
-    private function createRecentBackup(): string
-    {
-        $backup = $this->directory.'/recent.backup';
-        self::assertNotFalse(file_put_contents($backup, 'synthetic backup marker'));
-        self::assertTrue(chmod($backup, 0o600));
-        self::assertTrue(touch($backup, $this->clock->now() - 60));
-
-        return $backup;
     }
 
     private static function removeDirectory(string $directory): void
@@ -170,6 +168,14 @@ final readonly class FixedProductionDataDetector implements ProductionDataDetect
     public function hasProductionData(): bool
     {
         return $this->hasData;
+    }
+}
+
+final class AcceptingBackupValidator implements BackupValidator
+{
+    public function isValid(string $backupPath, int $now): bool
+    {
+        return true;
     }
 }
 

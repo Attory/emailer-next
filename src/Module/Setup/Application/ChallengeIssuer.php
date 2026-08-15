@@ -14,6 +14,7 @@ use Symfony\Component\Lock\LockFactory;
 final readonly class ChallengeIssuer
 {
     private const LIFETIME_SECONDS = 900;
+    private const MAX_ATTEMPTS = 10;
 
     public function __construct(
         private ChallengeStore $store,
@@ -33,6 +34,20 @@ final readonly class ChallengeIssuer
 
         try {
             $now = $this->clock->now();
+            $activeState = $this->store->load();
+
+            if (
+                null !== $activeState
+                && $activeState->expiresAt > $now
+                && $activeState->failedAttempts < self::MAX_ATTEMPTS
+            ) {
+                throw new ActiveChallengeExists($activeState->identifier);
+            }
+
+            if (null !== $activeState) {
+                $this->store->delete();
+            }
+
             $identifier = bin2hex($this->random->generate(16));
             $normalizedCode = ChallengeCode::encode($this->random->generate(20));
             $state = new ChallengeState(

@@ -26,14 +26,14 @@ final readonly class ProofVerifier
         $lock = $this->lockFactory->createLock('emailer-setup-proof', 10.0);
 
         if (!$lock->acquire(true)) {
-            return ProofVerificationResult::Invalid;
+            return ProofVerificationResult::RetryableFailure;
         }
 
         try {
             $state = $this->store->load();
 
             if (null === $state || !hash_equals($state->identifier, $expectedIdentifier)) {
-                return ProofVerificationResult::Invalid;
+                return ProofVerificationResult::InvalidAuthority;
             }
 
             if ($state->expiresAt <= $this->clock->now()) {
@@ -52,19 +52,35 @@ final readonly class ProofVerifier
                 $state->requestIpHash,
                 ChallengeIssuer::requestIpHash($state->identifier, $requestIp),
             );
-            $code = $this->proofFile->readNormalizedCode();
-            $matches = null !== $code && hash_equals($state->codeHash, hash('sha256', $code));
-
-            if (!$ipMatches || !$matches) {
+            if (!$ipMatches) {
                 $failedState = $state->withFailedAttempt();
 
                 if ($failedState->failedAttempts >= self::MAX_ATTEMPTS) {
                     $this->store->delete();
-                } else {
-                    $this->store->save($failedState);
+
+                    return ProofVerificationResult::AttemptsExceeded;
                 }
 
-                return ProofVerificationResult::Invalid;
+                $this->store->save($failedState);
+
+                return ProofVerificationResult::InvalidAuthority;
+            }
+
+            $code = $this->proofFile->readNormalizedCode();
+            $matches = null !== $code && hash_equals($state->codeHash, hash('sha256', $code));
+
+            if (!$matches) {
+                $failedState = $state->withFailedAttempt();
+
+                if ($failedState->failedAttempts >= self::MAX_ATTEMPTS) {
+                    $this->store->delete();
+
+                    return ProofVerificationResult::AttemptsExceeded;
+                }
+
+                $this->store->save($failedState);
+
+                return ProofVerificationResult::RetryableFailure;
             }
 
             $this->proofFile->delete();

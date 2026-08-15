@@ -53,6 +53,9 @@ Phase 2 entries above. While unlocked, resolved ordinary application routes
 fail closed with a generic HTTP 503 JSON response; unknown routes remain 404.
 Challenge and proof requests use fixed-window per-client limits. Proof
 verification requires CSRF and never accepts the proof code from HTTP input.
+An active challenge makes later issuance requests return a generic HTTP 409
+without replacing or redisplaying it. Retryable proof failures retain only the
+original session's opaque challenge authority through the ten-attempt ceiling.
 After the private installation lock exists, the subscriber returns an empty 404
 for every setup route.
 

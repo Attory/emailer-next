@@ -84,7 +84,7 @@ message does not prove inbox delivery.
 
 | ID | Threat / abuse case | Required controls | Verification phase |
 | --- | --- | --- | --- |
-| TM-01 | Anonymous attacker completes first-run setup | Fixed filesystem proof; hashed 160-bit challenge; expiry/attempt limit; `lstat`; no request-body proof; HTTPS gate; permanent lock | 2–3 |
+| TM-01 | Anonymous attacker completes or disrupts first-run setup | Fixed filesystem proof; hashed 160-bit challenge; active-state no-replacement lock; bounded same-session retries; expiry/attempt limit; `lstat`; no request-body proof; HTTPS gate; permanent lock | 2–3 |
 | TM-02 | Setup proof leaks through log, error, session, or race | Store hash only; generic response; redacted logging; state/proof deletion; session rotation; concurrent verification test | 2 |
 | TM-03 | Web server exposes `.git`, `.env`, source, logs, backups, private data, or key | `public/` document root; artifact allowlist; server probes; safe permissions; Doctor sending gate | 1/8/9 |
 | TM-04 | Stolen database reveals SMTP secret or TOTP seed | XChaCha20-Poly1305; external key; purpose HKDF; fresh nonce; record-bound AAD; fail closed | 3 |

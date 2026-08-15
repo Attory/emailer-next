@@ -63,9 +63,10 @@ Git objects reported by the preflight were likewise not used.
   CLI ownership marker.
 - `emailer:setup:install`, bounded to ownership/preflight and intentionally
   unable to complete installation.
-- `emailer:setup:reset`, requiring a recent restrictive backup outside
-  `public/`, production-data detection, an explicit destructive flag where
-  applicable, and interactive confirmation. It reads or exports no secret.
+- `emailer:setup:reset`, with production-data detection, an explicit
+  destructive flag where applicable, and interactive confirmation. Its backup
+  validator now fails closed because Phase 2 cannot authenticate a meaningful
+  backup artifact. It reads or exports no secret.
 
 ## Dependencies, schema, and routes
 
@@ -135,7 +136,7 @@ not an application configuration change.
 - Sensitive wizard fields are absent. HTTPS is enforced before any later phase
   could add one.
 - Reset is CLI-only, backup/data guarded, interactive, and does not print or
-  export existing secrets.
+  export existing secrets. No Phase 2 backup evidence is accepted.
 - Setup routes are permanently hidden by an installation lock, while ordinary
   resolved routes fail closed before completion.
 - No production service, DNS, account, SMTP target, deployment, or recipient
@@ -151,10 +152,66 @@ not an application configuration change.
 - Phase 2 provides the lock abstraction but deliberately does not create the
   final completed-installation lock through web/CLI setup; Phase 3 owns that
   irreversible transition after secrets, identity, migrations, and Doctor.
-- Backup cryptographic creation/verification remains Phase 8. Phase 2 reset can
-  validate only the available file type, path, mode, and recency boundary.
+- Backup cryptographic creation/verification remains Phase 8. Phase 2 reset
+  remains unavailable rather than treating filesystem metadata or a
+  self-declared digest as meaningful backup evidence.
 - The unrelated waived `origin/emailer-mitek` branch remains outside this
   phase's provenance and review scope.
+
+## Bounded independent-review repair
+
+The repair began from clean local and remote branch state and open draft PR #3
+at exact head `f606268100f5f122e6e34a3a7223530e6f83c641` after
+`git fetch --prune origin`.
+
+- **Active challenge replacement:** issuance now inspects state under the
+  existing shared lock. A live, non-exhausted challenge returns a generic
+  conflict and is not overwritten or redisplayed. Expired/exhausted state can
+  be replaced. Two-worker concurrent HTTP coverage proves exactly one active
+  state is published.
+- **HTTP attempt lifecycle:** retryable failures retain the authorized setup
+  session and increment the same state. The tenth failure deletes state;
+  missing, replaced, expired, exhausted, or wrong-authority state terminates
+  stale authority. Success after an earlier failure remains single-use and
+  rotates the session; replay is rejected.
+- **Reset backup safety:** the validator checks non-empty bounded regular-file
+  metadata, link count, restrictive mode, recency, public-path separation,
+  opened/path inode equality, post-read metadata, envelope structure, and
+  declared digest. It still rejects even structurally matching evidence because
+  Phase 2 has no trusted backup producer/authenticator. Empty, symlink,
+  hard-link, stale, unsafe, public-path, malformed, and digest-mismatched cases
+  are negative-tested.
+
+The repair adds no dependency, lockfile change, migration, schema, credential,
+identity, organisation, master-key, SMTP, final-installation, worker, sending,
+or later-phase behavior.
+
+Repair validation commands:
+
+```text
+docker compose run --rm app composer exec phpunit -- --display-all-issues tests/Module/Setup tests/Platform/SetupFlowTest.php tests/Platform/ConcurrentSetupIssuanceTest.php
+docker compose run --rm app composer check:static
+docker compose run --rm app composer check
+git diff --check
+```
+
+Repair results before push:
+
+| Check | Result |
+| --- | --- |
+| Focused Phase 2 repair suite | Pass: 34 tests, 324 assertions, no issue |
+| Aggregate PHPUnit | Pass: 51 tests, 365 assertions |
+| Composer validation/audit | Pass |
+| PHP-CS-Fixer | Pass; zero fixable files |
+| PHPStan | Pass; no error or baseline |
+| Deptrac/module boundaries | Pass; zero violation/error |
+| Shell, migration, and mapping checks | Pass; no new migration |
+| Fake-mail isolation | Pass; no live SMTP used |
+| Secret/private-data scans | Pass; current tree and reachable history |
+| Production artifact/public probes | Pass |
+
+GitHub CI for the repair commit is required to be terminal and passing before
+the new head may be presented for Anton's exact-SHA merge approval.
 
 ## Phase-boundary evidence
 

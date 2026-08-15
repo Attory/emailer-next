@@ -107,10 +107,11 @@ paste secrets, raw recipient lists, message bodies, or tokens into chat/issues.
 
 - Inspect setup safely with `bin/console emailer:setup:install`; it performs
   preflight and stores no credential.
-- Use `bin/console emailer:setup:reset --backup=/absolute/private/backup` only
-  when intentionally reopening an installation. Production data additionally
-  requires `--destructive` and interactive `yes`; non-interactive destructive
-  reset fails closed.
+- `bin/console emailer:setup:reset` is intentionally unavailable in Phase 2:
+  no supported integrity-authenticated backup artifact exists yet. Do not use a
+  marker file or self-declared digest as backup authority. Phase 8 must provide
+  the producer and validator before reset can pass its backup gate; the
+  production-data, `--destructive`, and interactive safeguards remain in place.
 - Never put a proof file, backup, master key, or runtime credential in Git or
   under `public/`. Setup logs may contain opaque challenge IDs/results only.
 - A completed installation cannot yet be produced by this phase; Phase 3 owns
