@@ -6,7 +6,7 @@ parameters:
     emailer.setup_cli_state_file: '%emailer.setup_dir%/cli-state.json'
     emailer.proof_file: '%kernel.project_dir%/.emailer-install-proof'
     emailer.install_lock_file: '%emailer.private_dir%/install.lock'
-    emailer.default_master_key_file: '%kernel.project_dir%/var/secrets/master.key'
+    emailer.default_master_key_file: ''
     emailer.master_key_file: '%env(default:emailer.default_master_key_file:EMAILER_SECRET_KEY_FILE)%'
 
 services:
@@ -80,8 +80,11 @@ services:
         arguments:
             $keyFile: '%emailer.master_key_file%'
             $publicDirectory: '%kernel.project_dir%/public'
+            $projectDirectory: '%kernel.project_dir%'
+            $environment: '%kernel.environment%'
 
     App\Module\Secrets\Application\Contract\MasterKey: '@App\Module\Secrets\Infrastructure\FilesystemMasterKey'
+    App\Module\Setup\Application\Contract\SetupLifecycle: '@App\Module\Setup\Infrastructure\LockedSetupLifecycle'
     App\Module\Secrets\Application\Contract\SecretVault: '@App\Module\Secrets\Infrastructure\DoctrineSecretVault'
     App\Module\Setup\Application\Contract\SetupState: '@App\Module\Setup\Infrastructure\DoctrineSetupState'
     App\Module\Configuration\Application\Contract\ConfigurationSetup: '@App\Module\Configuration\Infrastructure\DoctrineConfigurationSetup'

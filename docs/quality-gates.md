@@ -28,8 +28,8 @@ It runs, in order:
 2. PHP-CS-Fixer in check mode;
 3. maximum-level PHPStan, Deptrac, and the project module-boundary check;
 4. shell syntax checks;
-5. PHPUnit, including the MariaDB and Mailpit integration tests;
-6. Doctrine migration execution/up-to-date status and mapping validation;
+5. Doctrine migration execution/up-to-date status and mapping validation;
+6. PHPUnit, including the MariaDB and Mailpit integration tests;
 7. production-artifact build, current/reachable-history secret scans,
    private-data scans, artifact inspection, and loopback exposure probes.
 
@@ -38,10 +38,12 @@ attempt ceiling, setup-mode, HTTPS, session-rotation, lock, reset, CLI, and
 preflight coverage. Static architecture gates enforce the Setup module's inward
 dependency direction.
 
-Phase 3 adds cryptographic/key negative tests, MariaDB setup persistence,
-explicit Argon2id Owner/MFA/recovery boundaries, Mailpit capture/live-host
-rejection, plaintext-output scanning, migration checks, the end-to-end HTTPS
-wizard, and rollback/concurrency/irreversible-lock finalization coverage. The
+Phase 3 adds cryptographic/key negative tests, complete external-key path and
+ancestor validation, MariaDB setup persistence, idempotent Argon2id
+Owner/MFA/recovery boundaries, exact plaintext/unauthenticated Mailpit evidence
+with TLS/auth/live-host rejection, plaintext-output scanning, migration checks,
+the end-to-end HTTPS wizard, and shared-lifecycle delayed-writer/finalizer plus
+post-lock immutability coverage. The
 aggregate command still includes every Phase 0–2 regression and the same
 artifact/history/network controls.
 

@@ -4,8 +4,8 @@
 Mailpit. Production deployment and production SMTP remain unavailable.
 
 The current repository can create a completed setup-only installation with an
-external key, initial Owner, encrypted synthetic transport credential, sender
-identity, safe policies, and irreversible lock. It has no login/admin shell,
+external key, initial Owner, exact local Mailpit test evidence, sender identity,
+safe policies, and irreversible lock. It has no login/admin shell,
 contacts, templates, campaigns, worker, or production sending.
 
 ## Tested platform matrix
@@ -100,22 +100,28 @@ it also stops before credentials and does not create a completed installation.
 ## Phase 3 runtime configuration and completion
 
 Before web setup, operators supply `DATABASE_URL`, `EMAILER_PRIVATE_DIR`, and
-`EMAILER_SECRET_KEY_FILE` through external runtime configuration. The key path
-must be outside `public/`; setup creates its parent as mode `0700` and the key
-as mode `0600`. Never pre-create the key with content, put it in Git, pass it on
-a command line, or include it in an ordinary backup.
+`EMAILER_SECRET_KEY_FILE` through external runtime configuration. Production
+refuses an omitted, relative, application/release/public, symlink-directed, or
+unsafe-ancestor key path. The complete existing chain is checked; setup creates
+the immediate parent as mode `0700` and key as mode `0600`. Development Compose
+uses a separate `/emailer-secrets` volume. Never pre-create the key with
+content, put it in Git, pass it on a command line, or include it in an ordinary
+backup.
 
 After filesystem proof and HTTPS preflight, the database form verifies that
 the submitted host/port/database/user match `DATABASE_URL`, verifies the
 password without retaining it, and applies migrations. Optional TOTP recovery
 values are displayed once and cannot be recovered from setup state.
 
-Mail setup accepts only `mailpit` or loopback on port 1025 and sends only to the
-reserved `phase3-recipient@example.test`. Every live hostname is rejected.
+Mail setup accepts only plaintext, unauthenticated `mailpit` or loopback on port
+1025 and sends only to reserved `phase3-recipient@example.test`. STARTTLS,
+implicit TLS, usernames, passwords, and every live hostname are rejected. The
+stored row exactly matches that probe and records that TLS was not used.
 Completion runs critical checks and writes the private lock; all subsequent
 `/setup` requests return 404.
 
-The new migration is `DoctrineMigrations\Version20260815000000`. MariaDB DDL
+Phase 3 migrations are `DoctrineMigrations\Version20260815000000` and the
+mail-integrity repair `DoctrineMigrations\Version20260816000000`. MariaDB DDL
 may auto-commit, so migration failure is a blocking operator condition; never
 manually mark it complete.
 

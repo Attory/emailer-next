@@ -43,8 +43,10 @@ Phase 3 completes the setup-only path with MariaDB schema migration, an
 external restrictive master-key file, HKDF/XChaCha20-Poly1305 secret records,
 singleton organisation and sender configuration, an Argon2id initial Owner,
 optional encrypted TOTP plus hashed recovery codes, bounded delivery/privacy
-defaults, Mailpit-only transport verification, critical setup preflight, and
-compensating installation-lock finalization. The fixed installation-completion
+defaults, exact plaintext/unauthenticated Mailpit-only transport evidence,
+critical setup preflight, and compensating installation-lock finalization. All
+Phase 3 writers and finalization share one cross-process lifecycle lock. The
+fixed installation-completion
 event is not the general Phase 4 audit system. Login, sessions, the admin shell,
 content, campaigns, Messenger business messages, workers, and production
 sending remain unimplemented.
@@ -56,8 +58,10 @@ generic setup-required response. `GET /setup` issues a rate-limited challenge;
 `POST /setup/proof/verify` verifies only `.emailer-install-proof`, deletes proof
 and private state on success, and rotates the session. Preflight then requires
 the verified session and HTTPS. A present lock makes every setup route return
-404. Phase 3 publishes the lock only after all setup rows, external-key
-validation, Mailpit evidence, safe defaults, and CLI capability checks pass.
+404. Phase 3 publishes the lock only after all setup rows, explicit external-key
+validation, exact Mailpit evidence, safe defaults, and CLI capability checks
+pass. Every writer rechecks both database completion and filesystem lock while
+holding the same lifecycle lock used by finalization.
 Database completion precedes lock publication; publication failure is
 compensated, while an interruption before publication remains resumable and
 never appears installed.
@@ -171,8 +175,10 @@ not start an admin session and emit only redacted telemetry.
   backups, setup state, and other non-public files. It is outside `public/`.
 - **Public asset directory:** only reviewed static application assets and
   sanitized, non-executable uploaded raster images.
-- **Secret-key file:** external 32-byte master key, mode `0600`, parent mode
-  `0700`.
+- **Secret-key file:** explicitly configured absolute external 32-byte master
+  key, mode `0600`, parent mode `0700`; production rejects application/release/
+  public placement, unsafe ancestor ownership/modes, links, and ancestor/path
+  replacement.
 - **Logs:** structured UTC records with strict redaction and bounded retention.
 
 The initial relational design is in [data-model.md](data-model.md). Paths in

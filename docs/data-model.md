@@ -4,8 +4,9 @@
 
 `DoctrineMigrations\Version20260723000000` remains the no-schema platform
 smoke check. Phase 3 adds `Version20260815000000`, which creates only the
-secure first-run tables below. Later contact, campaign, delivery, session,
-health, backup, and full audit entities remain conceptual.
+secure first-run tables below, and `Version20260816000000`, which constrains
+the setup mail row to the exact local Mailpit probe. Later contact, campaign,
+delivery, session, health, backup, and full audit entities remain conceptual.
 
 ## Implemented Phase 3 tables
 
@@ -16,14 +17,14 @@ health, backup, and full audit entities remain conceptual.
 | `encrypted_secret` | Secrets | UUIDv7 identity, versioned authenticated envelope, and rotation metadata |
 | `app_user` | Identity | Initial active `ROLE_OWNER`, normalized unique login, and Argon2id hash |
 | `mfa_credential` | Identity | Encrypted TOTP-secret reference or hashed single-use recovery code |
-| `sender_identity` | Configuration | Mailpit-tested SMTP metadata, sender identity, encrypted credential reference, mandatory TLS-verification flag |
+| `sender_identity` | Configuration | Exact plaintext/unauthenticated local Mailpit metadata and sender identity; no credential or TLS-verification claim |
 | `delivery_policy` | Configuration | Bounded delivery/import limits and detected CLI execution mode |
 | `privacy_policy` | Configuration | Tracking/RSVP off, global suppression mode, and bounded retention/footer defaults |
 | `setup_installation_event` | Setup | Exactly one append-only `installation.completed` event; not the Phase 4 audit system |
 
 MariaDB foreign keys protect Owner/MFA and encrypted-secret references. Check
-constraints protect singleton keys, initial roles/types, TLS verification,
-privacy-off defaults, and the fixed completion action. Runtime database
+constraints protect singleton keys, initial roles/types, exact Phase 3 Mailpit
+shape, privacy-off defaults, and the fixed completion action. Runtime database
 credentials are not represented in this schema.
 
 **Identifier policy:** UUIDv7 internally where ordering helps; random opaque

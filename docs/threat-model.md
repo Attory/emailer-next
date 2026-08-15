@@ -88,7 +88,7 @@ message does not prove inbox delivery.
 | TM-02 | Setup proof leaks through log, error, session, or race | Store hash only; generic response; redacted logging; state/proof deletion; session rotation; concurrent verification test | 2 |
 | TM-03 | Web server exposes `.git`, `.env`, source, logs, backups, private data, or key | `public/` document root; artifact allowlist; server probes; safe permissions; Doctor sending gate | 1/8/9 |
 | TM-04 | Stolen database reveals SMTP secret or TOTP seed | XChaCha20-Poly1305; external key; purpose HKDF; fresh nonce; record-bound AAD; fail closed | 3 |
-| TM-05 | Key substitution, permission weakness, or ciphertext swapping | Strict key length/mode/parent checks; installation/record/type/version in AAD; constant-time failure; transactional rotation | 3 |
+| TM-05 | Key substitution, permission weakness, or ciphertext swapping | Explicit absolute external path; complete ancestor ownership/mode/link and replacement checks; strict key length/mode/link count; installation/record/type/version in AAD; constant-time failure; transactional rotation | 3 |
 | TM-06 | Password/session/account takeover | Argon2id; throttling; optional TOTP with Owner policy; hashed recovery codes; secure server sessions; rotation/revocation; generic recovery | 3–4 |
 | TM-07 | Operator exceeds role or removes last Owner | Default-deny route and service authorization; recent auth; generated role matrix; database/application invariant; audit | 4 |
 | TM-08 | CSRF or unsafe GET changes state | Unsafe methods for mutations; framework CSRF negative matrix; SameSite cookie; public-token routes isolated | 4/7 |
@@ -145,20 +145,25 @@ addresses.
 
 ## Phase 3 control status
 
-- TM-01 closes the completion half of first-run setup with serialized,
-  irreversible lock publication and post-lock 404 behavior.
-- TM-04/TM-05 are implemented for SMTP credentials and TOTP seeds with an
-  external validated key, purpose HKDF, record-bound AAD, fresh nonces, and
-  authenticated versioned envelopes. Root/process-memory compromise remains
-  outside the guarantee.
-- TM-06 is implemented only for initial Owner creation, Argon2id storage,
-  optional setup-time TOTP, and single-use recovery-code storage/consumption.
+- TM-01 closes the completion half of first-run setup with one lifecycle lock
+  shared by every writer/finalization, immediate dual-state open checks,
+  irreversible lock publication, post-lock record immutability, and 404 behavior.
+- TM-04/TM-05 are implemented for TOTP and future reversible secret records
+  with an explicit validated external key, purpose HKDF, record-bound AAD,
+  fresh nonces, and authenticated versioned envelopes. The Phase 3 Mailpit
+  probe accepts no credential. Root/process-memory compromise remains outside
+  the guarantee.
+- TM-06 is implemented only for idempotent initial Owner creation with stored-
+  hash password verification, Argon2id storage, optional setup-time TOTP with
+  pending-material cleanup/single-applicable-set enforcement, and single-use
+  recovery-code storage/consumption.
   Login, session, throttling, reset, re-authentication, and administration are
   still Phase 4.
 - TM-16/TM-21 tests scan database/runtime outputs and generic exceptions for
   submitted secret absence; aggregate tree/history/artifact gates remain
   mandatory.
-- TM-22 mail setup and tests accept Mailpit only. No production transport,
+- TM-22 mail setup/tests persist exactly the plaintext, unauthenticated Mailpit
+  probe and reject TLS/auth/live destinations. No production transport,
   recipient, provider credential, DNS action, or delivery path exists.
 
 ## Residual risks and non-guarantees

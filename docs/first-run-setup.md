@@ -59,13 +59,14 @@ the non-HTTP alternative.
    database driver, writability, and worker/scheduler capability.
 2. Database: test without printing DSN; put its password in server runtime
    configuration; run reviewed migrations.
-3. Installation keys: external random 32-byte master key, installation UUID,
-   and purpose-specific derived keys.
+3. Installation keys: explicitly configured absolute external path, random
+   32-byte master key, installation UUID, and purpose-specific derived keys.
 4. Organisation: singleton display name, canonical base URL, time zone, locale.
 5. Initial Owner: individual login, Argon2id password, optional TOTP, one-time
    recovery codes with saved acknowledgement.
-6. Mail: transport metadata, sender identity, TLS verification, fake/approved
-   test, then encrypted secret persistence without redisplay.
+6. Mail: exact plaintext/unauthenticated local Mailpit metadata, sender
+   identity, and fake test evidence. Production TLS/auth configuration remains
+   unavailable.
 7. Delivery limits: bounded rates, concurrency, retry and import/campaign caps.
 8. Privacy defaults: tracking and RSVP off, retention/suppression/footer policy.
 9. Worker/scheduler: preferred supervision or constrained cron, heartbeat.
@@ -113,21 +114,28 @@ self-declared and therefore does not authenticate backup provenance.
 - `/setup/database` verifies submitted values against the externally supplied
   runtime connection, contacts only that MariaDB instance, applies reviewed
   migrations, and never stores or logs the password.
-- Key initialization creates a random 32-byte external key in a mode-`0700`
-  directory and mode-`0600` file outside `public/`; missing, malformed, linked,
-  over-permissive, moved, or replaced key state fails closed.
+- Key initialization requires an explicit absolute production path outside the
+  application/release/public tree. It walks and snapshots the complete existing
+  ancestor chain, rejects link redirection and unsafe ownership/modes, creates a
+  random 32-byte key in a mode-`0700` directory and mode-`0600` file, and fails
+  closed on missing, malformed, hard-linked, moved, or replaced state.
 - `/setup/organisation`, `/setup/owner`, `/setup/mail`, and `/setup/policy`
   persist completed durable state only. Passwords are Argon2id-hashed; TOTP
-  seeds and synthetic SMTP credentials are encrypted; recovery codes are
-  individually Argon2id-hashed and single-use. Plaintext submissions are not
-  retained for retries or redisplay.
-- Mail setup rejects every destination except local Mailpit port 1025, sends a
-  marked synthetic message, stores sender metadata, and records TLS peer
-  verification as mandatory. Production SMTP remains unavailable.
-- Finalization serializes concurrent attempts, runs the Phase 3 critical
-  preflight, records one completion event, publishes the restrictive lock, and
-  compensates database completion if publication fails. Setup routes then
-  return an empty 404 permanently.
+  seeds are encrypted; recovery codes are individually Argon2id-hashed and
+  single-use. An Owner retry must verify the same password, and restarting or
+  skipping MFA removes inactive seeds/codes so only one applicable TOTP set can
+  exist. Plaintext submissions are not retained for retries or redisplay.
+- Mail setup rejects every destination except local Mailpit port 1025 and also
+  rejects STARTTLS, implicit TLS, usernames, and passwords. It sends a marked
+  plaintext synthetic message and stores exactly that unauthenticated test
+  configuration with no TLS-verification claim. Production SMTP remains
+  unavailable.
+- Every Phase 3 writer and finalization shares one lifecycle lock and verifies
+  the database/filesystem completion boundary immediately before mutation.
+  Finalization runs the critical preflight, records one completion event,
+  publishes the restrictive lock, and compensates database completion if
+  publication fails. No setup record changes after publication; routes return
+  an empty 404 permanently.
 - `emailer:secrets:replace` and `emailer:secrets:rotate-master-key` are
   argument-free fail-closed skeletons pending Phase 4 re-authentication and
   later recovery controls.

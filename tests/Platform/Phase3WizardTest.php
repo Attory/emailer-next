@@ -94,14 +94,11 @@ final class Phase3WizardTest extends WebTestCase
         $client->submit($ownerForm, [], $server);
         self::assertResponseRedirects('/setup/mail', 303);
 
-        $smtpSecret = 'runtime-smtp-'.bin2hex(random_bytes(12));
         $client->request('GET', '/setup/mail', server: $server);
         $client->submit($client->getCrawler()->selectButton('Send synthetic Mailpit test and save')->form([
             'host' => 'mailpit',
             'port' => '1025',
             'encryption' => 'none',
-            'username' => 'synthetic-user',
-            'password' => $smtpSecret,
             'sender_address' => 'phase3-sender@example.test',
             'sender_name' => 'Emailer Next Test',
             'reply_to' => '',
@@ -132,8 +129,7 @@ final class Phase3WizardTest extends WebTestCase
             $connection->fetchAllAssociative('SELECT * FROM mfa_credential'),
         ], JSON_THROW_ON_ERROR);
         self::assertStringNotContainsString($ownerPassword, $databaseSnapshot);
-        self::assertStringNotContainsString($smtpSecret, $databaseSnapshot);
-        $this->assertRuntimeFilesExclude([$ownerPassword, $smtpSecret]);
+        $this->assertRuntimeFilesExclude([$ownerPassword]);
 
         $client->request('GET', '/setup', server: $server);
         self::assertResponseStatusCodeSame(404);

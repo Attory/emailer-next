@@ -45,16 +45,21 @@ data is accepted.
 
 - Secret-envelope round-trip, fresh nonces, tampering, wrong master key,
   installation/type/record/schema AAD, and unsupported versions.
-- Missing, malformed, public-path, linked, hard-linked, over-permissive, and
-  unsafe-parent master-key handling with opened/path inode validation.
+- Omitted, relative, application/release/public, malformed, linked, hard-linked,
+  nested-symlink, over-permissive, and unsafe-ancestor master-key handling with
+  complete ancestor plus opened/path inode validation.
 - MariaDB migration/schema validation and database-runtime identity matching.
-- Initial Owner uniqueness, explicit Argon2id, TOTP enrolment, encrypted seed,
-  hashed recovery values, and single-use consumption.
-- Local Mailpit-only connection/message capture and live-host rejection.
+- Initial Owner same-password idempotence/wrong-password rejection, explicit
+  Argon2id, interrupted/restarted/skipped/repeated TOTP enrollment cleanup,
+  encrypted seed, hashed recovery values, and single-use consumption.
+- Exact plaintext/unauthenticated local Mailpit persistence and message capture;
+  STARTTLS, implicit TLS, auth input, and live-host rejection.
 - Submitted plaintext absence from durable database/runtime files and generic
   exception output.
 - Failed finalization, lock-publication compensation, repeated/concurrent
-  completion, one completion event, permanent lock, and post-lock 404.
+  completion, a real delayed-writer/finalizer race under one lifecycle lock,
+  one completion event, permanent lock, post-lock setup-row immutability, and
+  post-lock 404.
 - End-to-end HTTPS wizard coverage without retaining plaintext secret state.
 
 ## Phase 1 coverage

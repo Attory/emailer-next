@@ -7,8 +7,8 @@ namespace App\Module\Setup\Infrastructure;
 use App\Module\Health\Application\Contract\SetupDoctor;
 use App\Module\Setup\Application\Contract\InstallationFinalizer;
 use App\Module\Setup\Application\Contract\InstallationLock;
+use App\Module\Setup\Application\Contract\SetupLifecycle;
 use Doctrine\DBAL\Connection;
-use Symfony\Component\Lock\LockFactory;
 
 final readonly class DoctrineInstallationFinalizer implements InstallationFinalizer
 {
@@ -16,19 +16,14 @@ final readonly class DoctrineInstallationFinalizer implements InstallationFinali
         private Connection $connection,
         private InstallationLock $installationLock,
         private SetupDoctor $doctor,
-        private LockFactory $lockFactory,
+        private SetupLifecycle $lifecycle,
     ) {
     }
 
     public function finalize(): string
     {
-        $lock = $this->lockFactory->createLock('emailer.phase3.finalization', 30.0, true);
-        if (!$lock->acquire(true)) {
-            throw new \RuntimeException('Installation finalization is already in progress.');
-        }
-
-        try {
-            if ($this->installationLock->exists()) {
+        return $this->lifecycle->finalize(function (): string {
+            if ($this->installationLockExists()) {
                 $completed = $this->connection->fetchOne("SELECT installation_uuid FROM installation_state WHERE singleton_key = '1' AND completed_at IS NOT NULL");
                 if (\is_string($completed)) {
                     return $completed;
@@ -46,6 +41,9 @@ final readonly class DoctrineInstallationFinalizer implements InstallationFinali
                 $state = $this->connection->fetchAssociative("SELECT installation_uuid, completed_at FROM installation_state WHERE singleton_key = '1' FOR UPDATE");
                 if (false === $state || !\is_string($state['installation_uuid'])) {
                     throw new \RuntimeException('Installation identity is unavailable.');
+                }
+                if ($this->installationLockExists()) {
+                    throw new \RuntimeException('Installation lock changed during finalization.');
                 }
                 $installationId = $state['installation_uuid'];
                 $ownerId = $this->connection->fetchOne("SELECT id FROM app_user WHERE role = 'ROLE_OWNER' AND active = 1");
@@ -85,14 +83,18 @@ final readonly class DoctrineInstallationFinalizer implements InstallationFinali
             }
 
             return $installationId;
-        } finally {
-            $lock->release();
-        }
+        });
     }
 
     private static function now(): string
     {
         return (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->format('Y-m-d H:i:s.u');
+    }
+
+    /** @phpstan-impure */
+    private function installationLockExists(): bool
+    {
+        return $this->installationLock->exists();
     }
 
     private static function uuidV7(): string

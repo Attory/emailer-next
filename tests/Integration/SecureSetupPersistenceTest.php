@@ -87,9 +87,22 @@ final class SecureSetupPersistenceTest extends KernelTestCase
         self::assertStringStartsWith('$argon2id$', $hash);
         self::assertTrue(password_verify('synthetic owner password 2026', $hash));
         self::assertSame('owner@example.test', $this->connection->fetchOne('SELECT login_identifier FROM app_user WHERE id = ?', [$ownerId]));
-        self::assertSame($ownerId, $ownerSetup->create('owner@example.test', 'another sufficiently long password'));
+        self::assertSame($ownerId, $ownerSetup->create('owner@example.test', 'synthetic owner password 2026'));
+        try {
+            $ownerSetup->create('owner@example.test', 'another sufficiently long password');
+            self::fail('An unrelated Owner replacement password was accepted.');
+        } catch (\RuntimeException $exception) {
+            self::assertStringContainsString('does not match', $exception->getMessage());
+        }
+        self::assertSame($hash, $this->connection->fetchOne('SELECT password_hash FROM app_user WHERE id = ?', [$ownerId]));
 
+        $interrupted = $ownerSetup->startMfa($ownerId, $installationId);
+        $interruptedSecret = $this->connection->fetchOne("SELECT encrypted_secret_id FROM mfa_credential WHERE user_id = ? AND credential_type = 'totp' AND active = 0", [$ownerId]);
+        self::assertIsString($interruptedSecret);
         $enrollment = $ownerSetup->startMfa($ownerId, $installationId);
+        self::assertNotSame($interrupted->seed, $enrollment->seed);
+        self::assertSame(11, $this->dbCount('SELECT COUNT(*) FROM mfa_credential WHERE user_id = ? AND active = 0', [$ownerId]));
+        self::assertSame(0, $this->dbCount('SELECT COUNT(*) FROM encrypted_secret WHERE id = ?', [$interruptedSecret]));
         $databaseContents = json_encode($this->connection->fetchAllAssociative('SELECT * FROM mfa_credential'), JSON_THROW_ON_ERROR);
         self::assertStringNotContainsString($enrollment->seed, $databaseContents);
         foreach ($enrollment->recoveryCodes as $code) {
@@ -99,6 +112,19 @@ final class SecureSetupPersistenceTest extends KernelTestCase
         $totp = $this->service(Totp::class);
         $ownerSetup->confirmMfa($ownerId, $installationId, $totp->code($enrollment->seed, intdiv(time(), 30)), true);
         self::assertSame(11, $this->dbCount('SELECT COUNT(*) FROM mfa_credential WHERE user_id = ? AND active = 1', [$ownerId]));
+        try {
+            $ownerSetup->confirmMfa($ownerId, $installationId, $totp->code($enrollment->seed, intdiv(time(), 30)), true);
+            self::fail('Repeated MFA confirmation was silently accepted.');
+        } catch (\RuntimeException $exception) {
+            self::assertStringContainsString('already confirmed', $exception->getMessage());
+        }
+        try {
+            $ownerSetup->startMfa($ownerId, $installationId);
+            self::fail('A second applicable TOTP enrollment was created.');
+        } catch (\RuntimeException $exception) {
+            self::assertStringContainsString('already confirmed', $exception->getMessage());
+        }
+        self::assertSame(1, $this->dbCount("SELECT COUNT(*) FROM mfa_credential WHERE user_id = ? AND credential_type = 'totp' AND active = 1", [$ownerId]));
         $recoveryHash = $this->connection->fetchOne("SELECT value_hash FROM mfa_credential WHERE user_id = ? AND credential_type = 'recovery_code' LIMIT 1", [$ownerId]);
         self::assertIsString($recoveryHash);
         self::assertTrue(password_verify($enrollment->recoveryCodes[0], $recoveryHash));
@@ -107,21 +133,34 @@ final class SecureSetupPersistenceTest extends KernelTestCase
         self::assertFalse($consumer->consume($ownerId, $enrollment->recoveryCodes[0]));
     }
 
-    public function testMailpitCaptureEncryptedCredentialAndSafePolicies(): void
+    public function testSkippingMfaDeletesInterruptedEnrollmentMaterial(): void
+    {
+        $state = $this->service(SetupState::class);
+        $installationId = $state->initializeKey();
+        $ownerSetup = $this->service(OwnerSetup::class);
+        $ownerId = $ownerSetup->create('owner@example.test', 'synthetic owner password 2026');
+        $ownerSetup->startMfa($ownerId, $installationId);
+
+        self::assertSame(11, $this->dbCount('SELECT COUNT(*) FROM mfa_credential WHERE user_id = ?', [$ownerId]));
+        self::assertSame(1, $this->dbCount("SELECT COUNT(*) FROM encrypted_secret WHERE record_type = 'identity.totp-seed'"));
+        $ownerSetup->skipMfa($ownerId);
+        self::assertSame(0, $this->dbCount('SELECT COUNT(*) FROM mfa_credential WHERE user_id = ?', [$ownerId]));
+        self::assertSame(0, $this->dbCount("SELECT COUNT(*) FROM encrypted_secret WHERE record_type = 'identity.totp-seed'"));
+    }
+
+    public function testMailpitCapturePersistsOnlyActuallyTestedTransportAndSafePolicies(): void
     {
         $state = $this->service(SetupState::class);
         $installationId = $state->initializeKey();
         $configuration = $this->service(ConfigurationSetup::class);
-        $secret = 'runtime-'.bin2hex(random_bytes(18));
-
         $configuration->saveOrganisation($installationId, new OrganisationInput('Synthetic Organisation', 'https://emailer.example.test', 'en_AU', 'Australia/Sydney'));
-        $configuration->testAndSaveMail($installationId, new MailInput('mailpit', 1025, 'none', 'synthetic-user', $secret, 'phase3-sender@example.test', 'Emailer Next Test', ''));
+        $configuration->testAndSaveMail($installationId, new MailInput('mailpit', 1025, 'none', '', '', 'phase3-sender@example.test', 'Emailer Next Test', ''));
         $configuration->savePolicies(new PolicyInput(60, 1, 5, 10_000, 10_485_760, 100_000, 30, 365, 'Synthetic unsubscribe footer.', 'supervised'));
 
-        self::assertSame(1, $this->integer("SELECT tls_peer_verification FROM sender_identity WHERE singleton_key = '1'"));
-        $envelope = $this->connection->fetchOne('SELECT envelope FROM encrypted_secret LIMIT 1');
-        self::assertIsString($envelope);
-        self::assertStringNotContainsString($secret, $envelope);
+        self::assertSame(0, $this->integer("SELECT tls_peer_verification FROM sender_identity WHERE singleton_key = '1'"));
+        self::assertSame('none', $this->connection->fetchOne("SELECT encryption_mode FROM sender_identity WHERE singleton_key = '1'"));
+        self::assertNull($this->connection->fetchOne("SELECT smtp_username FROM sender_identity WHERE singleton_key = '1'"));
+        self::assertNull($this->connection->fetchOne("SELECT credential_secret_id FROM sender_identity WHERE singleton_key = '1'"));
         self::assertSame(0, $this->integer("SELECT open_tracking + click_tracking + rsvp_enabled FROM privacy_policy WHERE singleton_key = '1'"));
         self::assertSame('global', $this->connection->fetchOne("SELECT suppression_mode FROM privacy_policy WHERE singleton_key = '1'"));
 
@@ -129,11 +168,19 @@ final class SecureSetupPersistenceTest extends KernelTestCase
         $subjects = array_column($messages, 'Subject');
         self::assertContains('[TEST] Emailer Next Phase 3 setup', $subjects);
 
-        try {
-            $configuration->testAndSaveMail($installationId, new MailInput('smtp.example.test', 587, 'starttls', '', $secret, 'phase3-sender@example.test', 'Emailer Next Test', ''));
-            self::fail('A live SMTP destination was accepted.');
-        } catch (\RuntimeException $exception) {
-            self::assertStringContainsString('Mailpit', $exception->getMessage());
+        foreach ([
+            new MailInput('smtp.example.test', 587, 'starttls', '', '', 'phase3-sender@example.test', 'Emailer Next Test', ''),
+            new MailInput('mailpit', 1025, 'starttls', '', '', 'phase3-sender@example.test', 'Emailer Next Test', ''),
+            new MailInput('mailpit', 1025, 'tls', '', '', 'phase3-sender@example.test', 'Emailer Next Test', ''),
+            new MailInput('mailpit', 1025, 'none', 'synthetic-user', '', 'phase3-sender@example.test', 'Emailer Next Test', ''),
+            new MailInput('mailpit', 1025, 'none', '', 'synthetic-credential', 'phase3-sender@example.test', 'Emailer Next Test', ''),
+        ] as $invalidInput) {
+            try {
+                $configuration->testAndSaveMail($installationId, $invalidInput);
+                self::fail('Untested or live SMTP configuration was accepted.');
+            } catch (\InvalidArgumentException $exception) {
+                self::assertStringContainsString('Mailpit', $exception->getMessage());
+            }
         }
     }
 

@@ -10,8 +10,9 @@ secrets, initial Owner, and mail configuration
 **Base:** `origin/main` at
 `51a4402fb8f61e9b93b72b29d6b5b8e121b2a034`
 
-**Result:** Phase 3 implementation and complete local validation are passing.
-Terminal draft-PR GitHub CI remains the publication gate.
+**Result:** Phase 3 implementation plus the independent-review repair are
+locally passing. Terminal CI for the repaired exact head remains the publication
+gate.
 
 ## Starting state and canonical inputs
 
@@ -39,29 +40,35 @@ inspected, fetched as a source, merged, copied, or used.
 - Submitted database values must match the external Doctrine runtime identity.
   A short-lived second connection verifies the password and MariaDB server;
   the password is neither persisted nor logged.
-- The external master-key adapter generates 32 random bytes, stores URL-safe
-  base64 only in the configured file, and validates public-path separation,
-  mode-`0700` parent, mode-`0600` single-link regular file, bounded size, and
-  stable path/opened/post-read metadata.
+- The external master-key adapter refuses absent/relative production
+  configuration and application/release/public placement. It walks the complete
+  existing ancestor chain for links, ownership and modes, snapshots it against
+  replacement, then generates 32 random bytes in a mode-`0700` parent and
+  mode-`0600` single-link file with bounded stable-handle reads.
 - `SecretCipher` derives purpose keys with HKDF-SHA-256 and creates version-1
   XChaCha20-Poly1305 envelopes with fresh nonces. AAD binds installation UUID,
   record type, record UUID, and schema version. Authentication/version failures
   are generic and fail closed.
 - The initial individual Owner uses a Unicode-normalized, case-insensitive
-  unique email login and explicit Argon2id password hashing. Optional TOTP seeds
-  are encrypted; ten recovery codes are Argon2id-hashed, displayed once, and
-  atomically consumable once.
-- Mail configuration accepts local Mailpit/loopback port 1025 only, sends a
-  marked synthetic message to a reserved address, stores sender metadata and an
-  encrypted synthetic credential, and fixes TLS peer verification as enabled.
-  Live SMTP is rejected before transport construction.
+  unique email login and explicit Argon2id password hashing. Same-password
+  retries are idempotent; an unrelated replacement password is rejected.
+  Optional TOTP seeds are encrypted; ten recovery codes are Argon2id-hashed,
+  displayed once, and atomically consumable once. Restart/skip removes inactive
+  material and at most one applicable TOTP set can exist.
+- Mail configuration accepts only plaintext, unauthenticated local
+  Mailpit/loopback port 1025. It sends a marked synthetic message to a reserved
+  address and stores exactly that host/port/no-encryption/no-auth evidence with
+  `tls_peer_verification = 0`. TLS modes, auth values, and live SMTP are rejected
+  before transport construction; production transport remains impossible.
 - Tracking, click tracking, and RSVP persist disabled. Delivery/import limits,
   global suppression mode, retention inputs, and worker profile are bounded.
   Capability detection checks CLI availability without starting a process.
-- Critical finalization is serialized. It validates every setup component,
-  records exactly one fixed completion event, records database completion, and
-  publishes the restrictive installation lock. Lock-publication failure removes
-  completion evidence. Concurrent/repeated calls remain single-use/idempotent.
+- Every Phase 3 writer and critical finalization shares one lifecycle lock.
+  Writers verify database completion and the filesystem lock are absent before
+  mutation. Finalization validates under that same lock, records exactly one
+  completion event, records database completion, and publishes the restrictive
+  installation lock. Publication failure removes completion evidence;
+  concurrent/repeated completion is idempotent and post-lock writes fail closed.
 - `emailer:secrets:replace` and `emailer:secrets:rotate-master-key` exist as
   argument-free, non-mutating fail-closed skeletons only.
 
@@ -72,7 +79,8 @@ inspected, fetched as a source, merged, copied, or used.
 - The aggregate Composer check now establishes and validates migrations before
   PHPUnit so clean-room test databases have the Phase 3 schema. No package
   requirement or resolved dependency changed.
-- Migration added: `DoctrineMigrations\Version20260815000000`.
+- Migrations added: `DoctrineMigrations\Version20260815000000` and the bounded
+  mail-evidence repair `DoctrineMigrations\Version20260816000000`.
 - Tables added: `installation_state`, `organisation_settings`,
   `encrypted_secret`, `app_user`, `mfa_credential`, `sender_identity`,
   `delivery_policy`, `privacy_policy`, and `setup_installation_event`.
@@ -101,8 +109,8 @@ docker compose run --rm app composer check
 
 | Check | Result |
 | --- | --- |
-| Focused Phase 3 suite | Pass: 17 tests, 208 assertions |
-| Complete Phase 0–3 PHPUnit | Pass: 68 tests, 571 assertions in the empty-database aggregate run |
+| Focused Phase 3 repair suite | Pass: 19 tests, 283 assertions |
+| Complete Phase 0–3 PHPUnit | Pass: 72 tests, 663 assertions in the final aggregate run |
 | PHPStan maximum level | Pass; no baseline or ignored error |
 | Deptrac/custom module checks | Pass; zero violation/error |
 | Migration/up-to-date/mapping | Pass; Phase 3 migration applied, mappings valid |
@@ -122,19 +130,29 @@ than assuming a fixed test database name. A local run against a separately
 created empty database then passed the complete aggregate suite; that temporary
 database was removed after validation.
 
+The independent-review repair then tightened four Phase 3 boundaries without
+adding a dependency or Phase 4 behavior: exact Mailpit probe/persistence
+integrity, explicit external key configuration with full ancestor validation,
+one shared writer/finalizer lifecycle lock, and credential-verified Owner plus
+cleanup-safe MFA resumption. A new real two-process test delays a mutation while
+finalization races for the same lock, then verifies every setup-owned table is
+unchanged by attempted post-lock mutations.
+
 ## Security and privacy evidence
 
 - Tests cover encryption round-trip, nonce uniqueness, ciphertext tamper,
   wrong key, installation/type/record/schema AAD, and unsupported versions.
-- Key tests cover missing, malformed, symlink, hard-link, public path, unsafe
-  file/parent modes, and stable opened/path metadata. The key value is never
-  printed or committed.
-- Runtime-generated Owner/mail secrets are asserted absent from database,
+- Key tests cover omitted/relative configuration, application/release/public
+  placement, malformed files, symlink/hard-link/nested-link escape, unsafe
+  file/ancestor modes, and stable ancestor/opened/path metadata. The key value
+  is never printed or committed.
+- Runtime-generated Owner/MFA secrets are asserted absent from database,
   session/cache/log runtime files, and exception text. Aggregate scanners cover
   the current tree, reachable history, generated output, and artifact.
-- Owner, TOTP, recovery, Mailpit capture, live-host rejection, migration,
-  failed/resumed steps, rollback compensation, concurrency, irreversible lock,
-  and post-lock setup behavior have executable negative coverage.
+- Owner-password retry, TOTP restart/skip/repeat, recovery, exact Mailpit capture
+  and TLS/auth/live-host rejection, migration, failed/resumed steps, rollback
+  compensation, delayed-writer/finalizer concurrency, irreversible lock, and
+  post-lock record immutability have executable negative coverage.
 - Test identities use reserved `example.test` addresses. No real SMTP
   credential, recipient data, production URL, provider, DNS action, deployment,
   or external account was used.

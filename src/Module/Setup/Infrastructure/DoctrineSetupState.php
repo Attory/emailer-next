@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Setup\Infrastructure;
 
 use App\Module\Secrets\Application\Contract\MasterKey;
+use App\Module\Setup\Application\Contract\SetupLifecycle;
 use App\Module\Setup\Application\Contract\SetupState;
 use App\Module\Setup\Application\SetupProgress;
 use Doctrine\DBAL\Connection;
@@ -22,6 +23,7 @@ final readonly class DoctrineSetupState implements SetupState
     public function __construct(
         private Connection $connection,
         private MasterKey $masterKey,
+        private SetupLifecycle $lifecycle,
     ) {
     }
 
@@ -51,32 +53,34 @@ final readonly class DoctrineSetupState implements SetupState
 
     public function initializeKey(): string
     {
-        $this->connection->beginTransaction();
-        try {
-            $state = $this->connection->fetchAssociative("SELECT installation_uuid, key_ready_at FROM installation_state WHERE singleton_key = '1' FOR UPDATE");
-            if (false === $state) {
-                throw new \RuntimeException('Database setup has not completed.');
+        return $this->lifecycle->mutate(function (): string {
+            $this->connection->beginTransaction();
+            try {
+                $state = $this->connection->fetchAssociative("SELECT installation_uuid, key_ready_at FROM installation_state WHERE singleton_key = '1' FOR UPDATE");
+                if (false === $state) {
+                    throw new \RuntimeException('Database setup has not completed.');
+                }
+
+                $installationId = \is_string($state['installation_uuid'])
+                    ? $state['installation_uuid']
+                    : self::uuidV7();
+
+                if (null === $state['installation_uuid']) {
+                    $this->connection->update('installation_state', ['installation_uuid' => $installationId], ['singleton_key' => '1']);
+                }
+
+                $this->masterKey->create();
+                if (null === $state['key_ready_at']) {
+                    $this->connection->update('installation_state', ['key_ready_at' => self::now()], ['singleton_key' => '1']);
+                }
+                $this->connection->commit();
+
+                return $installationId;
+            } catch (\Throwable $exception) {
+                $this->connection->rollBack();
+                throw $exception;
             }
-
-            $installationId = \is_string($state['installation_uuid'])
-                ? $state['installation_uuid']
-                : self::uuidV7();
-
-            if (null === $state['installation_uuid']) {
-                $this->connection->update('installation_state', ['installation_uuid' => $installationId], ['singleton_key' => '1']);
-            }
-
-            $this->masterKey->create();
-            if (null === $state['key_ready_at']) {
-                $this->connection->update('installation_state', ['key_ready_at' => self::now()], ['singleton_key' => '1']);
-            }
-            $this->connection->commit();
-
-            return $installationId;
-        } catch (\Throwable $exception) {
-            $this->connection->rollBack();
-            throw $exception;
-        }
+        });
     }
 
     public function mark(string $step): void
@@ -86,10 +90,12 @@ final readonly class DoctrineSetupState implements SetupState
             throw new \InvalidArgumentException('Unknown setup step.');
         }
 
-        $this->connection->executeStatement(
-            \sprintf("UPDATE installation_state SET %s = COALESCE(%s, ?) WHERE singleton_key = '1'", $column, $column),
-            [self::now()],
-        );
+        $this->lifecycle->mutate(function () use ($column): void {
+            $this->connection->executeStatement(
+                \sprintf("UPDATE installation_state SET %s = COALESCE(%s, ?) WHERE singleton_key = '1'", $column, $column),
+                [self::now()],
+            );
+        });
     }
 
     private static function now(): string

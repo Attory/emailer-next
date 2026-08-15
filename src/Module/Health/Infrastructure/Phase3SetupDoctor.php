@@ -57,7 +57,26 @@ final readonly class Phase3SetupDoctor implements SetupDoctor
             if (1 !== $this->count("SELECT COUNT(*) FROM app_user WHERE role = 'ROLE_OWNER' AND active = 1")) {
                 $failures[] = 'owner';
             }
-            if (1 !== $this->count("SELECT COUNT(*) FROM sender_identity WHERE singleton_key = '1' AND tls_peer_verification = 1 AND test_message_at IS NOT NULL")) {
+            $activeTotp = $this->count("SELECT COUNT(*) FROM mfa_credential WHERE credential_type = 'totp' AND active = 1");
+            $activeRecovery = $this->count("SELECT COUNT(*) FROM mfa_credential WHERE credential_type = 'recovery_code' AND active = 1");
+            if (1 < $activeTotp
+                || 0 !== $this->count('SELECT COUNT(*) FROM mfa_credential WHERE active = 0')
+                || (0 === $activeTotp && 0 !== $activeRecovery)
+                || (1 === $activeTotp && 10 !== $activeRecovery)
+            ) {
+                $failures[] = 'owner_mfa';
+            }
+            if (1 !== $this->count(<<<'SQL'
+SELECT COUNT(*) FROM sender_identity
+WHERE singleton_key = '1'
+  AND smtp_host IN ('mailpit', '127.0.0.1', '::1')
+  AND smtp_port = 1025
+  AND encryption_mode = 'none'
+  AND smtp_username IS NULL
+  AND credential_secret_id IS NULL
+  AND tls_peer_verification = 0
+  AND test_message_at IS NOT NULL
+SQL)) {
                 $failures[] = 'mail';
             }
             if (1 !== $this->count("SELECT COUNT(*) FROM privacy_policy WHERE singleton_key = '1' AND open_tracking = 0 AND click_tracking = 0 AND rsvp_enabled = 0 AND suppression_mode = 'global'")) {

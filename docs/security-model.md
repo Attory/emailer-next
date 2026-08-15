@@ -44,19 +44,36 @@ code again. Backup-gated reset fails closed because Phase 2 cannot authenticate
 a meaningful backup artifact; a restrictive file with a self-declared digest
 is insufficient authority.
 
-Phase 3 adds strict external-key creation/read validation, including public-path
-separation, a mode-`0700` parent, mode-`0600` single-link file, bounded reads,
-and path/open-file/post-read inode comparison. Secret records use
+Phase 3 requires an explicit absolute production key path outside the complete
+application/release/public tree. Creation/read validation walks every existing
+ancestor, rejects links and unsafe ownership/modes, requires a mode-`0700`
+immediate parent and mode-`0600` single-link file, and rechecks ancestor plus
+path/open-file identity across bounded publication and reads. Test/development
+paths are explicit and isolated. Secret records use
 HKDF-SHA-256 purpose keys and fresh-nonce XChaCha20-Poly1305 envelopes bound to
 installation UUID, record type, record UUID, and schema version. Unsupported
 versions and every authentication mismatch share a generic fail-closed result.
 
 The initial Owner login is Unicode-normalized and case-insensitive, uniquely
-stored, and hashed with explicit Argon2id. Optional TOTP seeds are encrypted;
-recovery codes are individually Argon2id-hashed, displayed once, and atomically
-consumed once. Database/runtime and mail plaintext secrets are never session
-state. Phase 3 mail testing is hard-limited to local Mailpit and rejects live
-destinations before transport construction.
+stored, and hashed with explicit Argon2id. A resumed creation accepts only the
+same login and a password verified against the stored hash. Optional TOTP seeds
+are encrypted; recovery codes are individually Argon2id-hashed, displayed once,
+and atomically consumed once. Restart/skip deletes inactive enrollment material,
+and confirmed or repeated enrollment cannot create a second applicable TOTP
+set. Database/runtime plaintext secrets are never setup-session state.
+
+Phase 3 mail testing is hard-limited to plaintext, unauthenticated local
+Mailpit. The exact probed host, port, encryption mode, and absence of auth are
+persisted; `tls_peer_verification = 0` records honestly that TLS was not used.
+STARTTLS, implicit TLS, authentication, and every live destination are rejected
+before transport construction. Production TLS/provider configuration remains
+unavailable.
+
+Every Phase 3 database/key/configuration/identity mutation and finalization
+uses one cross-process lifecycle lock. A writer verifies immediately before its
+operation that database completion and the filesystem installation lock are
+both absent. Finalization validates and commits under that same lock, so no
+setup record or secret can change after lock publication.
 
 ## Fail-closed states
 
