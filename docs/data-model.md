@@ -1,11 +1,30 @@
 # Initial data model
 
-**Status:** Conceptual product design; Phase 1 has no business schema.
+**Status:** Phase 3 setup schema plus conceptual later-phase design.
 
-The only current migration is
-`DoctrineMigrations\Version20260723000000`. It executes a MariaDB `SELECT 1`
-smoke check and creates no business table; Doctrine creates only its migration
-metadata table. Every entity below remains planned for its owning later phase.
+`DoctrineMigrations\Version20260723000000` remains the no-schema platform
+smoke check. Phase 3 adds `Version20260815000000`, which creates only the
+secure first-run tables below. Later contact, campaign, delivery, session,
+health, backup, and full audit entities remain conceptual.
+
+## Implemented Phase 3 tables
+
+| Table | Owner | Enforced purpose |
+| --- | --- | --- |
+| `installation_state` | Setup | Singleton installation UUID and non-secret step/completion timestamps |
+| `organisation_settings` | Configuration | Singleton name, canonical HTTPS origin, locale, and time zone |
+| `encrypted_secret` | Secrets | UUIDv7 identity, versioned authenticated envelope, and rotation metadata |
+| `app_user` | Identity | Initial active `ROLE_OWNER`, normalized unique login, and Argon2id hash |
+| `mfa_credential` | Identity | Encrypted TOTP-secret reference or hashed single-use recovery code |
+| `sender_identity` | Configuration | Mailpit-tested SMTP metadata, sender identity, encrypted credential reference, mandatory TLS-verification flag |
+| `delivery_policy` | Configuration | Bounded delivery/import limits and detected CLI execution mode |
+| `privacy_policy` | Configuration | Tracking/RSVP off, global suppression mode, and bounded retention/footer defaults |
+| `setup_installation_event` | Setup | Exactly one append-only `installation.completed` event; not the Phase 4 audit system |
+
+MariaDB foreign keys protect Owner/MFA and encrypted-secret references. Check
+constraints protect singleton keys, initial roles/types, TLS verification,
+privacy-off defaults, and the fixed completion action. Runtime database
+credentials are not represented in this schema.
 
 **Identifier policy:** UUIDv7 internally where ordering helps; random opaque
 identifiers or token handles externally

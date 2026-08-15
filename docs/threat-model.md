@@ -1,6 +1,6 @@
 # Threat model
 
-**Status:** Phase 2 setup controls reviewed.
+**Status:** Phase 3 setup, key, secret, Owner, and fake-mail controls reviewed.
 
 **Method:** Asset/trust-boundary review with STRIDE-style misuse cases and
 privacy-abuse review
@@ -142,6 +142,24 @@ Phase 1 supplies the first controls for the threats assigned to it:
 The scaffold contains no business send command, queue message, worker, or
 arbitrary-send HTTP route. The Mailpit integration uses only reserved synthetic
 addresses.
+
+## Phase 3 control status
+
+- TM-01 closes the completion half of first-run setup with serialized,
+  irreversible lock publication and post-lock 404 behavior.
+- TM-04/TM-05 are implemented for SMTP credentials and TOTP seeds with an
+  external validated key, purpose HKDF, record-bound AAD, fresh nonces, and
+  authenticated versioned envelopes. Root/process-memory compromise remains
+  outside the guarantee.
+- TM-06 is implemented only for initial Owner creation, Argon2id storage,
+  optional setup-time TOTP, and single-use recovery-code storage/consumption.
+  Login, session, throttling, reset, re-authentication, and administration are
+  still Phase 4.
+- TM-16/TM-21 tests scan database/runtime outputs and generic exceptions for
+  submitted secret absence; aggregate tree/history/artifact gates remain
+  mandatory.
+- TM-22 mail setup and tests accept Mailpit only. No production transport,
+  recipient, provider credential, DNS action, or delivery path exists.
 
 ## Residual risks and non-guarantees
 

@@ -1,13 +1,12 @@
 # Installation
 
-**Status:** Phase 2 ownership proof and preflight are implemented. Production
-credential setup and completion are not implemented.
+**Status:** Phase 3 secure first-run setup is implemented for MariaDB and local
+Mailpit. Production deployment and production SMTP remain unavailable.
 
-The current repository can create a safe local Symfony/MariaDB/Mailpit platform
-and exercise filesystem ownership proof. It cannot
-create an Emailer installation, Owner, transport credential, contacts,
-templates, or campaigns, and it cannot send production mail. Phase 3 owns
-credential setup and irreversible installation completion.
+The current repository can create a completed setup-only installation with an
+external key, initial Owner, encrypted synthetic transport credential, sender
+identity, safe policies, and irreversible lock. It has no login/admin shell,
+contacts, templates, campaigns, worker, or production sending.
 
 ## Tested platform matrix
 
@@ -98,12 +97,35 @@ HTTPS. This phase does not ask for a database password, master key, Owner data,
 or mail settings. The CLI alternative is `bin/console emailer:setup:install`;
 it also stops before credentials and does not create a completed installation.
 
+## Phase 3 runtime configuration and completion
+
+Before web setup, operators supply `DATABASE_URL`, `EMAILER_PRIVATE_DIR`, and
+`EMAILER_SECRET_KEY_FILE` through external runtime configuration. The key path
+must be outside `public/`; setup creates its parent as mode `0700` and the key
+as mode `0600`. Never pre-create the key with content, put it in Git, pass it on
+a command line, or include it in an ordinary backup.
+
+After filesystem proof and HTTPS preflight, the database form verifies that
+the submitted host/port/database/user match `DATABASE_URL`, verifies the
+password without retaining it, and applies migrations. Optional TOTP recovery
+values are displayed once and cannot be recovered from setup state.
+
+Mail setup accepts only `mailpit` or loopback on port 1025 and sends only to the
+reserved `phase3-recipient@example.test`. Every live hostname is rejected.
+Completion runs critical checks and writes the private lock; all subsequent
+`/setup` requests return 404.
+
+The new migration is `DoctrineMigrations\Version20260815000000`. MariaDB DDL
+may auto-commit, so migration failure is a blocking operator condition; never
+manually mark it complete.
+
 ## Future production prerequisites
 
 The target remains PHP-FPM behind Nginx or Apache with TLS and document root
 exactly `public/`, MariaDB, external private storage, an external restrictive
 master-key path, a supervised CLI worker or documented cron fallback, and a CLI
-scheduler. Those operational profiles, key creation, runtime credentials, and
-Configuration Doctor gates are not implemented by Phase 2.
+scheduler. Production transport, authenticated changes, worker heartbeats, and
+full Configuration Doctor gates are not implemented by Phase 3.
 
-See [first-run-setup.md](first-run-setup.md) for the designed later sequence.
+See [first-run-setup.md](first-run-setup.md) for the implemented setup sequence
+and remaining later-phase boundaries.

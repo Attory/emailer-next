@@ -1,6 +1,6 @@
 # Development
 
-**Status:** Phase 2 executable setup baseline.
+**Status:** Phase 3 executable secure-setup baseline.
 
 ## Clean-room rule
 
@@ -17,11 +17,13 @@ CI output, or build artifacts.
 
 ## Current state
 
-Phases 1–2 provide Symfony 7.4, a locked Composer project, Docker Compose services
+Phases 1–3 provide Symfony 7.4, a locked Composer project, Docker Compose services
 for the application/MariaDB/Mailpit, executable quality gates, coarse liveness,
 structured redaction, an inspected production-shaped artifact, and the bounded
-setup ownership/state flow. It has no credential wizard, authentication,
-contacts, templates, campaigns, delivery worker, or production sending.
+setup ownership/state flow, Phase 3 MariaDB setup schema, external-key crypto,
+initial Owner/MFA storage, Mailpit-only sender setup, policies, and irreversible
+completion. It has no login/admin shell, contacts, templates, campaigns,
+delivery worker, or production sending.
 
 ## Phase workflow
 

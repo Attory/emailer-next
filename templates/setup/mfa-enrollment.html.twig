@@ -1,0 +1,18 @@
+{% extends 'setup/layout.html.twig' %}
+{% block title %}Owner MFA enrolment{% endblock %}
+{% block body %}
+<main>
+    <h1>Save Owner MFA recovery material</h1>
+    <p>This TOTP seed and these recovery codes are displayed once. They are not retained in plaintext and cannot be redisplayed.</p>
+    <p><strong>TOTP seed:</strong> <code>{{ seed }}</code></p>
+    <p><strong>Provisioning URI:</strong> <code>{{ provisioning_uri }}</code></p>
+    <ul>{% for code in recovery_codes %}<li><code>{{ code }}</code></li>{% endfor %}</ul>
+    <form method="post" action="{{ path('setup_owner') }}" autocomplete="off">
+        <input type="hidden" name="_token" value="{{ csrf_token('setup-owner') }}">
+        <input type="hidden" name="action" value="confirm_mfa">
+        <label>Current six-digit TOTP code <input name="totp_code" inputmode="numeric" pattern="[0-9]{6}" required autocomplete="one-time-code"></label>
+        <label><input name="recovery_saved" type="checkbox" value="1" required> I saved the recovery codes outside this server</label>
+        <button type="submit">Confirm MFA</button>
+    </form>
+</main>
+{% endblock %}

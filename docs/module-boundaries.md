@@ -1,6 +1,6 @@
 # Module boundaries and dependency rules
 
-**Status:** Phase 1 rules with executable enforcement.
+**Status:** Phase 3 rules with executable enforcement.
 
 The application is a modular monolith. A module owns its rules, tables,
 repositories, application services, and presentation adapters. Ownership is a
@@ -107,3 +107,9 @@ its modules, including identifier-only queue-message shape once messages exist.
 
 Exceptions require a reviewed ADR and updated threat model; a PHPStan ignore or
 baseline entry alone is not an exception.
+
+Phase 3 implements narrow contracts for `Setup` orchestration to consume
+`Configuration`, `Identity`, `Secrets`, and `Health` behavior. DBAL adapters
+remain in the owning module; cross-module imports target only
+`Application\Contract`. The completion event remains Setup-owned and fixed in
+shape so Phase 3 does not introduce the general Phase 4 Audit module.

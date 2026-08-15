@@ -1,6 +1,6 @@
 # Testing
 
-**Status:** Phase 2 executable test baseline.
+**Status:** Phase 3 executable secure-setup test baseline.
 
 The stable gate order and executable commands are in
 [quality-gates.md](quality-gates.md). Results are recorded in the phase report
@@ -40,6 +40,22 @@ data is accepted.
 - Property/fuzz tests for CSV, merge/token parsing, URLs, and malformed input.
 - Deployment tests for Nginx/Apache public exposure and immutable artifact
   allowlist.
+
+## Phase 3 coverage
+
+- Secret-envelope round-trip, fresh nonces, tampering, wrong master key,
+  installation/type/record/schema AAD, and unsupported versions.
+- Missing, malformed, public-path, linked, hard-linked, over-permissive, and
+  unsafe-parent master-key handling with opened/path inode validation.
+- MariaDB migration/schema validation and database-runtime identity matching.
+- Initial Owner uniqueness, explicit Argon2id, TOTP enrolment, encrypted seed,
+  hashed recovery values, and single-use consumption.
+- Local Mailpit-only connection/message capture and live-host rejection.
+- Submitted plaintext absence from durable database/runtime files and generic
+  exception output.
+- Failed finalization, lock-publication compensation, repeated/concurrent
+  completion, one completion event, permanent lock, and post-lock 404.
+- End-to-end HTTPS wizard coverage without retaining plaintext secret state.
 
 ## Phase 1 coverage
 

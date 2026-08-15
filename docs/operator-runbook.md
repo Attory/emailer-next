@@ -1,16 +1,18 @@
 # Operator runbook
 
-**Status:** Phase 2 setup/local-platform runbook; production operations are not
-implemented.
+**Status:** Phase 3 secure-setup/local-platform runbook; production operations
+remain unimplemented.
 
 ## Current repository state
 
-Phases 1–2 contain the Symfony scaffold, locked dependencies, local
+Phases 1–3 contain the Symfony scaffold, locked dependencies, local
 application/MariaDB/Mailpit Compose stack, one baseline migration, quality
 pipeline, coarse liveness, logging redaction, and an inspected
 production-shaped artifact, plus filesystem ownership proof and setup-state
 controls. There is no completed product installation, account,
-campaign, delivery worker, release, or deployment to operate.
+campaign, delivery worker, release, or deployment to operate. Phase 3 can
+create the setup-only organisation, initial Owner, encrypted local transport
+configuration, safe policy defaults, and permanent installation lock.
 
 Before any work, confirm the repository path and clean status without opening
 credential files:
@@ -132,3 +134,23 @@ paste secrets, raw recipient lists, message bodies, or tokens into chat/issues.
 - Operators who do not run bootstrap need take no action. To exercise the
   scaffold later, install Docker/Compose and run the documented command with
   synthetic local data only.
+
+## Phase 3 setup operations
+
+1. Supply database/private/key paths through the external runtime; do not copy
+   real values into this repository or pass them on command lines.
+2. Complete the existing filesystem proof over HTTPS, then follow the database,
+   organisation, Owner, local-mail, policy, and finalization pages.
+3. Save optional TOTP recovery material when displayed. It cannot be
+   redisplayed from the database, logs, cache, queue, or setup session.
+4. Confirm Mailpit captured the marked synthetic message. Phase 3 deliberately
+   rejects live SMTP and cannot validate a production provider.
+5. Before completion, separately protect the external master key. The ordinary
+   backup design excludes it; the supported encrypted recovery-package command
+   remains Phase 8.
+6. After completion, expect every `/setup` route to return 404. Do not delete
+   the lock or edit database completion state to reopen setup.
+
+`emailer:secrets:replace` and `emailer:secrets:rotate-master-key` deliberately
+return failure and mutate nothing. They are reserved interfaces, not emergency
+recovery tools. Phase 3 requires one new migration and no new dependency.

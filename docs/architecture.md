@@ -1,6 +1,6 @@
 # Architecture
 
-**Status:** Phase 2 setup boundary plus locked product design.
+**Status:** Phase 3 secure first-run wizard plus locked product design.
 
 **Last reviewed:** 2026-08-15
 
@@ -18,13 +18,13 @@ administrative UI. A supervised CLI worker performs delivery through Symfony
 Messenger; an HTTP request can enqueue approved durable work but can never run
 the delivery worker.
 
-## Implemented through Phase 2
+## Implemented through Phase 3
 
-The repository currently implements only the platform shell:
+The repository implements the platform shell and secure setup boundary:
 
 - a final Symfony kernel with externally supplied runtime configuration;
-- Doctrine DBAL/ORM and Migrations configured for MariaDB, without business
-  entities or schema;
+- Doctrine DBAL/ORM and Migrations configured for MariaDB, including the
+  bounded Phase 3 setup/configuration/Owner/secret schema;
 - Mailer, Doctrine Messenger transports, Security, Twig, AssetMapper/Stimulus,
   Validator, RateLimiter, Lock, and Monolog framework wiring;
 - central structured JSON log processing with conservative redaction;
@@ -33,12 +33,21 @@ The repository currently implements only the platform shell:
 - CI, static architecture enforcement, isolated mail tests, and an allowlisted
   production-shaped artifact.
 
-Phase 2 adds the `Setup` module: fail-closed setup-mode routing, a 160-bit
+Phase 2 added the `Setup` module: fail-closed setup-mode routing, a 160-bit
 filesystem ownership challenge, private hashed setup state, safe fixed-path
 proof verification, post-proof HTTPS gating, system preflight, installation
 lock/reset abstractions, and the bounded CLI alternative. Identity, credential
-collection, content, campaign, and delivery remain unimplemented. Messenger has
-no business routing or messages, and there is no production send path.
+collection, content, campaign, and delivery remained unimplemented.
+
+Phase 3 completes the setup-only path with MariaDB schema migration, an
+external restrictive master-key file, HKDF/XChaCha20-Poly1305 secret records,
+singleton organisation and sender configuration, an Argon2id initial Owner,
+optional encrypted TOTP plus hashed recovery codes, bounded delivery/privacy
+defaults, Mailpit-only transport verification, critical setup preflight, and
+compensating installation-lock finalization. The fixed installation-completion
+event is not the general Phase 4 audit system. Login, sessions, the admin shell,
+content, campaigns, Messenger business messages, workers, and production
+sending remain unimplemented.
 
 ### Setup state transition
 
@@ -47,9 +56,11 @@ generic setup-required response. `GET /setup` issues a rate-limited challenge;
 `POST /setup/proof/verify` verifies only `.emailer-install-proof`, deletes proof
 and private state on success, and rotates the session. Preflight then requires
 the verified session and HTTPS. A present lock makes every setup route return
-404. Phase 2 can represent or reset that lock but does not complete an
-installation; Phase 3 owns irreversible completion after credentials and
-Doctor checks.
+404. Phase 3 publishes the lock only after all setup rows, external-key
+validation, Mailpit evidence, safe defaults, and CLI capability checks pass.
+Database completion precedes lock publication; publication failure is
+compensated, while an interruption before publication remains resumable and
+never appears installed.
 
 ```mermaid
 flowchart LR

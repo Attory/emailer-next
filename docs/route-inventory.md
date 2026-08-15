@@ -1,7 +1,7 @@
 # Route and command inventory
 
-**Status:** Phase 2 implementation inventory. Coarse liveness and the three
-Phase 2 setup routes are implemented; later routes remain planned.
+**Status:** Phase 3 implementation inventory. Coarse liveness and the secure
+first-run setup routes are implemented; authenticated/later routes remain planned.
 
 This inventory is the security review baseline. Every implemented route must be
 added here with method, authentication boundary, authorization rule, CSRF
@@ -58,6 +58,17 @@ without replacing or redisplaying it. Retryable proof failures retain only the
 original session's opaque challenge authority through the ten-attempt ceiling.
 After the private installation lock exists, the subscriber returns an empty 404
 for every setup route.
+
+### Implemented Phase 3 setup routes
+
+`setup_database`, `setup_organisation`, `setup_owner`, `setup_mail`,
+`setup_policy`, and `setup_complete` implement the planned Phase 3 entries.
+Every route requires the proof-authorized setup session, verified HTTPS,
+no-store responses, a dedicated setup rate limit, and CSRF for mutation.
+Secrets are accepted only in POST bodies, never retained in session, never
+redisplayed, and mapped to generic failures. Mail testing is additionally
+restricted to local Mailpit. Completion is POST-only, lock-serialized,
+critical-preflight gated, and single-use.
 
 ## Authenticated administration surface
 
@@ -117,7 +128,8 @@ rollback.
 | --- | --- | --- |
 | `emailer:setup:install` | HTTPS-independent interactive install; never echoes secrets | 2/3 |
 | `emailer:setup:reset` | Interactive reset; recent backup required; destructive flag when data exists | 2 |
-| `emailer:secrets:rotate-master-key` | Transactional re-encryption with rollback | 3 |
+| `emailer:secrets:replace` | Fail-closed replacement skeleton; no arguments or mutation until re-authenticated secret administration exists | 3 |
+| `emailer:secrets:rotate-master-key` | Fail-closed rotation skeleton; transactional re-encryption remains unavailable pending later recovery/authentication controls | 3 |
 | `emailer:secrets:export-recovery-key` | Passphrase-encrypted recovery package; passphrase never stored | 8 |
 | `messenger:consume async` | Supervised or bounded/locked cron delivery worker | 6 |
 | `emailer:scheduler:run` | Due schedules and maintenance under a non-overlap lock | 6/8 |
@@ -132,6 +144,9 @@ permissions are finalized in their owning phases and then generated into an
 authorization matrix test. Any additional public route requires a threat-model
 update before implementation.
 
-The two Phase 2 CLI commands are implemented. `emailer:setup:install` is
-deliberately bounded to ownership/preflight state until Phase 3. No later CLI
-command in this inventory is implemented.
+The two Phase 2 CLI commands remain implemented. `emailer:setup:install`
+continues to provide credential-free CLI ownership/preflight; the secure
+credential workflow is the HTTPS wizard in this phase. The two Phase 3 secret
+commands exist only as fail-closed, argument-free skeletons and cannot replace
+or rotate anything. No worker, restore, backup, release, or later CLI command is
+implemented.

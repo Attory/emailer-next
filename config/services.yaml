@@ -1,10 +1,13 @@
 parameters:
-    emailer.private_dir: '%kernel.project_dir%/var/private'
+    emailer.default_private_dir: '%kernel.project_dir%/var/private'
+    emailer.private_dir: '%env(default:emailer.default_private_dir:EMAILER_PRIVATE_DIR)%'
     emailer.setup_dir: '%emailer.private_dir%/setup'
     emailer.setup_state_file: '%emailer.setup_dir%/challenge.json'
     emailer.setup_cli_state_file: '%emailer.setup_dir%/cli-state.json'
     emailer.proof_file: '%kernel.project_dir%/.emailer-install-proof'
     emailer.install_lock_file: '%emailer.private_dir%/install.lock'
+    emailer.default_master_key_file: '%kernel.project_dir%/var/secrets/master.key'
+    emailer.master_key_file: '%env(default:emailer.default_master_key_file:EMAILER_SECRET_KEY_FILE)%'
 
 services:
     _defaults:
@@ -68,6 +71,28 @@ services:
             $privateDirectory: '%emailer.private_dir%'
 
     App\Module\Setup\Application\Contract\Preflight: '@App\Module\Setup\Infrastructure\SystemPreflight'
+
+    App\Module\Setup\Application\DatabaseSetup:
+        arguments:
+            $migrations: '@doctrine.migrations.dependency_factory'
+
+    App\Module\Secrets\Infrastructure\FilesystemMasterKey:
+        arguments:
+            $keyFile: '%emailer.master_key_file%'
+            $publicDirectory: '%kernel.project_dir%/public'
+
+    App\Module\Secrets\Application\Contract\MasterKey: '@App\Module\Secrets\Infrastructure\FilesystemMasterKey'
+    App\Module\Secrets\Application\Contract\SecretVault: '@App\Module\Secrets\Infrastructure\DoctrineSecretVault'
+    App\Module\Setup\Application\Contract\SetupState: '@App\Module\Setup\Infrastructure\DoctrineSetupState'
+    App\Module\Configuration\Application\Contract\ConfigurationSetup: '@App\Module\Configuration\Infrastructure\DoctrineConfigurationSetup'
+    App\Module\Identity\Application\Contract\OwnerSetup: '@App\Module\Identity\Infrastructure\DoctrineOwnerSetup'
+    App\Module\Identity\Application\Contract\RecoveryCodeConsumer: '@App\Module\Identity\Infrastructure\DoctrineRecoveryCodeConsumer'
+    App\Module\Health\Application\Contract\SetupDoctor: '@App\Module\Health\Infrastructure\Phase3SetupDoctor'
+    App\Module\Setup\Application\Contract\InstallationFinalizer: '@App\Module\Setup\Infrastructure\DoctrineInstallationFinalizer'
+
+    App\Module\Configuration\Infrastructure\DoctrineConfigurationSetup:
+        arguments:
+            $projectDirectory: '%kernel.project_dir%'
 
     App\Module\Setup\Presentation\Http\SetupController:
         arguments:

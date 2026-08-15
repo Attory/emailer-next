@@ -22,7 +22,7 @@ implementation evidence. None authorizes a weaker security outcome.
 
 | ID | Decision | Must be resolved by | Required evidence / constraint |
 | --- | --- | --- | --- |
-| OD-05 | Canonical account login identifier and normalization rules | Phase 3 | Individual accounts; generic recovery; conservative address handling; uniqueness behavior in MariaDB |
+| OD-05 | Resolved in Phase 3: initial account login is an individual email, Unicode NFC-normalized, trimmed, and case-folded for a unique MariaDB comparison value | Phase 3 | The entered Phase 3 value is not reused as recipient normalization policy; later recovery responses remain generic |
 | OD-06 | Session idle/absolute limits, re-authentication window, TOTP parameters, and recovery-code count | Phase 4 | OWASP/current framework guidance, usability review, clock-boundary tests |
 | OD-07 | Audit-sink failure behavior for each sensitive transaction class | Phase 4 | Fail-closed matrix that preserves data integrity and operator-visible recovery |
 | OD-08 | Permission and approval policy for full-address display/export and suppression removal | Phase 5 | Least privilege, auditability, privacy/legal operator approval; suppression cannot be bypassed |

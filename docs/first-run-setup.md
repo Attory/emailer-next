@@ -1,7 +1,6 @@
 # First-run setup
 
-**Status:** Phase 2 ownership proof and state machine implemented; Phase 3
-credential wizard remains design only.
+**Status:** Phase 3 secure first-run wizard implemented.
 
 ## State model
 
@@ -108,3 +107,31 @@ self-declared and therefore does not authenticate backup provenance.
 - Phase 2 adds no database schema, master key, Owner, organisation, SMTP
   transport, recipient data, worker, or sending behavior. Those remain bounded
   to later phases.
+
+## Implemented Phase 3 boundary
+
+- `/setup/database` verifies submitted values against the externally supplied
+  runtime connection, contacts only that MariaDB instance, applies reviewed
+  migrations, and never stores or logs the password.
+- Key initialization creates a random 32-byte external key in a mode-`0700`
+  directory and mode-`0600` file outside `public/`; missing, malformed, linked,
+  over-permissive, moved, or replaced key state fails closed.
+- `/setup/organisation`, `/setup/owner`, `/setup/mail`, and `/setup/policy`
+  persist completed durable state only. Passwords are Argon2id-hashed; TOTP
+  seeds and synthetic SMTP credentials are encrypted; recovery codes are
+  individually Argon2id-hashed and single-use. Plaintext submissions are not
+  retained for retries or redisplay.
+- Mail setup rejects every destination except local Mailpit port 1025, sends a
+  marked synthetic message, stores sender metadata, and records TLS peer
+  verification as mandatory. Production SMTP remains unavailable.
+- Finalization serializes concurrent attempts, runs the Phase 3 critical
+  preflight, records one completion event, publishes the restrictive lock, and
+  compensates database completion if publication fails. Setup routes then
+  return an empty 404 permanently.
+- `emailer:secrets:replace` and `emailer:secrets:rotate-master-key` are
+  argument-free fail-closed skeletons pending Phase 4 re-authentication and
+  later recovery controls.
+
+Phase 3 adds no login/logout, general user management, database-backed
+sessions, admin shell, contacts, campaigns, queue messages, delivery worker,
+production SMTP, full Doctor, backup engine, restore, or release behavior.

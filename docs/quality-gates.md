@@ -1,6 +1,6 @@
 # CI and quality gates
 
-**Status:** Phase 2 implemented baseline.
+**Status:** Phase 3 implemented baseline.
 
 One aggregate command, `composer check`, runs every executable current quality
 gate. CI invokes the same version-pinned commands rather than maintaining a
@@ -37,6 +37,13 @@ Phase 2 expands PHPUnit with ownership-code, proof-file edge, expiry, replay,
 attempt ceiling, setup-mode, HTTPS, session-rotation, lock, reset, CLI, and
 preflight coverage. Static architecture gates enforce the Setup module's inward
 dependency direction.
+
+Phase 3 adds cryptographic/key negative tests, MariaDB setup persistence,
+explicit Argon2id Owner/MFA/recovery boundaries, Mailpit capture/live-host
+rejection, plaintext-output scanning, migration checks, the end-to-end HTTPS
+wizard, and rollback/concurrency/irreversible-lock finalization coverage. The
+aggregate command still includes every Phase 0–2 regression and the same
+artifact/history/network controls.
 
 The GitHub Actions workflow builds from the Dockerfile and tests:
 

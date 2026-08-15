@@ -70,7 +70,7 @@ final class SetupFlowTest extends WebTestCase
         $client->followRedirect();
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', 'Setup preflight');
-        self::assertStringContainsString('No credentials are collected', (string) $client->getResponse()->getContent());
+        self::assertStringContainsString('Review every critical prerequisite', (string) $client->getResponse()->getContent());
         self::assertStringNotContainsString($code, (string) $client->getResponse()->getContent());
 
         self::assertNotFalse(file_put_contents($this->proofFile, $code));

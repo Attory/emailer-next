@@ -1,12 +1,12 @@
 # Security model
 
-**Status:** Phase 2 controls plus locked product design.
+**Status:** Phase 3 setup, key, identity, and secret controls plus locked product design.
 
 Security controls are default-deny and layered. A UI-hidden action is not a
 security boundary; every protected invariant is checked at the route,
 application-service, persistence, and operational boundary appropriate to it.
 
-## Implemented controls through Phase 2
+## Implemented controls through Phase 3
 
 - Symfony Dotenv loading is disabled; runtime values are supplied externally,
   while `.env.example` contains placeholders only.
@@ -24,9 +24,9 @@ application-service, persistence, and operational boundary appropriate to it.
 - Locked dependencies, maximum-level static checks, current/full-history
   secret/private-data scans, and an allowlisted artifact are blocking gates.
 
-These controls do not imply setup completion or sending readiness. No identity,
-secret-encryption, suppression, campaign, worker, or production mail feature is
-present.
+These platform controls alone do not imply sending readiness. Phase 3 adds only
+initial Owner and setup-secret persistence; login/session administration,
+suppression, campaigns, workers, and production mail remain absent.
 
 Phase 2 additionally implements a 160-bit Crockford Base32 ownership challenge,
 SHA-256-only private state, expiry and attempt limits, source throttles, locking,
@@ -43,6 +43,20 @@ session can make up to ten generic proof attempts without receiving the raw
 code again. Backup-gated reset fails closed because Phase 2 cannot authenticate
 a meaningful backup artifact; a restrictive file with a self-declared digest
 is insufficient authority.
+
+Phase 3 adds strict external-key creation/read validation, including public-path
+separation, a mode-`0700` parent, mode-`0600` single-link file, bounded reads,
+and path/open-file/post-read inode comparison. Secret records use
+HKDF-SHA-256 purpose keys and fresh-nonce XChaCha20-Poly1305 envelopes bound to
+installation UUID, record type, record UUID, and schema version. Unsupported
+versions and every authentication mismatch share a generic fail-closed result.
+
+The initial Owner login is Unicode-normalized and case-insensitive, uniquely
+stored, and hashed with explicit Argon2id. Optional TOTP seeds are encrypted;
+recovery codes are individually Argon2id-hashed, displayed once, and atomically
+consumed once. Database/runtime and mail plaintext secrets are never session
+state. Phase 3 mail testing is hard-limited to local Mailpit and rejects live
+destinations before transport construction.
 
 ## Fail-closed states
 
