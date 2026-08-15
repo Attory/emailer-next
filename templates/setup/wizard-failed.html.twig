@@ -1,0 +1,9 @@
+{% extends 'setup/layout.html.twig' %}
+{% block title %}Setup step not completed{% endblock %}
+{% block body %}
+<main>
+    <h1>Setup step not completed</h1>
+    <p>{{ message }}</p>
+    <p>No submitted password, credential, TOTP seed, or recovery code is available for redisplay.</p>
+</main>
+{% endblock %}

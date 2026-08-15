@@ -5,3 +5,4 @@ parameters:
     emailer.setup_cli_state_file: '%emailer.setup_dir%/cli-state.json'
     emailer.proof_file: '%kernel.cache_dir%/.emailer-install-proof'
     emailer.install_lock_file: '%emailer.private_dir%/install.lock'
+    emailer.master_key_file: '/tmp/emailer-next-test/emailer-secrets/master.key'

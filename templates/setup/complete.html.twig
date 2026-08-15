@@ -1,0 +1,12 @@
+{% extends 'setup/layout.html.twig' %}
+{% block title %}Complete installation{% endblock %}
+{% block body %}
+<main>
+    <h1>Final critical preflight</h1>
+    <p>Completion is irreversible through HTTP. It validates the database, external key, Owner, sender, fake-mail test, privacy defaults, and CLI capabilities before publishing the installation lock.</p>
+    <form method="post" action="{{ path('setup_complete') }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('setup-complete') }}">
+        <button type="submit">Complete and permanently lock setup</button>
+    </form>
+</main>
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends 'setup/layout.html.twig' %}
+{% block title %}Initial Owner{% endblock %}
+{% block body %}
+<main>
+    <h1>Initial individual Owner</h1>
+    <p>The login is case-insensitive. Passwords use Argon2id and are never recoverable or redisplayed.</p>
+    <form method="post" action="{{ path('setup_owner') }}" autocomplete="off">
+        <input type="hidden" name="_token" value="{{ csrf_token('setup-owner') }}">
+        <label>Owner email <input name="login_identifier" type="email" maxlength="254" required autocomplete="username"></label>
+        <label>Password <input name="password" type="password" minlength="14" required autocomplete="new-password"></label>
+        <label>Confirm password <input name="password_confirmation" type="password" minlength="14" required autocomplete="new-password"></label>
+        <label><input name="enable_mfa" type="checkbox" value="1" checked> Enrol TOTP MFA now (strongly recommended)</label>
+        <button type="submit">Create Owner</button>
+    </form>
+</main>
+{% endblock %}

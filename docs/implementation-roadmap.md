@@ -17,8 +17,8 @@ evidence; it does not authorize chaining phases.
 | 8 | Doctor, backups, restore, retention and operations | Health/Backup boundaries, TM-20/TM-24/TM-25 | Every sending gate, redacted report, clean restore drill, retention reruns |
 | 9 | Release hardening and v1 acceptance | Entire design and accumulated phase reports | Full aggregate check, mandatory safety properties, SBOM/checksum, accessibility/load review, RC report |
 
-Phase 2 is the current completed boundary. Phases 3–9 remain unstarted; this
-status statement does not authorize the next phase.
+Phase 3 is the current implementation boundary. Phases 4–9 remain unstarted;
+this status statement does not authorize the next phase.
 
 ## Per-phase workflow
 

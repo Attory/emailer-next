@@ -1,0 +1,22 @@
+{% extends 'setup/layout.html.twig' %}
+{% block title %}Safe defaults{% endblock %}
+{% block body %}
+<main>
+    <h1>Delivery limits and privacy defaults</h1>
+    <p>Tracking and RSVP remain disabled. This step detects CLI worker/scheduler capability but starts no worker and sends no campaign.</p>
+    <form method="post" action="{{ path('setup_policy') }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('setup-policy') }}">
+        <label>Messages per minute <input name="messages_per_minute" type="number" min="1" max="600" value="60" required></label>
+        <label>Worker concurrency <input name="worker_concurrency" type="number" min="1" max="16" value="1" required></label>
+        <label>Retry limit <input name="retry_limit" type="number" min="1" max="10" value="5" required></label>
+        <label>Maximum campaign size <input name="maximum_campaign_size" type="number" value="10000" required></label>
+        <label>Maximum CSV bytes <input name="maximum_csv_bytes" type="number" value="10485760" required></label>
+        <label>Maximum CSV rows <input name="maximum_csv_rows" type="number" value="100000" required></label>
+        <label>Operational retention days <input name="operational_retention_days" type="number" value="30" required></label>
+        <label>Delivery retention days <input name="delivery_retention_days" type="number" value="365" required></label>
+        <label>Worker profile <select name="worker_mode"><option value="supervised">Supervised CLI worker</option><option value="cron">Bounded cron fallback</option></select></label>
+        <label>Default unsubscribe footer <textarea name="unsubscribe_footer" maxlength="500" required>You are receiving this message from the configured organisation. An unsubscribe link will be included when recipient actions are implemented.</textarea></label>
+        <button type="submit">Save safe defaults</button>
+    </form>
+</main>
+{% endblock %}

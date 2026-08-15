@@ -1,0 +1,17 @@
+{% extends 'setup/layout.html.twig' %}
+{% block title %}Database setup{% endblock %}
+{% block body %}
+<main>
+    <h1>Database setup</h1>
+    <p>These values are used once to verify the externally configured MariaDB connection. The password is never stored in Emailer Next.</p>
+    <form method="post" action="{{ path('setup_database') }}" autocomplete="off">
+        <input type="hidden" name="_token" value="{{ csrf_token('setup-database') }}">
+        <label>Host <input name="host" required autocomplete="off"></label>
+        <label>Port <input name="port" type="number" min="1" max="65535" value="3306" required></label>
+        <label>Database <input name="database" required autocomplete="off"></label>
+        <label>Runtime username <input name="username" required autocomplete="off"></label>
+        <label>Password <input name="password" type="password" required autocomplete="new-password"></label>
+        <button type="submit">Verify database and install schema</button>
+    </form>
+</main>
+{% endblock %}

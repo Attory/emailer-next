@@ -33,8 +33,8 @@ COPY --from=composer_binary /usr/bin/composer /usr/local/bin/composer
 RUN git config --system safe.directory /app \
     && groupadd --gid 1000 emailer \
     && useradd --create-home --uid 1000 --gid emailer emailer \
-    && mkdir -p /app /opt/emailer-vendor \
-    && chown -R emailer:emailer /app /opt/emailer-vendor
+    && mkdir -p /app /emailer-secrets /opt/emailer-vendor \
+    && chown -R emailer:emailer /app /emailer-secrets /opt/emailer-vendor
 
 WORKDIR /app
 

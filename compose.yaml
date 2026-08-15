@@ -12,6 +12,8 @@ services:
       APP_SECRET: phase1-container-only
       DATABASE_URL: mysql://emailer:local-only@database:3306/emailer_test?serverVersion=${MARIADB_SERVER_VERSION:-10.11.18-MariaDB}&charset=utf8mb4
       DEFAULT_URI: http://127.0.0.1:8080
+      EMAILER_PRIVATE_DIR: /app/var/private
+      EMAILER_SECRET_KEY_FILE: /emailer-secrets/master.key
       LOCK_DSN: flock
       MAILER_DSN: smtp://mailpit:1025
       MESSENGER_TRANSPORT_DSN: doctrine://default
@@ -26,6 +28,7 @@ services:
       - ./:/app
       - composer_vendor:/app/vendor
       - runtime_data:/app/var
+      - secret_data:/emailer-secrets
     networks:
       - development
 
@@ -70,3 +73,4 @@ volumes:
   composer_vendor:
   database_data:
   runtime_data:
+  secret_data:

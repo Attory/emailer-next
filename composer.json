@@ -139,8 +139,8 @@
             "@check:style",
             "@check:static",
             "@check:shell",
-            "@test",
             "@check:migrations",
+            "@test",
             "@check:artifact"
         ]
     },
