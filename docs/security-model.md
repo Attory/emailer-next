@@ -1,12 +1,12 @@
 # Security model
 
-**Status:** Phase 1 controls plus locked product design.
+**Status:** Phase 2 controls plus locked product design.
 
 Security controls are default-deny and layered. A UI-hidden action is not a
 security boundary; every protected invariant is checked at the route,
 application-service, persistence, and operational boundary appropriate to it.
 
-## Implemented Phase 1 controls
+## Implemented controls through Phase 2
 
 - Symfony Dotenv loading is disabled; runtime values are supplied externally,
   while `.env.example` contains placeholders only.
@@ -27,6 +27,22 @@ application-service, persistence, and operational boundary appropriate to it.
 These controls do not imply setup completion or sending readiness. No identity,
 secret-encryption, suppression, campaign, worker, or production mail feature is
 present.
+
+Phase 2 additionally implements a 160-bit Crockford Base32 ownership challenge,
+SHA-256-only private state, expiry and attempt limits, source throttles, locking,
+and a fixed proof path. Proof reads reject symlinks, non-regular or oversized
+objects, unsafe permissions, and file replacement detected across the bounded
+read. Successful proof deletes transient files and rotates the setup session.
+Public failures are generic, and structured proof logs contain only the opaque
+challenge identifier and result. Setup preflight accepts no secrets and stops
+at an HTTPS gate.
+
+The issuance and verification paths share one lock. An active unexpired
+challenge cannot be overwritten by another visitor, while the authorized
+session can make up to ten generic proof attempts without receiving the raw
+code again. Backup-gated reset fails closed because Phase 2 cannot authenticate
+a meaningful backup artifact; a restrictive file with a self-declared digest
+is insufficient authority.
 
 ## Fail-closed states
 

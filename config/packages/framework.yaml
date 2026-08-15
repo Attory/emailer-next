@@ -4,6 +4,15 @@ framework:
     session: true
     php_errors:
         log: true
+    rate_limiter:
+        setup_challenge:
+            policy: 'fixed_window'
+            limit: 6
+            interval: '15 minutes'
+        setup_proof:
+            policy: 'fixed_window'
+            limit: 10
+            interval: '15 minutes'
 
 when@test:
     framework:

@@ -1,6 +1,6 @@
 # Development
 
-**Status:** Phase 1 executable platform baseline.
+**Status:** Phase 2 executable setup baseline.
 
 ## Clean-room rule
 
@@ -17,11 +17,11 @@ CI output, or build artifacts.
 
 ## Current state
 
-Phase 1 provides Symfony 7.4, a locked Composer project, Docker Compose services
+Phases 1–2 provide Symfony 7.4, a locked Composer project, Docker Compose services
 for the application/MariaDB/Mailpit, executable quality gates, coarse liveness,
-structured redaction, and an inspected production-shaped artifact. It has no
-setup, authentication, contacts, templates, campaigns, delivery worker, or
-production sending.
+structured redaction, an inspected production-shaped artifact, and the bounded
+setup ownership/state flow. It has no credential wizard, authentication,
+contacts, templates, campaigns, delivery worker, or production sending.
 
 ## Phase workflow
 
@@ -67,7 +67,7 @@ The supported path needs no copied environment file:
 ```
 
 This builds and starts the loopback-only development stack, performs a clean
-locked dependency install, runs every Phase 1 gate, and verifies
+locked dependency install, runs every current gate, and verifies
 `http://127.0.0.1:8080/health/live`. Mailpit's local UI is available at
 `http://127.0.0.1:8025`; MariaDB is reachable only on the Compose network.
 

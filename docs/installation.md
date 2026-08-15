@@ -1,12 +1,13 @@
 # Installation
 
-**Status:** Phase 1 local-development bootstrap only. Production installation is
-not implemented.
+**Status:** Phase 2 ownership proof and preflight are implemented. Production
+credential setup and completion are not implemented.
 
-Phase 1 can create a safe local Symfony/MariaDB/Mailpit platform. It cannot
+The current repository can create a safe local Symfony/MariaDB/Mailpit platform
+and exercise filesystem ownership proof. It cannot
 create an Emailer installation, Owner, transport credential, contacts,
-templates, or campaigns, and it cannot send production mail. Phases 2 and 3 own
-the first-run installation flow.
+templates, or campaigns, and it cannot send production mail. Phase 3 owns
+credential setup and irreversible installation completion.
 
 ## Tested platform matrix
 
@@ -84,12 +85,25 @@ bootstrap step contacts live SMTP.
 business table. Doctrine itself creates its migration-version metadata table
 when migrations run. No manual production migration is authorized in Phase 1.
 
+## Phase 2 setup entry
+
+An unlocked deployment exposes `/setup` and coarse liveness only. Follow the
+displayed instruction to create `<APPLICATION_ROOT>/.emailer-install-proof`
+with mode `0600` and the displayed code only, then submit the CSRF-protected
+verification form. Delete and recreate any rejected proof as a regular file;
+links, files over 256 bytes, and group/world-writable files are rejected.
+
+After success the browser session rotates and `/setup/preflight` requires
+HTTPS. This phase does not ask for a database password, master key, Owner data,
+or mail settings. The CLI alternative is `bin/console emailer:setup:install`;
+it also stops before credentials and does not create a completed installation.
+
 ## Future production prerequisites
 
 The target remains PHP-FPM behind Nginx or Apache with TLS and document root
 exactly `public/`, MariaDB, external private storage, an external restrictive
 master-key path, a supervised CLI worker or documented cron fallback, and a CLI
-scheduler. Those operational profiles, ownership proof, key creation, runtime
-credentials, and Configuration Doctor gates are not implemented by Phase 1.
+scheduler. Those operational profiles, key creation, runtime credentials, and
+Configuration Doctor gates are not implemented by Phase 2.
 
 See [first-run-setup.md](first-run-setup.md) for the designed later sequence.

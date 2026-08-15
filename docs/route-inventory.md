@@ -1,7 +1,7 @@
-# Planned route and command inventory
+# Route and command inventory
 
-**Status:** Phase 1 implementation inventory. Only coarse liveness is
-implemented; every other route and command below remains planned.
+**Status:** Phase 2 implementation inventory. Coarse liveness and the three
+Phase 2 setup routes are implemented; later routes remain planned.
 
 This inventory is the security review baseline. Every implemented route must be
 added here with method, authentication boundary, authorization rule, CSRF
@@ -45,6 +45,19 @@ HTTP 200 with the exact JSON body `{"status":"ok"}`, JSON content type,
 `Cache-Control: no-store`, and no session cookie. `HEAD` returns HTTP 200 with
 no body. It deliberately does not inspect or disclose database, migrations,
 configuration, keys, Mailpit, worker, queue, or version state.
+
+### Implemented Phase 2 setup routes
+
+`setup_index`, `setup_proof_verify`, and `setup_preflight` implement the three
+Phase 2 entries above. While unlocked, resolved ordinary application routes
+fail closed with a generic HTTP 503 JSON response; unknown routes remain 404.
+Challenge and proof requests use fixed-window per-client limits. Proof
+verification requires CSRF and never accepts the proof code from HTTP input.
+An active challenge makes later issuance requests return a generic HTTP 409
+without replacing or redisplaying it. Retryable proof failures retain only the
+original session's opaque challenge authority through the ten-attempt ceiling.
+After the private installation lock exists, the subscriber returns an empty 404
+for every setup route.
 
 ## Authenticated administration surface
 
@@ -118,3 +131,7 @@ Exact Symfony route names, rate-limit values, token lifetimes, and fine-grained
 permissions are finalized in their owning phases and then generated into an
 authorization matrix test. Any additional public route requires a threat-model
 update before implementation.
+
+The two Phase 2 CLI commands are implemented. `emailer:setup:install` is
+deliberately bounded to ownership/preflight state until Phase 3. No later CLI
+command in this inventory is implemented.

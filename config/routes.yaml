@@ -1,3 +1,7 @@
 health:
     resource: ../src/Module/Health/Presentation/Http/
     type: attribute
+
+setup:
+    resource: ../src/Module/Setup/Presentation/Http/
+    type: attribute

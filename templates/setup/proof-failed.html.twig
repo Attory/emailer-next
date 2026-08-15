@@ -1,0 +1,15 @@
+{% extends 'setup/layout.html.twig' %}
+
+{% block title %}Ownership proof not accepted{% endblock %}
+
+{% block body %}
+    <main>
+        <h1>Ownership proof not accepted</h1>
+        <p>The proof could not be verified. Correct the fixed proof file and try again, or return to setup when the active challenge has expired.</p>
+        <form method="post" action="{{ path('setup_proof_verify') }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('setup-proof') }}">
+            <button type="submit">Try verification again</button>
+        </form>
+        <a href="{{ path('setup_index') }}">Return to setup</a>
+    </main>
+{% endblock %}

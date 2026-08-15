@@ -1,14 +1,15 @@
 # Operator runbook
 
-**Status:** Phase 1 local-platform runbook; production operations are not
+**Status:** Phase 2 setup/local-platform runbook; production operations are not
 implemented.
 
 ## Current repository state
 
-Phase 1 contains the Symfony scaffold, locked dependencies, local
+Phases 1–2 contain the Symfony scaffold, locked dependencies, local
 application/MariaDB/Mailpit Compose stack, one baseline migration, quality
 pipeline, coarse liveness, logging redaction, and an inspected
-production-shaped artifact. There is no product installation, account,
+production-shaped artifact, plus filesystem ownership proof and setup-state
+controls. There is no completed product installation, account,
 campaign, delivery worker, release, or deployment to operate.
 
 Before any work, confirm the repository path and clean status without opening
@@ -102,11 +103,26 @@ failure, stop risky work and follow
 [incident-response.md](incident-response.md). Preserve redacted evidence; never
 paste secrets, raw recipient lists, message bodies, or tokens into chat/issues.
 
-## Phase 1 migrations and manual actions
+## Phase 2 setup operations
+
+- Inspect setup safely with `bin/console emailer:setup:install`; it performs
+  preflight and stores no credential.
+- `bin/console emailer:setup:reset` is intentionally unavailable in Phase 2:
+  no supported integrity-authenticated backup artifact exists yet. Do not use a
+  marker file or self-declared digest as backup authority. Phase 8 must provide
+  the producer and validator before reset can pass its backup gate; the
+  production-data, `--destructive`, and interactive safeguards remain in place.
+- Never put a proof file, backup, master key, or runtime credential in Git or
+  under `public/`. Setup logs may contain opaque challenge IDs/results only.
+- A completed installation cannot yet be produced by this phase; Phase 3 owns
+  final lock creation after full Doctor checks.
+
+## Phase 2 migrations and manual actions
 
 - Local bootstrap automatically applies
   `DoctrineMigrations\Version20260723000000`. It creates no business table;
   only Doctrine's migration metadata is persisted.
+- Phase 2 adds no dependency and no migration.
 - No production migration, credential, recipient data, service account, release,
   or deployment action is required or authorized.
 - The worktree initially exposed a local `origin` reference. It was removed

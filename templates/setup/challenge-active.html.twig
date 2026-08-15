@@ -1,0 +1,15 @@
+{% extends 'setup/layout.html.twig' %}
+
+{% block title %}Setup challenge active{% endblock %}
+
+{% block body %}
+    <main>
+        <h1>A setup challenge is already active</h1>
+        <p>Complete it from the original setup session or wait for it to expire. The challenge code cannot be redisplayed.</p>
+        <form method="post" action="{{ path('setup_proof_verify') }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('setup-proof') }}">
+            <button type="submit">Verify the fixed proof file</button>
+        </form>
+        <p>The CLI installer remains available as the non-HTTP alternative.</p>
+    </main>
+{% endblock %}

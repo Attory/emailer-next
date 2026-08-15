@@ -1,8 +1,8 @@
 # Architecture
 
-**Status:** Phase 1 platform baseline plus locked product design.
+**Status:** Phase 2 setup boundary plus locked product design.
 
-**Last reviewed:** 2026-07-23
+**Last reviewed:** 2026-08-15
 
 ## System context
 
@@ -18,7 +18,7 @@ administrative UI. A supervised CLI worker performs delivery through Symfony
 Messenger; an HTTP request can enqueue approved durable work but can never run
 the delivery worker.
 
-## Implemented Phase 1 baseline
+## Implemented through Phase 2
 
 The repository currently implements only the platform shell:
 
@@ -33,9 +33,23 @@ The repository currently implements only the platform shell:
 - CI, static architecture enforcement, isolated mail tests, and an allowlisted
   production-shaped artifact.
 
-No setup/identity/content/campaign/delivery flow described below is implemented
-yet. Messenger has no business routing or messages, and there is no path that
-performs production sending.
+Phase 2 adds the `Setup` module: fail-closed setup-mode routing, a 160-bit
+filesystem ownership challenge, private hashed setup state, safe fixed-path
+proof verification, post-proof HTTPS gating, system preflight, installation
+lock/reset abstractions, and the bounded CLI alternative. Identity, credential
+collection, content, campaign, and delivery remain unimplemented. Messenger has
+no business routing or messages, and there is no production send path.
+
+### Setup state transition
+
+An absent private installation lock keeps ordinary application routes at a
+generic setup-required response. `GET /setup` issues a rate-limited challenge;
+`POST /setup/proof/verify` verifies only `.emailer-install-proof`, deletes proof
+and private state on success, and rotates the session. Preflight then requires
+the verified session and HTTPS. A present lock makes every setup route return
+404. Phase 2 can represent or reset that lock but does not complete an
+installation; Phase 3 owns irreversible completion after credentials and
+Doctor checks.
 
 ```mermaid
 flowchart LR
