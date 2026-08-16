@@ -7,6 +7,7 @@ namespace App\Module\Identity\Infrastructure;
 use App\Module\Identity\Application\Contract\MfaEnrollment;
 use App\Module\Identity\Application\Contract\OwnerSetup;
 use App\Module\Identity\Application\OwnerPasswordSubject;
+use App\Module\Identity\Application\PasswordPolicy;
 use App\Module\Identity\Application\Totp;
 use App\Module\Secrets\Application\Contract\SecretVault;
 use App\Module\Setup\Application\Contract\SetupLifecycle;
@@ -21,15 +22,14 @@ final readonly class DoctrineOwnerSetup implements OwnerSetup
         private SecretVault $secretVault,
         private Totp $totp,
         private SetupLifecycle $lifecycle,
+        private PasswordPolicy $passwordPolicy,
     ) {
     }
 
     public function create(string $loginIdentifier, string $password): string
     {
         $login = $this->normalizeLogin($loginIdentifier);
-        if (14 > \strlen($password) || 1_024 < \strlen($password)) {
-            throw new \InvalidArgumentException('Owner password must be between 14 and 1024 bytes.');
-        }
+        $this->passwordPolicy->assertAcceptable($password, $login);
 
         return $this->lifecycle->mutate(function () use ($login, $password): string {
             $existing = $this->connection->fetchAssociative("SELECT id, login_identifier, password_hash FROM app_user WHERE role = 'ROLE_OWNER' AND active = 1");
@@ -145,14 +145,18 @@ final readonly class DoctrineOwnerSetup implements OwnerSetup
 
                 $seed = $this->secretVault->reveal($pending[0], 'identity.totp-seed', $installationId);
                 try {
-                    if (!$this->totp->verify($seed, $code)) {
+                    $counter = $this->totp->matchingCounter($seed, $code);
+                    if (null === $counter) {
                         throw new \RuntimeException('MFA confirmation failed.');
                     }
                 } finally {
                     sodium_memzero($seed);
                 }
 
-                $connection->executeStatement('UPDATE mfa_credential SET active = 1 WHERE user_id = ? AND active = 0', [$ownerId]);
+                $connection->executeStatement(
+                    "UPDATE mfa_credential SET active = 1, last_accepted_counter = IF(credential_type = 'totp', ?, last_accepted_counter) WHERE user_id = ? AND active = 0",
+                    [$counter, $ownerId],
+                );
             });
         });
     }

@@ -13,6 +13,40 @@
 local aggregate gate pass. Terminal GitHub matrix results are recorded on the
 draft pull request's exact head.
 
+## Consolidated security repair
+
+The draft branch received one bounded security repair beginning at exact head
+`970bf45ba03e86b6f3acf9ce47cc2fc1de7d6e5d`. The repair adds forward-only
+`Version20260818000000` without rewriting the Phase 3 or original Phase 4
+migrations. It preserves monotonic session tombstones across expiry, rotation,
+revocation, and user deletion; makes TOTP counters single-use under lock; makes
+login and re-authentication reservations atomic with exact-reservation success
+cleanup; and adds deterministic multi-process concurrency proofs.
+
+Password-reset links now use only the stored canonical HTTPS origin, never the
+request host, while the raw token remains exclusively in the fragment and POST
+body. Production host matching is explicit, forwarded hosts are ignored,
+cookies are always Secure, safe plaintext identity/admin requests redirect to
+the canonical origin, and unsafe plaintext methods are rejected before session
+or credential processing. One shared character-aware, locally blocklisted
+password policy covers initial Owner setup, user creation, change, and reset.
+Missing/disabled login identities perform production-cost dummy Argon2id work;
+MFA/recovery verification workload is no longer password-short-circuited; known
+and unknown recovery requests both perform bounded local Mailpit delivery.
+
+Anonymous recovery events have no initiating actor, route authorization denials
+include redacted source attribution, and user deletion transactionally removes
+MFA credentials plus encrypted seeds. A synthetic database failure proves the
+whole deletion rolls back. No test sends reset material in a query string.
+
+The repaired focused suite passes with 21 tests and 386 assertions. The complete
+local suite passes with 93 tests and 1,078 assertions; the rebuilt-image,
+external-egress-disabled repetition passes the same 93 tests with 5,322
+assertions. Clean installation applied all five migrations, and a separate
+schema upgraded through `Version20260817000000` before applying only
+`Version20260818000000`; both paths passed mapping validation. Composer
+dependencies and `composer.lock` remain unchanged.
+
 ## Starting state and canonical inputs
 
 Origin was fetched with pruning. `HEAD`, local `main`, and `origin/main` were

@@ -63,7 +63,14 @@ final class AdminController extends AbstractController
             return new Response('Request not accepted.', Response::HTTP_BAD_REQUEST);
         }
         $user = $this->user();
-        if (!$this->reauthentication->verify($user, $request->request->getString('password'), $request->request->getString('mfa_code'), $purpose)) {
+        if (!$this->reauthentication->verify(
+            $user,
+            $request->request->getString('password'),
+            $request->request->getString('mfa_code'),
+            $purpose,
+            $request->getClientIp() ?? 'unknown',
+            $request->getSession()->getId(),
+        )) {
             $this->addFlash('error', 'Re-authentication failed.');
 
             return $this->redirectToRoute('admin_reauthenticate', ['purpose' => $purpose], Response::HTTP_SEE_OTHER);

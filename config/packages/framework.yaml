@@ -2,11 +2,12 @@ framework:
     secret: '%env(APP_SECRET)%'
     http_method_override: false
     trusted_proxies: '%emailer.trusted_proxies%'
-    trusted_headers: ['x-forwarded-for', 'x-forwarded-host', 'x-forwarded-proto', 'x-forwarded-port', 'x-forwarded-prefix']
+    trusted_hosts: ['%emailer.trusted_hosts%']
+    trusted_headers: ['x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-port']
     session:
         handler_id: App\Module\Identity\Infrastructure\HybridSessionHandler
         name: EMAILERSESSID
-        cookie_secure: auto
+        cookie_secure: true
         cookie_httponly: true
         cookie_samesite: lax
         cookie_path: /

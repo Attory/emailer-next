@@ -103,8 +103,10 @@ At least one active Owner always remains. Secret replacement, recovery,
 privileged identity changes, restore/upgrade approval, and other sensitive
 operations require recent re-authentication.
 
-Passwords use framework-supported Argon2id settings. Login/recovery responses
-are generic and throttled by account and source. TOTP is optional in version 1,
+Passwords use framework-supported Argon2id settings plus a shared character-aware
+length, local blocklist, and account-context policy. Login/recovery responses
+are generic and atomically throttled by account and source. Re-authentication
+has separate atomic account and source/session-context limits. TOTP is optional in version 1,
 but production health cannot be green while an Owner lacks MFA unless an
 operator-approved policy exception is recorded; the exception remains visible
 as a warning. Recovery codes are random, hashed, displayed once, and consumed
@@ -119,10 +121,16 @@ revoke their sessions.
 
 The Phase 4 implementation stores session IDs and source/user-agent metadata as
 purpose-separated HMACs, applies 30-minute idle and 12-hour absolute deadlines,
-and revokes durable authority on logout, reset, account/role, password, or MFA
-changes. Login failure and recovery responses are generic. Account and source
+and retains monotonic revocation tombstones so a late response cannot recreate
+logout, expired, reset, account/role, password, or MFA authority. Login failure
+and recovery responses are generic. Account and source
 throttles use bounded progressive delays and temporary locks whose locked
 requests do not extend the denial window.
+
+Accepted TOTP counters are stored under row lock and must increase strictly;
+enrollment confirmation consumes its counter. Recovery requests always perform
+the same bounded local Mailpit delivery class, while links are built only from
+the stored canonical origin and retain the secret solely in the URL fragment.
 
 Every implemented `admin_` route is covered by a central deny-by-default policy
 registry and every privileged identity/audit application service checks its

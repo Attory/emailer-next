@@ -16,13 +16,13 @@ delivery, session, health, backup, and full audit entities remain conceptual.
 | `organisation_settings` | Configuration | Singleton name, canonical HTTPS origin, locale, and time zone |
 | `encrypted_secret` | Secrets | UUIDv7 identity, versioned authenticated envelope, and rotation metadata |
 | `app_user` | Identity | Initial active `ROLE_OWNER`, normalized unique login, and Argon2id hash |
-| `mfa_credential` | Identity | Encrypted TOTP-secret reference or hashed single-use recovery code |
+| `mfa_credential` | Identity | Encrypted TOTP-secret reference with last accepted counter, or hashed single-use recovery code |
 | `sender_identity` | Configuration | Exact plaintext/unauthenticated local Mailpit metadata and sender identity; no credential or TLS-verification claim |
 | `delivery_policy` | Configuration | Bounded delivery/import limits and detected CLI execution mode |
 | `privacy_policy` | Configuration | Tracking/RSVP off, global suppression mode, and bounded retention/footer defaults |
 | `setup_installation_event` | Setup | Exactly one append-only `installation.completed` event; not the Phase 4 audit system |
-| `user_session` | Identity | HMAC-identified server session payload, account binding, idle/absolute deadlines, revocation and hashed source metadata |
-| `login_throttle` | Identity | Purpose-HMAC account/source counters, progressive delay and bounded lockout timestamps |
+| `user_session` | Identity | HMAC-identified server session payload, nullable account binding, idle/absolute deadlines, permanent revocation tombstone and hashed source metadata |
+| `login_throttle` | Identity | Purpose-HMAC login and re-authentication counters, progressive delay and bounded lockout timestamps |
 | `password_reset_token` | Identity | UUIDv7 selector, SHA-256 token hash, short expiry and consumption timestamp |
 | `audit_event` | Audit | Append-only actor/action/opaque target/result/redacted summary; database triggers reject update and delete |
 
@@ -30,6 +30,10 @@ delivery, session, health, backup, and full audit entities remain conceptual.
 adds change/login/disable timestamps while reusing the Phase 3 account and MFA
 tables. It is forward-only because deleting identity and audit history is not a
 safe automated rollback.
+
+`Version20260818000000` preserves session tombstones when users are deleted,
+adds the last accepted TOTP counter, and admits dedicated re-authentication
+throttle scopes. It is also forward-only.
 
 MariaDB foreign keys protect Owner/MFA and encrypted-secret references. Check
 constraints protect singleton keys, initial roles/types, exact Phase 3 Mailpit

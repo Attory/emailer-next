@@ -101,6 +101,7 @@ final class Phase4AccessTest extends WebTestCase
                 self::assertResponseIsSuccessful();
             } else {
                 self::assertResponseStatusCodeSame(403);
+                self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'authorization.denied' AND actor_user_id = ? AND source_hash IS NOT NULL", [$this->phase4String($connection->fetchOne('SELECT id FROM app_user WHERE login_identifier = ?', [strtolower($role->label()).'@example.test']))])));
             }
         }
     }
@@ -147,6 +148,7 @@ final class Phase4AccessTest extends WebTestCase
         $client = self::createClient();
         $connection = $this->phase4Service(Connection::class);
         $this->preparePhase4State($connection);
+        $authenticationAuditBaseline = $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action IN ('authentication.login', 'authentication.failure')"));
 
         $client->request('GET', '/login', server: $this->phase4HttpsServer('2001:db8::70'));
         self::assertResponseHeaderSame('X-Content-Type-Options', 'nosniff');
@@ -161,14 +163,36 @@ final class Phase4AccessTest extends WebTestCase
         $untrusted = ['SERVER_PORT' => '80', 'REMOTE_ADDR' => '2001:db8::71', 'HTTP_X_FORWARDED_PROTO' => 'https'];
         $client->request('GET', '/login', server: $untrusted);
         self::assertFalse($client->getRequest()->isSecure());
+        self::assertResponseRedirects('https://localhost/login', 308);
         self::assertFalse($client->getResponse()->headers->has('Strict-Transport-Security'));
+
+        self::ensureKernelShutdown();
+        $client = self::createClient();
+        $client->request('POST', '/login', parameters: [
+            'login_identifier' => 'owner@example.test',
+            'password' => 'plaintext-must-not-be-processed',
+        ], server: $untrusted);
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame($authenticationAuditBaseline, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action IN ('authentication.login', 'authentication.failure')")));
 
         self::ensureKernelShutdown();
         $client = self::createClient();
         $trusted = ['SERVER_PORT' => '80', 'REMOTE_ADDR' => '127.0.0.1', 'HTTP_X_FORWARDED_PROTO' => 'https'];
         $client->request('GET', '/login', server: $trusted);
         self::assertTrue($client->getRequest()->isSecure());
+        self::assertResponseIsSuccessful();
         self::assertResponseHasHeader('Strict-Transport-Security');
+
+        self::ensureKernelShutdown();
+        $client = self::createClient();
+        $client->request('GET', '/login', server: $trusted + ['HTTP_X_FORWARDED_HOST' => 'attacker.example']);
+        self::assertResponseIsSuccessful();
+        self::assertSame('localhost', $client->getRequest()->getHost());
+
+        self::ensureKernelShutdown();
+        $client = self::createClient();
+        $client->request('GET', '/login', server: $this->phase4HttpsServer() + ['HTTP_HOST' => 'attacker.example']);
+        self::assertResponseStatusCodeSame(400);
     }
 
     public function testPasswordResetDeliveryIsGenericFragmentBoundAndSingleUse(): void
@@ -180,18 +204,23 @@ final class Phase4AccessTest extends WebTestCase
         $oldPassword = 'phase4-old-'.bin2hex(random_bytes(10));
         $newPassword = 'phase4-new-'.bin2hex(random_bytes(10));
         $user = $this->createPhase4User($connection, $login, $oldPassword);
+        $attributedResetAuditBaseline = $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action LIKE 'identity.password_reset.%' AND actor_user_id IS NOT NULL"));
+        $resetRequestAuditBaseline = $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'identity.password_reset.requested'"));
 
         $unknownServer = $this->phase4HttpsServer('2001:db8:91:'.implode(':', str_split(bin2hex(random_bytes(6)), 4)));
         $crawler = $client->request('GET', '/password-reset', server: $unknownServer);
         $client->submit($crawler->selectButton('Request reset')->form(['login_identifier' => 'unknown-'.bin2hex(random_bytes(4)).'@example.test']), [], $unknownServer);
         self::assertResponseIsSuccessful();
         $genericUnknown = (string) $client->getResponse()->getContent();
+        self::assertSame($resetRequestAuditBaseline + 1, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'identity.password_reset.requested'")));
+        self::assertSame('[Emailer Next] Password reset', $this->mailpitMessageFor('phase4-reset-sink@example.test')['Subject'] ?? null);
 
-        $knownServer = $this->phase4HttpsServer('2001:db8:92:'.implode(':', str_split(bin2hex(random_bytes(6)), 4)));
+        $knownServer = $this->phase4HttpsServer('2001:db8:92:'.implode(':', str_split(bin2hex(random_bytes(6)), 4))) + ['HTTP_X_FORWARDED_HOST' => 'attacker.example'];
         $crawler = $client->request('GET', '/password-reset', server: $knownServer);
         $client->submit($crawler->selectButton('Request reset')->form(['login_identifier' => $login]), [], $knownServer);
         self::assertResponseIsSuccessful();
         self::assertSame($genericUnknown, (string) $client->getResponse()->getContent());
+        self::assertSame($resetRequestAuditBaseline + 2, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'identity.password_reset.requested'")));
         self::assertSame(1, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM password_reset_token WHERE user_id = ?', [$user->id()])));
 
         $message = $this->mailpitMessageFor($login);
@@ -200,14 +229,17 @@ final class Phase4AccessTest extends WebTestCase
         self::assertIsString($text);
         $matches = [];
         self::assertSame(1, preg_match('~/password-reset/([0-9a-f-]{36})#token=([A-Za-z0-9_-]+)~', $text, $matches));
+        self::assertStringContainsString('https://localhost/password-reset/', $text);
+        self::assertStringNotContainsString('attacker.example', $text);
         $selector = $matches[1] ?? '';
         $rawToken = $matches[2] ?? '';
         self::assertSame(36, \strlen($selector));
         self::assertGreaterThanOrEqual(43, \strlen($rawToken));
         self::assertStringNotContainsString($rawToken, json_encode($connection->fetchAssociative('SELECT * FROM password_reset_token WHERE id = ?', [$selector]), JSON_THROW_ON_ERROR));
 
-        $crawler = $client->request('GET', '/password-reset/'.$selector.'?reset_token='.rawurlencode($rawToken), server: $knownServer);
+        $crawler = $client->request('GET', '/password-reset/'.$selector, server: $knownServer);
         self::assertResponseIsSuccessful();
+        self::assertStringNotContainsString('reset_token=', $client->getRequest()->getUri());
         self::assertStringNotContainsString($rawToken, (string) $client->getResponse()->getContent());
         $client->submit($crawler->selectButton('Reset password')->form([
             'reset_token' => $rawToken,
@@ -225,6 +257,7 @@ final class Phase4AccessTest extends WebTestCase
         ]), [], $knownServer);
         self::assertResponseStatusCodeSame(400);
         self::assertSelectorTextContains('h1', 'Password reset not accepted');
+        self::assertSame($attributedResetAuditBaseline, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action LIKE 'identity.password_reset.%' AND actor_user_id IS NOT NULL")));
         $this->assertPhase4RuntimeFilesExclude([$rawToken, $oldPassword, $newPassword]);
     }
 
@@ -280,11 +313,25 @@ final class Phase4AccessTest extends WebTestCase
         $management = $this->phase4Service(MfaManagement::class);
         $totp = $this->phase4Service(Totp::class);
         $enrollment = $management->start($user);
-        $management->confirm($user, $totp->code($enrollment->seed, intdiv(time(), 30)), true, 'not-a-live-session');
+        $management->confirm($user, $totp->code($enrollment->seed, intdiv(time(), 30) - 1), true, 'not-a-live-session');
 
         $server = $this->phase4HttpsServer('2001:db8::94');
         $client->request('GET', '/login', server: $server);
         $this->submitLogin($client, 'mfa-login@example.test', $password, '', $server);
+        self::assertResponseRedirects('/login', 303);
+        $connection->executeStatement('DELETE FROM login_throttle');
+
+        $totpCode = $totp->code($enrollment->seed, intdiv(time(), 30));
+        $client->request('GET', '/login', server: $server);
+        $this->submitLogin($client, 'mfa-login@example.test', $password, $totpCode, $server);
+        self::assertResponseRedirects('/admin', 303);
+
+        self::ensureKernelShutdown();
+        $client = self::createClient();
+        $connection = $this->phase4Service(Connection::class);
+        $connection->executeStatement('DELETE FROM login_throttle');
+        $client->request('GET', '/login', server: $server);
+        $this->submitLogin($client, 'mfa-login@example.test', $password, $totpCode, $server);
         self::assertResponseRedirects('/login', 303);
         $connection->executeStatement('DELETE FROM login_throttle');
 
@@ -296,7 +343,9 @@ final class Phase4AccessTest extends WebTestCase
         $crawler = $client->request('GET', '/admin/logout', server: $server);
         self::assertResponseStatusCodeSame(405);
         unset($crawler);
-        $client->restart();
+        self::ensureKernelShutdown();
+        $client = self::createClient();
+        $connection = $this->phase4Service(Connection::class);
         $connection->executeStatement('DELETE FROM login_throttle');
         $client->request('GET', '/login', server: $server);
         $this->submitLogin($client, 'mfa-login@example.test', $password, $enrollment->recoveryCodes[0], $server);

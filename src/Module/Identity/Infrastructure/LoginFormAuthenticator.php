@@ -38,6 +38,7 @@ final class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
         private readonly SessionRegistry $sessions,
         private readonly AuditSink $audit,
         private readonly Connection $connection,
+        private readonly DoctrineUserProvider $users,
     ) {
     }
 
@@ -55,21 +56,30 @@ final class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
         $request->getSession()->set('identity.last_login', mb_strtolower(trim($login), 'UTF-8'));
 
         try {
-            $this->throttle->assertAllowed($login, $source);
+            $reservation = $this->throttle->reserveLogin($login, $source);
+            $request->attributes->set('identity.login_reservation', $reservation);
         } catch (LoginThrottled) {
             $request->attributes->set('identity.throttle_blocked', true);
             throw new CustomUserMessageAuthenticationException('Authentication failed.');
         }
 
         return new Passport(
-            new UserBadge($login),
+            new UserBadge($login, fn (string $identifier): AuthenticatedUser => $this->users->loadForAuthentication($identifier)),
             new CustomCredentials(
-                fn (mixed $credentials, UserInterface $user): bool => $user instanceof AuthenticatedUser
-                    && \is_array($credentials)
-                    && \is_string($credentials['password'] ?? null)
-                    && \is_string($credentials['mfa'] ?? null)
-                    && password_verify($credentials['password'], $user->getPassword())
-                    && $this->mfa->verify($user->id(), $credentials['mfa']),
+                function (mixed $credentials, UserInterface $user): bool {
+                    if (!$user instanceof AuthenticatedUser
+                        || !\is_array($credentials)
+                        || !\is_string($credentials['password'] ?? null)
+                        || !\is_string($credentials['mfa'] ?? null)
+                    ) {
+                        return false;
+                    }
+                    $passwordMatches = password_verify($credentials['password'], $user->getPassword());
+                    $passwordValid = !hash_equals(DoctrineUserProvider::DUMMY_ID, $user->id()) && $passwordMatches;
+                    $mfaValid = $this->mfa->verify($user->id(), $credentials['mfa'], $passwordValid);
+
+                    return $passwordValid && $mfaValid;
+                },
                 ['password' => $password, 'mfa' => $mfaCode],
             ),
             [new CsrfTokenBadge('identity-login', $request->request->getString('_token'))],
@@ -95,7 +105,10 @@ final class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
                 $this->throttle->sourceHash($source),
             ));
         });
-        $this->throttle->clear($user->getUserIdentifier());
+        $reservation = $request->attributes->get('identity.login_reservation');
+        if (\is_array($reservation) && \is_int($reservation['count'] ?? null) && \is_string($reservation['last'] ?? null)) {
+            $this->throttle->loginSucceeded($user->getUserIdentifier(), $reservation);
+        }
         $request->getSession()->remove('identity.last_login');
         $request->getSession()->migrate(true);
         $this->sessions->bind(
@@ -114,9 +127,6 @@ final class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
     {
         $login = $request->request->getString('login_identifier');
         $source = $request->getClientIp() ?? 'unknown';
-        if (true !== $request->attributes->get('identity.throttle_blocked')) {
-            $this->throttle->recordFailure($login, $source);
-        }
         $this->audit->append(new AuditRecord(
             null,
             true === $request->attributes->get('identity.throttle_blocked') ? 'authentication.lockout' : 'authentication.failure',

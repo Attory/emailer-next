@@ -24,9 +24,9 @@ INSERT INTO user_session (
     revoked_at, source_hash, user_agent_hash
 ) VALUES (?, ?, '', ?, ?, ?, ?, NULL, ?, ?)
 ON DUPLICATE KEY UPDATE
-    user_id = VALUES(user_id),
-    source_hash = VALUES(source_hash),
-    user_agent_hash = VALUES(user_agent_hash)
+    user_id = IF(revoked_at IS NULL, VALUES(user_id), user_id),
+    source_hash = IF(revoked_at IS NULL, VALUES(source_hash), source_hash),
+    user_agent_hash = IF(revoked_at IS NULL, VALUES(user_agent_hash), user_agent_hash)
 SQL, [
             $this->hashId($sessionId),
             $userId,

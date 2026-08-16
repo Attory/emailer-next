@@ -128,15 +128,21 @@ manually mark it complete.
 
 ## Phase 4 authentication configuration
 
-Phase 4 adds forward-only migration `DoctrineMigrations\Version20260817000000`.
-Run it with the normal reviewed migration gate; do not hand-create session,
-throttle, reset, or audit tables. Configure `TRUSTED_PROXIES` as an explicit
+Phase 4 adds forward-only migrations `DoctrineMigrations\Version20260817000000`
+and security repair `DoctrineMigrations\Version20260818000000`. Run them with
+the normal reviewed migration gate; do not hand-create session, throttle,
+reset, MFA, or audit fields. Configure `TRUSTED_PROXIES` as an explicit
 comma-separated allowlist for the actual TLS proxy hops. The default trusts
-loopback only. Never use a wildcard or an unreviewed private network range.
+loopback only. Configure `TRUSTED_HOSTS` as a strict regular expression matching
+the canonical host; the safe default matches only loopback hosts. Never use a
+wildcard or an unreviewed private network range. Forwarded host values are not
+trusted.
 
 Serve administration through verified HTTPS. The `EMAILERSESSID` cookie is
-host-only, path `/`, `HttpOnly`, `SameSite=Lax`, and becomes `Secure` on HTTPS.
-HSTS is emitted only for requests Symfony has verified as secure. Password
+host-only, path `/`, `Secure`, `HttpOnly`, and `SameSite=Lax`. After installation,
+safe HTTP identity/admin requests redirect to the stored canonical HTTPS origin
+and unsafe HTTP methods are rejected before credentials or session state are
+processed. HSTS is emitted only for requests Symfony has verified as secure. Password
 reset mail remains restricted to the persisted local Mailpit transport; Phase 4
 does not unlock or test a live provider.
 

@@ -6,5 +6,5 @@ namespace App\Module\Identity\Application\Contract;
 
 interface RecoveryCodeConsumer
 {
-    public function consume(string $ownerId, string $code): bool;
+    public function verify(string $ownerId, string $code, bool $consume): bool;
 }

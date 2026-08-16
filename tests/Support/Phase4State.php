@@ -42,6 +42,16 @@ UPDATE installation_state SET
 WHERE singleton_key = '1'
 SQL, [$installationId, $now, $now, $now, $now, $now, $now, $now, $now]);
         $connection->executeStatement(<<<'SQL'
+INSERT INTO organisation_settings (
+    singleton_key, installation_uuid, display_name, canonical_base_url, locale, time_zone, created_at, updated_at
+)
+VALUES ('1', ?, 'Emailer Next Test', 'https://localhost', 'en_AU', 'Australia/Sydney', ?, ?)
+ON DUPLICATE KEY UPDATE
+    installation_uuid = VALUES(installation_uuid), display_name = VALUES(display_name),
+    canonical_base_url = VALUES(canonical_base_url), locale = VALUES(locale), time_zone = VALUES(time_zone),
+    updated_at = VALUES(updated_at)
+SQL, [$installationId, $now, $now]);
+        $connection->executeStatement(<<<'SQL'
 INSERT INTO sender_identity (
     singleton_key, transport_type, smtp_host, smtp_port, encryption_mode, smtp_username,
     credential_secret_id, sender_address, sender_name, reply_to_address, tls_peer_verification,

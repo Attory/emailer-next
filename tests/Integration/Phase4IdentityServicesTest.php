@@ -11,14 +11,18 @@ use App\Module\Identity\Application\LoginThrottle;
 use App\Module\Identity\Application\LoginThrottled;
 use App\Module\Identity\Application\MfaManagement;
 use App\Module\Identity\Application\MfaVerifier;
+use App\Module\Identity\Application\PasswordPolicy;
 use App\Module\Identity\Application\PasswordResetService;
 use App\Module\Identity\Application\ReauthenticationService;
+use App\Module\Identity\Application\SensitiveValueHasher;
 use App\Module\Identity\Application\SessionRegistry;
 use App\Module\Identity\Application\Totp;
 use App\Module\Identity\Application\UserAdministration;
 use App\Module\Identity\Infrastructure\DatabaseSessionHandler;
+use App\Module\Identity\Infrastructure\DoctrineUserProvider;
 use App\Tests\Support\Phase4State;
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\DriverManager;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -47,31 +51,53 @@ final class Phase4IdentityServicesTest extends KernelTestCase
         $this->preparePhase4State($connection);
         $throttle = $this->phase4Service(LoginThrottle::class);
 
-        $throttle->recordFailure('owner@example.test', '2001:db8::81');
+        $throttle->reserveLogin('owner@example.test', '2001:db8::81');
         $this->expectThrottle($throttle, 'owner@example.test', '2001:db8::81');
-        $connection->executeStatement('UPDATE login_throttle SET not_before = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND)');
-        $throttle->assertAllowed('owner@example.test', '2001:db8::81');
 
         for ($attempt = 2; $attempt <= 5; ++$attempt) {
-            $throttle->recordFailure('owner@example.test', '2001:db8::81');
             $connection->executeStatement('UPDATE login_throttle SET not_before = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND) WHERE locked_until IS NULL');
+            $throttle->reserveLogin('owner@example.test', '2001:db8::81');
         }
         $this->expectThrottle($throttle, 'owner@example.test', '2001:db8::99');
         self::assertSame(5, $this->phase4Int($connection->fetchOne("SELECT failure_count FROM login_throttle WHERE scope_type = 'account'")));
 
         $connection->executeStatement('UPDATE login_throttle SET last_failed_at = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 16 MINUTE), locked_until = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND), not_before = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND)');
-        $throttle->assertAllowed('owner@example.test', '2001:db8::81');
-        self::assertSame(0, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM login_throttle')));
+        $throttle->reserveLogin('owner@example.test', '2001:db8::81');
+        self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT failure_count FROM login_throttle WHERE scope_type = 'account'")));
 
         for ($attempt = 1; $attempt <= 20; ++$attempt) {
-            $throttle->recordFailure('source-user-'.$attempt.'@example.test', '2001:db8::100');
+            $throttle->reserveLogin('source-user-'.$attempt.'@example.test', '2001:db8::100');
             $connection->executeStatement('UPDATE login_throttle SET not_before = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND) WHERE locked_until IS NULL');
         }
         $this->expectThrottle($throttle, 'fresh-account@example.test', '2001:db8::100');
-        self::assertSame(20, $this->phase4Int($connection->fetchOne("SELECT failure_count FROM login_throttle WHERE scope_type = 'source'")));
+        self::assertSame(20, $this->phase4Int($connection->fetchOne(
+            "SELECT failure_count FROM login_throttle WHERE scope_type = 'source' AND scope_hash = ?",
+            [$throttle->sourceHash('2001:db8::100')],
+        )));
         $connection->executeStatement('UPDATE login_throttle SET last_failed_at = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 16 MINUTE), locked_until = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND), not_before = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND)');
-        $throttle->assertAllowed('fresh-account@example.test', '2001:db8::100');
-        self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM login_throttle WHERE scope_type = 'source'")));
+        $throttle->reserveLogin('fresh-account@example.test', '2001:db8::100');
+        self::assertSame(1, $this->phase4Int($connection->fetchOne(
+            "SELECT failure_count FROM login_throttle WHERE scope_type = 'source' AND scope_hash = ?",
+            [$throttle->sourceHash('2001:db8::100')],
+        )));
+
+        $connection->executeStatement('DELETE FROM login_throttle');
+        $oldLoginReservation = $throttle->reserveLogin('cleanup-race@example.test', '2001:db8::101');
+        $connection->executeStatement('UPDATE login_throttle SET not_before = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND)');
+        $newLoginReservation = $throttle->reserveLogin('cleanup-race@example.test', '2001:db8::101');
+        $throttle->loginSucceeded('cleanup-race@example.test', $oldLoginReservation);
+        self::assertSame(2, $this->phase4Int($connection->fetchOne("SELECT failure_count FROM login_throttle WHERE scope_type = 'account'")));
+        $throttle->loginSucceeded('cleanup-race@example.test', $newLoginReservation);
+        self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM login_throttle WHERE scope_type = 'account'")));
+
+        $connection->executeStatement('DELETE FROM login_throttle');
+        $oldReauthReservations = $throttle->reserveReauthentication('user-id', '2001:db8::102', 'session-id');
+        $connection->executeStatement('UPDATE login_throttle SET not_before = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND)');
+        $newReauthReservations = $throttle->reserveReauthentication('user-id', '2001:db8::102', 'session-id');
+        $throttle->reauthenticationSucceeded($oldReauthReservations);
+        self::assertSame(2, $this->phase4Int($connection->fetchOne("SELECT MIN(failure_count) FROM login_throttle WHERE scope_type LIKE 'reauth_%'")));
+        $throttle->reauthenticationSucceeded($newReauthReservations);
+        self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM login_throttle WHERE scope_type LIKE 'reauth_%'")));
     }
 
     public function testDatabaseSessionsEnforceIdleAbsoluteExpiryAndRevocation(): void
@@ -100,9 +126,65 @@ final class Phase4IdentityServicesTest extends KernelTestCase
         $handler->write('raw-session-two', 'payload-two');
         $connection->executeStatement('UPDATE user_session SET idle_expires_at = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND)');
         self::assertSame('', $handler->read('raw-session-two'));
+        $handler->write('raw-session-two', 'late-idle-payload');
+        self::assertSame('', $handler->read('raw-session-two'));
         $handler->write('raw-session-three', 'payload-three');
         $connection->executeStatement('UPDATE user_session SET absolute_expires_at = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND)');
         self::assertSame('', $handler->read('raw-session-three'));
+        $handler->write('raw-session-three', 'late-absolute-payload');
+        self::assertSame('', $handler->read('raw-session-three'));
+    }
+
+    public function testSessionRevocationIsMonotonicAcrossSeparateConnectionInterleaving(): void
+    {
+        self::bootKernel();
+        $connection = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($connection);
+        $user = $this->createPhase4User($connection, 'session-race@example.test', 'phase4-session-race-'.bin2hex(random_bytes(10)));
+        $hasher = $this->phase4Service(SensitiveValueHasher::class);
+        $params = $connection->getParams();
+        $host = $params['host'] ?? null;
+        $port = $params['port'] ?? null;
+        $userName = $params['user'] ?? null;
+        $password = $params['password'] ?? null;
+        $databaseName = $params['dbname'] ?? null;
+        $charset = $params['charset'] ?? null;
+        self::assertIsString($host);
+        self::assertIsInt($port);
+        self::assertIsString($userName);
+        self::assertIsString($password);
+        self::assertIsString($databaseName);
+        self::assertIsString($charset);
+        $lateConnection = DriverManager::getConnection([
+            'driver' => 'pdo_mysql',
+            'host' => $host,
+            'port' => $port,
+            'user' => $userName,
+            'password' => $password,
+            'dbname' => $databaseName,
+            'charset' => $charset,
+        ]);
+        $lateHandler = new DatabaseSessionHandler($lateConnection, $hasher);
+        $lateRegistry = new SessionRegistry($lateConnection, $hasher);
+        $handler = $this->phase4Service(DatabaseSessionHandler::class);
+        $registry = $this->phase4Service(SessionRegistry::class);
+
+        $handler->write('interleaved-session', 'authenticated-state');
+        $registry->bind('interleaved-session', $user->id(), '2001:db8::120', 'First request');
+        self::assertSame('authenticated-state', $lateHandler->read('interleaved-session'));
+        $hash = $registry->currentHash('interleaved-session');
+        self::assertTrue($registry->revoke($user->id(), $hash));
+
+        self::assertTrue($lateHandler->write('interleaved-session', 'late-authenticated-state'));
+        $lateRegistry->bind('interleaved-session', $user->id(), '2001:db8::121', 'Late response');
+        self::assertSame('', $handler->read('interleaved-session'));
+        self::assertNotNull($connection->fetchOne('SELECT revoked_at FROM user_session WHERE id_hash = ?', [$hash]));
+
+        $handler->destroy('destroyed-session');
+        $lateHandler->write('destroyed-session', 'late-after-destroy');
+        self::assertSame('', $handler->read('destroyed-session'));
+        self::assertNotNull($connection->fetchOne('SELECT revoked_at FROM user_session WHERE id_hash = ?', [$registry->currentHash('destroyed-session')]));
+        $lateConnection->close();
     }
 
     public function testRoleEscalationSessionRevocationAndFinalOwnerInvariant(): void
@@ -210,9 +292,11 @@ final class Phase4IdentityServicesTest extends KernelTestCase
             self::assertStringNotContainsString($recoveryCode, $mfaStorage);
         }
 
-        $management->confirm($user, $totp->code($second->seed, intdiv(time(), 30)), true, 'current-session');
+        $management->confirm($user, $totp->code($second->seed, intdiv(time(), 30) - 1), true, 'current-session');
         self::assertTrue($verifier->required($user->id()));
-        self::assertTrue($verifier->verify($user->id(), $totp->code($second->seed, intdiv(time(), 30))));
+        $currentTotp = $totp->code($second->seed, intdiv(time(), 30));
+        self::assertTrue($verifier->verify($user->id(), $currentTotp));
+        self::assertFalse($verifier->verify($user->id(), $currentTotp));
         self::assertTrue($verifier->verify($user->id(), $second->recoveryCodes[0]));
         self::assertFalse($verifier->verify($user->id(), $second->recoveryCodes[0]));
         self::assertSame(9, $management->status($user)['recovery_remaining']);
@@ -224,6 +308,118 @@ final class Phase4IdentityServicesTest extends KernelTestCase
         self::assertSame(['enabled' => false, 'recovery_remaining' => 0, 'pending' => false], $management->status($user));
         self::assertSame(0, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM encrypted_secret')));
         $this->assertPhase4RuntimeFilesExclude([$second->seed, $second->recoveryCodes[0]]);
+    }
+
+    public function testConcurrentTotpAndAuthenticationReservationsAreAtomic(): void
+    {
+        self::bootKernel();
+        $connection = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($connection);
+        $user = $this->createPhase4User($connection, 'atomic-mfa@example.test', 'phase4-atomic-mfa-'.bin2hex(random_bytes(10)));
+        $management = $this->phase4Service(MfaManagement::class);
+        $totp = $this->phase4Service(Totp::class);
+        $enrollment = $management->start($user);
+        $management->confirm($user, $totp->code($enrollment->seed, intdiv(time(), 30) - 1), true, 'not-live');
+        $currentCode = $totp->code($enrollment->seed, intdiv(time(), 30));
+        $projectDirectory = self::getContainer()->getParameter('kernel.project_dir');
+        self::assertIsString($projectDirectory);
+        self::ensureKernelShutdown();
+
+        $totpOutcomes = $this->runSecurityWorkers($projectDirectory, 2, ['totp', $user->id(), $currentCode, 'unused']);
+        self::assertSame(['accepted', 'rejected'], $totpOutcomes);
+
+        self::bootKernel();
+        $connection = $this->phase4Service(Connection::class);
+        $connection->executeStatement('DELETE FROM login_throttle');
+        self::ensureKernelShutdown();
+        $loginOutcomes = $this->runSecurityWorkers($projectDirectory, 6, ['login', 'parallel@example.test', '2001:db8::122', 'unused']);
+        self::assertSame(1, \count(array_filter($loginOutcomes, static fn (string $outcome): bool => 'accepted' === $outcome)));
+
+        self::bootKernel();
+        $connection = $this->phase4Service(Connection::class);
+        self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT failure_count FROM login_throttle WHERE scope_type = 'account'")));
+        $connection->executeStatement('DELETE FROM login_throttle');
+        self::ensureKernelShutdown();
+        $reauthOutcomes = $this->runSecurityWorkers($projectDirectory, 6, ['reauthentication', $user->id(), '2001:db8::123', 'shared-session']);
+        self::assertSame(1, \count(array_filter($reauthOutcomes, static fn (string $outcome): bool => 'accepted' === $outcome)));
+    }
+
+    public function testReauthenticationConsumesTotpAndRecoveryProofsOnlyOnce(): void
+    {
+        self::bootKernel();
+        $connection = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($connection);
+        $password = 'phase4-reauth-mfa-'.bin2hex(random_bytes(10));
+        $user = $this->createPhase4User($connection, 'reauth-mfa@example.test', $password);
+        $management = $this->phase4Service(MfaManagement::class);
+        $totp = $this->phase4Service(Totp::class);
+        $enrollment = $management->start($user);
+        $management->confirm($user, $totp->code($enrollment->seed, intdiv(time(), 30) - 1), true, 'not-live');
+        $service = $this->phase4Service(ReauthenticationService::class);
+        $currentCode = $totp->code($enrollment->seed, intdiv(time(), 30));
+
+        self::assertTrue($service->verify($user, $password, $currentCode, 'mfa_management', '2001:db8::124', 'reauth-session'));
+        self::assertFalse($service->verify($user, $password, $currentCode, 'mfa_management', '2001:db8::124', 'reauth-session'));
+        $connection->executeStatement('DELETE FROM login_throttle');
+        self::assertTrue($service->verify($user, $password, $enrollment->recoveryCodes[0], 'mfa_management', '2001:db8::124', 'reauth-session'));
+        self::assertFalse($service->verify($user, $password, $enrollment->recoveryCodes[0], 'mfa_management', '2001:db8::124', 'reauth-session'));
+    }
+
+    public function testPasswordPolicyDummyIdentityAndMfaDeletionRollback(): void
+    {
+        self::bootKernel();
+        $connection = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($connection);
+        $policy = $this->phase4Service(PasswordPolicy::class);
+        foreach (['short', 'passwordpassword', str_repeat('x', 15), 'person@example.test-is-not-safe'] as $rejected) {
+            try {
+                $policy->assertAcceptable($rejected, 'person@example.test');
+                self::fail('A weak or context-specific password was accepted.');
+            } catch (\InvalidArgumentException) {
+                self::addToAssertionCount(1);
+            }
+        }
+        $policy->assertAcceptable('Correct-Horse-Battery-'.bin2hex(random_bytes(8)), 'person@example.test');
+        self::addToAssertionCount(1);
+
+        $provider = $this->phase4Service(DoctrineUserProvider::class);
+        $dummy = $provider->loadForAuthentication('missing@example.test');
+        self::assertSame(DoctrineUserProvider::DUMMY_ID, $dummy->id());
+        self::assertStringStartsWith('$argon2id$', $dummy->getPassword());
+        $this->createPhase4User($connection, 'disabled@example.test', 'phase4-disabled-'.bin2hex(random_bytes(10)), AdministrativeRole::Auditor, false);
+        self::assertSame(DoctrineUserProvider::DUMMY_ID, $provider->loadForAuthentication('disabled@example.test')->id());
+
+        $actor = $this->createPhase4User($connection, 'cleanup-owner@example.test', 'phase4-cleanup-owner-'.bin2hex(random_bytes(10)));
+        $target = $this->createPhase4User($connection, 'cleanup-user@example.test', 'phase4-cleanup-user-'.bin2hex(random_bytes(10)), AdministrativeRole::Administrator);
+        $management = $this->phase4Service(MfaManagement::class);
+        $management->start($target);
+        $registry = $this->phase4Service(SessionRegistry::class);
+        $registry->bind('deleted-user-session', $target->id(), null, null);
+        $deletedSessionHash = $registry->currentHash('deleted-user-session');
+        $secretId = $this->phase4String($connection->fetchOne('SELECT encrypted_secret_id FROM mfa_credential WHERE user_id = ? AND encrypted_secret_id IS NOT NULL', [$target->id()]));
+        $users = $this->phase4Service(UserAdministration::class);
+        $connection->executeStatement("CREATE TRIGGER phase4_secret_delete_failure BEFORE DELETE ON encrypted_secret FOR EACH ROW SIGNAL SQLSTATE '45000' SET MESSAGE_TEXT = 'synthetic rollback'");
+        try {
+            try {
+                $users->delete($actor, $target->id());
+                self::fail('Synthetic secret-deletion failure did not roll back user deletion.');
+            } catch (\Throwable) {
+                self::addToAssertionCount(1);
+            }
+        } finally {
+            $connection->executeStatement('DROP TRIGGER phase4_secret_delete_failure');
+        }
+        self::assertSame(1, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM app_user WHERE id = ?', [$target->id()])));
+        self::assertSame(1, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM encrypted_secret WHERE id = ?', [$secretId])));
+        self::assertSame(11, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM mfa_credential WHERE user_id = ?', [$target->id()])));
+
+        $users->delete($actor, $target->id());
+        self::assertSame(0, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM app_user WHERE id = ?', [$target->id()])));
+        self::assertSame(0, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM encrypted_secret WHERE id = ?', [$secretId])));
+        self::assertSame(0, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM mfa_credential WHERE user_id = ?', [$target->id()])));
+        self::assertNotNull($connection->fetchOne('SELECT revoked_at FROM user_session WHERE id_hash = ? AND user_id IS NULL', [$deletedSessionHash]));
+        $this->phase4Service(DatabaseSessionHandler::class)->write('deleted-user-session', 'late-deleted-user-state');
+        self::assertSame('', $this->phase4Service(DatabaseSessionHandler::class)->read('deleted-user-session'));
     }
 
     public function testPasswordResetIsHashedExpiringSingleUseAndRevokesAuthority(): void
@@ -305,7 +501,7 @@ final class Phase4IdentityServicesTest extends KernelTestCase
     private function expectThrottle(LoginThrottle $throttle, string $login, string $source): void
     {
         try {
-            $throttle->assertAllowed($login, $source);
+            $throttle->reserveLogin($login, $source);
             self::fail('A throttled authentication request was accepted.');
         } catch (LoginThrottled) {
             self::addToAssertionCount(1);
@@ -343,5 +539,44 @@ final class Phase4IdentityServicesTest extends KernelTestCase
         } catch (AccessDeniedException) {
             self::addToAssertionCount(1);
         }
+    }
+
+    /**
+     * @param array{string, string, string, string} $arguments
+     *
+     * @return list<string>
+     */
+    private function runSecurityWorkers(string $projectDirectory, int $count, array $arguments): array
+    {
+        $prefix = sys_get_temp_dir().'/emailer-phase4-security-'.bin2hex(random_bytes(8));
+        $release = $prefix.'-release';
+        $processes = [];
+        $readyFiles = [];
+        for ($index = 0; $index < $count; ++$index) {
+            $ready = $prefix.'-ready-'.$index;
+            $readyFiles[] = $ready;
+            $process = new Process([PHP_BINARY, 'tests/Support/phase4-security-worker.php', ...$arguments, $ready, $release], $projectDirectory);
+            $process->start();
+            $processes[] = $process;
+        }
+        $deadline = microtime(true) + 10.0;
+        while (\count(array_filter($readyFiles, 'file_exists')) !== $count && microtime(true) < $deadline) {
+            usleep(1_000);
+        }
+        self::assertSame($count, \count(array_filter($readyFiles, 'file_exists')), 'Every worker reached the explicit start barrier.');
+        file_put_contents($release, 'release', LOCK_EX);
+
+        $outcomes = [];
+        foreach ($processes as $process) {
+            $process->wait();
+            self::assertTrue($process->isSuccessful(), 'Worker failed: '.$process->getErrorOutput().$process->getOutput());
+            $outcomes[] = trim($process->getOutput());
+        }
+        foreach ([...$readyFiles, $release] as $file) {
+            @unlink($file);
+        }
+        sort($outcomes);
+
+        return $outcomes;
     }
 }

@@ -15,7 +15,7 @@
 <form method="post" action="{{ path('admin_user_create') }}">
 <input type="hidden" name="_token" value="{{ csrf_token('admin-user-create') }}">
 <label>Email <input type="email" name="login_identifier" autocomplete="off" required></label>
-<label>Initial password <input type="password" name="password" autocomplete="new-password" minlength="14" required></label>
+<label>Initial password <input type="password" name="password" autocomplete="new-password" minlength="15" maxlength="256" required></label>
 <label>Role <select name="role">{% for role in roles %}{% if is_granted('ROLE_OWNER') or role.value != 'ROLE_OWNER' %}<option value="{{ role.value }}">{{ role.label }}</option>{% endif %}{% endfor %}</select></label>
 <button type="submit">Create account</button></form>
 {% endblock %}

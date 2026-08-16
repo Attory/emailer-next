@@ -20,13 +20,6 @@ final class IdentityUtil
         return $normalized;
     }
 
-    public static function assertPassword(string $password): void
-    {
-        if (14 > \strlen($password) || 1_024 < \strlen($password)) {
-            throw new \InvalidArgumentException('Password must be between 14 and 1024 bytes.');
-        }
-    }
-
     public static function uuidV7(): string
     {
         $milliseconds = (int) floor(microtime(true) * 1000);

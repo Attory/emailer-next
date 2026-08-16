@@ -17,6 +17,7 @@ final readonly class UserAdministration
         private AuthorizationService $authorization,
         private SessionRegistry $sessions,
         private AuditSink $audit,
+        private PasswordPolicy $passwordPolicy,
     ) {
     }
 
@@ -54,7 +55,7 @@ final readonly class UserAdministration
     {
         $this->authorization->assertCanManageUser($actor, AdministrativeRole::Auditor, $role, 'identity.users.create');
         $normalized = IdentityUtil::normalizeLogin($login);
-        IdentityUtil::assertPassword($password);
+        $this->passwordPolicy->assertAcceptable($password, $normalized);
         $hash = $this->passwordHasher->hashPassword(new OwnerPasswordSubject(), $password);
         if (!str_starts_with($hash, '$argon2id$')) {
             throw new \RuntimeException('Argon2id password hashing is unavailable.');
@@ -143,6 +144,17 @@ final readonly class UserAdministration
                 'success',
                 ['role' => $currentRole->value],
             ));
+            $this->sessions->revokeAll($targetId);
+            $secretIds = $connection->fetchFirstColumn(
+                'SELECT encrypted_secret_id FROM mfa_credential WHERE user_id = ? AND encrypted_secret_id IS NOT NULL FOR UPDATE',
+                [$targetId],
+            );
+            $connection->delete('mfa_credential', ['user_id' => $targetId]);
+            foreach ($secretIds as $secretId) {
+                if (\is_string($secretId)) {
+                    $connection->delete('encrypted_secret', ['id' => $secretId]);
+                }
+            }
             $connection->delete('app_user', ['id' => $targetId]);
         });
     }
@@ -150,7 +162,7 @@ final readonly class UserAdministration
     public function changePassword(AuthenticatedUser $actor, string $currentPassword, string $newPassword, string $currentSessionId): AuthenticatedUser
     {
         $this->authorization->assertAtLeast($actor, AdministrativeRole::Auditor, 'identity.password.change');
-        IdentityUtil::assertPassword($newPassword);
+        $this->passwordPolicy->assertAcceptable($newPassword, $actor->getUserIdentifier());
         if (!password_verify($currentPassword, $actor->getPassword())) {
             throw new \RuntimeException('Password change was not accepted.');
         }

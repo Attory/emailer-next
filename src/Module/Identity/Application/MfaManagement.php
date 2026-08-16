@@ -98,14 +98,18 @@ final readonly class MfaManagement
             }
             $seed = $this->secretVault->reveal($pending[0], 'identity.totp-seed', $this->installationId());
             try {
-                if (!$this->totp->verify($seed, $code)) {
+                $counter = $this->totp->matchingCounter($seed, $code);
+                if (null === $counter) {
                     throw new \RuntimeException('MFA confirmation failed.');
                 }
             } finally {
                 sodium_memzero($seed);
             }
 
-            $connection->executeStatement('UPDATE mfa_credential SET active = 1 WHERE user_id = ? AND active = 0', [$user->id()]);
+            $connection->executeStatement(
+                "UPDATE mfa_credential SET active = 1, last_accepted_counter = IF(credential_type = 'totp', ?, last_accepted_counter) WHERE user_id = ? AND active = 0",
+                [$counter, $user->id()],
+            );
             $connection->update('app_user', ['mfa_changed_at' => IdentityUtil::now(), 'updated_at' => IdentityUtil::now()], ['id' => $user->id()]);
             $this->sessions->revokeAll($user->id(), $currentSessionId);
             $this->audit->append(new AuditRecord(

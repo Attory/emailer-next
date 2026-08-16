@@ -170,8 +170,10 @@ mail-evidence integrity migration and no new dependency.
 
 ## Phase 4 identity operations
 
-1. Apply `Version20260817000000` through the normal migration gate, configure
-   only the actual trusted proxy hops, and serve the admin surface over HTTPS.
+1. Apply `Version20260817000000` and `Version20260818000000` through the normal
+   migration gate. Configure only the actual trusted proxy hops and a strict
+   `TRUSTED_HOSTS` expression for the canonical host. Serve the admin surface
+   over HTTPS; forwarded host values are deliberately ignored.
 2. Sign in at `/login` with an individual account. There is no self-registration
    or shared account. Owners may create all roles; Administrators cannot create,
    promote, demote, disable, or delete an Owner.

@@ -59,9 +59,9 @@ INSERT INTO user_session (
     revoked_at, source_hash, user_agent_hash
 ) VALUES (?, NULL, ?, ?, ?, ?, ?, NULL, NULL, NULL)
 ON DUPLICATE KEY UPDATE
-    payload = VALUES(payload),
-    last_seen_at = VALUES(last_seen_at),
-    idle_expires_at = VALUES(idle_expires_at)
+    payload = IF(revoked_at IS NULL, VALUES(payload), payload),
+    last_seen_at = IF(revoked_at IS NULL, VALUES(last_seen_at), last_seen_at),
+    idle_expires_at = IF(revoked_at IS NULL, VALUES(idle_expires_at), idle_expires_at)
 SQL, [
             $this->digest($id),
             $data,
@@ -76,7 +76,16 @@ SQL, [
 
     public function destroy(string $id): bool
     {
-        $this->connection->delete('user_session', ['id_hash' => $this->digest($id)]);
+        $now = IdentityUtil::now();
+        $this->connection->executeStatement(<<<'SQL'
+INSERT INTO user_session (
+    id_hash, user_id, payload, created_at, last_seen_at, idle_expires_at, absolute_expires_at,
+    revoked_at, source_hash, user_agent_hash
+) VALUES (?, NULL, '', ?, ?, ?, ?, ?, NULL, NULL)
+ON DUPLICATE KEY UPDATE
+    payload = '',
+    revoked_at = COALESCE(revoked_at, VALUES(revoked_at))
+SQL, [$this->digest($id), $now, $now, $now, $now, $now]);
 
         return true;
     }
@@ -84,8 +93,8 @@ SQL, [
     public function gc(int $max_lifetime): int
     {
         $affected = $this->connection->executeStatement(
-            'DELETE FROM user_session WHERE idle_expires_at <= ? OR absolute_expires_at <= ? OR (revoked_at IS NOT NULL AND revoked_at <= ?)',
-            [IdentityUtil::now(), IdentityUtil::now(), (new \DateTimeImmutable('-1 day', new \DateTimeZone('UTC')))->format('Y-m-d H:i:s.u')],
+            "UPDATE user_session SET payload = '', revoked_at = COALESCE(revoked_at, ?) WHERE revoked_at IS NULL AND (idle_expires_at <= ? OR absolute_expires_at <= ?)",
+            [IdentityUtil::now(), IdentityUtil::now(), IdentityUtil::now()],
         );
 
         return is_numeric($affected) ? (int) $affected : 0;

@@ -67,18 +67,22 @@ data is accepted.
 - Unauthenticated and all-role route matrix plus exhaustive central-policy
   matching, service-layer escalation denial, and safe-method checks.
 - Generic login/recovery failures; account and source progressive throttling,
-  lockout, non-extension and expiry recovery.
+  lockout, non-extension, expiry recovery, dummy Argon2 identity work, and
+  deterministic separate-process atomic reservation.
 - Framework session-fixation rotation, HMAC-at-rest identifiers, idle/absolute
-  expiry, listing, revocation, logout/reset/role/password/MFA invalidation, and
-  hardened cookie attributes.
-- TOTP and recovery authentication, recovery replay rejection, restart/confirm/
-  regenerate/disable cleanup, and five-minute purpose-bound re-authentication.
+  expiry, listing, monotonic tombstone revocation under late-write interleaving,
+  logout/reset/role/password/MFA invalidation, and hardened cookie attributes.
+- TOTP and recovery authentication, single-use enrollment/login/re-authentication,
+  deterministic concurrent replay rejection, restart/confirm/regenerate/disable
+  cleanup, and five-minute purpose-bound re-authentication.
 - CSRF-negative coverage for every administrative mutation, trusted/untrusted
-  forwarded-protocol behavior, CSP/HSTS/cache and browser headers.
+  forwarded-protocol behavior, hostile Host/forwarded-host rejection, HTTP
+  GET redirect/unsafe-method rejection, CSP/HSTS/cache and browser headers.
 - Hashed expiring single-use password reset, generic request result, URL-fragment
   token transport, Mailpit capture, completion and replay rejection.
 - Real two-process final-Owner demotion, disabling, and deletion races.
-- Audit summary redaction plus database-triggered update/delete rejection.
+- Transactional MFA secret deletion with synthetic rollback proof.
+- Audit attribution/source redaction plus database-triggered update/delete rejection.
 
 ## Phase 1 coverage
 
