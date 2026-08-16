@@ -41,13 +41,26 @@ include redacted source attribution, and user deletion transactionally removes
 MFA credentials plus encrypted seeds. A synthetic database failure proves the
 whole deletion rolls back. No test sends reset material in a query string.
 
-The repaired focused suite passes with 22 tests and 402 assertions. The complete
-local suite passes with 94 tests and 1,094 assertions; the rebuilt-image,
-external-egress-disabled repetition passes the same 94 tests with 5,338
+The mandatory second Opus review of exact intermediate head
+`74ac0ac8ed94c29a859ed334a1deabf36ffb1b2d` found an unauthenticated session
+storage-exhaustion path. Login inputs are now bounded before hashing or session
+storage, anonymous identity pages have a source limit before session access,
+revocation erases payloads, expired tombstones are retained for seven days and
+then reclaimed, and stale throttle rows are removed opportunistically outside
+the reservation transaction. Failed-login audit targets use only an opaque
+account HMAC, authority-ceiling denials retain source HMAC attribution, and
+safe admin HEAD requests match the route policy. Existing malformed canonical
+origins now block the repair migration with an explicit operator error; an
+absent pre-installation origin remains valid.
+
+The repaired focused suite passes with 22 tests and 415 assertions. The complete
+local suite passes with 94 tests and 1,107 assertions; the rebuilt-image,
+external-egress-disabled repetition passes the same 94 tests with 5,399
 assertions. Clean installation applied all five migrations, and a separate
 schema upgraded through `Version20260817000000` before applying only
 `Version20260818000000` (six SQL statements); both paths passed mapping
-validation. Composer
+validation. A credential-bearing stored origin was separately proved to stop
+the migration until repaired. Composer
 dependencies and `composer.lock` remain unchanged.
 
 ## Starting state and canonical inputs

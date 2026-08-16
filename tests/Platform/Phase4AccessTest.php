@@ -44,8 +44,14 @@ final class Phase4AccessTest extends WebTestCase
         self::assertNotNull($before);
         $this->submitLogin($client, 'missing@example.test', 'wrong-password-value', '', $server);
         self::assertResponseRedirects('/login', 303);
+        $throttle = $this->phase4Service(\App\Module\Identity\Application\LoginThrottle::class);
+        self::assertSame($throttle->accountHash('missing@example.test'), $connection->fetchOne("SELECT target_id FROM audit_event WHERE action = 'authentication.failure' ORDER BY occurred_at DESC LIMIT 1"));
         $client->followRedirect();
         self::assertSelectorTextSame('[role="alert"]', 'Authentication failed.');
+
+        $client->request('GET', '/login', server: $server);
+        $this->submitLogin($client, str_repeat('a', 5_000).'@example.test', 'wrong-password-value', '', $server);
+        self::assertLessThan(4_096, $this->phase4Int($connection->fetchOne('SELECT MAX(OCTET_LENGTH(payload)) FROM user_session')));
 
         $server = $this->phase4HttpsServer('2001:db8::42');
         $client->request('GET', '/login', server: $server);
@@ -95,6 +101,8 @@ final class Phase4AccessTest extends WebTestCase
             $roleClient->request('GET', '/admin', server: $server);
             self::assertResponseIsSuccessful();
             $roleClient->request('GET', '/admin/audit', server: $server);
+            self::assertResponseIsSuccessful();
+            $roleClient->request('HEAD', '/admin/profile', server: $server);
             self::assertResponseIsSuccessful();
             $roleClient->request('GET', '/admin/users', server: $server);
             if ($role->rank() >= AdministrativeRole::Administrator->rank()) {

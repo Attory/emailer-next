@@ -18,6 +18,8 @@ final class Version20260818000000 extends AbstractMigration
     public function up(Schema $schema): void
     {
         $this->abortIf(!$this->connection->getDatabasePlatform() instanceof AbstractMySQLPlatform, 'Phase 4 requires MariaDB/MySQL.');
+        $origin = $this->connection->fetchOne("SELECT canonical_base_url FROM organisation_settings WHERE singleton_key = '1'");
+        $this->abortIf(false !== $origin && (!\is_string($origin) || !$this->validCanonicalOrigin($origin)), 'The stored canonical base URL must be repaired to a credential-free HTTPS origin before Phase 4 migration.');
 
         $this->addSql('ALTER TABLE user_session DROP FOREIGN KEY fk_user_session_user');
         $this->addSql('ALTER TABLE user_session ADD CONSTRAINT fk_user_session_user FOREIGN KEY (user_id) REFERENCES app_user (id) ON DELETE SET NULL');
@@ -30,5 +32,21 @@ final class Version20260818000000 extends AbstractMigration
     public function down(Schema $schema): void
     {
         $this->throwIrreversibleMigrationException('The Phase 4 security repair is forward-only. Restore a verified pre-migration backup instead.');
+    }
+
+    private function validCanonicalOrigin(string $origin): bool
+    {
+        $parts = parse_url($origin);
+
+        return false !== $parts
+            && 'https' === ($parts['scheme'] ?? null)
+            && \is_string($parts['host'] ?? null)
+            && '' !== $parts['host']
+            && 1 !== preg_match('/[\x00-\x20\x7F]/', $origin)
+            && !isset($parts['user'])
+            && !isset($parts['pass'])
+            && !isset($parts['query'])
+            && !isset($parts['fragment'])
+            && (!isset($parts['path']) || \in_array($parts['path'], ['', '/'], true));
     }
 }

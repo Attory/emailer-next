@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Identity\Application;
 
 use Doctrine\DBAL\Connection;
+use Doctrine\DBAL\Exception\DeadlockException;
 
 final readonly class LoginThrottle
 {
@@ -76,6 +77,7 @@ final readonly class LoginThrottle
     private function reserve(array $scopes): array
     {
         usort($scopes, static fn (array $left, array $right): int => $left[0] <=> $right[0]);
+        $this->purgeStaleRows();
 
         return $this->connection->transactional(function (Connection $connection) use ($scopes): array {
             $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
@@ -260,6 +262,19 @@ SQL, [$hash, $type, $formattedNow, $formattedNow, $formattedNow]);
             return new \DateTimeImmutable($value, new \DateTimeZone('UTC')) <= $now->modify('-'.self::PENDING_SECONDS.' seconds');
         } catch (\Throwable) {
             return true;
+        }
+    }
+
+    private function purgeStaleRows(): void
+    {
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        try {
+            $this->connection->executeStatement(
+                'DELETE FROM login_throttle WHERE pending_count = 0 AND last_failed_at <= ? AND (locked_until IS NULL OR locked_until <= ?) LIMIT 100',
+                [$now->modify('-1 day')->format('Y-m-d H:i:s.u'), $now->format('Y-m-d H:i:s.u')],
+            );
+        } catch (DeadlockException) {
+            // Cleanup is bounded and opportunistic; reservation locking remains fail-closed.
         }
     }
 }

@@ -8,6 +8,7 @@ use App\Module\Audit\Application\Contract\AuditRecord;
 use App\Module\Audit\Application\Contract\AuditSink;
 use App\Module\Identity\Application\AdministrativeRole;
 use App\Module\Identity\Application\AuthenticatedUser;
+use App\Module\Identity\Application\LoginThrottle;
 use App\Module\Identity\Application\MfaManagement;
 use App\Module\Identity\Application\ReauthenticationService;
 use App\Module\Identity\Application\SessionRegistry;
@@ -29,6 +30,7 @@ final class AdminController extends AbstractController
         private readonly SessionRegistry $sessions,
         private readonly AuditSink $audit,
         private readonly TokenStorageInterface $tokens,
+        private readonly LoginThrottle $throttle,
     ) {
     }
 
@@ -53,7 +55,7 @@ final class AdminController extends AbstractController
         return $this->redirectToRoute('identity_login', status: Response::HTTP_SEE_OTHER);
     }
 
-    #[Route('/reauthenticate', name: 'admin_reauthenticate', methods: ['GET', 'POST'])]
+    #[Route('/reauthenticate', name: 'admin_reauthenticate', methods: ['GET', 'HEAD', 'POST'])]
     public function reauthenticate(Request $request): Response
     {
         $purpose = $request->isMethod('POST') ? $request->request->getString('purpose') : $request->query->getString('purpose', 'sensitive_operation');
@@ -83,7 +85,7 @@ final class AdminController extends AbstractController
         return $this->redirectToRoute('admin_dashboard', status: Response::HTTP_SEE_OTHER);
     }
 
-    #[Route('/profile', name: 'admin_profile', methods: ['GET'])]
+    #[Route('/profile', name: 'admin_profile', methods: ['GET', 'HEAD'])]
     public function profile(): Response
     {
         return $this->render('admin/profile.html.twig', ['user' => $this->user()]);
@@ -114,7 +116,7 @@ final class AdminController extends AbstractController
         return $this->redirectToRoute('admin_profile', status: Response::HTTP_SEE_OTHER);
     }
 
-    #[Route('/sessions', name: 'admin_sessions', methods: ['GET'])]
+    #[Route('/sessions', name: 'admin_sessions', methods: ['GET', 'HEAD'])]
     public function sessions(Request $request): Response
     {
         $user = $this->user();
@@ -149,7 +151,7 @@ final class AdminController extends AbstractController
         return $this->redirectToRoute('admin_sessions', status: Response::HTTP_SEE_OTHER);
     }
 
-    #[Route('/mfa', name: 'admin_mfa', methods: ['GET'])]
+    #[Route('/mfa', name: 'admin_mfa', methods: ['GET', 'HEAD'])]
     public function mfa(): Response
     {
         return $this->render('admin/mfa.html.twig', ['status' => $this->mfa->status($this->user())]);
@@ -221,7 +223,7 @@ final class AdminController extends AbstractController
         }
     }
 
-    #[Route('/users', name: 'admin_users', methods: ['GET'])]
+    #[Route('/users', name: 'admin_users', methods: ['GET', 'HEAD'])]
     public function users(): Response
     {
         return $this->render('admin/users.html.twig', [
@@ -243,6 +245,7 @@ final class AdminController extends AbstractController
                 $request->request->getString('login_identifier'),
                 $request->request->getString('password'),
                 AdministrativeRole::from($request->request->getString('role')),
+                $this->sourceHash($request),
             );
             $this->addFlash('success', 'User created.');
         } catch (AccessDeniedException $exception) {
@@ -267,6 +270,7 @@ final class AdminController extends AbstractController
                 $id,
                 AdministrativeRole::from($request->request->getString('role')),
                 $request->request->getBoolean('active'),
+                $this->sourceHash($request),
             );
             if (hash_equals($this->user()->id(), $id)) {
                 if (!$updatedUser->active()) {
@@ -296,7 +300,7 @@ final class AdminController extends AbstractController
         }
         $this->reauthentication->assertRecent($request->getSession(), 'user_management');
         try {
-            $this->users->delete($this->user(), $id);
+            $this->users->delete($this->user(), $id, $this->sourceHash($request));
             $this->addFlash('success', 'User deleted.');
         } catch (AccessDeniedException $exception) {
             throw $exception;
@@ -320,6 +324,11 @@ final class AdminController extends AbstractController
     private function validCsrf(Request $request, string $id): bool
     {
         return $this->isCsrfTokenValid($id, $request->request->getString('_token'));
+    }
+
+    private function sourceHash(Request $request): string
+    {
+        return $this->throttle->sourceHash($request->getClientIp() ?? 'unknown');
     }
 
     private function rotateAndBind(Request $request, AuthenticatedUser $user): void

@@ -92,12 +92,17 @@ SQL, [$this->digest($id), $now, $now, $now, $now, $now]);
 
     public function gc(int $max_lifetime): int
     {
-        $affected = $this->connection->executeStatement(
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        $revoked = $this->connection->executeStatement(
             "UPDATE user_session SET payload = '', revoked_at = COALESCE(revoked_at, ?) WHERE revoked_at IS NULL AND (idle_expires_at <= ? OR absolute_expires_at <= ?)",
-            [IdentityUtil::now(), IdentityUtil::now(), IdentityUtil::now()],
+            [$now->format('Y-m-d H:i:s.u'), $now->format('Y-m-d H:i:s.u'), $now->format('Y-m-d H:i:s.u')],
+        );
+        $deleted = $this->connection->executeStatement(
+            'DELETE FROM user_session WHERE revoked_at <= ? AND absolute_expires_at <= ?',
+            [$now->modify('-7 days')->format('Y-m-d H:i:s.u'), $now->format('Y-m-d H:i:s.u')],
         );
 
-        return is_numeric($affected) ? (int) $affected : 0;
+        return (is_numeric($revoked) ? (int) $revoked : 0) + (is_numeric($deleted) ? (int) $deleted : 0);
     }
 
     public function validateId(string $id): bool

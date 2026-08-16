@@ -49,11 +49,10 @@ final class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
 
     public function authenticate(Request $request): Passport
     {
-        $login = $request->request->getString('login_identifier');
-        $password = $request->request->getString('password');
-        $mfaCode = $request->request->getString('mfa_code');
+        $login = mb_substr($request->request->getString('login_identifier'), 0, 254, 'UTF-8');
+        $password = substr($request->request->getString('password'), 0, 1024);
+        $mfaCode = substr($request->request->getString('mfa_code'), 0, 64);
         $source = $request->getClientIp() ?? 'unknown';
-        $request->getSession()->set('identity.last_login', mb_strtolower(trim($login), 'UTF-8'));
 
         try {
             $reservation = $this->throttle->reserveLogin($login, $source);
@@ -125,8 +124,9 @@ final class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): Response
     {
-        $login = $request->request->getString('login_identifier');
+        $login = mb_substr($request->request->getString('login_identifier'), 0, 254, 'UTF-8');
         $source = $request->getClientIp() ?? 'unknown';
+        $request->getSession()->set('identity.last_login', mb_strtolower(trim($login), 'UTF-8'));
         $reservation = $this->reservation($request->attributes->get('identity.login_reservation'));
         if (true !== $request->attributes->get('identity.throttle_blocked') && null !== $reservation) {
             $this->throttle->loginFailed($reservation);
@@ -134,7 +134,7 @@ final class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
         $this->audit->append(new AuditRecord(
             null,
             true === $request->attributes->get('identity.throttle_blocked') ? 'authentication.lockout' : 'authentication.failure',
-            null,
+            $this->throttle->accountHash($login),
             'failure',
             ['reason' => 'generic'],
             $this->throttle->sourceHash($source),

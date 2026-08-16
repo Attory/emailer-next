@@ -74,14 +74,14 @@ SQL, [
     public function revoke(string $userId, string $idHash): bool
     {
         return 1 === $this->connection->executeStatement(
-            'UPDATE user_session SET revoked_at = ? WHERE id_hash = ? AND user_id = ? AND revoked_at IS NULL',
+            "UPDATE user_session SET payload = '', revoked_at = ? WHERE id_hash = ? AND user_id = ? AND revoked_at IS NULL",
             [IdentityUtil::now(), $idHash, $userId],
         );
     }
 
     public function revokeAll(string $userId, ?string $exceptSessionId = null): int
     {
-        $sql = 'UPDATE user_session SET revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL';
+        $sql = "UPDATE user_session SET payload = '', revoked_at = ? WHERE user_id = ? AND revoked_at IS NULL";
         $parameters = [IdentityUtil::now(), $userId];
         if (null !== $exceptSessionId) {
             $sql .= ' AND id_hash <> ?';

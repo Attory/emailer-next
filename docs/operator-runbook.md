@@ -192,6 +192,8 @@ mail-evidence integrity migration and no new dependency.
    attempts to mutate an audit row.
 
 Do not clear throttle/session/audit tables as routine remediation. A temporary
-lock expires without extending on blocked requests. Investigate repeated
+lock expires without extending on blocked requests. Revoked session payloads
+are erased immediately; their HMAC tombstones remain for seven days beyond
+revocation before bounded garbage collection. Investigate repeated
 lockouts using redacted audit evidence; never ask for a password, MFA seed,
 recovery value, reset token, raw session ID, or full cookie.

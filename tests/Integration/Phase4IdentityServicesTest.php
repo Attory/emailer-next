@@ -139,6 +139,7 @@ final class Phase4IdentityServicesTest extends KernelTestCase
         self::assertStringNotContainsString('raw-session-one', json_encode($connection->fetchAllAssociative('SELECT * FROM user_session'), JSON_THROW_ON_ERROR));
 
         self::assertTrue($registry->revoke($user->id(), $listed[0]['id_hash']));
+        self::assertSame('', $connection->fetchOne('SELECT payload FROM user_session WHERE id_hash = ?', [$listed[0]['id_hash']]));
         $registry->bind('raw-session-one', $user->id(), '2001:db8::82', 'Late response');
         self::assertNotNull($connection->fetchOne('SELECT revoked_at FROM user_session WHERE id_hash = ?', [$listed[0]['id_hash']]));
         self::assertSame('', $handler->read('raw-session-one'));
@@ -153,6 +154,14 @@ final class Phase4IdentityServicesTest extends KernelTestCase
         self::assertSame('', $handler->read('raw-session-three'));
         $handler->write('raw-session-three', 'late-absolute-payload');
         self::assertSame('', $handler->read('raw-session-three'));
+
+        $handler->destroy('retained-tombstone');
+        $connection->executeStatement(
+            'UPDATE user_session SET revoked_at = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 8 DAY), absolute_expires_at = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 7 DAY) WHERE id_hash = ?',
+            [$registry->currentHash('retained-tombstone')],
+        );
+        self::assertGreaterThanOrEqual(1, $handler->gc(1800));
+        self::assertFalse($connection->fetchOne('SELECT 1 FROM user_session WHERE id_hash = ?', [$registry->currentHash('retained-tombstone')]));
     }
 
     public function testSessionRevocationIsMonotonicAcrossSeparateConnectionInterleaving(): void
@@ -217,14 +226,16 @@ final class Phase4IdentityServicesTest extends KernelTestCase
         $administrator = $this->createPhase4User($connection, 'admin@example.test', $password, AdministrativeRole::Administrator);
         $users = $this->phase4Service(UserAdministration::class);
         $denialBaseline = $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'authorization.denied'"));
+        $denialSource = $this->phase4Service(LoginThrottle::class)->sourceHash('2001:db8::denied');
 
         try {
-            $users->create($administrator, 'forbidden-owner@example.test', $password, AdministrativeRole::Owner);
+            $users->create($administrator, 'forbidden-owner@example.test', $password, AdministrativeRole::Owner, $denialSource);
             self::fail('Administrator escalated a user to Owner.');
         } catch (AccessDeniedException) {
             self::addToAssertionCount(1);
         }
         self::assertSame($denialBaseline + 1, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'authorization.denied'")));
+        self::assertSame($denialSource, $connection->fetchOne("SELECT source_hash FROM audit_event WHERE action = 'authorization.denied' ORDER BY occurred_at DESC LIMIT 1"));
         $operatorId = $users->create($administrator, 'operator@example.test', $password, AdministrativeRole::Operator);
         self::assertSame(AdministrativeRole::Operator->value, $connection->fetchOne('SELECT role FROM app_user WHERE id = ?', [$operatorId]));
 
