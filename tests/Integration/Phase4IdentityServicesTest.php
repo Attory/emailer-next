@@ -7,6 +7,7 @@ namespace App\Tests\Integration;
 use App\Module\Audit\Application\Contract\AuditRecord;
 use App\Module\Audit\Application\Contract\AuditSink;
 use App\Module\Identity\Application\AdministrativeRole;
+use App\Module\Identity\Application\CanonicalOrigin;
 use App\Module\Identity\Application\LoginThrottle;
 use App\Module\Identity\Application\LoginThrottled;
 use App\Module\Identity\Application\MfaManagement;
@@ -20,6 +21,7 @@ use App\Module\Identity\Application\Totp;
 use App\Module\Identity\Application\UserAdministration;
 use App\Module\Identity\Infrastructure\DatabaseSessionHandler;
 use App\Module\Identity\Infrastructure\DoctrineUserProvider;
+use App\Module\Identity\Infrastructure\HybridSessionHandler;
 use App\Tests\Support\Phase4State;
 use Doctrine\DBAL\Connection;
 use Doctrine\DBAL\DriverManager;
@@ -51,22 +53,22 @@ final class Phase4IdentityServicesTest extends KernelTestCase
         $this->preparePhase4State($connection);
         $throttle = $this->phase4Service(LoginThrottle::class);
 
-        $throttle->reserveLogin('owner@example.test', '2001:db8::81');
+        $throttle->loginFailed($throttle->reserveLogin('owner@example.test', '2001:db8::81'));
         $this->expectThrottle($throttle, 'owner@example.test', '2001:db8::81');
 
         for ($attempt = 2; $attempt <= 5; ++$attempt) {
             $connection->executeStatement('UPDATE login_throttle SET not_before = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND) WHERE locked_until IS NULL');
-            $throttle->reserveLogin('owner@example.test', '2001:db8::81');
+            $throttle->loginFailed($throttle->reserveLogin('owner@example.test', '2001:db8::81'));
         }
         $this->expectThrottle($throttle, 'owner@example.test', '2001:db8::99');
         self::assertSame(5, $this->phase4Int($connection->fetchOne("SELECT failure_count FROM login_throttle WHERE scope_type = 'account'")));
 
         $connection->executeStatement('UPDATE login_throttle SET last_failed_at = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 16 MINUTE), locked_until = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND), not_before = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND)');
-        $throttle->reserveLogin('owner@example.test', '2001:db8::81');
+        $throttle->loginFailed($throttle->reserveLogin('owner@example.test', '2001:db8::81'));
         self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT failure_count FROM login_throttle WHERE scope_type = 'account'")));
 
         for ($attempt = 1; $attempt <= 20; ++$attempt) {
-            $throttle->reserveLogin('source-user-'.$attempt.'@example.test', '2001:db8::100');
+            $throttle->loginFailed($throttle->reserveLogin('source-user-'.$attempt.'@example.test', '2001:db8::100'));
             $connection->executeStatement('UPDATE login_throttle SET not_before = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND) WHERE locked_until IS NULL');
         }
         $this->expectThrottle($throttle, 'fresh-account@example.test', '2001:db8::100');
@@ -75,7 +77,7 @@ final class Phase4IdentityServicesTest extends KernelTestCase
             [$throttle->sourceHash('2001:db8::100')],
         )));
         $connection->executeStatement('UPDATE login_throttle SET last_failed_at = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 16 MINUTE), locked_until = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND), not_before = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND)');
-        $throttle->reserveLogin('fresh-account@example.test', '2001:db8::100');
+        $throttle->loginFailed($throttle->reserveLogin('fresh-account@example.test', '2001:db8::100'));
         self::assertSame(1, $this->phase4Int($connection->fetchOne(
             "SELECT failure_count FROM login_throttle WHERE scope_type = 'source' AND scope_hash = ?",
             [$throttle->sourceHash('2001:db8::100')],
@@ -83,21 +85,39 @@ final class Phase4IdentityServicesTest extends KernelTestCase
 
         $connection->executeStatement('DELETE FROM login_throttle');
         $oldLoginReservation = $throttle->reserveLogin('cleanup-race@example.test', '2001:db8::101');
-        $connection->executeStatement('UPDATE login_throttle SET not_before = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND)');
         $newLoginReservation = $throttle->reserveLogin('cleanup-race@example.test', '2001:db8::101');
-        $throttle->loginSucceeded('cleanup-race@example.test', $oldLoginReservation);
-        self::assertSame(2, $this->phase4Int($connection->fetchOne("SELECT failure_count FROM login_throttle WHERE scope_type = 'account'")));
-        $throttle->loginSucceeded('cleanup-race@example.test', $newLoginReservation);
+        $throttle->loginSucceeded($oldLoginReservation);
+        self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT pending_count FROM login_throttle WHERE scope_type = 'account'")));
+        $throttle->loginSucceeded($newLoginReservation);
         self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM login_throttle WHERE scope_type = 'account'")));
 
         $connection->executeStatement('DELETE FROM login_throttle');
         $oldReauthReservations = $throttle->reserveReauthentication('user-id', '2001:db8::102', 'session-id');
-        $connection->executeStatement('UPDATE login_throttle SET not_before = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND)');
         $newReauthReservations = $throttle->reserveReauthentication('user-id', '2001:db8::102', 'session-id');
         $throttle->reauthenticationSucceeded($oldReauthReservations);
-        self::assertSame(2, $this->phase4Int($connection->fetchOne("SELECT MIN(failure_count) FROM login_throttle WHERE scope_type LIKE 'reauth_%'")));
+        self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT MIN(pending_count) FROM login_throttle WHERE scope_type LIKE 'reauth_%'")));
         $throttle->reauthenticationSucceeded($newReauthReservations);
         self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM login_throttle WHERE scope_type LIKE 'reauth_%'")));
+    }
+
+    public function testCanonicalOriginRejectsNonOriginComponentsAndNormalizesHost(): void
+    {
+        self::bootKernel();
+        $connection = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($connection);
+        $origin = $this->phase4Service(CanonicalOrigin::class);
+        $connection->update('organisation_settings', ['canonical_base_url' => 'https://LOCALHOST:443/'], ['singleton_key' => '1']);
+        self::assertSame('https://localhost', $origin->value());
+
+        foreach (['https://user@localhost', 'https://localhost?redirect=attacker', 'https://localhost#fragment', 'https://localhost/path'] as $invalid) {
+            $connection->update('organisation_settings', ['canonical_base_url' => $invalid], ['singleton_key' => '1']);
+            try {
+                $origin->value();
+                self::fail('A non-origin canonical URL was accepted.');
+            } catch (\RuntimeException) {
+                self::addToAssertionCount(1);
+            }
+        }
     }
 
     public function testDatabaseSessionsEnforceIdleAbsoluteExpiryAndRevocation(): void
@@ -196,6 +216,7 @@ final class Phase4IdentityServicesTest extends KernelTestCase
         $owner = $this->createPhase4User($connection, 'owner@example.test', $password);
         $administrator = $this->createPhase4User($connection, 'admin@example.test', $password, AdministrativeRole::Administrator);
         $users = $this->phase4Service(UserAdministration::class);
+        $denialBaseline = $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'authorization.denied'"));
 
         try {
             $users->create($administrator, 'forbidden-owner@example.test', $password, AdministrativeRole::Owner);
@@ -203,6 +224,7 @@ final class Phase4IdentityServicesTest extends KernelTestCase
         } catch (AccessDeniedException) {
             self::addToAssertionCount(1);
         }
+        self::assertSame($denialBaseline + 1, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'authorization.denied'")));
         $operatorId = $users->create($administrator, 'operator@example.test', $password, AdministrativeRole::Operator);
         self::assertSame(AdministrativeRole::Operator->value, $connection->fetchOne('SELECT role FROM app_user WHERE id = ?', [$operatorId]));
 
@@ -320,7 +342,7 @@ final class Phase4IdentityServicesTest extends KernelTestCase
         $totp = $this->phase4Service(Totp::class);
         $enrollment = $management->start($user);
         $management->confirm($user, $totp->code($enrollment->seed, intdiv(time(), 30) - 1), true, 'not-live');
-        $currentCode = $totp->code($enrollment->seed, intdiv(time(), 30));
+        $currentCode = $totp->code($enrollment->seed, intdiv(time(), 30) + 1);
         $projectDirectory = self::getContainer()->getParameter('kernel.project_dir');
         self::assertIsString($projectDirectory);
         self::ensureKernelShutdown();
@@ -333,15 +355,15 @@ final class Phase4IdentityServicesTest extends KernelTestCase
         $connection->executeStatement('DELETE FROM login_throttle');
         self::ensureKernelShutdown();
         $loginOutcomes = $this->runSecurityWorkers($projectDirectory, 6, ['login', 'parallel@example.test', '2001:db8::122', 'unused']);
-        self::assertSame(1, \count(array_filter($loginOutcomes, static fn (string $outcome): bool => 'accepted' === $outcome)));
+        self::assertSame(5, \count(array_filter($loginOutcomes, static fn (string $outcome): bool => 'accepted' === $outcome)));
 
         self::bootKernel();
         $connection = $this->phase4Service(Connection::class);
-        self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT failure_count FROM login_throttle WHERE scope_type = 'account'")));
+        self::assertSame(5, $this->phase4Int($connection->fetchOne("SELECT pending_count FROM login_throttle WHERE scope_type = 'account'")));
         $connection->executeStatement('DELETE FROM login_throttle');
         self::ensureKernelShutdown();
         $reauthOutcomes = $this->runSecurityWorkers($projectDirectory, 6, ['reauthentication', $user->id(), '2001:db8::123', 'shared-session']);
-        self::assertSame(1, \count(array_filter($reauthOutcomes, static fn (string $outcome): bool => 'accepted' === $outcome)));
+        self::assertSame(5, \count(array_filter($reauthOutcomes, static fn (string $outcome): bool => 'accepted' === $outcome)));
     }
 
     public function testReauthenticationConsumesTotpAndRecoveryProofsOnlyOnce(): void
@@ -388,6 +410,14 @@ final class Phase4IdentityServicesTest extends KernelTestCase
         self::assertStringStartsWith('$argon2id$', $dummy->getPassword());
         $this->createPhase4User($connection, 'disabled@example.test', 'phase4-disabled-'.bin2hex(random_bytes(10)), AdministrativeRole::Auditor, false);
         self::assertSame(DoctrineUserProvider::DUMMY_ID, $provider->loadForAuthentication('disabled@example.test')->id());
+        $verifier = $this->phase4Service(MfaVerifier::class);
+        self::assertFalse($verifier->verify(DoctrineUserProvider::DUMMY_ID, 'DEADBEEF-DEADBEEF'));
+
+        $this->phase4Service(HybridSessionHandler::class);
+        $privateDirectory = self::getContainer()->getParameter('emailer.private_dir');
+        self::assertIsString($privateDirectory);
+        clearstatcache(true, $privateDirectory.'/sessions');
+        self::assertSame(0700, fileperms($privateDirectory.'/sessions') & 0777);
 
         $actor = $this->createPhase4User($connection, 'cleanup-owner@example.test', 'phase4-cleanup-owner-'.bin2hex(random_bytes(10)));
         $target = $this->createPhase4User($connection, 'cleanup-user@example.test', 'phase4-cleanup-user-'.bin2hex(random_bytes(10)), AdministrativeRole::Administrator);

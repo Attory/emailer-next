@@ -10,6 +10,8 @@ use Doctrine\DBAL\Connection;
 
 final readonly class MfaVerifier
 {
+    private const DUMMY_RECOVERY_HASH = '$argon2id$v=19$m=8192,t=2,p=1$RUJhLlc4NzRHbVdnRTF1Yw$HXhMS1KHTRrzigssxW9WzMav5RSbJXMG9joP9JF2Kfw';
+
     public function __construct(
         private Connection $connection,
         private SecretVault $secretVault,
@@ -29,7 +31,16 @@ final readonly class MfaVerifier
     public function verify(string $userId, string $code, bool $consume = true): bool
     {
         if (!$this->required($userId)) {
-            return '' === trim($code);
+            $normalized = strtoupper(trim($code));
+            if (1 === preg_match('/^[A-F0-9]{8}-[A-F0-9]{8}$/', $normalized)) {
+                for ($index = 0; $index < 10; ++$index) {
+                    password_verify($normalized, self::DUMMY_RECOVERY_HASH);
+                }
+            } elseif (1 === preg_match('/^[0-9]{6}$/', $normalized)) {
+                $this->totp->matchingCounter('JBSWY3DPEHPK3PXP', $normalized);
+            }
+
+            return '' === $normalized;
         }
 
         $normalized = strtoupper(trim($code));

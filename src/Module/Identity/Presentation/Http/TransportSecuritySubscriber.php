@@ -31,11 +31,16 @@ final readonly class TransportSecuritySubscriber implements EventSubscriberInter
             return;
         }
         $request = $event->getRequest();
-        if (!$this->isProtectedPath($request->getPathInfo()) || $request->isSecure()) {
+        if (!$this->isProtectedPath($request->getPathInfo())) {
+            return;
+        }
+        $canonicalOrigin = $this->canonicalOrigin->value();
+        $requestOrigin = rtrim($request->getSchemeAndHttpHost(), '/');
+        if ($request->isSecure() && hash_equals($canonicalOrigin, $requestOrigin)) {
             return;
         }
         if ($request->isMethodSafe()) {
-            $target = $this->canonicalOrigin->absolutePath($request->getPathInfo());
+            $target = $canonicalOrigin.$request->getPathInfo();
             $response = new RedirectResponse($target, Response::HTTP_PERMANENTLY_REDIRECT);
             $response->headers->set('Cache-Control', 'no-store');
             $event->setResponse($response);

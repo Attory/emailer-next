@@ -138,6 +138,12 @@ the canonical host; the safe default matches only loopback hosts. Never use a
 wildcard or an unreviewed private network range. Forwarded host values are not
 trusted.
 
+Set `APP_SECRET` to at least 16 bytes of high-entropy secret material before
+installation. Rotation changes the purpose-separated HMAC identities used for
+sessions, throttles, and source attribution: treat rotation as a maintenance
+event that invalidates all sessions and makes earlier throttle/source hashes
+unmatchable. Do not rotate it casually or use a public/default value.
+
 Serve administration through verified HTTPS. The `EMAILERSESSID` cookie is
 host-only, path `/`, `Secure`, `HttpOnly`, and `SameSite=Lax`. After installation,
 safe HTTP identity/admin requests redirect to the stored canonical HTTPS origin

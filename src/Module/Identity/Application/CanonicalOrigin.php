@@ -22,13 +22,20 @@ final readonly class CanonicalOrigin
         if (false === $parts
             || 'https' !== ($parts['scheme'] ?? null)
             || !\is_string($parts['host'] ?? null)
-            || isset($parts['user'], $parts['pass'], $parts['query'], $parts['fragment'])
+            || '' === $parts['host']
+            || 1 === preg_match('/[\x00-\x20\x7F]/', $origin)
+            || isset($parts['user'])
+            || isset($parts['pass'])
+            || isset($parts['query'])
+            || isset($parts['fragment'])
             || (isset($parts['path']) && !\in_array($parts['path'], ['', '/'], true))
         ) {
             throw new \RuntimeException('Canonical application origin is invalid.');
         }
 
-        return rtrim($origin, '/');
+        $port = isset($parts['port']) && 443 !== $parts['port'] ? ':'.$parts['port'] : '';
+
+        return 'https://'.strtolower($parts['host']).$port;
     }
 
     public function absolutePath(string $path): string

@@ -8,6 +8,7 @@ use App\Module\Audit\Application\Contract\AuditRecord;
 use App\Module\Audit\Application\Contract\AuditSink;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\PasswordHasher\Hasher\UserPasswordHasherInterface;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 final readonly class UserAdministration
 {
@@ -91,36 +92,42 @@ final readonly class UserAdministration
 
     public function update(AuthenticatedUser $actor, string $targetId, AdministrativeRole $role, bool $active): AuthenticatedUser
     {
-        return $this->connection->transactional(function (Connection $connection) use ($actor, $targetId, $role, $active): AuthenticatedUser {
-            $target = $connection->fetchAssociative('SELECT id, login_identifier, password_hash, role, active FROM app_user WHERE id = ? FOR UPDATE', [$targetId]);
-            if (false === $target
-                || !\is_string($target['login_identifier'] ?? null)
-                || !\is_string($target['password_hash'] ?? null)
-                || !\is_string($target['role'] ?? null)
-            ) {
-                throw new \RuntimeException('User is unavailable.');
-            }
-            $currentRole = AdministrativeRole::from($target['role']);
-            $this->authorization->assertCanManageUser($actor, $currentRole, $role, 'identity.users.update');
-            $this->lockAndAssertOwnerInvariant($connection, $targetId, $currentRole, $role, $active);
+        $this->authorization->assertCanManageUser($actor, $this->targetRole($targetId), $role, 'identity.users.update');
+        try {
+            return $this->connection->transactional(function (Connection $connection) use ($actor, $targetId, $role, $active): AuthenticatedUser {
+                $target = $connection->fetchAssociative('SELECT id, login_identifier, password_hash, role, active FROM app_user WHERE id = ? FOR UPDATE', [$targetId]);
+                if (false === $target
+                    || !\is_string($target['login_identifier'] ?? null)
+                    || !\is_string($target['password_hash'] ?? null)
+                    || !\is_string($target['role'] ?? null)
+                ) {
+                    throw new \RuntimeException('User is unavailable.');
+                }
+                $currentRole = AdministrativeRole::from($target['role']);
+                $this->authorization->assertCanManageUser($actor, $currentRole, $role, 'identity.users.update');
+                $this->lockAndAssertOwnerInvariant($connection, $targetId, $currentRole, $role, $active);
 
-            $connection->update('app_user', [
-                'role' => $role->value,
-                'active' => $active ? 1 : 0,
-                'updated_at' => IdentityUtil::now(),
-                'disabled_at' => $active ? null : IdentityUtil::now(),
-            ], ['id' => $targetId]);
-            $this->sessions->revokeAll($targetId);
-            $this->audit->append(new AuditRecord(
-                $actor->id(),
-                'identity.user.updated',
-                $targetId,
-                'success',
-                ['from_role' => $currentRole->value, 'to_role' => $role->value, 'active' => $active],
-            ));
+                $connection->update('app_user', [
+                    'role' => $role->value,
+                    'active' => $active ? 1 : 0,
+                    'updated_at' => IdentityUtil::now(),
+                    'disabled_at' => $active ? null : IdentityUtil::now(),
+                ], ['id' => $targetId]);
+                $this->sessions->revokeAll($targetId);
+                $this->audit->append(new AuditRecord(
+                    $actor->id(),
+                    'identity.user.updated',
+                    $targetId,
+                    'success',
+                    ['from_role' => $currentRole->value, 'to_role' => $role->value, 'active' => $active],
+                ));
 
-            return new AuthenticatedUser($targetId, $target['login_identifier'], $target['password_hash'], $role, $active);
-        });
+                return new AuthenticatedUser($targetId, $target['login_identifier'], $target['password_hash'], $role, $active);
+            });
+        } catch (AccessDeniedException $exception) {
+            $this->authorization->recordDenial($actor, 'identity.users.update');
+            throw $exception;
+        }
     }
 
     public function delete(AuthenticatedUser $actor, string $targetId): void
@@ -129,34 +136,41 @@ final readonly class UserAdministration
             throw new \RuntimeException('The active account cannot delete itself.');
         }
 
-        $this->connection->transactional(function (Connection $connection) use ($actor, $targetId): void {
-            $target = $connection->fetchAssociative('SELECT id, role, active FROM app_user WHERE id = ? FOR UPDATE', [$targetId]);
-            if (false === $target || !\is_string($target['role'] ?? null)) {
-                throw new \RuntimeException('User is unavailable.');
-            }
-            $currentRole = AdministrativeRole::from($target['role']);
-            $this->authorization->assertCanManageUser($actor, $currentRole, $currentRole, 'identity.users.delete');
-            $this->lockAndAssertOwnerInvariant($connection, $targetId, $currentRole, AdministrativeRole::Auditor, false);
-            $this->audit->append(new AuditRecord(
-                $actor->id(),
-                'identity.user.deleted',
-                $targetId,
-                'success',
-                ['role' => $currentRole->value],
-            ));
-            $this->sessions->revokeAll($targetId);
-            $secretIds = $connection->fetchFirstColumn(
-                'SELECT encrypted_secret_id FROM mfa_credential WHERE user_id = ? AND encrypted_secret_id IS NOT NULL FOR UPDATE',
-                [$targetId],
-            );
-            $connection->delete('mfa_credential', ['user_id' => $targetId]);
-            foreach ($secretIds as $secretId) {
-                if (\is_string($secretId)) {
-                    $connection->delete('encrypted_secret', ['id' => $secretId]);
+        $currentRole = $this->targetRole($targetId);
+        $this->authorization->assertCanManageUser($actor, $currentRole, $currentRole, 'identity.users.delete');
+        try {
+            $this->connection->transactional(function (Connection $connection) use ($actor, $targetId): void {
+                $target = $connection->fetchAssociative('SELECT id, role, active FROM app_user WHERE id = ? FOR UPDATE', [$targetId]);
+                if (false === $target || !\is_string($target['role'] ?? null)) {
+                    throw new \RuntimeException('User is unavailable.');
                 }
-            }
-            $connection->delete('app_user', ['id' => $targetId]);
-        });
+                $currentRole = AdministrativeRole::from($target['role']);
+                $this->authorization->assertCanManageUser($actor, $currentRole, $currentRole, 'identity.users.delete');
+                $this->lockAndAssertOwnerInvariant($connection, $targetId, $currentRole, AdministrativeRole::Auditor, false);
+                $this->audit->append(new AuditRecord(
+                    $actor->id(),
+                    'identity.user.deleted',
+                    $targetId,
+                    'success',
+                    ['role' => $currentRole->value],
+                ));
+                $this->sessions->revokeAll($targetId);
+                $secretIds = $connection->fetchFirstColumn(
+                    'SELECT encrypted_secret_id FROM mfa_credential WHERE user_id = ? AND encrypted_secret_id IS NOT NULL FOR UPDATE',
+                    [$targetId],
+                );
+                $connection->delete('mfa_credential', ['user_id' => $targetId]);
+                foreach ($secretIds as $secretId) {
+                    if (\is_string($secretId)) {
+                        $connection->delete('encrypted_secret', ['id' => $secretId]);
+                    }
+                }
+                $connection->delete('app_user', ['id' => $targetId]);
+            });
+        } catch (AccessDeniedException $exception) {
+            $this->authorization->recordDenial($actor, 'identity.users.delete');
+            throw $exception;
+        }
     }
 
     public function changePassword(AuthenticatedUser $actor, string $currentPassword, string $newPassword, string $currentSessionId): AuthenticatedUser
@@ -203,5 +217,15 @@ final readonly class UserAdministration
         if ($removesTargetOwner && 1 === \count($owners) && \is_string($owners[0] ?? null) && hash_equals($owners[0], $targetId)) {
             throw new \RuntimeException('At least one active Owner must remain.');
         }
+    }
+
+    private function targetRole(string $targetId): AdministrativeRole
+    {
+        $role = $this->connection->fetchOne('SELECT role FROM app_user WHERE id = ?', [$targetId]);
+        if (!\is_string($role)) {
+            throw new \RuntimeException('User is unavailable.');
+        }
+
+        return AdministrativeRole::from($role);
     }
 }

@@ -17,6 +17,7 @@ use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
 use Symfony\Component\Security\Core\Authentication\Token\Storage\TokenStorageInterface;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 #[Route('/admin')]
 final class AdminController extends AbstractController
@@ -244,6 +245,8 @@ final class AdminController extends AbstractController
                 AdministrativeRole::from($request->request->getString('role')),
             );
             $this->addFlash('success', 'User created.');
+        } catch (AccessDeniedException $exception) {
+            throw $exception;
         } catch (\Throwable) {
             $this->addFlash('error', 'User creation was not accepted.');
         }
@@ -276,6 +279,8 @@ final class AdminController extends AbstractController
                 $this->rotateAndBind($request, $updatedUser);
             }
             $this->addFlash('success', 'User updated.');
+        } catch (AccessDeniedException $exception) {
+            throw $exception;
         } catch (\Throwable) {
             $this->addFlash('error', 'User update was not accepted.');
         }
@@ -293,6 +298,8 @@ final class AdminController extends AbstractController
         try {
             $this->users->delete($this->user(), $id);
             $this->addFlash('success', 'User deleted.');
+        } catch (AccessDeniedException $exception) {
+            throw $exception;
         } catch (\Throwable) {
             $this->addFlash('error', 'User deletion was not accepted.');
         }

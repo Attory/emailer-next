@@ -105,9 +105,9 @@ final class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
                 $this->throttle->sourceHash($source),
             ));
         });
-        $reservation = $request->attributes->get('identity.login_reservation');
-        if (\is_array($reservation) && \is_int($reservation['count'] ?? null) && \is_string($reservation['last'] ?? null)) {
-            $this->throttle->loginSucceeded($user->getUserIdentifier(), $reservation);
+        $reservation = $this->reservation($request->attributes->get('identity.login_reservation'));
+        if (null !== $reservation) {
+            $this->throttle->loginSucceeded($reservation);
         }
         $request->getSession()->remove('identity.last_login');
         $request->getSession()->migrate(true);
@@ -127,6 +127,10 @@ final class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
     {
         $login = $request->request->getString('login_identifier');
         $source = $request->getClientIp() ?? 'unknown';
+        $reservation = $this->reservation($request->attributes->get('identity.login_reservation'));
+        if (true !== $request->attributes->get('identity.throttle_blocked') && null !== $reservation) {
+            $this->throttle->loginFailed($reservation);
+        }
         $this->audit->append(new AuditRecord(
             null,
             true === $request->attributes->get('identity.throttle_blocked') ? 'authentication.lockout' : 'authentication.failure',
@@ -143,5 +147,22 @@ final class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
     protected function getLoginUrl(Request $request): string
     {
         return $this->urls->generate('identity_login');
+    }
+
+    /** @return array<string, string>|null */
+    private function reservation(mixed $value): ?array
+    {
+        if (!\is_array($value)) {
+            return null;
+        }
+        $reservation = [];
+        foreach ($value as $hash => $type) {
+            if (!\is_string($hash) || !\is_string($type)) {
+                return null;
+            }
+            $reservation[$hash] = $type;
+        }
+
+        return [] === $reservation ? null : $reservation;
     }
 }

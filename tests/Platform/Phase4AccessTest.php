@@ -191,6 +191,11 @@ final class Phase4AccessTest extends WebTestCase
 
         self::ensureKernelShutdown();
         $client = self::createClient();
+        $client->request('GET', '/login', server: $this->phase4HttpsServer() + ['HTTP_HOST' => 'emailer.example.test']);
+        self::assertResponseRedirects('https://localhost/login', 308);
+
+        self::ensureKernelShutdown();
+        $client = self::createClient();
         $client->request('GET', '/login', server: $this->phase4HttpsServer() + ['HTTP_HOST' => 'attacker.example']);
         self::assertResponseStatusCodeSame(400);
     }
@@ -213,7 +218,7 @@ final class Phase4AccessTest extends WebTestCase
         self::assertResponseIsSuccessful();
         $genericUnknown = (string) $client->getResponse()->getContent();
         self::assertSame($resetRequestAuditBaseline + 1, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'identity.password_reset.requested'")));
-        self::assertSame('[Emailer Next] Password reset', $this->mailpitMessageFor('phase4-reset-sink@example.test')['Subject'] ?? null);
+        self::assertSame('[Emailer Next] Password reset', $this->mailpitMessageFor('phase4-sender@example.test')['Subject'] ?? null);
 
         $knownServer = $this->phase4HttpsServer('2001:db8:92:'.implode(':', str_split(bin2hex(random_bytes(6)), 4))) + ['HTTP_X_FORWARDED_HOST' => 'attacker.example'];
         $crawler = $client->request('GET', '/password-reset', server: $knownServer);

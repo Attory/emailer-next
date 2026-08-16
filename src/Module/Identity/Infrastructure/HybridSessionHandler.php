@@ -16,6 +16,20 @@ final class HybridSessionHandler implements \SessionHandlerInterface, \SessionUp
         private readonly DatabaseSessionHandler $database,
         string $setupSessionDirectory,
     ) {
+        if (is_link($setupSessionDirectory)) {
+            throw new \RuntimeException('The setup session directory must not be a symbolic link.');
+        }
+        if (!is_dir($setupSessionDirectory) && !@mkdir($setupSessionDirectory, 0700, true) && !is_dir($setupSessionDirectory)) {
+            throw new \RuntimeException('The setup session directory could not be created.');
+        }
+        if (!@chmod($setupSessionDirectory, 0700)) {
+            throw new \RuntimeException('The setup session directory permissions could not be secured.');
+        }
+        clearstatcache(true, $setupSessionDirectory);
+        $permissions = fileperms($setupSessionDirectory);
+        if (false === $permissions || 0700 !== ($permissions & 0777)) {
+            throw new \RuntimeException('The setup session directory permissions are unsafe.');
+        }
         $this->active = new NativeFileSessionHandler($setupSessionDirectory);
     }
 

@@ -47,6 +47,8 @@ final readonly class ReauthenticationService
         $valid = $passwordValid && $mfaValid;
         if ($valid) {
             $this->throttle->reauthenticationSucceeded($reservations);
+        } else {
+            $this->throttle->reauthenticationFailed($reservations);
         }
         $this->audit->append(new AuditRecord(
             $user->id(),

@@ -173,7 +173,11 @@ mail-evidence integrity migration and no new dependency.
 1. Apply `Version20260817000000` and `Version20260818000000` through the normal
    migration gate. Configure only the actual trusted proxy hops and a strict
    `TRUSTED_HOSTS` expression for the canonical host. Serve the admin surface
-   over HTTPS; forwarded host values are deliberately ignored.
+   over HTTPS; forwarded host values are deliberately ignored. Provision
+   `APP_SECRET` with at least 16 bytes of high-entropy secret material. Rotating
+   it invalidates all sessions and changes throttle/source HMAC identities, so
+   rotation requires a planned maintenance window and investigation of orphaned
+   historical throttle rows.
 2. Sign in at `/login` with an individual account. There is no self-registration
    or shared account. Owners may create all roles; Administrators cannot create,
    promote, demote, disable, or delete an Owner.

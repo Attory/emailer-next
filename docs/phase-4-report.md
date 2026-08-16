@@ -20,8 +20,9 @@ The draft branch received one bounded security repair beginning at exact head
 `Version20260818000000` without rewriting the Phase 3 or original Phase 4
 migrations. It preserves monotonic session tombstones across expiry, rotation,
 revocation, and user deletion; makes TOTP counters single-use under lock; makes
-login and re-authentication reservations atomic with exact-reservation success
-cleanup; and adds deterministic multi-process concurrency proofs.
+login and re-authentication reservations atomic with bounded pending work,
+explicit success/failure finalization, and deterministic multi-process
+concurrency proofs.
 
 Password-reset links now use only the stored canonical HTTPS origin, never the
 request host, while the raw token remains exclusively in the fragment and POST
@@ -31,7 +32,8 @@ the canonical origin, and unsafe plaintext methods are rejected before session
 or credential processing. One shared character-aware, locally blocklisted
 password policy covers initial Owner setup, user creation, change, and reset.
 Missing/disabled login identities perform production-cost dummy Argon2id work;
-MFA/recovery verification workload is no longer password-short-circuited; known
+MFA/recovery verification workload is no longer password-short-circuited and
+uses deterministic matching-work-factor dummy proofs; known
 and unknown recovery requests both perform bounded local Mailpit delivery.
 
 Anonymous recovery events have no initiating actor, route authorization denials
@@ -39,12 +41,13 @@ include redacted source attribution, and user deletion transactionally removes
 MFA credentials plus encrypted seeds. A synthetic database failure proves the
 whole deletion rolls back. No test sends reset material in a query string.
 
-The repaired focused suite passes with 21 tests and 386 assertions. The complete
-local suite passes with 93 tests and 1,078 assertions; the rebuilt-image,
-external-egress-disabled repetition passes the same 93 tests with 5,322
+The repaired focused suite passes with 22 tests and 402 assertions. The complete
+local suite passes with 94 tests and 1,094 assertions; the rebuilt-image,
+external-egress-disabled repetition passes the same 94 tests with 5,338
 assertions. Clean installation applied all five migrations, and a separate
 schema upgraded through `Version20260817000000` before applying only
-`Version20260818000000`; both paths passed mapping validation. Composer
+`Version20260818000000` (six SQL statements); both paths passed mapping
+validation. Composer
 dependencies and `composer.lock` remain unchanged.
 
 ## Starting state and canonical inputs
@@ -95,7 +98,7 @@ found.
   demotion, disabling, and deletion attempts.
 - The server-rendered shell supplies dashboard, profile, session, MFA, user,
   and redacted audit navigation. Explicit trusted proxies, host-only
-  Secure-on-HTTPS/HttpOnly/SameSite-Lax cookies, CSP, HSTS-on-secure,
+  always-Secure/HttpOnly/SameSite-Lax cookies, CSP, HSTS-on-secure,
   no-sniff/frame/referrer/permissions headers, and no-store identity/admin
   responses are enforced.
 - Audit events store actor, action, opaque target, UTC timestamp, hashed source
@@ -131,7 +134,7 @@ docker compose run --rm app php bin/phpunit
 git diff --check
 ```
 
-The final focused Phase 4 suite passes with 17 tests and 271 assertions. It
+The original Phase 4 implementation suite passed with 17 tests and 271 assertions. It
 covers route/role/default-deny policy,
 authentication, both throttle scopes, sessions, recovery delivery, MFA,
 re-authentication, CSRF/method safety, trusted proxy/header/cookie policy,
@@ -159,7 +162,7 @@ correctly fail closed below 16 bytes. The isolated runner now supplies a longer
 test-only value; no production default or runtime fallback was added. Its trap
 also disconnects MariaDB and Mailpit before removing the temporary internal
 network. The repaired local isolated pass proves blocked external egress and
-passes all 89 tests with 5,213 assertions, then proves the temporary network is
+passed all 89 tests with 5,213 assertions, then proved the temporary network was
 absent.
 
 ## Security and privacy evidence

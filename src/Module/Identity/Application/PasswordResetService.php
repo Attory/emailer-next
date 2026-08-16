@@ -60,7 +60,7 @@ final readonly class PasswordResetService
             $url = $this->canonicalOrigin->absolutePath('/password-reset/'.$id).'#token='.rawurlencode($token);
             $this->mailer->send((new Email())
                 ->from(new Address($sender['sender_address'], $sender['sender_name']))
-                ->to($known ? $user['login_identifier'] : 'phase4-reset-sink@example.test')
+                ->to($known ? $user['login_identifier'] : $sender['sender_address'])
                 ->subject('[Emailer Next] Password reset')
                 ->text("A password reset was requested for your Emailer Next account.\n\nUse this single-use link within 30 minutes:\n".$url."\n\nIf you did not request this, ignore this message.\n"));
             $this->audit->append(new AuditRecord(

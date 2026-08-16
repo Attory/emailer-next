@@ -32,7 +32,7 @@ final readonly class AuthorizationService
         }
     }
 
-    private function deny(AuthenticatedUser $actor, string $action): never
+    public function recordDenial(AuthenticatedUser $actor, string $action): void
     {
         $this->audit->append(new AuditRecord(
             $actor->id(),
@@ -41,6 +41,11 @@ final readonly class AuthorizationService
             'denied',
             ['operation' => substr(preg_replace('/[^a-z0-9_.-]/', '_', strtolower($action)) ?? 'unknown', 0, 96)],
         ));
+    }
+
+    private function deny(AuthenticatedUser $actor, string $action): never
+    {
+        $this->recordDenial($actor, $action);
 
         throw new \Symfony\Component\Security\Core\Exception\AccessDeniedException('Access denied.');
     }
