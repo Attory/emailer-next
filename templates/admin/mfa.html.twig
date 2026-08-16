@@ -1,0 +1,13 @@
+{% extends 'admin/layout.html.twig' %}
+{% block title %}Multi-factor authentication — Emailer Next{% endblock %}
+{% block admin_body %}
+<h1>Multi-factor authentication</h1>
+<p>Status: {{ status.enabled ? 'Enabled' : 'Not enabled' }}. Recovery codes remaining: {{ status.recovery_remaining }}.</p>
+<p><a href="{{ path('admin_reauthenticate', {purpose: 'mfa_management'}) }}">Re-authenticate for MFA management</a></p>
+{% if not status.enabled %}
+<form method="post" action="{{ path('admin_mfa_start') }}"><input type="hidden" name="_token" value="{{ csrf_token('admin-mfa-start') }}"><button type="submit">Start or restart enrollment</button></form>
+{% else %}
+<form method="post" action="{{ path('admin_mfa_recovery') }}"><input type="hidden" name="_token" value="{{ csrf_token('admin-mfa-recovery') }}"><button type="submit">Replace recovery codes</button></form>
+<form method="post" action="{{ path('admin_mfa_disable') }}"><input type="hidden" name="_token" value="{{ csrf_token('admin-mfa-disable') }}"><button type="submit">Disable MFA</button></form>
+{% endif %}
+{% endblock %}

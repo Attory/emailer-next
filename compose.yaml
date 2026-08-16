@@ -14,6 +14,7 @@ services:
       DEFAULT_URI: http://127.0.0.1:8080
       EMAILER_PRIVATE_DIR: /app/var/private
       EMAILER_SECRET_KEY_FILE: /emailer-secrets/master.key
+      TRUSTED_PROXIES: 127.0.0.1,::1
       LOCK_DSN: flock
       MAILER_DSN: smtp://mailpit:1025
       MESSENGER_TRANSPORT_DSN: doctrine://default

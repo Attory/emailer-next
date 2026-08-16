@@ -1,12 +1,13 @@
 # Installation
 
-**Status:** Phase 3 secure first-run setup is implemented for MariaDB and local
-Mailpit. Production deployment and production SMTP remain unavailable.
+**Status:** Phase 4 secure administration is implemented over the Phase 3
+MariaDB/Mailpit setup. Production deployment and production SMTP remain unavailable.
 
-The current repository can create a completed setup-only installation with an
+The current repository can create a completed installation with an
 external key, initial Owner, exact local Mailpit test evidence, sender identity,
-safe policies, and irreversible lock. It has no login/admin shell,
-contacts, templates, campaigns, worker, or production sending.
+safe policies, irreversible lock, individual administrator login, session and
+account management, MFA, recovery, and redacted audit UI. It has no contacts,
+templates, campaigns, delivery worker, backup engine, or production sending.
 
 ## Tested platform matrix
 
@@ -124,6 +125,39 @@ Phase 3 migrations are `DoctrineMigrations\Version20260815000000` and the
 mail-integrity repair `DoctrineMigrations\Version20260816000000`. MariaDB DDL
 may auto-commit, so migration failure is a blocking operator condition; never
 manually mark it complete.
+
+## Phase 4 authentication configuration
+
+Phase 4 adds forward-only migrations `DoctrineMigrations\Version20260817000000`
+and security repair `DoctrineMigrations\Version20260818000000`. Run them with
+the normal reviewed migration gate; do not hand-create session, throttle,
+reset, MFA, or audit fields. Configure `TRUSTED_PROXIES` as an explicit
+comma-separated allowlist for the actual TLS proxy hops. The default trusts
+loopback only. Configure `TRUSTED_HOSTS` as a strict regular expression matching
+the canonical host; the safe default matches only loopback hosts. Never use a
+wildcard or an unreviewed private network range. Forwarded host values are not
+trusted.
+
+The final trusted TLS proxy must replace, never append, the client forwarding
+header. For a single Nginx hop use
+`proxy_set_header X-Forwarded-For $remote_addr;`; do not use
+`$proxy_add_x_forwarded_for`, because it preserves attacker-supplied prefixes
+and defeats source-keyed login, identity-page, and reset limits. Multi-hop
+deployments require a separately reviewed trusted-proxy chain.
+
+Set `APP_SECRET` to at least 16 bytes of high-entropy secret material before
+installation. Rotation changes the purpose-separated HMAC identities used for
+sessions, throttles, and source attribution: treat rotation as a maintenance
+event that invalidates all sessions and makes earlier throttle/source hashes
+unmatchable. Do not rotate it casually or use a public/default value.
+
+Serve administration through verified HTTPS. The `EMAILERSESSID` cookie is
+host-only, path `/`, `Secure`, `HttpOnly`, and `SameSite=Lax`. After installation,
+safe HTTP identity/admin requests redirect to the stored canonical HTTPS origin
+and unsafe HTTP methods are rejected before credentials or session state are
+processed. HSTS is emitted only for requests Symfony has verified as secure. Password
+reset mail remains restricted to the persisted local Mailpit transport; Phase 4
+does not unlock or test a live provider.
 
 ## Future production prerequisites
 

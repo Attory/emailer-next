@@ -15,18 +15,23 @@ final class Totp
 
     public function verify(string $seed, string $code, ?int $timestamp = null): bool
     {
+        return null !== $this->matchingCounter($seed, $code, $timestamp);
+    }
+
+    public function matchingCounter(string $seed, string $code, ?int $timestamp = null): ?int
+    {
         if (1 !== preg_match('/^[0-9]{6}$/', $code)) {
-            return false;
+            return null;
         }
 
         $counter = intdiv($timestamp ?? time(), 30);
         for ($offset = -1; $offset <= 1; ++$offset) {
             if (hash_equals($this->code($seed, $counter + $offset), $code)) {
-                return true;
+                return $counter + $offset;
             }
         }
 
-        return false;
+        return null;
     }
 
     public function code(string $seed, int $counter): string

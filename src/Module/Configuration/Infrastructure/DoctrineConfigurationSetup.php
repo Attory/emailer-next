@@ -36,7 +36,10 @@ final readonly class DoctrineConfigurationSetup implements ConfigurationSetup
         if (false === $parts
             || 'https' !== ($parts['scheme'] ?? null)
             || !\is_string($parts['host'] ?? null)
-            || isset($parts['user'], $parts['pass'])
+            || '' === $parts['host']
+            || 1 === preg_match('/[\x00-\x20\x7F]/', $input->baseUrl)
+            || isset($parts['user'])
+            || isset($parts['pass'])
             || isset($parts['query'])
             || isset($parts['fragment'])
             || (isset($parts['path']) && !\in_array($parts['path'], ['', '/'], true))

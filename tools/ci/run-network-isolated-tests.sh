@@ -15,6 +15,12 @@ fi
 docker network create --internal "$network_name" >/dev/null
 
 cleanup() {
+    if [ -n "${database_id:-}" ]; then
+        docker network disconnect --force "$network_name" "$database_id" >/dev/null 2>&1 || true
+    fi
+    if [ -n "${mailpit_id:-}" ]; then
+        docker network disconnect --force "$network_name" "$mailpit_id" >/dev/null 2>&1 || true
+    fi
     docker network rm "$network_name" >/dev/null 2>&1 || true
 }
 trap cleanup EXIT
@@ -47,7 +53,7 @@ docker run --rm \
     --network "$network_name" \
     --env APP_DEBUG=0 \
     --env APP_ENV=test \
-    --env APP_SECRET=phase1-ci-only \
+    --env APP_SECRET=phase4-network-isolated-ci-only \
     --env "DATABASE_URL=${DATABASE_URL}" \
     --env DEFAULT_URI=https://emailer.example.test \
     --env LOCK_DSN=flock \

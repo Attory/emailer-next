@@ -1,7 +1,18 @@
 framework:
     secret: '%env(APP_SECRET)%'
     http_method_override: false
-    session: true
+    trusted_proxies: '%emailer.trusted_proxies%'
+    trusted_hosts: ['%emailer.trusted_hosts%']
+    trusted_headers: ['x-forwarded-for', 'x-forwarded-proto', 'x-forwarded-port']
+    session:
+        handler_id: App\Module\Identity\Infrastructure\HybridSessionHandler
+        name: EMAILERSESSID
+        cookie_secure: true
+        cookie_httponly: true
+        cookie_samesite: lax
+        cookie_path: /
+        gc_probability: 1
+        gc_divisor: 100
     php_errors:
         log: true
     rate_limiter:
@@ -17,9 +28,15 @@ framework:
             policy: 'fixed_window'
             limit: 60
             interval: '15 minutes'
+        password_reset:
+            policy: 'fixed_window'
+            limit: 5
+            interval: '1 hour'
+        identity_page:
+            policy: 'fixed_window'
+            limit: 120
+            interval: '15 minutes'
 
 when@test:
     framework:
         test: true
-        session:
-            storage_factory_id: session.storage.factory.mock_file

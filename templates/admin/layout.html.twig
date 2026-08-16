@@ -1,0 +1,23 @@
+{% extends 'base.html.twig' %}
+{% block body %}
+<header class="admin-header">
+    <strong>Emailer Next</strong>
+    <nav aria-label="Administration">
+        <a href="{{ path('admin_dashboard') }}">Dashboard</a>
+        <a href="{{ path('admin_profile') }}">Profile</a>
+        <a href="{{ path('admin_sessions') }}">Sessions</a>
+        <a href="{{ path('admin_mfa') }}">MFA</a>
+        {% if is_granted('ROLE_ADMINISTRATOR') %}<a href="{{ path('admin_users') }}">Users</a>{% endif %}
+        <a href="{{ path('admin_audit') }}">Audit</a>
+        <form method="post" action="{{ path('admin_logout') }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('admin-logout') }}">
+            <button type="submit">Sign out</button>
+        </form>
+    </nav>
+</header>
+<main class="admin-content">
+    {% for message in app.flashes('error') %}<p class="alert" role="alert">{{ message }}</p>{% endfor %}
+    {% for message in app.flashes('success') %}<p class="alert success" role="status">{{ message }}</p>{% endfor %}
+    {% block admin_body %}{% endblock %}
+</main>
+{% endblock %}

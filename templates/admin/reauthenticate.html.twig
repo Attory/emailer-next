@@ -1,0 +1,13 @@
+{% extends 'admin/layout.html.twig' %}
+{% block title %}Re-authenticate — Emailer Next{% endblock %}
+{% block admin_body %}
+<h1>Confirm your identity</h1>
+<p>This sensitive operation requires a fresh password and, when enabled, MFA proof.</p>
+<form method="post">
+    <input type="hidden" name="_token" value="{{ csrf_token('admin-reauthenticate') }}">
+    <input type="hidden" name="purpose" value="{{ purpose }}">
+    <label>Password <input type="password" name="password" autocomplete="current-password" required></label>
+    <label>Authenticator or recovery code <input type="text" name="mfa_code" autocomplete="one-time-code"></label>
+    <button type="submit">Re-authenticate</button>
+</form>
+{% endblock %}

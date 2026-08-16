@@ -1,18 +1,19 @@
 # Operator runbook
 
-**Status:** Phase 3 secure-setup/local-platform runbook; production operations
-remain unimplemented.
+**Status:** Phase 4 secure-administration/local-platform runbook; production
+delivery operations remain unimplemented.
 
 ## Current repository state
 
-Phases 1–3 contain the Symfony scaffold, locked dependencies, local
+Phases 1–4 contain the Symfony scaffold, locked dependencies, local
 application/MariaDB/Mailpit Compose stack, one baseline migration, quality
 pipeline, coarse liveness, logging redaction, and an inspected
 production-shaped artifact, plus filesystem ownership proof and setup-state
-controls. There is no completed product installation, account,
-campaign, delivery worker, release, or deployment to operate. Phase 3 can
-create the setup-only organisation, initial Owner, exact unauthenticated local
-Mailpit evidence, safe policy defaults, and permanent installation lock.
+controls. Phase 3 creates the organisation, initial Owner, exact local Mailpit
+evidence, safe policy defaults, and permanent installation lock. Phase 4 adds
+individual accounts, secure authentication, server sessions, recovery, the
+admin shell, and audit. There is no contact/campaign/delivery worker, release,
+or deployment to operate.
 
 Before any work, confirm the repository path and clean status without opening
 credential files:
@@ -166,3 +167,35 @@ removes pending inactive enrollment material.
 return failure and mutate nothing. They are reserved interfaces, not emergency
 recovery tools. Phase 3 contains its setup-schema migration plus the bounded
 mail-evidence integrity migration and no new dependency.
+
+## Phase 4 identity operations
+
+1. Apply `Version20260817000000` and `Version20260818000000` through the normal
+   migration gate. Configure only the actual trusted proxy hops and a strict
+   `TRUSTED_HOSTS` expression for the canonical host. Serve the admin surface
+   over HTTPS; forwarded host values are deliberately ignored. Provision
+   the final proxy to replace `X-Forwarded-For` with its directly observed
+   client address; never append an inbound value. Provision
+   `APP_SECRET` with at least 16 bytes of high-entropy secret material. Rotating
+   it invalidates all sessions and changes throttle/source HMAC identities, so
+   rotation requires a planned maintenance window and investigation of orphaned
+   historical throttle rows.
+2. Sign in at `/login` with an individual account. There is no self-registration
+   or shared account. Owners may create all roles; Administrators cannot create,
+   promote, demote, disable, or delete an Owner.
+3. Use `/admin/sessions` to review and revoke the current account's active
+   sessions. Sensitive session, user, password, and MFA mutations first require
+   the matching recent re-authentication purpose and always require CSRF.
+4. MFA recovery codes are shown only at enrollment/regeneration, stored as
+   hashes, and consumed once. Password-reset mail is synthetic Mailpit-only in
+   development/CI; a request response never confirms account existence.
+5. Use `/admin/audit` for redacted append-only identity evidence. There is no
+   edit/delete route. A database-trigger rejection is expected if any tool
+   attempts to mutate an audit row.
+
+Do not clear throttle/session/audit tables as routine remediation. A temporary
+lock expires without extending on blocked requests. Revoked session payloads
+are erased immediately; their HMAC tombstones remain for seven days beyond
+revocation before bounded garbage collection. Investigate repeated
+lockouts using redacted audit evidence; never ask for a password, MFA seed,
+recovery value, reset token, raw session ID, or full cookie.
