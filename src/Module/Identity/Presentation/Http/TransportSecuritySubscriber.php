@@ -31,7 +31,7 @@ final readonly class TransportSecuritySubscriber implements EventSubscriberInter
             return;
         }
         $request = $event->getRequest();
-        if (!$this->isProtectedPath($request->getPathInfo())) {
+        if (!$this->isProtectedPath(rawurldecode($request->getPathInfo()))) {
             return;
         }
         $canonicalOrigin = $this->canonicalOrigin->value();

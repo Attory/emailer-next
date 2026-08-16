@@ -136,9 +136,14 @@ final class Phase4AccessTest extends WebTestCase
             $roleClient->request('GET', '/admin/users', server: $server);
             if ($role->rank() >= AdministrativeRole::Administrator->rank()) {
                 self::assertResponseIsSuccessful();
+                $roleClient->request('GET', '/%61dmin/users', server: $server);
+                self::assertResponseIsSuccessful();
             } else {
                 self::assertResponseStatusCodeSame(403);
                 self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'authorization.denied' AND actor_user_id = ? AND source_hash IS NOT NULL", [$this->phase4String($connection->fetchOne('SELECT id FROM app_user WHERE login_identifier = ?', [strtolower($role->label()).'@example.test']))])));
+                $roleClient->request('GET', '/%61dmin/users', server: $server);
+                self::assertResponseStatusCodeSame(403);
+                self::assertSame(2, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'authorization.denied' AND actor_user_id = ? AND source_hash IS NOT NULL", [$this->phase4String($connection->fetchOne('SELECT id FROM app_user WHERE login_identifier = ?', [strtolower($role->label()).'@example.test']))])));
             }
         }
     }
@@ -157,6 +162,9 @@ final class Phase4AccessTest extends WebTestCase
         }
         $baseline = $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM user_session'));
         $client->getCookieJar()->set(new Cookie('EMAILERSESSID', 'forged-session-id', null, '/', 'localhost', true, true));
+        $client->request('POST', '/%6cogin', parameters: ['login_identifier' => 'blocked@example.test'], server: $this->phase4HttpsServer($source));
+        self::assertResponseStatusCodeSame(429);
+        self::assertSame($baseline, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM user_session')));
         $client->request('HEAD', '/login', server: $this->phase4HttpsServer($source));
         self::assertResponseStatusCodeSame(429);
         self::assertSame($baseline, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM user_session')));
@@ -227,6 +235,9 @@ final class Phase4AccessTest extends WebTestCase
         self::assertFalse($client->getRequest()->isSecure());
         self::assertResponseRedirects('https://localhost/login', 308);
         self::assertFalse($client->getResponse()->headers->has('Strict-Transport-Security'));
+
+        $client->request('POST', '/%6cogin', server: $untrusted);
+        self::assertResponseStatusCodeSame(400);
 
         self::ensureKernelShutdown();
         $client = self::createClient();

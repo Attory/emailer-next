@@ -75,9 +75,17 @@ row. Expired account and re-authentication locks now reset their failure window
 at the documented five-minute boundary, and throttle reclamation has a covering
 index.
 
-The repaired focused suite passes with 23 tests and 585 assertions. The complete
-local suite passes with 95 tests and 1,277 assertions; the rebuilt-image,
-external-egress-disabled repetition passes the same 95 tests with 5,527
+The mandatory Opus review of exact head
+`7ef9ff2a18a9e548716bdf077703f0e2f99f3cfb` identified that Symfony decodes
+percent-encoded paths before routing while the early transport, identity-limit,
+and administrative default-deny gates compared the encoded path. All three
+gates now apply the same single `rawurldecode()` as the router. Encoded login
+regressions prove transport rejection and pre-session limiting, while an encoded
+admin route proves denial auditing remains active.
+
+The repaired focused suite passes with 23 tests and 594 assertions. The complete
+local suite passes with 95 tests and 1,286 assertions; the rebuilt-image,
+external-egress-disabled repetition passes the same 95 tests with 5,536
 assertions. Clean installation applied all five migrations, and a separate
 schema upgraded through `Version20260817000000` before applying only
 `Version20260818000000` (eight SQL statements); both paths passed mapping

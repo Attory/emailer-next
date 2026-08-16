@@ -38,7 +38,7 @@ final readonly class AdminAuthorizationSubscriber implements EventSubscriberInte
             return;
         }
         $route = $event->getRequest()->attributes->get('_route');
-        if (!str_starts_with($event->getRequest()->getPathInfo(), '/admin')) {
+        if (!str_starts_with(rawurldecode($event->getRequest()->getPathInfo()), '/admin')) {
             return;
         }
 

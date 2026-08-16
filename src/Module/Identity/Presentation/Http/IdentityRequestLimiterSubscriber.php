@@ -28,7 +28,7 @@ final readonly class IdentityRequestLimiterSubscriber implements EventSubscriber
 
     public function limit(RequestEvent $event): void
     {
-        if (!$event->isMainRequest() || !$this->isIdentityPath($event->getRequest()->getPathInfo())) {
+        if (!$event->isMainRequest() || !$this->isIdentityPath(rawurldecode($event->getRequest()->getPathInfo()))) {
             return;
         }
         $source = $event->getRequest()->getClientIp() ?? 'unknown';
