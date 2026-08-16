@@ -21,8 +21,6 @@ final class SecurityController extends AbstractController
         private readonly LoginThrottle $loginThrottle,
         #[Target('password_reset')]
         private readonly RateLimiterFactoryInterface $resetLimiter,
-        #[Target('identity_page')]
-        private readonly RateLimiterFactoryInterface $pageLimiter,
     ) {
     }
 
@@ -31,9 +29,6 @@ final class SecurityController extends AbstractController
     {
         if ($this->getUser() instanceof AuthenticatedUser) {
             return $this->redirectToRoute('admin_dashboard', status: Response::HTTP_SEE_OTHER);
-        }
-        if ($request->isMethodSafe() && !$this->pageAccepted($request)) {
-            return new Response('Too many requests.', Response::HTTP_TOO_MANY_REQUESTS, ['Cache-Control' => 'no-store']);
         }
 
         $loginError = true === $request->getSession()->remove('identity.login_error');
@@ -48,10 +43,6 @@ final class SecurityController extends AbstractController
     public function requestReset(Request $request): Response
     {
         if ($request->isMethodSafe()) {
-            if (!$this->pageAccepted($request)) {
-                return new Response('Too many requests.', Response::HTTP_TOO_MANY_REQUESTS, ['Cache-Control' => 'no-store']);
-            }
-
             return $this->render('identity/password-reset-request.html.twig');
         }
 
@@ -79,10 +70,6 @@ final class SecurityController extends AbstractController
     public function reset(Request $request, string $selector): Response
     {
         if ($request->isMethodSafe()) {
-            if (!$this->pageAccepted($request)) {
-                return new Response('Too many requests.', Response::HTTP_TOO_MANY_REQUESTS, ['Cache-Control' => 'no-store']);
-            }
-
             return $this->render('identity/password-reset.html.twig', ['selector' => $selector]);
         }
         if (!$this->isCsrfTokenValid('password-reset-'.$selector, $request->request->getString('_token'))) {
@@ -113,10 +100,5 @@ final class SecurityController extends AbstractController
         $request->getSession()->invalidate();
 
         return $this->redirectToRoute('identity_login', status: Response::HTTP_SEE_OTHER);
-    }
-
-    private function pageAccepted(Request $request): bool
-    {
-        return $this->pageLimiter->create($this->loginThrottle->sourceHash($request->getClientIp() ?? 'unknown'))->consume()->isAccepted();
     }
 }

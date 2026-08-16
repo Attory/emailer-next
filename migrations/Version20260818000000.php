@@ -26,6 +26,7 @@ final class Version20260818000000 extends AbstractMigration
         $this->addSql('ALTER TABLE mfa_credential ADD last_accepted_counter BIGINT DEFAULT NULL AFTER consumed_at');
         $this->addSql('ALTER TABLE login_throttle ADD pending_count SMALLINT UNSIGNED NOT NULL DEFAULT 0 AFTER failure_count, ADD pending_updated_at DATETIME(6) DEFAULT NULL AFTER pending_count');
         $this->addSql('ALTER TABLE user_session ADD INDEX idx_session_reclaim (revoked_at, absolute_expires_at)');
+        $this->addSql('ALTER TABLE login_throttle ADD INDEX idx_throttle_reclaim (pending_count, last_failed_at, locked_until)');
         $this->addSql('ALTER TABLE login_throttle DROP CONSTRAINT chk_login_throttle_type');
         $this->addSql("ALTER TABLE login_throttle ADD CONSTRAINT chk_login_throttle_type CHECK (scope_type IN ('account', 'source', 'reauth_account', 'reauth_context'))");
     }

@@ -64,12 +64,23 @@ bounded, throttle cleanup runs only after a successful reservation and ignores
 retryable cleanup conflicts, setup/runtime origin checks agree, and proxy
 guidance requires replacement rather than appending of client forwarding data.
 
-The repaired focused suite passes with 23 tests and 579 assertions. The complete
-local suite passes with 95 tests and 1,271 assertions; the rebuilt-image,
-external-egress-disabled repetition passes the same 95 tests with 5,569
+The exact-head Opus review of
+`d00a0430344e237f53df883230109c43b8e4f1d8` then identified that Symfony could
+restore a supplied session cookie before the controller/authenticator limit and
+that reset-request CSRF validation could likewise start a session first. One
+kernel-request subscriber now limits every login and password-reset method
+after the transport-security gate but before the firewall. Forged-cookie HEAD,
+login POST, and reset POST regressions prove blocked traffic creates no session
+row. Expired account and re-authentication locks now reset their failure window
+at the documented five-minute boundary, and throttle reclamation has a covering
+index.
+
+The repaired focused suite passes with 23 tests and 585 assertions. The complete
+local suite passes with 95 tests and 1,277 assertions; the rebuilt-image,
+external-egress-disabled repetition passes the same 95 tests with 5,527
 assertions. Clean installation applied all five migrations, and a separate
 schema upgraded through `Version20260817000000` before applying only
-`Version20260818000000` (seven SQL statements); both paths passed mapping
+`Version20260818000000` (eight SQL statements); both paths passed mapping
 validation. A credential-bearing stored origin was separately proved to stop
 the migration until repaired. Composer
 dependencies and `composer.lock` remain unchanged.

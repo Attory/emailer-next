@@ -12,11 +12,9 @@ use App\Module\Identity\Application\LoginThrottled;
 use App\Module\Identity\Application\MfaVerifier;
 use App\Module\Identity\Application\SessionRegistry;
 use Doctrine\DBAL\Connection;
-use Symfony\Component\DependencyInjection\Attribute\Target;
 use Symfony\Component\HttpFoundation\RedirectResponse;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
-use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\Generator\UrlGeneratorInterface;
 use Symfony\Component\Security\Core\Authentication\Token\TokenInterface;
 use Symfony\Component\Security\Core\Exception\AuthenticationException;
@@ -41,8 +39,6 @@ final class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
         private readonly AuditSink $audit,
         private readonly Connection $connection,
         private readonly DoctrineUserProvider $users,
-        #[Target('identity_page')]
-        private readonly RateLimiterFactoryInterface $pageLimiter,
     ) {
     }
 
@@ -57,11 +53,6 @@ final class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
         $password = substr($request->request->getString('password'), 0, 1024);
         $mfaCode = substr($request->request->getString('mfa_code'), 0, 64);
         $source = $request->getClientIp() ?? 'unknown';
-        if (!$this->pageLimiter->create($this->throttle->sourceHash($source))->consume()->isAccepted()) {
-            $request->attributes->set('identity.request_rate_blocked', true);
-            throw new CustomUserMessageAuthenticationException('Authentication failed.');
-        }
-
         try {
             $reservation = $this->throttle->reserveLogin($login, $source);
             $request->attributes->set('identity.login_reservation', $reservation);
@@ -132,9 +123,7 @@ final class LoginFormAuthenticator extends AbstractLoginFormAuthenticator
 
     public function onAuthenticationFailure(Request $request, AuthenticationException $exception): Response
     {
-        if (true === $request->attributes->get('identity.request_rate_blocked')
-            || true === $request->attributes->get('identity.throttle_blocked')
-        ) {
+        if (true === $request->attributes->get('identity.throttle_blocked')) {
             return new Response('Too many requests.', Response::HTTP_TOO_MANY_REQUESTS, ['Cache-Control' => 'no-store']);
         }
         $login = mb_substr($request->request->getString('login_identifier'), 0, 254, 'UTF-8');

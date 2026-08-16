@@ -63,6 +63,10 @@ final class Phase4IdentityServicesTest extends KernelTestCase
         $this->expectThrottle($throttle, 'owner@example.test', '2001:db8::99');
         self::assertSame(5, $this->phase4Int($connection->fetchOne("SELECT failure_count FROM login_throttle WHERE scope_type = 'account'")));
 
+        $connection->executeStatement("UPDATE login_throttle SET locked_until = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND), not_before = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND) WHERE scope_type = 'account'");
+        self::assertFalse($throttle->loginFailed($throttle->reserveLogin('owner@example.test', '2001:db8::99')));
+        self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT failure_count FROM login_throttle WHERE scope_type = 'account'")));
+
         $connection->executeStatement('UPDATE login_throttle SET last_failed_at = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 16 MINUTE), locked_until = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND), not_before = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND)');
         self::assertFalse($throttle->loginFailed($throttle->reserveLogin('owner@example.test', '2001:db8::81')));
         self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT failure_count FROM login_throttle WHERE scope_type = 'account'")));

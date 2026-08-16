@@ -12,6 +12,7 @@ use App\Tests\Support\Phase4State;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\BrowserKit\Cookie;
 use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\RouterInterface;
 
@@ -155,7 +156,14 @@ final class Phase4AccessTest extends WebTestCase
             self::assertTrue($factory->create($key)->consume()->isAccepted());
         }
         $baseline = $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM user_session'));
+        $client->getCookieJar()->set(new Cookie('EMAILERSESSID', 'forged-session-id', null, '/', 'localhost', true, true));
         $client->request('HEAD', '/login', server: $this->phase4HttpsServer($source));
+        self::assertResponseStatusCodeSame(429);
+        self::assertSame($baseline, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM user_session')));
+        $client->request('POST', '/login', parameters: ['login_identifier' => 'blocked@example.test'], server: $this->phase4HttpsServer($source));
+        self::assertResponseStatusCodeSame(429);
+        self::assertSame($baseline, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM user_session')));
+        $client->request('POST', '/password-reset', parameters: ['_token' => 'invalid'], server: $this->phase4HttpsServer($source));
         self::assertResponseStatusCodeSame(429);
         self::assertSame($baseline, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM user_session')));
     }

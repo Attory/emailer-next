@@ -108,10 +108,16 @@ SQL, [$hash, $type, $formattedNow, $formattedNow, $formattedNow]);
                 if ($expired) {
                     $failureCount = 0;
                 }
+                $lockedUntil = $record['locked_until'] ?? null;
+                $lockActive = $this->after($lockedUntil, $now);
                 if (!$expired && 0 < $failureCount
-                    && ($this->after($record['not_before'] ?? null, $now) || $this->after($record['locked_until'] ?? null, $now))
+                    && ($this->after($record['not_before'] ?? null, $now) || $lockActive)
                 ) {
                     throw new LoginThrottled('Authentication is temporarily unavailable.');
+                }
+                if (!$lockActive && \is_string($lockedUntil) && '' !== $lockedUntil) {
+                    $expired = true;
+                    $failureCount = 0;
                 }
                 if ($failureCount + $pendingCount >= $threshold) {
                     throw new LoginThrottled('Authentication is temporarily unavailable.');
