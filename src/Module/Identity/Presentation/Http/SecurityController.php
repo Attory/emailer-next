@@ -29,11 +29,11 @@ final class SecurityController extends AbstractController
     #[Route('/login', name: 'identity_login', methods: ['GET', 'POST'])]
     public function login(Request $request): Response
     {
-        if ($request->isMethod('GET') && !$this->pageAccepted($request)) {
-            return new Response('Too many requests.', Response::HTTP_TOO_MANY_REQUESTS, ['Cache-Control' => 'no-store']);
-        }
         if ($this->getUser() instanceof AuthenticatedUser) {
             return $this->redirectToRoute('admin_dashboard', status: Response::HTTP_SEE_OTHER);
+        }
+        if ($request->isMethodSafe() && !$this->pageAccepted($request)) {
+            return new Response('Too many requests.', Response::HTTP_TOO_MANY_REQUESTS, ['Cache-Control' => 'no-store']);
         }
 
         $loginError = true === $request->getSession()->remove('identity.login_error');
@@ -47,7 +47,7 @@ final class SecurityController extends AbstractController
     #[Route('/password-reset', name: 'identity_password_reset_request', methods: ['GET', 'POST'])]
     public function requestReset(Request $request): Response
     {
-        if ($request->isMethod('GET')) {
+        if ($request->isMethodSafe()) {
             if (!$this->pageAccepted($request)) {
                 return new Response('Too many requests.', Response::HTTP_TOO_MANY_REQUESTS, ['Cache-Control' => 'no-store']);
             }
@@ -78,7 +78,7 @@ final class SecurityController extends AbstractController
     #[Route('/password-reset/{selector}', name: 'identity_password_reset', requirements: ['selector' => '[0-9a-f-]{36}'], methods: ['GET', 'POST'])]
     public function reset(Request $request, string $selector): Response
     {
-        if ($request->isMethod('GET')) {
+        if ($request->isMethodSafe()) {
             if (!$this->pageAccepted($request)) {
                 return new Response('Too many requests.', Response::HTTP_TOO_MANY_REQUESTS, ['Cache-Control' => 'no-store']);
             }

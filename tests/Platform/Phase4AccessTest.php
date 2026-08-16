@@ -12,6 +12,7 @@ use App\Tests\Support\Phase4State;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\KernelBrowser;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\RateLimiter\RateLimiterFactoryInterface;
 use Symfony\Component\Routing\RouterInterface;
 
 final class Phase4AccessTest extends WebTestCase
@@ -45,13 +46,36 @@ final class Phase4AccessTest extends WebTestCase
         $this->submitLogin($client, 'missing@example.test', 'wrong-password-value', '', $server);
         self::assertResponseRedirects('/login', 303);
         $throttle = $this->phase4Service(\App\Module\Identity\Application\LoginThrottle::class);
-        self::assertSame($throttle->accountHash('missing@example.test'), $connection->fetchOne("SELECT target_id FROM audit_event WHERE action = 'authentication.failure' ORDER BY occurred_at DESC LIMIT 1"));
+        self::assertNull($connection->fetchOne("SELECT target_id FROM audit_event WHERE action = 'authentication.failure' ORDER BY occurred_at DESC LIMIT 1"));
         $client->followRedirect();
         self::assertSelectorTextSame('[role="alert"]', 'Authentication failed.');
 
         $client->request('GET', '/login', server: $server);
         $this->submitLogin($client, str_repeat('a', 5_000).'@example.test', 'wrong-password-value', '', $server);
         self::assertLessThan(4_096, $this->phase4Int($connection->fetchOne('SELECT MAX(OCTET_LENGTH(payload)) FROM user_session')));
+
+        self::ensureKernelShutdown();
+        $client = self::createClient();
+        $blockedSource = '2001:db8::43';
+        $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
+        $connection = $this->phase4Service(Connection::class);
+        $connection->insert('login_throttle', [
+            'scope_hash' => $throttle->sourceHash($blockedSource),
+            'scope_type' => 'source',
+            'failure_count' => 20,
+            'pending_count' => 0,
+            'pending_updated_at' => null,
+            'first_failed_at' => $now->format('Y-m-d H:i:s.u'),
+            'last_failed_at' => $now->format('Y-m-d H:i:s.u'),
+            'not_before' => $now->format('Y-m-d H:i:s.u'),
+            'locked_until' => $now->modify('+15 minutes')->format('Y-m-d H:i:s.u'),
+        ]);
+        $auditBaseline = $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM audit_event'));
+        $sessionBaseline = $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM user_session'));
+        $client->request('POST', '/login', parameters: ['login_identifier' => 'blocked@example.test'], server: $this->phase4HttpsServer($blockedSource));
+        self::assertResponseStatusCodeSame(429);
+        self::assertSame($auditBaseline, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM audit_event')));
+        self::assertSame($sessionBaseline, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM user_session')));
 
         $server = $this->phase4HttpsServer('2001:db8::42');
         $client->request('GET', '/login', server: $server);
@@ -104,6 +128,10 @@ final class Phase4AccessTest extends WebTestCase
             self::assertResponseIsSuccessful();
             $roleClient->request('HEAD', '/admin/profile', server: $server);
             self::assertResponseIsSuccessful();
+            $throttleBaseline = $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM login_throttle'));
+            $roleClient->request('HEAD', '/admin/reauthenticate', server: $server);
+            self::assertResponseIsSuccessful();
+            self::assertSame($throttleBaseline, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM login_throttle')));
             $roleClient->request('GET', '/admin/users', server: $server);
             if ($role->rank() >= AdministrativeRole::Administrator->rank()) {
                 self::assertResponseIsSuccessful();
@@ -112,6 +140,24 @@ final class Phase4AccessTest extends WebTestCase
                 self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'authorization.denied' AND actor_user_id = ? AND source_hash IS NOT NULL", [$this->phase4String($connection->fetchOne('SELECT id FROM app_user WHERE login_identifier = ?', [strtolower($role->label()).'@example.test']))])));
             }
         }
+    }
+
+    public function testHeadIdentityRequestsAreLimitedBeforeSessionAccess(): void
+    {
+        $client = self::createClient();
+        $connection = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($connection);
+        $source = '2001:db8:125:'.implode(':', str_split(bin2hex(random_bytes(6)), 4));
+        $factory = self::getContainer()->get('limiter.identity_page');
+        self::assertInstanceOf(RateLimiterFactoryInterface::class, $factory);
+        $key = $this->phase4Service(\App\Module\Identity\Application\LoginThrottle::class)->sourceHash($source);
+        for ($attempt = 0; $attempt < 120; ++$attempt) {
+            self::assertTrue($factory->create($key)->consume()->isAccepted());
+        }
+        $baseline = $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM user_session'));
+        $client->request('HEAD', '/login', server: $this->phase4HttpsServer($source));
+        self::assertResponseStatusCodeSame(429);
+        self::assertSame($baseline, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM user_session')));
     }
 
     public function testEveryAdministrativeMutationRejectsMissingCsrfAndGetIsSafe(): void

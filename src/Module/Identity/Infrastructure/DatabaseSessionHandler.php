@@ -94,11 +94,11 @@ SQL, [$this->digest($id), $now, $now, $now, $now, $now]);
     {
         $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
         $revoked = $this->connection->executeStatement(
-            "UPDATE user_session SET payload = '', revoked_at = COALESCE(revoked_at, ?) WHERE revoked_at IS NULL AND (idle_expires_at <= ? OR absolute_expires_at <= ?)",
+            "UPDATE user_session SET payload = '', revoked_at = COALESCE(revoked_at, ?) WHERE revoked_at IS NULL AND (idle_expires_at <= ? OR absolute_expires_at <= ?) LIMIT 1000",
             [$now->format('Y-m-d H:i:s.u'), $now->format('Y-m-d H:i:s.u'), $now->format('Y-m-d H:i:s.u')],
         );
         $deleted = $this->connection->executeStatement(
-            'DELETE FROM user_session WHERE revoked_at <= ? AND absolute_expires_at <= ?',
+            'DELETE FROM user_session WHERE revoked_at <= ? AND absolute_expires_at <= ? LIMIT 1000',
             [$now->modify('-7 days')->format('Y-m-d H:i:s.u'), $now->format('Y-m-d H:i:s.u')],
         );
 

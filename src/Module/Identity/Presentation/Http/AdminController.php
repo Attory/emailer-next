@@ -59,7 +59,7 @@ final class AdminController extends AbstractController
     public function reauthenticate(Request $request): Response
     {
         $purpose = $request->isMethod('POST') ? $request->request->getString('purpose') : $request->query->getString('purpose', 'sensitive_operation');
-        if ($request->isMethod('GET')) {
+        if ($request->isMethodSafe()) {
             return $this->render('admin/reauthenticate.html.twig', ['purpose' => $purpose]);
         }
         if (!$this->validCsrf($request, 'admin-reauthenticate')) {

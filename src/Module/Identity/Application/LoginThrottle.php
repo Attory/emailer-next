@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Identity\Application;
 
 use Doctrine\DBAL\Connection;
-use Doctrine\DBAL\Exception\DeadlockException;
+use Doctrine\DBAL\Exception\RetryableException;
 
 final readonly class LoginThrottle
 {
@@ -27,9 +27,9 @@ final readonly class LoginThrottle
     }
 
     /** @param array<string, string> $reservations */
-    public function loginFailed(array $reservations): void
+    public function loginFailed(array $reservations): bool
     {
-        $this->finalizeFailure($reservations);
+        return $this->finalizeFailure($reservations);
     }
 
     /** @param array<string, string> $reservations */
@@ -77,9 +77,7 @@ final readonly class LoginThrottle
     private function reserve(array $scopes): array
     {
         usort($scopes, static fn (array $left, array $right): int => $left[0] <=> $right[0]);
-        $this->purgeStaleRows();
-
-        return $this->connection->transactional(function (Connection $connection) use ($scopes): array {
+        $reservations = $this->connection->transactional(function (Connection $connection) use ($scopes): array {
             $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
             $formattedNow = $now->format('Y-m-d H:i:s.u');
             foreach ($scopes as [$hash, $type]) {
@@ -134,15 +132,20 @@ SQL, [$hash, $type, $formattedNow, $formattedNow, $formattedNow]);
 
             return $reservations;
         });
+        $this->purgeStaleRows();
+
+        return $reservations;
     }
 
     /** @param array<string, string> $reservations */
-    private function finalizeFailure(array $reservations): void
+    private function finalizeFailure(array $reservations): bool
     {
         ksort($reservations);
-        $this->connection->transactional(function (Connection $connection) use ($reservations): void {
+
+        return $this->connection->transactional(function (Connection $connection) use ($reservations): bool {
             $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
             $formattedNow = $now->format('Y-m-d H:i:s.u');
+            $newlyLocked = false;
             foreach ($reservations as $hash => $type) {
                 [$threshold, $lockSeconds] = $this->failurePolicy($type);
                 $record = $connection->fetchAssociative(
@@ -153,6 +156,7 @@ SQL, [$hash, $type, $formattedNow, $formattedNow, $formattedNow]);
                     throw new \RuntimeException('Authentication reservation is unavailable.');
                 }
                 $failureCount = (is_numeric($record['failure_count'] ?? null) ? (int) $record['failure_count'] : 0) + 1;
+                $newlyLocked = $newlyLocked || $failureCount === $threshold;
                 $pendingCount = (int) $record['pending_count'] - 1;
                 $delay = min(8, max(1, 2 ** min($failureCount - 1, 3)));
                 $connection->update('login_throttle', [
@@ -168,6 +172,8 @@ SQL, [$hash, $type, $formattedNow, $formattedNow, $formattedNow]);
                     'locked_until' => $failureCount >= $threshold ? $now->modify('+'.$lockSeconds.' seconds')->format('Y-m-d H:i:s.u') : null,
                 ], ['scope_hash' => $hash]);
             }
+
+            return $newlyLocked;
         });
     }
 
@@ -273,7 +279,7 @@ SQL, [$hash, $type, $formattedNow, $formattedNow, $formattedNow]);
                 'DELETE FROM login_throttle WHERE pending_count = 0 AND last_failed_at <= ? AND (locked_until IS NULL OR locked_until <= ?) LIMIT 100',
                 [$now->modify('-1 day')->format('Y-m-d H:i:s.u'), $now->format('Y-m-d H:i:s.u')],
             );
-        } catch (DeadlockException) {
+        } catch (RetryableException) {
             // Cleanup is bounded and opportunistic; reservation locking remains fail-closed.
         }
     }

@@ -53,22 +53,22 @@ final class Phase4IdentityServicesTest extends KernelTestCase
         $this->preparePhase4State($connection);
         $throttle = $this->phase4Service(LoginThrottle::class);
 
-        $throttle->loginFailed($throttle->reserveLogin('owner@example.test', '2001:db8::81'));
+        self::assertFalse($throttle->loginFailed($throttle->reserveLogin('owner@example.test', '2001:db8::81')));
         $this->expectThrottle($throttle, 'owner@example.test', '2001:db8::81');
 
         for ($attempt = 2; $attempt <= 5; ++$attempt) {
             $connection->executeStatement('UPDATE login_throttle SET not_before = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND) WHERE locked_until IS NULL');
-            $throttle->loginFailed($throttle->reserveLogin('owner@example.test', '2001:db8::81'));
+            self::assertSame(5 === $attempt, $throttle->loginFailed($throttle->reserveLogin('owner@example.test', '2001:db8::81')));
         }
         $this->expectThrottle($throttle, 'owner@example.test', '2001:db8::99');
         self::assertSame(5, $this->phase4Int($connection->fetchOne("SELECT failure_count FROM login_throttle WHERE scope_type = 'account'")));
 
         $connection->executeStatement('UPDATE login_throttle SET last_failed_at = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 16 MINUTE), locked_until = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND), not_before = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND)');
-        $throttle->loginFailed($throttle->reserveLogin('owner@example.test', '2001:db8::81'));
+        self::assertFalse($throttle->loginFailed($throttle->reserveLogin('owner@example.test', '2001:db8::81')));
         self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT failure_count FROM login_throttle WHERE scope_type = 'account'")));
 
         for ($attempt = 1; $attempt <= 20; ++$attempt) {
-            $throttle->loginFailed($throttle->reserveLogin('source-user-'.$attempt.'@example.test', '2001:db8::100'));
+            self::assertSame(20 === $attempt, $throttle->loginFailed($throttle->reserveLogin('source-user-'.$attempt.'@example.test', '2001:db8::100')));
             $connection->executeStatement('UPDATE login_throttle SET not_before = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND) WHERE locked_until IS NULL');
         }
         $this->expectThrottle($throttle, 'fresh-account@example.test', '2001:db8::100');
@@ -77,7 +77,7 @@ final class Phase4IdentityServicesTest extends KernelTestCase
             [$throttle->sourceHash('2001:db8::100')],
         )));
         $connection->executeStatement('UPDATE login_throttle SET last_failed_at = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 16 MINUTE), locked_until = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND), not_before = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND)');
-        $throttle->loginFailed($throttle->reserveLogin('fresh-account@example.test', '2001:db8::100'));
+        self::assertFalse($throttle->loginFailed($throttle->reserveLogin('fresh-account@example.test', '2001:db8::100')));
         self::assertSame(1, $this->phase4Int($connection->fetchOne(
             "SELECT failure_count FROM login_throttle WHERE scope_type = 'source' AND scope_hash = ?",
             [$throttle->sourceHash('2001:db8::100')],

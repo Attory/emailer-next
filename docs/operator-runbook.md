@@ -174,6 +174,8 @@ mail-evidence integrity migration and no new dependency.
    migration gate. Configure only the actual trusted proxy hops and a strict
    `TRUSTED_HOSTS` expression for the canonical host. Serve the admin surface
    over HTTPS; forwarded host values are deliberately ignored. Provision
+   the final proxy to replace `X-Forwarded-For` with its directly observed
+   client address; never append an inbound value. Provision
    `APP_SECRET` with at least 16 bytes of high-entropy secret material. Rotating
    it invalidates all sessions and changes throttle/source HMAC identities, so
    rotation requires a planned maintenance window and investigation of orphaned

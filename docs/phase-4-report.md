@@ -53,12 +53,23 @@ safe admin HEAD requests match the route policy. Existing malformed canonical
 origins now block the repair migration with an explicit operator error; an
 absent pre-installation origin remains valid.
 
-The repaired focused suite passes with 22 tests and 415 assertions. The complete
-local suite passes with 94 tests and 1,107 assertions; the rebuilt-image,
-external-egress-disabled repetition passes the same 94 tests with 5,399
+The subsequent exact-head Opus review of
+`adeca631d9c585a8367c305812d5731d0feead87` identified HEAD and blocked-POST
+paths around the anonymous limiter. Safe identity and re-authentication methods
+now share the side-effect-free branch, GET/HEAD and POST login attempts consume
+the source limiter before session access, and already-blocked attempts return
+429 without adding session or append-only audit rows. The transition into
+lockout is recorded once. Session garbage collection is indexed and batch
+bounded, throttle cleanup runs only after a successful reservation and ignores
+retryable cleanup conflicts, setup/runtime origin checks agree, and proxy
+guidance requires replacement rather than appending of client forwarding data.
+
+The repaired focused suite passes with 23 tests and 579 assertions. The complete
+local suite passes with 95 tests and 1,271 assertions; the rebuilt-image,
+external-egress-disabled repetition passes the same 95 tests with 5,569
 assertions. Clean installation applied all five migrations, and a separate
 schema upgraded through `Version20260817000000` before applying only
-`Version20260818000000` (six SQL statements); both paths passed mapping
+`Version20260818000000` (seven SQL statements); both paths passed mapping
 validation. A credential-bearing stored origin was separately proved to stop
 the migration until repaired. Composer
 dependencies and `composer.lock` remain unchanged.

@@ -138,6 +138,13 @@ the canonical host; the safe default matches only loopback hosts. Never use a
 wildcard or an unreviewed private network range. Forwarded host values are not
 trusted.
 
+The final trusted TLS proxy must replace, never append, the client forwarding
+header. For a single Nginx hop use
+`proxy_set_header X-Forwarded-For $remote_addr;`; do not use
+`$proxy_add_x_forwarded_for`, because it preserves attacker-supplied prefixes
+and defeats source-keyed login, identity-page, and reset limits. Multi-hop
+deployments require a separately reviewed trusted-proxy chain.
+
 Set `APP_SECRET` to at least 16 bytes of high-entropy secret material before
 installation. Rotation changes the purpose-separated HMAC identities used for
 sessions, throttles, and source attribution: treat rotation as a maintenance
