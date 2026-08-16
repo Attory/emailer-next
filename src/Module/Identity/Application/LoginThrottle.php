@@ -77,7 +77,7 @@ final readonly class LoginThrottle
     private function reserve(array $scopes): array
     {
         usort($scopes, static fn (array $left, array $right): int => $left[0] <=> $right[0]);
-        $reservations = $this->connection->transactional(function (Connection $connection) use ($scopes): array {
+        $reservations = $this->transactionalWithRetry(function (Connection $connection) use ($scopes): array {
             $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
             $formattedNow = $now->format('Y-m-d H:i:s.u');
             foreach ($scopes as [$hash, $type]) {
@@ -148,7 +148,7 @@ SQL, [$hash, $type, $formattedNow, $formattedNow, $formattedNow]);
     {
         ksort($reservations);
 
-        return $this->connection->transactional(function (Connection $connection) use ($reservations): bool {
+        return $this->transactionalWithRetry(function (Connection $connection) use ($reservations): bool {
             $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
             $formattedNow = $now->format('Y-m-d H:i:s.u');
             $newlyLocked = false;
@@ -190,7 +190,7 @@ SQL, [$hash, $type, $formattedNow, $formattedNow, $formattedNow]);
     private function release(array $reservations, array $clearFailureTypes): void
     {
         ksort($reservations);
-        $this->connection->transactional(function (Connection $connection) use ($reservations, $clearFailureTypes): void {
+        $this->transactionalWithRetry(function (Connection $connection) use ($reservations, $clearFailureTypes): void {
             $now = IdentityUtil::now();
             foreach ($reservations as $hash => $type) {
                 $record = $connection->fetchAssociative(
@@ -236,6 +236,27 @@ SQL, [$hash, $type, $formattedNow, $formattedNow, $formattedNow]);
             'reauth_context' => [8, 300],
             default => throw new \InvalidArgumentException('Authentication throttle scope is invalid.'),
         };
+    }
+
+    /**
+     * @template T
+     *
+     * @param \Closure(Connection): T $operation
+     *
+     * @return T
+     */
+    private function transactionalWithRetry(\Closure $operation): mixed
+    {
+        for ($attempt = 0;; ++$attempt) {
+            try {
+                return $this->connection->transactional($operation);
+            } catch (RetryableException $exception) {
+                if (2 <= $attempt) {
+                    throw $exception;
+                }
+                usleep(5_000 * (2 ** $attempt));
+            }
+        }
     }
 
     private function after(mixed $value, \DateTimeImmutable $now): bool

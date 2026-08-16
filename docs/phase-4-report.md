@@ -83,9 +83,17 @@ gates now apply the same single `rawurldecode()` as the router. Encoded login
 regressions prove transport rejection and pre-session limiting, while an encoded
 admin route proves denial auditing remains active.
 
+The exact-head GitHub matrix then exposed a retryable InnoDB deadlock under the
+six-worker authentication-reservation proof on PHP 8.5/MariaDB 10.11. Throttle
+reserve, finalize, and release transactions now retry a rolled-back DBAL
+`RetryableException` twice with bounded backoff; non-retryable failures and an
+exhausted retry budget still fail closed. The synchronized concurrency proof
+then passed twelve consecutive repetitions, and the rebuilt PHP 8.5.8 image
+passed the complete external-egress-disabled suite against MariaDB 10.11.
+
 The repaired focused suite passes with 23 tests and 594 assertions. The complete
-local suite passes with 95 tests and 1,286 assertions; the rebuilt-image,
-external-egress-disabled repetition passes the same 95 tests with 5,536
+local suite passes with 95 tests and 1,286 assertions; the rebuilt PHP 8.5.8
+image's external-egress-disabled repetition passes the same 95 tests with 5,536
 assertions. Clean installation applied all five migrations, and a separate
 schema upgraded through `Version20260817000000` before applying only
 `Version20260818000000` (eight SQL statements); both paths passed mapping
