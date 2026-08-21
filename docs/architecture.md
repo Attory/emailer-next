@@ -1,6 +1,6 @@
 # Architecture
 
-**Status:** Phase 4 identity, administration, sessions, and audit plus locked product design.
+**Status:** Phase 5 contacts, suppression, imports, and templates over the Phase 4 secure administration foundation.
 
 **Last reviewed:** 2026-08-15
 
@@ -18,7 +18,7 @@ administrative UI. A supervised CLI worker performs delivery through Symfony
 Messenger; an HTTP request can enqueue approved durable work but can never run
 the delivery worker.
 
-## Implemented through Phase 4
+## Implemented through Phase 5
 
 The repository implements the platform shell and secure setup boundary:
 
@@ -57,8 +57,17 @@ purpose-separated HMACs. Sessions have 30-minute idle and 12-hour absolute
 limits and rotate when authentication authority changes. A central registry
 defines every `admin_` route's methods and minimum role; an unregistered route
 fails closed. Identity services repeat authorization and serialize final-Owner
-mutations with row locks. Content, campaigns, delivery workers, production
-sending, backup/restore, release, and deployment remain unimplemented.
+mutations with row locks.
+
+Phase 5 adds contact profiles and bounded custom fields, lists and idempotent
+memberships, durable global suppression, private two-pass CSV imports, guarded
+full-address export, immutable sanitized template versions, synthetic preview,
+and decoded/re-encoded raster assets. Import candidates are staged in MariaDB
+so preview and commit remain bounded-memory; commit rechecks suppression inside
+its transaction. Full-address reveal/export requires Administrator authority,
+recent re-authentication, CSRF, and audit. Template syntax is non-evaluating and
+allowlisted. Campaigns, queueing, delivery workers, public recipient routes,
+live SMTP, backup/restore, release, and deployment remain unimplemented.
 
 ### Setup state transition
 

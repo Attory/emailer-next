@@ -1,7 +1,6 @@
 # Privacy and retention
 
-**Status:** Phase 3 stores bounded setup defaults; concrete feature policies
-and enforcement still require operator approval in Phases 7–8.
+**Status:** Phase 5 enforces contact/import/template minimization over the bounded setup defaults; analytics and final retention automation remain later work.
 
 Emailer Next minimizes data to the approved sending, suppression, response,
 operational, and audit purposes of one organisation. It is not a legal-policy
@@ -51,7 +50,9 @@ private values.
 Tests use synthetic reserved-domain identities only and scan fixtures,
 snapshots, logs, diagnostics, and artifacts for accidental personal data.
 
-Phase 3 persists open tracking, click tracking, and RSVP as disabled, global
-suppression mode, bounded operational/delivery retention inputs, and a default
-footer. No tracking, RSVP, suppression, recipient, retention job, or campaign
-behavior is implemented; these rows are safe defaults for their owning phases.
+Phase 5 implements contacts, durable add-only suppression, random-named private
+CSV uploads and safe row/reason-only rejection reports, masked ordinary views,
+and audited Administrator-only full-address reveal/export. Uploaded CSVs are
+integrity checked and expire after two hours if unfinished; a committed import
+removes its source file. Template previews use reserved synthetic values only.
+Tracking, RSVP, retention jobs, campaigns, and delivery remain unimplemented.

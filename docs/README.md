@@ -5,12 +5,9 @@ explain why a choice was locked; operational documents explain how that choice
 is implemented and verified. A later phase may refine a document but may not
 silently contradict the master specification or an accepted ADR.
 
-**Current implementation boundary:** Phase 3 secure first-run setup is
-implemented. The repository now includes the Phase 2 ownership boundary plus
-MariaDB setup schema, external-key authenticated secrets, initial Owner/MFA,
-Mailpit-only sender verification, safe defaults, critical preflight, and
-irreversible completion. Phase 4 authentication/admin behavior and every
-campaign/delivery feature remain unimplemented.
+**Current implementation boundary:** Phase 5 contacts, suppression, imports,
+and templates are implemented over secure setup and administration. Campaigns,
+workers, public recipient routes, and production delivery remain unimplemented.
 
 ## Design and evidence
 
@@ -29,22 +26,24 @@ campaign/delivery feature remain unimplemented.
 | [Phase 1 report](phase-1-report.md) | Platform implementation and executed evidence |
 | [Phase 2 report](phase-2-report.md) | Filesystem ownership proof and setup-state evidence |
 | [Phase 3 report](phase-3-report.md) | Secure wizard, key, Owner, Mailpit, migration, and finalization evidence |
+| [Phase 4 report](phase-4-report.md) | Identity, session, MFA, recovery, authorization, and audit evidence |
+| [Phase 5 report](phase-5-report.md) | Contact/import/suppression/template implementation and gate evidence |
 
 ## Product and operator documents
 
 | Document | Current implementation status |
 | --- | --- |
-| [Installation](installation.md) | Phase 3 setup-only installation; production deployment/SMTP unavailable |
+| [Installation](installation.md) | Phase 5 content administration; production deployment/SMTP unavailable |
 | [First-run setup](first-run-setup.md) | Phase 3 secure wizard and permanent lock implemented |
-| [Administrator guide](admin-guide.md) | Design only; Phase 4 onward |
-| [Operator runbook](operator-runbook.md) | Phase 3 secure setup and local platform operations |
+| [Administrator guide](admin-guide.md) | Phase 5 contacts/imports/suppression/templates implemented |
+| [Operator runbook](operator-runbook.md) | Phase 5 content administration and local platform operations |
 | [Worker](worker.md) | Design only; Phase 6 |
 | [Backup and restore](backup-restore.md) | Design only; Phase 8 |
 | [Upgrade and rollback](upgrade-rollback.md) | Phase 1 migration baseline; operational tooling in Phase 8 |
 | [Incident response](incident-response.md) | Baseline, including source/artifact/log exposure |
-| [Privacy and retention](privacy-retention.md) | Design only; Phases 5–8 |
-| [Development](development.md) | Phase 3 executable workflow |
-| [Testing](testing.md) | Phase 3 executable tests and isolation policy |
+| [Privacy and retention](privacy-retention.md) | Phase 5 data minimization; later analytics/retention automation planned |
+| [Development](development.md) | Phase 5 executable workflow |
+| [Testing](testing.md) | Phase 5 executable tests and isolation policy |
 | [Release](release.md) | Phase 1 artifact inspection only; no release mechanism |
 
 Major decisions are under [docs/adr](adr/). Specifications under

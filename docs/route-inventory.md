@@ -1,7 +1,7 @@
 # Route and command inventory
 
-**Status:** Phase 4 implementation inventory. Coarse liveness, secure first-run,
-identity/recovery, and authenticated administration-foundation routes are implemented.
+**Status:** Phase 5 implementation inventory. Coarse liveness, secure first-run,
+identity/recovery, administration, contacts/imports/suppression, and template routes are implemented.
 
 This inventory is the security review baseline. Every implemented route must be
 added here with method, authentication boundary, authorization rule, CSRF
@@ -81,9 +81,12 @@ Phase 4 implements `/admin`, `/admin/logout`, `/admin/reauthenticate`,
 `/admin/sessions/revoke`, `/admin/mfa` and its start/confirm/disable/recovery
 mutations, `/admin/users` and its create/update/delete mutations, and
 `/admin/audit`. `RoutePolicyRegistry` is exhaustive for every resolved
-`admin_` route and rejects an absent policy or unapproved method. Settings,
-content, campaign, delivery, Doctor, backup, release, and other later rows
-below remain planned.
+`admin_` route and rejects an absent policy or unapproved method.
+Phase 5 implements the contact, list, import, suppression, export, and template
+families shown below. Full-address reveal and export are Administrator-only,
+POST/CSRF, recently re-authenticated, and audited. Import detail/report access
+is restricted to its uploader or an Administrator. Campaign, delivery, Doctor,
+backup, release, and other later rows below remain planned.
 
 | Methods and family | Minimum role | Mutations and constraints | Phase |
 | --- | --- | --- | --- |

@@ -1,12 +1,12 @@
 # Security model
 
-**Status:** Phase 4 identity, authorization, browser session, recovery, and audit controls plus locked product design.
+**Status:** Phase 5 recipient-data, private import, sanitization, and asset controls over the Phase 4 identity foundation.
 
 Security controls are default-deny and layered. A UI-hidden action is not a
 security boundary; every protected invariant is checked at the route,
 application-service, persistence, and operational boundary appropriate to it.
 
-## Implemented controls through Phase 4
+## Implemented controls through Phase 5
 
 - Symfony Dotenv loading is disabled; runtime values are supplied externally,
   while `.env.example` contains placeholders only.
@@ -24,9 +24,10 @@ application-service, persistence, and operational boundary appropriate to it.
 - Locked dependencies, maximum-level static checks, current/full-history
   secret/private-data scans, and an allowlisted artifact are blocking gates.
 
-These platform controls alone do not imply sending readiness. Phase 3 adds only
-initial Owner and setup-secret persistence; login/session administration,
-suppression, campaigns, workers, and production mail remain absent.
+These platform controls alone do not imply sending readiness. Phases 3–4 add
+secure setup, individual login/session administration, recovery, authorization,
+recent re-authentication, and append-only redacted audit. Campaigns, workers,
+public recipient routes, and production mail remain absent.
 
 Phase 2 additionally implements a 160-bit Crockford Base32 ownership challenge,
 SHA-256-only private state, expiry and attempt limits, source throttles, locking,
@@ -74,6 +75,16 @@ uses one cross-process lifecycle lock. A writer verifies immediately before its
 operation that database completion and the filesystem installation lock are
 both absent. Finalization validates and commits under that same lock, so no
 setup record or secret can change after lock publication.
+
+Phase 5 masks ordinary recipient views and requires Administrator authority,
+recent re-authentication, CSRF, and audit for full reveal/export. Suppression is
+durable, idempotent, and add-only in this phase. CSV imports use private random
+files, bounded streaming validation, content hashing, MariaDB candidate staging,
+safe row/reason reports, and a commit-time suppression recheck. Template HTML,
+links, headers, and exact non-evaluating merge fields are validated before an
+immutable version is stored; previews use synthetic data. Raster uploads are
+privately quarantined, content-detected, dimension-bounded, decoded, and
+re-encoded before random-name public placement.
 
 ## Fail-closed states
 

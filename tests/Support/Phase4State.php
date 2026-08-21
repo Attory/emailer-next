@@ -23,7 +23,8 @@ trait Phase4State
             $lock->remove();
         }
 
-        foreach (['setup_installation_event', 'password_reset_token', 'login_throttle', 'user_session', 'mfa_credential', 'app_user', 'encrypted_secret'] as $table) {
+        $connection->executeStatement('UPDATE email_template SET published_version_id = NULL');
+        foreach (['template_asset', 'template_version', 'email_template', 'contact_import_candidate', 'contact_import', 'list_membership', 'contact_attribute', 'suppression', 'contact_list', 'contact_field_definition', 'contact', 'setup_installation_event', 'password_reset_token', 'login_throttle', 'user_session', 'mfa_credential', 'app_user', 'encrypted_secret'] as $table) {
             $connection->executeStatement('DELETE FROM '.$table);
         }
         $installationId = IdentityUtil::uuidV7();
@@ -78,6 +79,27 @@ SQL, [$now, $now, $now]);
             $path = self::getContainer()->getParameter($parameter);
             if (\is_string($path) && (file_exists($path) || is_link($path))) {
                 unlink($path);
+            }
+        }
+
+        $importDirectory = self::getContainer()->getParameter('emailer.import_dir');
+        if (!\is_string($importDirectory) || !is_dir($importDirectory)) {
+            return;
+        }
+
+        $entries = scandir($importDirectory);
+        if (false === $entries) {
+            throw new \RuntimeException('Unable to inspect the test import directory.');
+        }
+
+        foreach ($entries as $entry) {
+            if ('.' === $entry || '..' === $entry) {
+                continue;
+            }
+
+            $path = $importDirectory.'/'.$entry;
+            if ((is_file($path) || is_link($path)) && !unlink($path)) {
+                throw new \RuntimeException('Unable to remove a generated test import file.');
             }
         }
     }

@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Module\Identity\Application;
 
+use App\Module\Identity\Application\Contract\AdministrativeActor;
 use Symfony\Component\Security\Core\User\EquatableInterface;
 use Symfony\Component\Security\Core\User\PasswordAuthenticatedUserInterface;
 use Symfony\Component\Security\Core\User\UserInterface;
 
-final class AuthenticatedUser implements UserInterface, PasswordAuthenticatedUserInterface, EquatableInterface
+final class AuthenticatedUser implements UserInterface, PasswordAuthenticatedUserInterface, EquatableInterface, AdministrativeActor
 {
     private string $passwordFingerprint;
 
@@ -33,6 +34,11 @@ final class AuthenticatedUser implements UserInterface, PasswordAuthenticatedUse
     public function role(): AdministrativeRole
     {
         return $this->role;
+    }
+
+    public function roleRank(): int
+    {
+        return $this->role->rank();
     }
 
     public function active(): bool

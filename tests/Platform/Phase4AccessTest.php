@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Platform;
 
+use App\Module\Contacts\Application\ContactManager;
 use App\Module\Identity\Application\AdministrativeRole;
 use App\Module\Identity\Application\MfaManagement;
 use App\Module\Identity\Application\RoutePolicyRegistry;
@@ -145,6 +146,14 @@ final class Phase4AccessTest extends WebTestCase
                 self::assertResponseStatusCodeSame(403);
                 self::assertSame(2, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'authorization.denied' AND actor_user_id = ? AND source_hash IS NOT NULL", [$this->phase4String($connection->fetchOne('SELECT id FROM app_user WHERE login_identifier = ?', [strtolower($role->label()).'@example.test']))])));
             }
+            foreach (['/admin/contacts', '/admin/lists', '/admin/imports', '/admin/suppressions', '/admin/templates'] as $phase5Path) {
+                $roleClient->request('GET', $phase5Path, server: $server);
+                if ($role->rank() >= AdministrativeRole::Operator->rank()) {
+                    self::assertResponseIsSuccessful($phase5Path);
+                } else {
+                    self::assertResponseStatusCodeSame(403, $phase5Path);
+                }
+            }
         }
     }
 
@@ -199,6 +208,26 @@ final class Phase4AccessTest extends WebTestCase
             '/admin/users/create',
             '/admin/users/'.$user->id().'/update',
             '/admin/users/'.$user->id().'/delete',
+            '/admin/contacts/create',
+            '/admin/contacts/'.$user->id().'/update',
+            '/admin/contacts/'.$user->id().'/archive',
+            '/admin/contacts/'.$user->id().'/reveal',
+            '/admin/contacts/fields/create',
+            '/admin/lists/create',
+            '/admin/lists/'.$user->id().'/archive',
+            '/admin/lists/'.$user->id().'/members/add',
+            '/admin/lists/'.$user->id().'/members/remove',
+            '/admin/imports/upload',
+            '/admin/imports/'.$user->id().'/preview',
+            '/admin/imports/'.$user->id().'/commit',
+            '/admin/exports/contacts',
+            '/admin/suppressions/add',
+            '/admin/templates/create',
+            '/admin/templates/'.$user->id().'/versions/create',
+            '/admin/templates/'.$user->id().'/versions/'.$user->id().'/publish',
+            '/admin/templates/'.$user->id().'/archive',
+            '/admin/templates/versions/'.$user->id().'/test',
+            '/admin/templates/assets/upload',
         ];
         foreach ($mutations as $path) {
             $client->request('POST', $path, server: $server);
@@ -345,7 +374,8 @@ final class Phase4AccessTest extends WebTestCase
         $connection = $this->phase4Service(Connection::class);
         $this->preparePhase4State($connection);
         $password = 'phase4-reauth-'.bin2hex(random_bytes(10));
-        $this->createPhase4User($connection, 'owner@example.test', $password);
+        $owner = $this->createPhase4User($connection, 'owner@example.test', $password);
+        $contactId = $this->phase4Service(ContactManager::class)->create($owner, 'restricted@example.test', ['consent_source' => 'manual']);
         $server = $this->phase4HttpsServer('2001:db8::93');
         $client->request('GET', '/login', server: $server);
         $this->submitLogin($client, 'owner@example.test', $password, '', $server);
@@ -379,6 +409,29 @@ final class Phase4AccessTest extends WebTestCase
         ]), [], $server);
         self::assertResponseRedirects('/admin/users', 303);
         self::assertSame(1, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM app_user WHERE login_identifier = ?', [$createdLogin])));
+
+        $crawler = $client->request('GET', '/admin/contacts', server: $server);
+        $client->submit($crawler->selectButton('Reveal full address')->form(), [], $server);
+        self::assertResponseStatusCodeSame(403);
+
+        $crawler = $client->request('GET', '/admin/reauthenticate?purpose=contact_data_access', server: $server);
+        $client->submit($crawler->selectButton('Re-authenticate')->form([
+            'password' => $password,
+            'mfa_code' => '',
+        ]), [], $server);
+        self::assertResponseRedirects('/admin', 303);
+
+        $crawler = $client->request('GET', '/admin/contacts', server: $server);
+        $client->submit($crawler->selectButton('Reveal full address')->form(), [], $server);
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('code', 'restricted@example.test');
+        self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'contact.address.revealed' AND target_id = ?", [$contactId])));
+
+        $crawler = $client->request('GET', '/admin/contacts', server: $server);
+        $client->submit($crawler->selectButton('Export full contact CSV')->form(), [], $server);
+        self::assertResponseIsSuccessful();
+        self::assertResponseHeaderSame('Content-Disposition', 'attachment; filename="contacts.csv"');
+        self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'contact.exported' AND actor_user_id = ?", [$owner->id()])));
     }
 
     public function testCombinedPasswordMfaLoginAndRecoveryReplayRejection(): void

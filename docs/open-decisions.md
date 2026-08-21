@@ -1,6 +1,6 @@
 # Open decisions
 
-**Status:** Phase 1 handoff
+**Status:** Phase 5 handoff
 
 **Last reviewed:** 2026-07-23
 
@@ -25,8 +25,8 @@ implementation evidence. None authorizes a weaker security outcome.
 | OD-05 | Resolved in Phase 3: initial account login is an individual email, Unicode NFC-normalized, trimmed, and case-folded for a unique MariaDB comparison value | Phase 3 | The entered Phase 3 value is not reused as recipient normalization policy; later recovery responses remain generic |
 | OD-06 | Session idle/absolute limits, re-authentication window, TOTP parameters, and recovery-code count | Phase 4 | OWASP/current framework guidance, usability review, clock-boundary tests |
 | OD-07 | Audit-sink failure behavior for each sensitive transaction class | Phase 4 | Fail-closed matrix that preserves data integrity and operator-visible recovery |
-| OD-08 | Permission and approval policy for full-address display/export and suppression removal | Phase 5 | Least privilege, auditability, privacy/legal operator approval; suppression cannot be bypassed |
-| OD-09 | HTML sanitizer and safe merge-language implementation | Phase 5 | Maintained dependencies, context-aware encoding, fuzz/XSS/header-injection tests |
+| OD-08 | Resolved in Phase 5: ordinary contact/suppression views are masked; only Administrator or Owner may reveal/export full addresses after recent re-authentication, CSRF, and audit; Phase 5 exposes no suppression removal/bypass path | Phase 5 | Least privilege and add-only suppression are enforced at route and application layers |
+| OD-09 | Resolved in Phase 5: maintained Symfony HTML Sanitizer with a strict custom allowlist; exact non-evaluating merge fields; URL fields only as complete approved link targets; context-aware render escaping and immutable content digests | Phase 5 | XSS, unsafe URL, merge-expression, attribute-context, header-injection, and synthetic-preview tests |
 | OD-10 | Delivery retry numbers, ambiguous-outcome workflow, circuit-breaker thresholds, and global/per-domain defaults | Phase 6 | Fake-provider fault tests; at-least-once wording; bounded operator-approved limits |
 | OD-11 | Public token representation, expiry/revocation, forwarding, and key-overlap policies | Phase 7 | Wrong-purpose/tamper/replay tests; no raw address; privacy explanation |
 | OD-12 | Tracking/RSVP policy defaults beyond “off,” and concrete data-retention periods | Phase 7/8 | Operator legal/privacy decision, minimization, dry-run retention tests |

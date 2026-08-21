@@ -1,0 +1,10 @@
+{% extends 'admin/layout.html.twig' %}
+{% block title %}Templates — Emailer Next{% endblock %}
+{% block admin_body %}
+<h1>Templates</h1><p>Every edit creates an immutable version. Preview data is synthetic and test validation sends nothing.</p>
+<form method="post" action="{{ path('admin_template_create') }}"><input type="hidden" name="_token" value="{{ csrf_token('template-create') }}">
+<label>Name <input name="name" maxlength="160" required></label><label>Subject <input name="subject" maxlength="200" required></label><label>Preheader <input name="preheader" maxlength="200"></label>
+<label>HTML <textarea name="html_body" maxlength="200000" rows="12" required></textarea></label><label>Plain text (optional; generated when blank) <textarea name="text_body" maxlength="100000" rows="8"></textarea></label><button type="submit">Create template</button></form>
+<h2>Safe image asset</h2><form method="post" enctype="multipart/form-data" action="{{ path('admin_template_asset_upload') }}"><input type="hidden" name="_token" value="{{ csrf_token('template-asset-upload') }}"><input type="file" name="image" accept="image/jpeg,image/png,image/webp" required><button type="submit">Upload and re-encode image</button></form>
+<table><thead><tr><th>Name</th><th>Status</th><th>Versions</th><th>Actions</th></tr></thead><tbody>{% for template in templates %}<tr><td>{{ template.name }}</td><td>{{ template.status }}</td><td>{{ template.version_count }}</td><td><a href="{{ path('admin_template_versions', {id: template.id}) }}">Versions</a>{% if template.status != 'archived' %}<form method="post" action="{{ path('admin_template_archive', {id: template.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('template-archive-' ~ template.id) }}"><button type="submit">Archive</button></form>{% endif %}</td></tr>{% else %}<tr><td colspan="4">No templates.</td></tr>{% endfor %}</tbody></table>
+{% endblock %}

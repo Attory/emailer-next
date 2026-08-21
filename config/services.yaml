@@ -6,6 +6,8 @@ parameters:
     emailer.setup_cli_state_file: '%emailer.setup_dir%/cli-state.json'
     emailer.proof_file: '%kernel.project_dir%/.emailer-install-proof'
     emailer.install_lock_file: '%emailer.private_dir%/install.lock'
+    emailer.import_dir: '%emailer.private_dir%/imports'
+    emailer.template_asset_dir: '%kernel.project_dir%/public/template-assets'
     emailer.default_master_key_file: ''
     emailer.master_key_file: '%env(default:emailer.default_master_key_file:EMAILER_SECRET_KEY_FILE)%'
     emailer.default_trusted_proxies: '127.0.0.1,::1'
@@ -97,6 +99,18 @@ services:
     App\Module\Health\Application\Contract\SetupDoctor: '@App\Module\Health\Infrastructure\Phase3SetupDoctor'
     App\Module\Setup\Application\Contract\InstallationFinalizer: '@App\Module\Setup\Infrastructure\DoctrineInstallationFinalizer'
     App\Module\Audit\Application\Contract\AuditSink: '@App\Module\Audit\Infrastructure\DoctrineAuditSink'
+    App\Module\Identity\Application\Contract\AdministrativeAuthorization: '@App\Module\Identity\Application\AuthorizationService'
+    App\Module\Suppression\Application\Contract\SuppressionLookup: '@App\Module\Suppression\Application\SuppressionManager'
+    App\Module\Contacts\Application\Contract\ImportStorage: '@App\Module\Contacts\Infrastructure\PrivateImportStorage'
+    App\Module\Templates\Application\Contract\TemplateAssetStorage: '@App\Module\Templates\Infrastructure\TemplateAssetStore'
+
+    App\Module\Contacts\Infrastructure\PrivateImportStorage:
+        arguments:
+            $directory: '%emailer.import_dir%'
+
+    App\Module\Templates\Infrastructure\TemplateAssetStore:
+        arguments:
+            $directory: '%emailer.template_asset_dir%'
 
     App\Module\Identity\Application\SensitiveValueHasher:
         arguments:
