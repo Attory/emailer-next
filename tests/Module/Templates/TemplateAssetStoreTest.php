@@ -37,7 +37,7 @@ final class TemplateAssetStoreTest extends TestCase
         $image = imagecreatetruecolor(3, 2);
         self::assertInstanceOf(\GdImage::class, $image);
         imagepng($image, $source);
-        imagedestroy($image);
+        unset($image);
         $store = new TemplateAssetStore($this->directory);
         try {
             $stored = $store->store($source);
@@ -84,7 +84,7 @@ final class TemplateAssetStoreTest extends TestCase
         $image = imagecreatetruecolor(2401, 1);
         self::assertInstanceOf(\GdImage::class, $image);
         imagepng($image, $oversized);
-        imagedestroy($image);
+        unset($image);
         try {
             $this->expectException(\InvalidArgumentException::class);
             $store->store($oversized);

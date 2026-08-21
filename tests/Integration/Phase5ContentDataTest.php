@@ -183,7 +183,7 @@ final class Phase5ContentDataTest extends KernelTestCase
         $image = imagecreatetruecolor(2, 2);
         self::assertInstanceOf(\GdImage::class, $image);
         imagepng($image, $imagePath);
-        imagedestroy($image);
+        unset($image);
         try {
             $asset = $this->phase4Service(TemplateAssetManager::class)->store($operator, $imagePath);
             self::assertMatchesRegularExpression('#^/template-assets/[a-f0-9]{48}\.png$#', $asset['url']);

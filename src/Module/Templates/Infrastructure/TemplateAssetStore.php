@@ -45,7 +45,7 @@ final readonly class TemplateAssetStore implements TemplateAssetStorage
                 'image/png' => imagepng($image, $target, 7),
                 'image/webp' => imagewebp($image, $target, 88),
             };
-            imagedestroy($image);
+            unset($image);
             if (!$written) {
                 @unlink($target);
                 throw new \RuntimeException('Image could not be stored.');
