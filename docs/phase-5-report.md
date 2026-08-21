@@ -69,8 +69,8 @@ production SMTP behavior.
 
 ## Dependencies, migration, and routes
 
-- Required platform extensions added: `ext-dom` and `ext-gd`; the Docker image
-  installs DOM plus GD with JPEG, PNG, and WebP support.
+- Required platform extensions added: `ext-dom` and `ext-gd`; the PHP base
+  supplies DOM and the Docker image builds GD with JPEG, PNG, and WebP support.
 - Composer dependency added: `symfony/html-sanitizer` `7.4.*` (locked at
   `v7.4.14`) and its locked URI/HTML parser transitive dependencies.
 - Forward-only migration added:
