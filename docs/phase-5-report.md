@@ -87,9 +87,11 @@ production SMTP behavior.
 
 ## Validation evidence
 
-The rebuilt PHP 8.4.23 application image contains DOM and GD and passes strict
-Composer validation plus the locked advisory/abandonment audit. A new isolated
-MariaDB database applied all six migrations from empty through
+The rebuilt PHP 8.4.23 and PHP 8.5.8 application images contain DOM and GD. The
+CI clean-room setup grants only the application identity write access to the
+generated raster directory. Strict Composer validation and the locked
+advisory/abandonment audit pass. A new isolated MariaDB database applied all six
+migrations from empty through
 `Version20260819000000` in 46 SQL queries; a second run was up to date and
 Doctrine mapping validation passed.
 
