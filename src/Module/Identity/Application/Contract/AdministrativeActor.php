@@ -11,4 +11,6 @@ interface AdministrativeActor
     public function roleRank(): int;
 
     public function active(): bool;
+
+    public function loginIdentifier(): string;
 }

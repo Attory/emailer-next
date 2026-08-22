@@ -1,0 +1,31 @@
+{% extends 'admin/layout.html.twig' %}
+{% block title %}Campaigns · Emailer Next{% endblock %}
+{% block admin_body %}
+<h1>Campaigns</h1>
+{% if is_granted('ROLE_OPERATOR') %}
+<section>
+    <h2>Create draft</h2>
+    <form method="post" action="{{ path('admin_campaign_create') }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('campaign-create') }}">
+        <label>Name <input name="name" maxlength="160" required></label>
+        <label>Published template
+            <select name="template_version" required>
+                {% for template in options.templates %}<option value="{{ template.id }}">{{ template.name }} (v{{ template.version_number }})</option>{% endfor %}
+            </select>
+        </label>
+        <fieldset><legend>Audience lists</legend>
+            {% for list in options.lists %}<label><input type="checkbox" name="lists[]" value="{{ list.id }}"> {{ list.name }}</label>{% else %}<p>Create an active list first.</p>{% endfor %}
+        </fieldset>
+        <button type="submit">Create campaign</button>
+    </form>
+</section>
+{% endif %}
+<section>
+    <h2>Campaign history</h2>
+    <table><thead><tr><th>Name</th><th>State</th><th>Audience</th><th>Accepted</th><th>Failures</th><th>Updated</th></tr></thead><tbody>
+    {% for campaign in campaigns %}
+        <tr><td><a href="{{ path('admin_campaign', {id: campaign.id}) }}">{{ campaign.name }}</a></td><td>{{ campaign.state }}</td><td>{{ campaign.recipient_count }}</td><td>{{ campaign.accepted_count|default(0) }}</td><td>{{ campaign.failure_count|default(0) }}</td><td>{{ campaign.updated_at }}</td></tr>
+    {% else %}<tr><td colspan="6">No campaigns.</td></tr>{% endfor %}
+    </tbody></table>
+</section>
+{% endblock %}

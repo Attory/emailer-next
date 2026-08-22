@@ -1,0 +1,23 @@
+{% extends 'admin/layout.html.twig' %}
+{% block title %}Mail settings · Emailer Next{% endblock %}
+{% block admin_body %}
+<h1>Mail transport</h1>
+<p>Configured host: {{ mail.smtp_host }}:{{ mail.smtp_port }}; mode: {{ mail.encryption_mode }}; TLS peer verification: {{ mail.tls_peer_verification ? 'on' : 'off' }}.</p>
+<p>Username: {{ mail.smtp_username|default('none') }}; credential: {{ mail.credential_configured ? 'stored encrypted' : 'not stored' }}; sender: {{ mail.sender_address }}.</p>
+{% if is_granted('ROLE_OWNER') %}
+<p><a href="{{ path('admin_reauthenticate', {purpose: 'mail_configuration'}) }}">Re-authenticate before changing SMTP credentials</a></p>
+<form method="post" action="{{ path('admin_mail_settings_update') }}" autocomplete="off">
+    <input type="hidden" name="_token" value="{{ csrf_token('mail-settings-update') }}">
+    <label>SMTP hostname <input name="host" required></label>
+    <label>Port <input name="port" type="number" min="1" max="65535" required></label>
+    <label>Encryption <select name="encryption"><option value="starttls">STARTTLS required</option><option value="tls">Direct TLS</option></select></label>
+    <label>Username <input name="username" autocomplete="off" required></label>
+    <label>Password <input name="password" type="password" autocomplete="new-password" required></label>
+    <label>Sender address <input name="sender_address" type="email" required></label>
+    <label>Sender name <input name="sender_name" required></label>
+    <label>Reply-to (optional) <input name="reply_to" type="email"></label>
+    <button>Store secure SMTP configuration</button>
+</form>
+<p>Saving validates and encrypts configuration only. Use a queued campaign test to verify transport.</p>
+{% endif %}
+{% endblock %}

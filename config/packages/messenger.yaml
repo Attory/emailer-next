@@ -8,10 +8,14 @@ framework:
                 options:
                     auto_setup: false
                     queue_name: async
+                retry_strategy:
+                    max_retries: 0
             failed:
                 dsn: '%env(MESSENGER_TRANSPORT_DSN)%'
                 options:
                     auto_setup: false
                     queue_name: failed
 
-        routing: { }
+        routing:
+            App\Module\Delivery\Application\Message\DeliverCampaignRecipient: async
+            App\Module\Delivery\Application\Message\DeliverCampaignTest: async
