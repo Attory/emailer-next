@@ -24,10 +24,11 @@ trait Phase4State
         }
 
         $connection->executeStatement('UPDATE email_template SET published_version_id = NULL');
-        $connection->executeStatement("UPDATE sender_identity SET smtp_host = 'mailpit', smtp_port = 1025, encryption_mode = 'none', smtp_username = NULL, credential_secret_id = NULL, tls_peer_verification = 0 WHERE singleton_key = '1'");
-        foreach (['messenger_messages', 'delivery_attempt', 'campaign_recipient', 'campaign_test_delivery', 'campaign_audience_recipient', 'campaign_audience_snapshot', 'campaign_content_snapshot', 'campaign_list_selection', 'campaign', 'delivery_domain_rate', 'worker_heartbeat', 'template_asset', 'template_version', 'email_template', 'contact_import_candidate', 'contact_import', 'list_membership', 'contact_attribute', 'suppression', 'contact_list', 'contact_field_definition', 'contact', 'setup_installation_event', 'password_reset_token', 'login_throttle', 'user_session', 'mfa_credential', 'app_user', 'encrypted_secret'] as $table) {
+        $connection->executeStatement("UPDATE sender_identity SET smtp_host = 'mailpit', smtp_port = 1025, encryption_mode = 'none', smtp_username = NULL, credential_secret_id = NULL, tls_peer_verification = 0, one_click_dkim_confirmed = 0 WHERE singleton_key = '1'");
+        foreach (['recipient_token', 'recipient_token_key', 'messenger_messages', 'delivery_attempt', 'campaign_recipient', 'campaign_test_delivery', 'campaign_audience_recipient', 'campaign_audience_snapshot', 'campaign_content_snapshot', 'campaign_list_selection', 'campaign', 'delivery_domain_rate', 'worker_heartbeat', 'template_asset', 'template_version', 'email_template', 'contact_import_candidate', 'contact_import', 'list_membership', 'contact_attribute', 'suppression', 'contact_list', 'contact_field_definition', 'contact', 'setup_installation_event', 'password_reset_token', 'login_throttle', 'user_session', 'mfa_credential', 'app_user', 'encrypted_secret'] as $table) {
             $connection->executeStatement('DELETE FROM '.$table);
         }
+        $connection->executeStatement("UPDATE recipient_token_key_state SET current_version = 0, updated_at = UTC_TIMESTAMP(6) WHERE singleton_key = '1'");
         $connection->executeStatement("UPDATE delivery_runtime SET schema_version = 1, accepting_work = 1, active_claims = 0, rate_window_started_at = UTC_TIMESTAMP(6), rate_window_count = 0, circuit_state = 'closed', circuit_failures = 0, circuit_open_until = NULL, updated_at = UTC_TIMESTAMP(6) WHERE singleton_key = '1'");
         $installationId = IdentityUtil::uuidV7();
         $now = IdentityUtil::now();
@@ -64,7 +65,7 @@ VALUES ('1', 'smtp', 'mailpit', 1025, 'none', NULL, NULL, 'phase4-sender@example
 ON DUPLICATE KEY UPDATE
     transport_type = 'smtp', smtp_host = 'mailpit', smtp_port = 1025, encryption_mode = 'none',
     smtp_username = NULL, credential_secret_id = NULL, sender_address = VALUES(sender_address),
-    sender_name = VALUES(sender_name), tls_peer_verification = 0, test_message_at = VALUES(test_message_at),
+    sender_name = VALUES(sender_name), tls_peer_verification = 0, one_click_dkim_confirmed = 0, test_message_at = VALUES(test_message_at),
     updated_at = VALUES(updated_at)
 SQL, [$now, $now, $now]);
         $connection->executeStatement(<<<'SQL'

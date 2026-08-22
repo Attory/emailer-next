@@ -1,6 +1,6 @@
 # Module boundaries and dependency rules
 
-**Status:** Phase 5 rules with executable enforcement.
+**Status:** Phase 7 rules with executable enforcement.
 
 The application is a modular monolith. A module owns its rules, tables,
 repositories, application services, and presentation adapters. Ownership is a
@@ -17,9 +17,9 @@ code-review boundary even though all modules deploy in one process.
 | `Contacts` | Contacts, attributes, lists, memberships, import/export workflow | Suppression query contract |
 | `Templates` | Templates, immutable versions, merge schema, sanitisation policy, safe assets | Configuration display defaults |
 | `Campaigns` | Campaign state machine, audience snapshots, approvals, scheduling | Read contracts from Contacts, Templates, Configuration, and Suppression |
-| `Delivery` | Delivery ledger, dispatch, retries, worker, transport and rate limits | Approved Campaign snapshot, Suppression, Configuration, and Secrets contracts |
+| `Delivery` | Delivery ledger, dispatch, retries, worker, transport and rate limits | Approved Campaign snapshot, Suppression, Configuration, Secrets, and RecipientActions link contracts |
 | `Suppression` | Global suppression records and idempotent decisions | Shared audit contract |
-| `RecipientActions` | Opaque public tokens, unsubscribe, view-in-browser, RSVP commands | Suppression command, Campaign snapshot, Secrets key contract |
+| `RecipientActions` | Opaque public tokens and unsubscribe commands (later view-in-browser/RSVP) | Suppression command, Configuration runtime identity/origin, Secrets vault, and Identity authorization contracts |
 | `Analytics` | Approximate open/click events and redacted reporting projections | Redacted events from Delivery and RecipientActions |
 | `Audit` | Append-only audit event persistence and redacted reads | No business-module internals |
 | `Health` | Doctor probes, findings, heartbeats, sending-gate projection | Read-only health contracts; never direct mutation of business state |
@@ -70,9 +70,11 @@ flowchart TD
     Delivery --> Suppression
     Delivery --> Configuration
     Delivery --> Secrets
-    RecipientActions --> Campaigns
+    Delivery --> RecipientActions
     RecipientActions --> Suppression
     RecipientActions --> Secrets
+    RecipientActions --> Configuration
+    RecipientActions --> Identity
     Analytics --> Delivery
     Analytics --> RecipientActions
     Health -. read-only probes .-> Delivery

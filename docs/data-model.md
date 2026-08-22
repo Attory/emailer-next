@@ -1,6 +1,6 @@
 # Initial data model
 
-**Status:** Phase 5 contact/import/suppression/template schema plus conceptual later-phase design.
+**Status:** Phase 7 recipient-token and unsubscribe schema over implemented Phase 6 campaign delivery.
 
 `DoctrineMigrations\Version20260723000000` remains the no-schema platform
 smoke check. Phase 3 adds `Version20260815000000`, which creates only the
@@ -109,7 +109,7 @@ values.
 | `CampaignAudienceSnapshot` | Campaigns | Campaign-unique snapshot metadata, selection criteria digest, included/excluded counts and creation time |
 | `CampaignRecipient` | Delivery | Campaign/contact FKs; template snapshot; deterministic Message-ID; state, attempt count, next attempt, accepted time, classified error and provider reference; unique campaign/contact |
 | `DeliveryAttempt` | Delivery | Ledger FK, sequence, timestamps, classification and redacted diagnostics; unique ledger/sequence; no credentials or rendered body |
-| `RecipientToken` | RecipientActions | Random token handle digest or authenticated-envelope reference, recipient/campaign scope, purpose, issue/expiry, key version and consumption policy; never raw address |
+| `RecipientToken` | RecipientActions | Random public handle plus key-versioned HMAC authenticator, recipient/campaign scope, purpose, issue/expiry/revocation/use metadata; never raw address in the token |
 | `TrackingEvent` | Analytics | Opaque recipient/campaign references, event type and UTC time, minimized/redacted request metadata; policy-controlled retention |
 | `AuditEvent` | Audit | Append-only UUIDv7, actor or system identity, action, opaque target, UTC time, redacted source/result/change summary; no update/delete UI |
 | `HealthCheckResult` | Health | Check key, severity, redacted evidence/remediation, sending-block flag and observation timestamps |
@@ -120,6 +120,17 @@ list selections, RSVP submissions, rate-limit buckets, worker heartbeats, and
 release manifests may be introduced in their owning phase. They must follow the
 same identifier, classification, retention, and ownership rules and be added to
 this document before their migration is accepted.
+
+`Version20260822000000` implements campaign snapshots, recipients, attempts,
+delivery runtime/rate/circuit state, heartbeats, and Messenger storage. Phase 7
+adds `Version20260823000000`: `recipient_token_key_state` serializes current-key
+selection, `recipient_token_key` references encrypted random HMAC keys with a
+bounded verification overlap, and `recipient_token` stores opaque handles and
+private frozen scope. A unique campaign-recipient/purpose constraint makes link
+issuance retry-safe. Tokens expire after 365 days and scheduler maintenance
+removes rows 30 days after expiry in bounded batches; suppression survives.
+Campaign content snapshots now also freeze the unsubscribe footer and the
+provider-DKIM one-click attestation used for that campaign.
 
 ## Transaction and constraint design
 

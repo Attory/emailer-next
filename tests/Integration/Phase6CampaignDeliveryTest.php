@@ -21,6 +21,7 @@ use App\Module\Delivery\Infrastructure\WorkerHeartbeatSubscriber;
 use App\Module\Delivery\Presentation\Cli\DeliveryQuiesceCommand;
 use App\Module\Delivery\Presentation\Cli\DeliveryResumeCommand;
 use App\Module\Identity\Application\AuthenticatedUser;
+use App\Module\RecipientActions\Application\Contract\RecipientUnsubscribeLinks;
 use App\Module\Suppression\Application\Contract\SuppressionLookup;
 use App\Module\Templates\Application\TemplateManager;
 use App\Shared\Identity;
@@ -416,6 +417,7 @@ final class Phase6CampaignDeliveryTest extends KernelTestCase
             $this->phase4Service(SuppressionLookup::class),
             new Phase6FaultTransport($outcome),
             $this->phase4Service(CampaignDeliveryGateway::class),
+            $this->phase4Service(RecipientUnsubscribeLinks::class),
             $this->phase4Service(AuditSink::class),
         );
     }

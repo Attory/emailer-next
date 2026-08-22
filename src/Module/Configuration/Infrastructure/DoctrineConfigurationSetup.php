@@ -112,7 +112,7 @@ ON DUPLICATE KEY UPDATE
     smtp_host = VALUES(smtp_host), smtp_port = VALUES(smtp_port), encryption_mode = 'none',
     smtp_username = NULL, credential_secret_id = NULL,
     sender_address = VALUES(sender_address), sender_name = VALUES(sender_name),
-    reply_to_address = VALUES(reply_to_address), tls_peer_verification = 0,
+    reply_to_address = VALUES(reply_to_address), tls_peer_verification = 0, one_click_dkim_confirmed = 0,
     test_message_at = VALUES(test_message_at), updated_at = VALUES(updated_at)
 SQL, [
                     $input->host,

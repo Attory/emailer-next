@@ -5,9 +5,10 @@ explain why a choice was locked; operational documents explain how that choice
 is implemented and verified. A later phase may refine a document but may not
 silently contradict the master specification or an accepted ADR.
 
-**Current implementation boundary:** Phase 5 contacts, suppression, imports,
-and templates are implemented over secure setup and administration. Campaigns,
-workers, public recipient routes, and production delivery remain unimplemented.
+**Current implementation boundary:** Phase 7 durable campaigns, worker delivery,
+and privacy-safe unsubscribe are implemented over secure setup, administration,
+contacts, suppression, and templates. MVP Doctor, backup/restore, package/update,
+and release acceptance remain Phases 8–9.
 The approved roadmap targets a client-installable MVP at Phase 9, followed by
 installable feature/operations updates through Version 1 at Phase 13.
 
@@ -30,22 +31,24 @@ installable feature/operations updates through Version 1 at Phase 13.
 | [Phase 3 report](phase-3-report.md) | Secure wizard, key, Owner, Mailpit, migration, and finalization evidence |
 | [Phase 4 report](phase-4-report.md) | Identity, session, MFA, recovery, authorization, and audit evidence |
 | [Phase 5 report](phase-5-report.md) | Contact/import/suppression/template implementation and gate evidence |
+| [Phase 6 report](phase-6-report.md) | Campaign state, durable delivery, transport, worker, and gate evidence |
+| [Phase 7 report](phase-7-report.md) | Recipient-token, unsubscribe, public-route, and privacy evidence |
 
 ## Product and operator documents
 
 | Document | Current implementation status |
 | --- | --- |
-| [Installation](installation.md) | Phase 5 content administration; production deployment/SMTP unavailable |
+| [Installation](installation.md) | Phase 7 application behavior; client-installable package remains Phase 9 |
 | [First-run setup](first-run-setup.md) | Phase 3 secure wizard and permanent lock implemented |
-| [Administrator guide](admin-guide.md) | Phase 5 contacts/imports/suppression/templates implemented |
-| [Operator runbook](operator-runbook.md) | Phase 5 content administration and local platform operations |
-| [Worker](worker.md) | Design only; Phase 6 |
+| [Administrator guide](admin-guide.md) | Phase 7 campaign delivery and unsubscribe implemented |
+| [Operator runbook](operator-runbook.md) | Phase 7 delivery/recipient safety and local platform operations |
+| [Worker](worker.md) | Phase 6 worker plus Phase 7 token housekeeping implemented |
 | [Backup and restore](backup-restore.md) | MVP design accepted; implementation and local drill in Phase 8 |
 | [Upgrade and rollback](upgrade-rollback.md) | MVP update contract accepted; tooling in Phase 8, first candidate in Phase 9 |
 | [Incident response](incident-response.md) | Baseline, including source/artifact/log exposure |
-| [Privacy and retention](privacy-retention.md) | Phase 5 data minimization; later analytics/retention automation planned |
-| [Development](development.md) | Phase 5 executable workflow |
-| [Testing](testing.md) | Phase 5 executable tests and isolation policy |
+| [Privacy and retention](privacy-retention.md) | Phase 7 unsubscribe/token minimization; later analytics/retention automation planned |
+| [Development](development.md) | Phase 7 executable workflow |
+| [Testing](testing.md) | Phase 7 executable tests and isolation policy |
 | [Release](release.md) | MVP release train accepted; no package mechanism implemented yet |
 
 Major decisions are under [docs/adr](adr/). Specifications under

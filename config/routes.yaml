@@ -33,3 +33,7 @@ campaigns:
 configuration:
     resource: ../src/Module/Configuration/Presentation/Http/
     type: attribute
+
+recipient_actions:
+    resource: ../src/Module/RecipientActions/Presentation/Http/
+    type: attribute

@@ -12,6 +12,7 @@ use App\Module\Delivery\Application\Contract\DeliveryTransport;
 use App\Module\Delivery\Application\Contract\DeliveryTransportFailure;
 use App\Module\Delivery\Application\Contract\OutboundMessage;
 use App\Module\Delivery\Application\Message\DeliverCampaignRecipient;
+use App\Module\RecipientActions\Application\Contract\RecipientUnsubscribeLinks;
 use App\Module\Suppression\Application\Contract\SuppressionLookup;
 use App\Shared\Identity;
 use Doctrine\DBAL\Connection;
@@ -30,6 +31,7 @@ final readonly class DeliverCampaignRecipientHandler
         private SuppressionLookup $suppressions,
         private DeliveryTransport $transport,
         private CampaignDeliveryGateway $gateway,
+        private RecipientUnsubscribeLinks $unsubscribeLinks,
         private AuditSink $audit,
     ) {
     }
@@ -76,7 +78,7 @@ final readonly class DeliverCampaignRecipientHandler
         }
     }
 
-    /** @param array{installation_id: string, host: string, port: int, encryption: string, username: ?string, credential_id: ?string, verify_peer: bool, sender_address: string, sender_name: string, reply_to: ?string, messages_per_minute: int, concurrency: int, retry_limit: int, max_campaign_size: int} $configuration */
+    /** @param array{installation_id: string, host: string, port: int, encryption: string, username: ?string, credential_id: ?string, verify_peer: bool, sender_address: string, sender_name: string, reply_to: ?string, one_click_dkim_confirmed: bool, unsubscribe_footer: string, messages_per_minute: int, concurrency: int, retry_limit: int, max_campaign_size: int} $configuration */
     private function claim(DeliverCampaignRecipient $message, array $configuration): ?DeliveryClaim
     {
         return $this->connection->transactional(function () use ($message, $configuration): ?DeliveryClaim {
@@ -147,7 +149,7 @@ final readonly class DeliverCampaignRecipientHandler
 
     private function outbound(string $recipientId, string $email, string $profileJson): OutboundMessage
     {
-        $row = $this->connection->fetchAssociative("SELECT c.name, s.subject, s.html_body, s.text_body, s.sender_address, s.sender_name, s.reply_to_address, r.message_id FROM campaign_recipient r INNER JOIN campaign c ON c.id = r.campaign_id INNER JOIN campaign_content_snapshot s ON s.campaign_id = c.id WHERE r.id = ? AND r.state = 'processing'", [$recipientId]);
+        $row = $this->connection->fetchAssociative("SELECT c.id campaign_id, c.name, s.subject, s.html_body, s.text_body, s.unsubscribe_footer, s.one_click_dkim_confirmed, s.sender_address, s.sender_name, s.reply_to_address, r.contact_id, r.message_id FROM campaign_recipient r INNER JOIN campaign c ON c.id = r.campaign_id INNER JOIN campaign_content_snapshot s ON s.campaign_id = c.id WHERE r.id = ? AND r.state = 'processing'", [$recipientId]);
         if (false === $row) {
             throw new \RuntimeException('Claimed campaign content is unavailable.');
         }
@@ -157,12 +159,18 @@ final readonly class DeliverCampaignRecipientHandler
         }
         $firstName = $profile['first_name'] ?? '';
         $displayName = $profile['display_name'] ?? '';
-        $values = ['contact.first_name' => \is_string($firstName) ? $firstName : '', 'contact.display_name' => \is_string($displayName) ? $displayName : '', 'campaign.name' => $this->stringValue($row['name'])];
+        $unsubscribeUrl = $this->unsubscribeLinks->issue($this->stringValue($row['campaign_id']), $recipientId, $this->stringValue($row['contact_id']), $email);
+        $values = ['contact.first_name' => \is_string($firstName) ? $firstName : '', 'contact.display_name' => \is_string($displayName) ? $displayName : '', 'campaign.name' => $this->stringValue($row['name']), 'unsubscribe_url' => $unsubscribeUrl];
         $subject = $this->render($this->stringValue($row['subject']), $values, false);
         $html = $this->render($this->stringValue($row['html_body']), $values, true);
         $text = $this->render($this->stringValue($row['text_body']), $values, false);
+        $footer = $this->stringValue($row['unsubscribe_footer']);
+        if (1 !== preg_match('/\{\{\s*unsubscribe_url\s*\}\}/', $this->stringValue($row['html_body']))) {
+            $html .= '<p>'.htmlspecialchars($footer, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8').' <a href="'.htmlspecialchars($unsubscribeUrl, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8').'">Unsubscribe</a></p>';
+        }
+        $text .= "\n\n".$footer."\nUnsubscribe: ".$unsubscribeUrl;
 
-        return new OutboundMessage($email, $this->stringValue($row['sender_address']), $this->stringValue($row['sender_name']), \is_string($row['reply_to_address']) ? $row['reply_to_address'] : null, $subject, $html, $text, $this->stringValue($row['message_id']));
+        return new OutboundMessage($email, $this->stringValue($row['sender_address']), $this->stringValue($row['sender_name']), \is_string($row['reply_to_address']) ? $row['reply_to_address'] : null, $subject, $html, $text, $this->stringValue($row['message_id']), $unsubscribeUrl, 1 === $this->intValue($row['one_click_dkim_confirmed']));
     }
 
     /** @param array<string, string> $values */

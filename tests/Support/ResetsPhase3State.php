@@ -10,6 +10,9 @@ trait ResetsPhase3State
 {
     private function resetPhase3Database(Connection $connection): void
     {
+        $connection->executeStatement('DELETE FROM recipient_token');
+        $connection->executeStatement('DELETE FROM recipient_token_key');
+        $connection->executeStatement("UPDATE recipient_token_key_state SET current_version = 0, updated_at = UTC_TIMESTAMP(6) WHERE singleton_key = '1'");
         foreach (['setup_installation_event', 'mfa_credential', 'sender_identity', 'delivery_policy', 'privacy_policy', 'app_user', 'encrypted_secret', 'organisation_settings'] as $table) {
             $connection->executeStatement('DELETE FROM '.$table);
         }

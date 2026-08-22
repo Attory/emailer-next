@@ -15,7 +15,7 @@ final readonly class DoctrineDeliveryConfiguration implements DeliveryConfigurat
 
     public function current(): array
     {
-        $row = $this->connection->fetchAssociative("SELECT o.installation_uuid, s.smtp_host, s.smtp_port, s.encryption_mode, s.smtp_username, s.credential_secret_id, s.tls_peer_verification, s.sender_address, s.sender_name, s.reply_to_address, p.messages_per_minute, p.worker_concurrency, p.retry_limit, p.maximum_campaign_size FROM organisation_settings o CROSS JOIN sender_identity s CROSS JOIN delivery_policy p WHERE o.singleton_key = '1' AND s.singleton_key = '1' AND p.singleton_key = '1'");
+        $row = $this->connection->fetchAssociative("SELECT o.installation_uuid, s.smtp_host, s.smtp_port, s.encryption_mode, s.smtp_username, s.credential_secret_id, s.tls_peer_verification, s.sender_address, s.sender_name, s.reply_to_address, s.one_click_dkim_confirmed, p.unsubscribe_footer, d.messages_per_minute, d.worker_concurrency, d.retry_limit, d.maximum_campaign_size FROM organisation_settings o CROSS JOIN sender_identity s CROSS JOIN privacy_policy p CROSS JOIN delivery_policy d WHERE o.singleton_key = '1' AND s.singleton_key = '1' AND p.singleton_key = '1' AND d.singleton_key = '1'");
         if (false === $row) {
             throw new \RuntimeException('Delivery configuration is incomplete.');
         }
@@ -30,7 +30,9 @@ final readonly class DoctrineDeliveryConfiguration implements DeliveryConfigurat
             'encryption' => $row['encryption_mode'], 'username' => \is_string($row['smtp_username']) ? $row['smtp_username'] : null,
             'credential_id' => \is_string($row['credential_secret_id']) ? $row['credential_secret_id'] : null,
             'verify_peer' => 1 === $this->intValue($row['tls_peer_verification']), 'sender_address' => $row['sender_address'], 'sender_name' => $row['sender_name'],
-            'reply_to' => \is_string($row['reply_to_address']) ? $row['reply_to_address'] : null, 'messages_per_minute' => $this->intValue($row['messages_per_minute']),
+            'reply_to' => \is_string($row['reply_to_address']) ? $row['reply_to_address'] : null,
+            'one_click_dkim_confirmed' => 1 === $this->intValue($row['one_click_dkim_confirmed']),
+            'unsubscribe_footer' => $this->stringValue($row['unsubscribe_footer']), 'messages_per_minute' => $this->intValue($row['messages_per_minute']),
             'concurrency' => $this->intValue($row['worker_concurrency']), 'retry_limit' => $this->intValue($row['retry_limit']), 'max_campaign_size' => $this->intValue($row['maximum_campaign_size']),
         ];
     }
@@ -42,5 +44,14 @@ final readonly class DoctrineDeliveryConfiguration implements DeliveryConfigurat
         }
 
         return (int) $value;
+    }
+
+    private function stringValue(mixed $value): string
+    {
+        if (!\is_string($value) || '' === trim($value)) {
+            throw new \UnexpectedValueException('Delivery configuration text is invalid.');
+        }
+
+        return $value;
     }
 }

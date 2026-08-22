@@ -1,6 +1,6 @@
 # Delivery worker
 
-**Status:** Implemented in Phase 6; public recipient safety remains Phase 7 and the installable MVP remains Phase 9.
+**Status:** Implemented through Phase 7; installable MVP operations remain Phases 8–9.
 
 The worker is a CLI-only Symfony Messenger consumer. No HTTP endpoint can start
 delivery. Campaign state survives browser closure and process restart because
@@ -40,10 +40,12 @@ HTTP/URL cron is prohibited.
 3. Verify campaign state and immediate global suppression.
 4. Load/safely decrypt transport configuration at the adapter boundary.
 5. Construct one recipient message with deterministic `Message-ID`.
-6. Apply rate/circuit controls and recheck suppression immediately before send.
-7. Classify result as accepted, transient, permanent, ambiguous, suppressed, or
+6. Issue/reuse the scoped unsubscribe token, render its mandatory body/header
+   link, and add the RFC 8058 header only for a snapshotted DKIM attestation.
+7. Apply rate/circuit controls and recheck suppression immediately before send.
+8. Classify result as accepted, transient, permanent, ambiguous, suppressed, or
    cancelled and commit durable state/audit evidence.
-8. Retry only eligible transient outcomes within bounded backoff/jitter.
+9. Retry only eligible transient outcomes within bounded backoff/jitter.
 
 Queue payloads contain no raw address, rendered content, credential, token,
 secret, or Doctrine entity.
@@ -70,6 +72,10 @@ plus one scheduler invocation per minute. Messenger messages contain only a
 ledger or test-delivery identifier and an operation version. The database is the
 source of truth; queued payloads never contain recipient addresses, template
 content, credentials, or profile data.
+
+The scheduler also deletes at most 100 recipient-token rows per run after their
+365-day validity plus 30-day grace has elapsed. This maintenance never deletes
+or weakens global suppression.
 
 ```sh
 php bin/console messenger:consume async --keepalive=5 --time-limit=3600 --memory-limit=256M --failure-limit=10

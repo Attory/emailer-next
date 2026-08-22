@@ -1,6 +1,6 @@
 # Threat model
 
-**Status:** Phase 5 contact/import/suppression/template controls reviewed.
+**Status:** Phase 7 public recipient-token and unsubscribe controls reviewed.
 
 **Method:** Asset/trust-boundary review with STRIDE-style misuse cases and
 privacy-abuse review
@@ -100,7 +100,7 @@ message does not prove inbox delivery.
 | TM-14 | Queue replay/crash produces duplicate or dishonest delivery state | Unique ledger row; deterministic Message-ID; transactional transitions; bounded retry; ambiguous state; progress from ledger | 6 |
 | TM-15 | HTTP endpoint invokes worker or arbitrary send | Worker and restore are CLI-only; no route; route inventory and negative tests | 4/6/8 |
 | TM-16 | Queue/log/exception contains credential, full address, body, or token | Identifier-only messages; central redaction; safe exception mapping; output scans and snapshot tests | 1 onward |
-| TM-17 | Tampered/wrong-purpose/forwarded token mutates another action | Opaque purpose/scope/key-version token; constant-time validation; expiry/repeat policy; idempotency; no raw address | 7 |
+| TM-17 | Tampered/wrong-purpose/forwarded token mutates another action | Random opaque handle plus key-version HMAC over purpose/scope/expiry; constant-time MAC validation; 365-day expiry/key overlap; idempotency; no raw address or disclosure | 7 |
 | TM-18 | Click route becomes an open redirect | Target fixed and allowlisted at template publication; token link index only; negative redirect tests | 5/10 |
 | TM-19 | Tracking correlates recipients without informed configuration | Independently off by default; opaque IDs; approximate reporting; minimized metadata; retention; no admin cookie | 10–12 |
 | TM-20 | Backup leaks private data or key, or restore corrupts suppression | Encryption; restrictive private path; manifest; plaintext key excluded; CLI preflight/staging/rollback; restore drill | 8 |
@@ -120,8 +120,8 @@ message does not prove inbox delivery.
 - Open events are approximate and must not be represented as proof that a human
   read a message.
 - A forwarded recipient link may allow the holder to exercise its scoped
-  action. The exact expiry/repeat policy is an open Phase 7 decision and must be
-  explained to operators.
+  action. Phase 7 bounds tokens to 365 days, treats repeats idempotently, and
+  documents that bearer/forwarding behavior for operators.
 - Suppression outlives ordinary delivery analytics. Retention cannot silently
   re-enable delivery.
 - Diagnostics, Doctor exports, screenshots, test snapshots, and incident
@@ -207,6 +207,21 @@ Residual Phase 5 risks are authorized administrator disclosure, denial of
 service within bounded authenticated import quotas, and local host compromise.
 Campaign snapshotting, final pre-send suppression, public tokens, and live
 delivery remain later phases and are not claimed here.
+
+## Phase 6–7 control status
+
+- Phase 6 closes the durable-delivery portion of TM-13–TM-16 with immutable
+  snapshots, unique ledgers, identifier-only jobs, immediate pre-transport
+  suppression, bounded retries, ambiguous terminal state, and redacted errors.
+- Phase 7 closes the MVP unsubscribe portion of TM-08, TM-13, TM-16, and TM-17.
+  Public routes are cookie-free and separate from admin authentication. Tokens
+  contain no address, are version/purpose/scope/expiry authenticated, and have
+  bounded key overlap and row retention. Manual and one-click mutations are
+  idempotent, rate-limited, generic, and immediately insert global suppression.
+- RFC 8058 advertising is disabled unless the Owner records provider DKIM
+  coverage. The application constructs the required headers but the external
+  provider produces the final signature; deployment verification remains an
+  explicit Phase 8 Doctor concern.
 
 Residual risk remains from distributed authentication abuse, database
 availability affecting sessions, stolen active browser authority before its

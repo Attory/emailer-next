@@ -1,6 +1,6 @@
 # Architecture
 
-**Status:** Phase 5 contacts, suppression, imports, and templates over the Phase 4 secure administration foundation; MVP release topology approved but unimplemented.
+**Status:** Phase 7 MVP recipient safety over durable Phase 6 campaign delivery; MVP operations/release tooling remains unimplemented.
 
 **Last reviewed:** 2026-08-22
 
@@ -18,7 +18,7 @@ administrative UI. A supervised CLI worker performs delivery through Symfony
 Messenger; an HTTP request can enqueue approved durable work but can never run
 the delivery worker.
 
-## Implemented through Phase 5
+## Implemented through Phase 7
 
 The repository implements the platform shell and secure setup boundary:
 
@@ -66,8 +66,20 @@ and decoded/re-encoded raster assets. Import candidates are staged in MariaDB
 so preview and commit remain bounded-memory; commit rechecks suppression inside
 its transaction. Full-address reveal/export requires Administrator authority,
 recent re-authentication, CSRF, and audit. Template syntax is non-evaluating and
-allowlisted. Campaigns, queueing, delivery workers, public recipient routes,
-live SMTP, backup/restore, release, and deployment remain unimplemented.
+allowlisted. At the Phase 5 boundary, campaigns, delivery, and public recipient
+routes remained unimplemented.
+
+Phase 6 adds immutable campaign approval snapshots, durable identifier-only
+Messenger jobs, a unique recipient ledger, supervised delivery, suppression
+checks immediately before transport, bounded retries/rate/concurrency/circuit
+state, honest progress, and scheduler/worker recovery. Phase 7 adds a dedicated
+cookie-free public firewall, authenticated versioned unsubscribe bearer tokens,
+manual confirmation and RFC 8058 POST handling, immediate idempotent global
+suppression, and mandatory per-message unsubscribe URLs. Token key material is
+random, encrypted through the secret vault, and separated by key version.
+One-click headers are snapshotted and emitted only after an Owner attests that
+the provider will DKIM-sign both unsubscribe headers; manual unsubscribe remains
+available without that attestation.
 
 ### Setup state transition
 
@@ -183,7 +195,9 @@ outcome is exposed to an operator rather than guessed.
 A public route accepts an opaque, purpose-scoped token. Verification checks
 authenticity, purpose, scope, key version, and expiry without an admin session
 or raw recipient data in the URL. Mutations are idempotent. Public endpoints do
-not start an admin session and emit only redacted telemetry.
+not start an admin session and emit only redacted telemetry. A forwarded
+unsubscribe link is bearer authority for only its frozen recipient/campaign
+scope and never displays that address.
 
 ## Storage boundaries
 

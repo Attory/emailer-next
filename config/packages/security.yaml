@@ -18,6 +18,9 @@ security:
         dev:
             pattern: ^/(?:_error|assets)/
             security: false
+        recipient:
+            pattern: ^/r/
+            security: false
         main:
             lazy: true
             provider: app_user_provider
@@ -29,6 +32,7 @@ security:
         - { path: '^/setup(?:/|$)', roles: PUBLIC_ACCESS }
         - { path: '^/login$', roles: PUBLIC_ACCESS }
         - { path: '^/password-reset(?:/|$)', roles: PUBLIC_ACCESS }
+        - { path: '^/r(?:/|$)', roles: PUBLIC_ACCESS }
         - { path: '^/admin(?:/|$)', roles: ROLE_AUDITOR }
 
 when@test:

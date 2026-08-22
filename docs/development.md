@@ -1,6 +1,6 @@
 # Development
 
-**Status:** Phase 5 executable content-administration baseline.
+**Status:** Phase 7 executable campaign-delivery and recipient-safety baseline.
 
 ## Clean-room rule
 
@@ -17,13 +17,14 @@ CI output, or build artifacts.
 
 ## Current state
 
-Phases 1–5 provide Symfony 7.4, a locked Composer project, Docker Compose services
+Phases 1–7 provide Symfony 7.4, a locked Composer project, Docker Compose services
 for the application/MariaDB/Mailpit, executable quality gates, coarse liveness,
 structured redaction, an inspected production-shaped artifact, and the bounded
 setup ownership/state flow, external-key crypto, individual identity/session
 administration, redacted audit, contacts/lists, private staged imports, global
-suppression, immutable sanitized templates, and safe raster assets. It has no
-campaign, delivery worker, public recipient action, or production sending.
+suppression, immutable sanitized templates, safe raster assets, durable campaign
+delivery, supervised workers, and public unsubscribe. It still has no MVP
+Doctor, backup/restore, package/update mechanism, or production release.
 
 ## Phase workflow
 

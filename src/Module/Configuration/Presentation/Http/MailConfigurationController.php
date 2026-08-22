@@ -33,7 +33,7 @@ final class MailConfigurationController extends AbstractController
         }
         $this->reauthentication->assertRecent($request->getSession(), 'mail_configuration');
         try {
-            $this->mail->configureSecureSmtp($this->actor(), $request->request->getString('host'), $request->request->getInt('port'), $request->request->getString('encryption'), $request->request->getString('username'), $request->request->getString('password'), $request->request->getString('sender_address'), $request->request->getString('sender_name'), $request->request->getString('reply_to'));
+            $this->mail->configureSecureSmtp($this->actor(), $request->request->getString('host'), $request->request->getInt('port'), $request->request->getString('encryption'), $request->request->getString('username'), $request->request->getString('password'), $request->request->getString('sender_address'), $request->request->getString('sender_name'), $request->request->getString('reply_to'), $request->request->getBoolean('one_click_dkim_confirmed'));
             $this->addFlash('success', 'Secure SMTP configuration updated. No provider connection was attempted.');
         } catch (\Throwable) {
             $this->addFlash('error', 'Mail configuration was not accepted.');

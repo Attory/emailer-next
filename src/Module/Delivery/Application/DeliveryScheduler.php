@@ -7,13 +7,14 @@ namespace App\Module\Delivery\Application;
 use App\Module\Audit\Application\Contract\AuditRecord;
 use App\Module\Audit\Application\Contract\AuditSink;
 use App\Module\Delivery\Application\Contract\CampaignDeliveryGateway;
+use App\Module\RecipientActions\Application\Contract\RecipientUnsubscribeLinks;
 use App\Shared\Identity;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Lock\LockFactory;
 
 final readonly class DeliveryScheduler
 {
-    public function __construct(private Connection $connection, private CampaignDeliveryGateway $gateway, private AuditSink $audit, private LockFactory $lockFactory)
+    public function __construct(private Connection $connection, private CampaignDeliveryGateway $gateway, private AuditSink $audit, private LockFactory $lockFactory, private RecipientUnsubscribeLinks $unsubscribeLinks)
     {
     }
 
@@ -28,6 +29,7 @@ final readonly class DeliveryScheduler
             $this->heartbeat($schedulerId);
             $this->recoverInterruptedClaims();
             $this->recoverInterruptedTests();
+            $this->unsubscribeLinks->purgeExpired();
             $due = $this->connection->fetchAllAssociative("SELECT id, operation_version FROM campaign WHERE state = 'scheduled' AND scheduled_at <= UTC_TIMESTAMP(6) ORDER BY scheduled_at LIMIT 100");
             $scheduled = 0;
             foreach ($due as $row) {

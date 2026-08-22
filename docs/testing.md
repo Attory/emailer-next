@@ -1,6 +1,6 @@
 # Testing
 
-**Status:** Phase 5 executable contact/import/suppression/template baseline over all Phase 1–4 coverage.
+**Status:** Phase 7 executable recipient-token/unsubscribe baseline over all Phase 1–6 coverage.
 
 The stable gate order and executable commands are in
 [quality-gates.md](quality-gates.md). Results are recorded in the phase report
@@ -98,6 +98,22 @@ data is accepted.
   metadata-stripping re-encoding, and random public filenames.
 - Exhaustive Phase 5 route registration, all-role read access, and CSRF/method
   rejection for every Phase 5 browser mutation.
+
+## Phase 6–7 coverage
+
+- Durable campaign snapshot/ledger materialization, concurrent uniqueness,
+  identifier-only jobs, worker restart/reconciliation, fake transport failure
+  classification, bounded retry/rate/concurrency/circuit behavior, pause/resume/
+  cancel races, immediate suppression, and accepted-versus-delivered language.
+- Recipient-token purpose/version/scope/expiry/tamper authentication, encrypted
+  key material, 365-day rotation overlap, replay/idempotency, forwarded-link
+  isolation, and bounded expired-row purge.
+- Cookie-free/no-store public GET confirmation, exact manual and RFC 8058 POST,
+  no redirect, HTTPS fail-closed handling, generic invalid/expired responses,
+  dedicated source/token limiting, no raw address in URLs/responses, and a
+  suppression-before-delivery claim test.
+- Message/body/header snapshots prove a manual URL is always generated and
+  `List-Unsubscribe-Post` appears only for the frozen provider-DKIM attestation.
 
 ## Phase 1 coverage
 

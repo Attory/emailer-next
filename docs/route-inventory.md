@@ -1,7 +1,7 @@
 # Route and command inventory
 
-**Status:** Phase 5 implementation inventory. Coarse liveness, secure first-run,
-identity/recovery, administration, contacts/imports/suppression, and template routes are implemented.
+**Status:** Phase 7 implementation inventory. Coarse liveness, secure first-run,
+administration/content/campaign routes, and cookie-free public unsubscribe are implemented.
 
 This inventory is the security review baseline. Every implemented route must be
 added here with method, authentication boundary, authorization rule, CSRF
@@ -26,13 +26,12 @@ CSRF unless it is a purpose-scoped public recipient action.
 | `GET /login` | Individual administrator login form | Anonymous only after lock | Generic response, no sensitive cache | 4 |
 | `POST /login` | Authenticate account | Anonymous only after lock | CSRF and account/source throttles | 4 |
 | `GET/POST /password-reset/*` | Request and consume reset token | Anonymous | Generic request result; random single-use token; throttled | 4 |
-| `GET /r/{token}/unsubscribe` | Minimal unsubscribe confirmation/status | Purpose-scoped token | No admin session; no existence disclosure | 7 |
-| `POST /r/{token}/unsubscribe` | Manual unsubscribe | Purpose-scoped token | Idempotent; form anti-abuse policy; no admin CSRF | 7 |
-| `POST /r/{token}/unsubscribe/one-click` | RFC 8058 one-click unsubscribe | Purpose-scoped token | Idempotent; no redirect, login, cookie, or admin CSRF | 7 |
-| `GET /r/{token}/view` | View the authorized message snapshot | Purpose-scoped token | No admin session; private-cache policy | 7 |
-| `GET /r/{token}/open.gif` | Optional approximate open event | Purpose-scoped token | No cookie; disabled means route is inert/not generated | 7 |
-| `GET /r/{token}/click/{link}` | Optional allowlisted click redirect | Purpose-scoped token | Target fixed at publication; no open redirect | 7 |
-| `GET/POST /r/{token}/rsvp` | Optional bounded response form | Purpose-scoped token | Idempotency/repeat policy; no admin session | 7 |
+| `GET /r/{token}/unsubscribe` | Minimal unsubscribe confirmation/status | Purpose-scoped token | No admin session/cookie; no address or existence disclosure | 7 |
+| `POST /r/{token}/unsubscribe` | Manual or RFC 8058 one-click unsubscribe | Purpose-scoped token | Exact bounded form; immediate idempotent global suppression; one-click never redirects or needs login/cookie/admin CSRF | 7 |
+| `GET /r/{token}/view` | View the authorized message snapshot | Purpose-scoped token | Planned; no admin session; private-cache policy | 10 |
+| `GET /r/{token}/open.gif` | Optional approximate open event | Purpose-scoped token | Planned; no cookie; disabled means route is inert/not generated | 10 |
+| `GET /r/{token}/click/{link}` | Optional allowlisted click redirect | Purpose-scoped token | Planned; target fixed at publication; no open redirect | 10 |
+| `GET/POST /r/{token}/rsvp` | Optional bounded response form | Purpose-scoped token | Planned; idempotency/repeat policy; no admin session | 11 |
 
 After installation lock, every `/setup` path returns 404. Public recipient
 responses never reveal a raw address, internal identifier, stack trace, secret,
@@ -69,6 +68,17 @@ Secrets are accepted only in POST bodies, never retained in session, never
 redisplayed, and mapped to generic failures. Mail testing is additionally
 restricted to local Mailpit. Completion is POST-only, lock-serialized,
 critical-preflight gated, and single-use.
+
+### Implemented Phase 7 recipient route
+
+`recipient_unsubscribe` accepts `GET` and `POST` at one HTTPS URL. GET validates
+the bearer token and shows a generic confirmation without mutation. Manual POST
+accepts only `confirm=unsubscribe`; RFC 8058 POST accepts only
+`List-Unsubscribe=One-Click`. Both are idempotent, immediately add global
+suppression, return without redirect, and require no cookie, login, admin
+session, or admin CSRF. A dedicated firewall ignores any supplied admin cookie.
+Per-source and per-token fixed windows use keyed identifiers. Every response is
+no-store and omits the address, token, internal IDs, and existence detail.
 
 ## Authenticated administration surface
 
@@ -120,8 +130,8 @@ backup, release, and other later rows below remain planned.
 | `POST /campaigns/*/resume` | Operator | Idempotent; eligible ledger rows only | 6 |
 | `POST /campaigns/*/cancel` | Operator | Idempotent; cannot retract accepted mail | 6 |
 | `GET /campaigns/*/progress` | Auditor | Counts from durable ledger, masked detail | 6 |
-| `GET /analytics/*` | Auditor | Aggregate/redacted; full data separately authorized | 7 |
-| `GET /rsvp/*`, `POST /rsvp/*/export` | Auditor / Administrator | Private values; export is authorized and neutralized | 7 |
+| `GET /analytics/*` | Auditor | Aggregate/redacted; full data separately authorized | 10 |
+| `GET /rsvp/*`, `POST /rsvp/*/export` | Auditor / Administrator | Private values; export is authorized and neutralized | 11 |
 | `GET /audit` | Auditor | Redacted append-only view; no edit/delete route | 4 |
 | `POST /doctor/run` | Administrator | On-demand checks only; no automatic repair | 8 |
 | `GET /doctor/export` | Auditor | Redacted report only | 8 |
