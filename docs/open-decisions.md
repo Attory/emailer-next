@@ -1,10 +1,10 @@
 # Open decisions
 
-**Status:** Phase 5 handoff
+**Status:** Phase 5 handoff with accepted MVP release train
 
-**Last reviewed:** 2026-07-23
+**Last reviewed:** 2026-08-22
 
-The core architecture in ADRs `0001`–`0010` is accepted. Phase 1 resolved its
+The core architecture in ADRs `0001`–`0011` is accepted. Phase 1 resolved its
 four bounded decisions:
 
 | ID | Resolution |
@@ -29,9 +29,10 @@ implementation evidence. None authorizes a weaker security outcome.
 | OD-09 | Resolved in Phase 5: maintained Symfony HTML Sanitizer with a strict custom allowlist; exact non-evaluating merge fields; URL fields only as complete approved link targets; context-aware render escaping and immutable content digests | Phase 5 | XSS, unsafe URL, merge-expression, attribute-context, header-injection, and synthetic-preview tests |
 | OD-10 | Delivery retry numbers, ambiguous-outcome workflow, circuit-breaker thresholds, and global/per-domain defaults | Phase 6 | Fake-provider fault tests; at-least-once wording; bounded operator-approved limits |
 | OD-11 | Public token representation, expiry/revocation, forwarding, and key-overlap policies | Phase 7 | Wrong-purpose/tamper/replay tests; no raw address; privacy explanation |
-| OD-12 | Tracking/RSVP policy defaults beyond “off,” and concrete data-retention periods | Phase 7/8 | Operator legal/privacy decision, minimization, dry-run retention tests |
-| OD-13 | Backup envelope/manifest format, passphrase KDF parameters, and optional external destination | Phase 8 | Independent recovery review, corruption/wrong-passphrase tests, key excluded |
-| OD-14 | License and supported-browser/accessibility matrix | Before public release | Dependency/license audit and operator product decision; WCAG-oriented acceptance evidence |
+| OD-12 | Tracking/RSVP policy defaults beyond “off,” and concrete data-retention periods | Phases 10–12 | Operator legal/privacy decision, minimization, dry-run retention tests |
+| OD-13 | Backup envelope/manifest format and passphrase KDF parameters; later external destination | Phase 8 / Phase 12 | Independent recovery review, corruption/wrong-passphrase tests, key excluded; destination failure/recovery evidence before automation |
+| OD-14 | License and supported-browser/accessibility matrix | Phase 13 | Dependency/license audit and operator product decision; WCAG-oriented acceptance evidence |
+| OD-15 | Release-signing key custody/distribution and the supported-version update window | Phase 8 design; locked before Phase 9 acceptance | Ed25519 private material remains external; public-key pin/rotation/recovery procedure; successful supported and rejected-unsupported update rehearsals |
 
 The operator must later supply deployment-specific values—base URL, proxy
 topology, filesystem paths, resource limits, sender identity, SMTP/provider

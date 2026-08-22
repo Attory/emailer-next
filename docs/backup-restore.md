@@ -1,6 +1,7 @@
 # Backup and restore
 
-**Status:** Design only; implementation and first restore drill are Phase 8.
+**Status:** Accepted MVP design; local backup/restore and the first restore drill
+are Phase 8. External destinations and automation are deferred to Phase 12.
 
 ## Backup scope
 
@@ -38,7 +39,9 @@ until a verified recovery package is recorded.
 3. Build from an explicit content allowlist.
 4. Encrypt, write manifest and digest, then verify by reading it back.
 5. Record redacted metadata and retention eligibility.
-6. Transfer externally only through a separately approved adapter/configuration.
+6. Transfer externally only through a separately approved adapter/configuration
+   implemented in Phase 12 or by an operator-controlled process outside the
+   application.
 
 ## Planned restore procedure
 
@@ -54,6 +57,8 @@ request and never prints decrypted contents or key material.
 
 Phase 8 must test corruption, wrong passphrase/key, partial data, incompatible
 version, insufficient space, interrupted restore, rollback, and preservation of
-suppression. Operators set RPO/RTO, backup frequency, retention, external
+suppression. It must also create and verify the encrypted pre-update backup used
+by the updater. Phase 12 adds approved external destinations and automated
+scheduling. Operators set RPO/RTO, backup frequency, retention, external
 destination, and drill interval outside Git after reviewing legal and business
 needs.

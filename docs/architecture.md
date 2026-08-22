@@ -1,8 +1,8 @@
 # Architecture
 
-**Status:** Phase 5 contacts, suppression, imports, and templates over the Phase 4 secure administration foundation.
+**Status:** Phase 5 contacts, suppression, imports, and templates over the Phase 4 secure administration foundation; MVP release topology approved but unimplemented.
 
-**Last reviewed:** 2026-08-15
+**Last reviewed:** 2026-08-22
 
 ## System context
 
@@ -212,12 +212,18 @@ Doctor must identify the selected profile, verify heartbeats, and block new
 production sends when its required execution mechanism is unavailable.
 
 Releases are immutable artifacts built from committed source and the lockfile.
-Writable state is external to the release. Phase 1 tests the artifact boundary
-but does not create a release. Deployment, release, and rollback remain explicit
-operator actions and are not implemented.
+Each semantic version occupies a new release directory; an atomically switched
+current-release pointer selects the active code. Client configuration, the
+external master key, private/writable state, and backups remain outside every
+release. A deterministic manifest, checksum, SPDX SBOM, and detached Ed25519
+signature bind package identity and compatibility. Only an explicit operator
+CLI may verify, quiesce, back up, migrate, switch, and health-check an update;
+there is no web or unattended update path. Phase 1 tests the artifact boundary,
+Phase 8 implements this topology, and Phase 9 rehearses the first MVP package.
+Deployment, publishing, and rollback remain explicit operator actions.
 
 ## Decision records
 
-The design is governed by accepted ADRs `0001` through `0010` in
+The design is governed by accepted ADRs `0001` through `0011` in
 [docs/adr](adr/). A change to an invariant requires a superseding ADR, updated
 threat model, route/data review where relevant, and passing quality gates.

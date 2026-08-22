@@ -1,6 +1,7 @@
 # Emailer Next — Master Product and Engineering Specification
 
-**Status:** Approved development baseline  
+**Status:** Approved development baseline with MVP release train
+
 **Product model:** One installation, one organisation, one server  
 **Development workspace name:** `emailer-next`  
 **Intended final repository:** `Attory/emailer-next` after the compromised repository is deleted  
@@ -85,6 +86,30 @@ Security, recoverability, and operator clarity are first-class product features.
 - Storing SMTP credentials in Git, `.env` committed files, source code, browser local storage, logs, or queue payloads.
 - Shared global administrator password.
 - Publicly callable send, queue, template-delete, backup, restore, or configuration endpoints.
+
+### 3.3 MVP 0.1 release boundary
+
+The first client-installable release is `0.1.0`, not Version 1. It requires the
+implemented Phase 1–5 foundation plus:
+
+- campaign drafting, audience snapshot, test send, approval, scheduling,
+  durable queue/ledger delivery, pause/resume/cancel, and honest progress;
+- externally configured production SMTP with fail-closed TLS/authentication
+  validation and a supervised worker or documented cron fallback;
+- manual and RFC 8058 one-click unsubscribe with immediate durable global
+  suppression;
+- critical sending-readiness Doctor gates;
+- encrypted backup, separate recovery-key package, CLI restore, and a passed
+  restore drill;
+- immutable signed package, clean-server installation, explicit CLI update,
+  migration, health verification, and rollback-or-restore rehearsal; and
+- the quality, security, privacy, documentation, accessibility, and bounded
+  load acceptance defined for Phase 9.
+
+View-in-browser, open/click tracking, RSVP, the complete Doctor/dashboard,
+configurable retention, external backup automation, and full Version 1
+hardening do not block `0.1.0`. They remain normative Version 1 requirements
+and are delivered as `0.2.0`–`1.0.0` update candidates in Phases 10–13.
 
 ---
 
@@ -1094,11 +1119,23 @@ For hosting without process supervision:
 - Build immutable artifact from committed source and lockfile.
 - Artifact allowlist contains only runtime files.
 - Exclude `.git`, tests, local environment files, docs not required at runtime, logs, backups, cache, fixtures, and development tools.
-- Generate checksum and software bill of materials.
-- Verify before deployment.
-- Maintenance-mode migrations.
-- Health checks.
-- Rollback procedure.
+- Generate a deterministic version/source/platform/schema manifest, checksum,
+  SPDX software bill of materials, and detached Ed25519 signature.
+- Keep signing private material outside source, CI output, package, and client
+  installation; verify with an operator-pinned public key before deployment.
+- Install each version into a new immutable release directory. Keep client
+  configuration, keys, private data, writable state, and backups outside it.
+- Perform update only through an explicit operator CLI: compatibility check,
+  maintenance lock, worker quiescence, encrypted verified backup, package
+  verification, forward migration, atomic current-release switch, and health
+  checks.
+- Permit a code-pointer rollback only when the package manifest proves schema
+  compatibility; otherwise restore the verified backup or apply a reviewed
+  forward fix.
+- Record a redacted install/update outcome without secrets, private paths, raw
+  recipient data, or package signing material.
+- Do not accept package upload, migration, release switching, or restore from
+  an HTTP route.
 - No unattended auto-update.
 
 ---
@@ -1278,7 +1315,24 @@ These limitations must be documented plainly.
 
 ---
 
-## 27. Definition of version-1 done
+## 27. Definitions of done
+
+### 27.1 Definition of MVP 0.1 done
+
+MVP `0.1.0` is complete only when:
+
+- all requirements in Section 3.3 are implemented;
+- a clean representative server install succeeds from the signed archive;
+- an update rehearsal verifies the package/update mechanism without relying on
+  an unverified or mutable release directory;
+- backup, restore, interrupted-update, incompatibility, and health-check
+  failure paths have passed;
+- all mandatory safety properties applicable to implemented MVP behavior pass;
+- `composer check`, CI, secret/private-data/history scans, and production
+  artifact exposure tests pass; and
+- no critical/high security finding or critical MVP Doctor finding remains.
+
+### 27.2 Definition of version-1 done
 
 Version 1 is complete only when:
 
@@ -1335,3 +1389,7 @@ Codex must implement this project in the bounded phases defined in `docs/spec/PH
 5. report migrations and manual operator actions;
 6. stop without starting the next phase;
 7. avoid commit, merge, push, release, deployment, external account changes, DNS changes, or production SMTP contact unless the operator explicitly authorizes that separate action.
+
+After the MVP boundary, every feature phase must also build and test a clean
+install candidate and an update candidate from the latest supported release,
+including incompatibility, interruption, and rollback-or-restore evidence.

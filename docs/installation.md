@@ -9,6 +9,12 @@ account management, MFA, recovery, redacted audit UI, contacts, lists, private
 imports, suppression, and immutable templates. It has no campaigns, delivery
 worker, backup engine, public recipient routes, or production sending.
 
+The approved plan makes Phase 9 the first client-installable `0.1.0` MVP after
+campaign delivery, unsubscribe, critical readiness gates, backup/restore, and
+signed package/update tooling are complete. Phases 10–13 then deliver optional
+features and deeper operations as tested installable updates. No current tree
+or planning document is itself a production package.
+
 ## Tested platform matrix
 
 The Phase 1 CI matrix is:

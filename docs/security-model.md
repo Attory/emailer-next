@@ -233,6 +233,14 @@ data scans, and artifact inspection before checksum/SBOM generation. Release
 artifacts are allowlisted and omit Git metadata, local environments,
 development tools, tests, private/runtime data, logs, backups, and fixtures.
 
+Starting with the MVP package tooling, a deterministic manifest binds semantic
+version, source, platform/schema compatibility, migrations, and file digests.
+A checksum, SPDX SBOM, and detached Ed25519 signature are verified against an
+operator-pinned public key before any migration or release-pointer change.
+Updates use new immutable directories, an exclusive maintenance lock, worker
+quiescence, a verified encrypted backup, an atomic switch, and fail-closed
+health checks. HTTP upload/update/restore and unattended update are prohibited.
+
 A likely credential, private key, or private-data finding blocks merge and
 release. Suppression of a scanner finding requires review showing it is a safe
 placeholder or false positive; a blanket path exclusion is prohibited.

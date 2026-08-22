@@ -276,6 +276,10 @@ Implement durable campaign sending.
 - Suppression check immediately before every send.
 - One message per recipient.
 - No raw PII or secrets in queue payload.
+- Production transport configuration and fail-closed TLS/authentication
+  validation, without contacting a live provider in development or CI.
+- Release-compatible worker quiescence and schema/version metadata needed by
+  the Phase 8 updater.
 
 ### Required tests/checks
 
@@ -293,15 +297,17 @@ Implement durable campaign sending.
 
 ### Stop condition
 
-Stop when fake-SMTP end-to-end sending is reliable and documented. Do not enable public tracking/recipient-action endpoints yet.
+Stop when fake-SMTP end-to-end sending is reliable and documented and the
+production transport can be configured through external secrets. Do not
+contact a production SMTP service or enable public recipient-action endpoints.
 
 ---
 
-## Phase 7 — Unsubscribe, tracking, view-in-browser, and RSVP
+## Phase 7 — MVP unsubscribe and recipient safety
 
 ### Objective
 
-Implement secure public recipient flows.
+Implement the public recipient flow required for a safe MVP release.
 
 ### Required work
 
@@ -309,11 +315,7 @@ Implement secure public recipient flows.
 - Manual unsubscribe.
 - RFC 8058 one-click unsubscribe.
 - Immediate idempotent global suppression.
-- View-in-browser token.
-- Open tracking and click tracking, independently disabled by default.
-- Safe redirect allowlist.
-- Optional RSVP module.
-- Rate limits and retention.
+- Token rate limits and bounded retention.
 - No raw email in URLs, logs, or metrics.
 - Correct generated headers.
 - Public routes isolated from admin sessions.
@@ -324,87 +326,230 @@ Implement secure public recipient flows.
 - Forwarded-link policy.
 - One-click POST without redirect.
 - No cookies required for unsubscribe.
-- Click open-redirect tests.
-- Tracking off means no tracking URLs/pixel.
-- Exactly one pixel when enabled.
-- RSVP input bounds and injection.
 - Suppression enforced after unsubscribe.
 - Snapshot generated messages and headers.
 
 ### Stop condition
 
-Stop after public recipient flows and privacy controls pass.
+Stop after unsubscribe and its privacy controls pass. Do not implement
+view-in-browser, open/click tracking, or RSVP.
 
 ---
 
-## Phase 8 — Configuration Doctor, backups, retention, and operations
+## Phase 8 — MVP operations, backup, and package/update tooling
 
 ### Objective
 
-Implement continuous self-checking and operational resilience.
+Make the campaign application safely installable, recoverable, and updateable
+on a client-managed server.
 
 ### Required work
 
-- Lightweight Doctor on login.
-- Full daily/on-demand Doctor.
-- All checks listed in master specification.
-- Sending gates for critical findings.
+- CLI/on-demand Doctor checks required to gate sending: application/schema
+  compatibility, external key, private/public paths, HTTPS/canonical URL,
+  trusted proxies, production SMTP TLS/authentication, sender identity,
+  suppression store, worker/scheduler heartbeat, disk/database, and backup
+  recency/recovery-key status.
+- Sending gates for every critical finding in that MVP set.
 - Redacted report export.
-- Structured operational dashboard.
 - Backup creation, encryption, manifest, verification.
 - Separate recovery-key package.
 - CLI restore with preflight and rollback.
-- Retention jobs and dry-run.
 - Worker/scheduler and backup health.
-- Upgrade/check commands.
-- Incident, backup, restore, deployment, and rollback runbooks.
+- CLI-only package inspect/install/update/check commands using immutable release
+  directories and an atomic current-release pointer.
+- Deterministic package manifest, checksum, SPDX SBOM, and detached Ed25519
+  signature verification against an operator-pinned public key.
+- Maintenance mode, worker quiescence, encrypted pre-update backup,
+  forward-only migrations, health verification, and compatibility-aware
+  rollback/restore handling.
+- Minimum housekeeping required to prevent unbounded temporary imports,
+  sessions, logs, and queue/dead-letter data.
+- Incident, backup, restore, installation, deployment, update, and rollback
+  runbooks.
+- No browser-uploaded package, HTTP-triggered update/migration/switch, or
+  unattended update path.
 
 ### Required tests/checks
 
-- Each Doctor finding and remediation.
+- Each MVP Doctor finding and remediation.
 - Sending blocked/unblocked correctly.
 - Public exposure probes.
 - Backup corruption and wrong passphrase.
 - Restore drill.
 - Suppression preserved.
-- Retention boundaries and reruns.
+- Package tamper, wrong signing key, incompatible version/schema, insufficient
+  disk, interrupted update, and failed health-check handling.
+- Clean install plus update from a representative previous package fixture.
+- Housekeeping boundaries and safe reruns.
 - Disk full, permission, and sink failure.
 - Report contains no secret or raw PII.
 
 ### Stop condition
 
-Stop when a clean local restore drill and full Doctor pass.
+Stop when clean install/update/restore drills pass locally and the MVP critical
+Doctor set can prove or block sending readiness. Do not publish a package.
 
 ---
 
-## Phase 9 — Release hardening and version-1 acceptance
+## Phase 9 — MVP 0.1.0 release acceptance
 
 ### Objective
 
-Close all version-1 requirements and produce a release candidate without deploying.
+Produce a client-installable MVP release candidate without deploying it.
 
 ### Required work
 
-- Full threat-model review.
-- Full route inventory.
+- Review all threats and routes implemented through Phase 8.
 - Dependency/version revalidation.
 - Remove development-only artifacts.
-- Complete docs.
+- Complete MVP installation, operation, backup, restore, update, and rollback
+  documentation.
 - CI matrix.
 - Security and privacy scans across full history.
-- Reproducible artifact.
-- SBOM and checksum.
-- Upgrade and rollback rehearsal.
+- Reproducible semantic-versioned `0.1.0` archive and deterministic manifest.
+- Checksum, SPDX SBOM, and detached signature.
+- Clean-server install rehearsal.
+- Signed release-candidate update and rollback/restore rehearsal.
 - Accessibility review.
 - Performance and load test within approved limits.
-- Version-1 acceptance checklist.
+- MVP acceptance checklist.
 - No TODO/FIXME in security-critical paths.
 - No unresolved critical/high finding.
 
 ### Required tests/checks
 
-Run the complete `composer check` and all mandatory safety properties in the master specification.
+Run the complete `composer check`, every safety property required by implemented
+MVP behavior, package verification, clean-install, update, restore, and
+representative deployment-profile tests.
 
 ### Stop condition
 
-Produce a release-candidate report. Do not deploy, push a release tag, rotate production credentials, configure DNS, or contact production SMTP without a separate explicit operator action.
+Produce the `0.1.0` release-candidate archive and report. Do not publish, tag,
+deploy, rotate production credentials, configure DNS, or contact production
+SMTP without a separate explicit operator action.
+
+---
+
+## Phase 10 — Update 0.2: view-in-browser and optional tracking
+
+### Objective
+
+Deliver privacy-preserving presentation and analytics as an installable update.
+
+### Required work
+
+- View-in-browser purpose-scoped token.
+- Open and click tracking independently disabled by default.
+- Safe redirect allowlist fixed at template publication.
+- Minimized analytics and bounded retention.
+- No raw email in URLs, logs, or metrics.
+- A package that updates a supported `0.1.x` installation.
+
+### Required tests/checks
+
+- Token purpose/tamper/expiry/replay and forwarding policy.
+- Open-redirect negatives.
+- Tracking disabled means no pixel or tracked URL; enabled means exactly one
+  pixel and only approved redirects.
+- Retention boundaries and privacy/redaction checks.
+- Clean install and `0.1.x` to `0.2.x` update, failure, and rollback/restore
+  rehearsals.
+
+### Stop condition
+
+Produce a reviewed `0.2.0` update candidate. Do not publish or deploy it.
+
+---
+
+## Phase 11 — Update 0.3: optional RSVP
+
+### Objective
+
+Deliver the optional RSVP module as an installable update.
+
+### Required work
+
+- Purpose-scoped RSVP tokens and bounded public input.
+- Explicit enablement and privacy/retention policy.
+- Authorized aggregate administration views.
+- A package that updates the latest supported `0.2.x` installation.
+
+### Required tests/checks
+
+- Token, authorization, CSRF-isolation, injection, size, concurrency, and
+  retention tests.
+- Clean install and supported-version update, failure, and rollback/restore
+  rehearsals.
+
+### Stop condition
+
+Produce a reviewed `0.3.0` update candidate. Do not publish or deploy it.
+
+---
+
+## Phase 12 — Update 0.4: full Doctor, retention, and advanced operations
+
+### Objective
+
+Complete the operational depth deferred from the MVP.
+
+### Required work
+
+- Lightweight Doctor on login and full daily/on-demand Doctor.
+- Every remaining check in the master specification.
+- Structured operational dashboard.
+- Full configurable retention jobs and dry-run reporting.
+- Approved external backup destinations and backup automation.
+- A package that updates the latest supported `0.3.x` installation.
+
+### Required tests/checks
+
+- Every remaining Doctor finding and remediation.
+- Retention idempotency and boundary tests.
+- Backup automation/destination failure and recovery tests.
+- Clean install and supported-version update, failure, and rollback/restore
+  rehearsals.
+
+### Stop condition
+
+Produce a reviewed `0.4.0` update candidate. Do not publish or deploy it.
+
+---
+
+## Phase 13 — Version-1 hardening and acceptance
+
+### Objective
+
+Close the complete master-specification Version 1 definition and produce a
+`1.0.0` release candidate without deploying it.
+
+### Required work
+
+- Full threat-model and route-inventory review.
+- Complete Version 1 documentation and acceptance checklist.
+- Reproducibility, license, accessibility, load, upgrade, rollback, restore,
+  security, and privacy acceptance across the supported release train.
+- No unresolved critical/high finding or critical Doctor result.
+
+### Required tests/checks
+
+Run the complete `composer check`, all mandatory safety properties, clean
+install, and every supported update path to `1.0.0`.
+
+### Stop condition
+
+Produce the `1.0.0` release-candidate archive and report. Do not publish, tag,
+deploy, or contact production services without a separate explicit operator
+action.
+
+---
+
+## Post-MVP package rule
+
+Every phase after Phase 9 must produce and test both a clean-install candidate
+and a signed update candidate from the latest supported released version. It
+must exercise tamper/incompatibility rejection, interrupted-update recovery,
+and the documented rollback-or-restore path. A completed development phase does
+not itself authorize tagging, publishing, installing on a client server, or
+contacting an external provider.

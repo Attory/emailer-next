@@ -8,6 +8,8 @@ silently contradict the master specification or an accepted ADR.
 **Current implementation boundary:** Phase 5 contacts, suppression, imports,
 and templates are implemented over secure setup and administration. Campaigns,
 workers, public recipient routes, and production delivery remain unimplemented.
+The approved roadmap targets a client-installable MVP at Phase 9, followed by
+installable feature/operations updates through Version 1 at Phase 13.
 
 ## Design and evidence
 
@@ -38,13 +40,13 @@ workers, public recipient routes, and production delivery remain unimplemented.
 | [Administrator guide](admin-guide.md) | Phase 5 contacts/imports/suppression/templates implemented |
 | [Operator runbook](operator-runbook.md) | Phase 5 content administration and local platform operations |
 | [Worker](worker.md) | Design only; Phase 6 |
-| [Backup and restore](backup-restore.md) | Design only; Phase 8 |
-| [Upgrade and rollback](upgrade-rollback.md) | Phase 1 migration baseline; operational tooling in Phase 8 |
+| [Backup and restore](backup-restore.md) | MVP design accepted; implementation and local drill in Phase 8 |
+| [Upgrade and rollback](upgrade-rollback.md) | MVP update contract accepted; tooling in Phase 8, first candidate in Phase 9 |
 | [Incident response](incident-response.md) | Baseline, including source/artifact/log exposure |
 | [Privacy and retention](privacy-retention.md) | Phase 5 data minimization; later analytics/retention automation planned |
 | [Development](development.md) | Phase 5 executable workflow |
 | [Testing](testing.md) | Phase 5 executable tests and isolation policy |
-| [Release](release.md) | Phase 1 artifact inspection only; no release mechanism |
+| [Release](release.md) | MVP release train accepted; no package mechanism implemented yet |
 
 Major decisions are under [docs/adr](adr/). Specifications under
 [docs/spec](spec/) are not implementation output and must not be weakened by

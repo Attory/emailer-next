@@ -99,16 +99,17 @@ message does not prove inbox delivery.
 | TM-13 | Race bypasses global suppression | Idempotent durable suppression; check on all entry points and immediately before transport; unavailable store blocks sending | 5–7 |
 | TM-14 | Queue replay/crash produces duplicate or dishonest delivery state | Unique ledger row; deterministic Message-ID; transactional transitions; bounded retry; ambiguous state; progress from ledger | 6 |
 | TM-15 | HTTP endpoint invokes worker or arbitrary send | Worker and restore are CLI-only; no route; route inventory and negative tests | 4/6/8 |
-| TM-16 | Queue/log/exception contains credential, full address, body, or token | Identifier-only messages; central redaction; safe exception mapping; output scans and snapshot tests | 1/3–9 |
+| TM-16 | Queue/log/exception contains credential, full address, body, or token | Identifier-only messages; central redaction; safe exception mapping; output scans and snapshot tests | 1 onward |
 | TM-17 | Tampered/wrong-purpose/forwarded token mutates another action | Opaque purpose/scope/key-version token; constant-time validation; expiry/repeat policy; idempotency; no raw address | 7 |
-| TM-18 | Click route becomes an open redirect | Target fixed and allowlisted at template publication; token link index only; negative redirect tests | 5/7 |
-| TM-19 | Tracking correlates recipients without informed configuration | Independently off by default; opaque IDs; approximate reporting; minimized metadata; retention; no admin cookie | 7–8 |
+| TM-18 | Click route becomes an open redirect | Target fixed and allowlisted at template publication; token link index only; negative redirect tests | 5/10 |
+| TM-19 | Tracking correlates recipients without informed configuration | Independently off by default; opaque IDs; approximate reporting; minimized metadata; retention; no admin cookie | 10–12 |
 | TM-20 | Backup leaks private data or key, or restore corrupts suppression | Encryption; restrictive private path; manifest; plaintext key excluded; CLI preflight/staging/rollback; restore drill | 8 |
 | TM-21 | Secret/PII enters Git, history, CI log, fixture, or artifact | Clean-room review; placeholder config; current/history scans; output redaction; artifact allowlist; merge/release gate | Every phase |
 | TM-22 | Tests or test mode contact live SMTP | Mailpit-only configuration; network denial/allowlist in CI; recipient rewrite; safety property test | 1 onward |
-| TM-23 | Dependency or build compromise changes release | Lockfile; audit; minimal packages; static/test gates; SBOM/checksum; immutable allowlisted artifact | 1/9 |
+| TM-23 | Dependency or build compromise changes release | Lockfile; audit; minimal packages; static/test gates; SBOM/checksum/signature; immutable allowlisted artifact | 1/8 onward |
 | TM-24 | Disk/database/log/provider outage corrupts campaign state | Transactions; bounded queues; circuit breaker; health gates; redacted fallback logging; backup/restore; operator-visible status | 6–8 |
 | TM-25 | Configuration Doctor becomes a secret oracle or auto-repair hazard | Redacted evidence; authorized detail; coarse public health; no automatic repair/DNS/account action | 8 |
+| TM-26 | Forged, downgraded, incompatible, or interrupted package update executes code or leaves an unsafe mixed release | Pinned signing key; deterministic manifest/digests; minimum-source/schema compatibility; immutable release directory; maintenance lock; verified backup; atomic switch; health gate; tested rollback/restore | 8 onward |
 
 ## Privacy abuse cases
 
@@ -136,8 +137,9 @@ Phase 1 supplies the first controls for the threats assigned to it:
 | TM-16 | JSON logging and a central processor redact sensitive keys, exception messages, address-like values, credential assignments, DSN user information, and controls | Identifier-only queue payloads and feature-specific safe exception mapping arrive with their owning phases |
 | TM-21 | Placeholder configuration, pinned Gitleaks current/full-history scans, private-key/private-data checks, artifact scanning, and no-value output | Every later phase must retain and extend these gates |
 | TM-22 | Test kernel Mailpit allowlist, negative DSN tests, loopback Mailpit integration, and CI internal-network egress denial | Delivery-specific fake-provider tests arrive in Phase 6 |
-| TM-23 | Locked dependencies, strict validation/audit, pinned build tools, static/tests, and allowlisted artifact | SBOM/checksum and release acceptance remain Phase 9 |
+| TM-23 | Locked dependencies, strict validation/audit, pinned build tools, static/tests, and allowlisted artifact | Manifest/SBOM/checksum/signature tooling remains Phase 8; first release acceptance is Phase 9 |
 | TM-25 | Public liveness returns only fixed coarse JSON without a session | Authenticated Doctor is Phase 8 |
+| TM-26 | Immutable runtime/writable separation is designed and artifact inputs are allowlisted | Signed package verification and interruption/compatibility rehearsals remain Phases 8–9 |
 
 The scaffold contains no business send command, queue message, worker, or
 arbitrary-send HTTP route. The Mailpit integration uses only reserved synthetic
