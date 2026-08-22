@@ -25,3 +25,11 @@ suppression:
 templates:
     resource: ../src/Module/Templates/Presentation/Http/
     type: attribute
+
+campaigns:
+    resource: ../src/Module/Campaigns/Presentation/Http/
+    type: attribute
+
+configuration:
+    resource: ../src/Module/Configuration/Presentation/Http/
+    type: attribute

@@ -228,6 +228,16 @@ final class Phase4AccessTest extends WebTestCase
             '/admin/templates/'.$user->id().'/archive',
             '/admin/templates/versions/'.$user->id().'/test',
             '/admin/templates/assets/upload',
+            '/admin/campaigns/create',
+            '/admin/campaigns/'.$user->id().'/review',
+            '/admin/campaigns/'.$user->id().'/test',
+            '/admin/campaigns/'.$user->id().'/approve',
+            '/admin/campaigns/'.$user->id().'/schedule',
+            '/admin/campaigns/'.$user->id().'/queue',
+            '/admin/campaigns/'.$user->id().'/pause',
+            '/admin/campaigns/'.$user->id().'/resume',
+            '/admin/campaigns/'.$user->id().'/cancel',
+            '/admin/settings/mail/update',
         ];
         foreach ($mutations as $path) {
             $client->request('POST', $path, server: $server);

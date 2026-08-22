@@ -1,0 +1,27 @@
+{% extends 'admin/layout.html.twig' %}
+{% block title %}Campaign · Emailer Next{% endblock %}
+{% block admin_body %}
+<p><a href="{{ path('admin_campaigns') }}">← Campaigns</a></p>
+<h1>{{ campaign.name }}</h1>
+<dl><dt>State</dt><dd>{{ campaign.state }}</dd><dt>Audience snapshot</dt><dd>{{ campaign.recipient_count }}</dd><dt>Approved</dt><dd>{{ campaign.approved_at|default('Not yet') }}</dd><dt>Scheduled</dt><dd>{{ campaign.scheduled_at|default('Not scheduled') }}</dd></dl>
+{% if campaign.latest_test %}<p>Latest test: {{ campaign.latest_test.state }}{% if campaign.latest_test.failure_class %} ({{ campaign.latest_test.failure_class }}){% endif %}</p>{% endif %}
+{% if is_granted('ROLE_OPERATOR') %}
+<div class="actions">
+{% if campaign.state in ['draft', 'review'] %}
+    <form method="post" action="{{ path('admin_campaign_test', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-test-' ~ campaign.id) }}"><button>Queue test send</button></form>
+{% endif %}
+{% if campaign.state == 'draft' %}<form method="post" action="{{ path('admin_campaign_review', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-review-' ~ campaign.id) }}"><button>Submit for review</button></form>{% endif %}
+{% if campaign.state == 'review' and is_granted('ROLE_ADMINISTRATOR') %}<p><a href="{{ path('admin_reauthenticate', {purpose: 'campaign_approval'}) }}">Re-authenticate before approval</a></p><form method="post" action="{{ path('admin_campaign_approve', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-approve-' ~ campaign.id) }}"><label><input type="checkbox" name="waive_test" value="1"> Audited test waiver</label><button>Approve snapshot</button></form>{% endif %}
+{% if campaign.state == 'approved' %}
+    <form method="post" action="{{ path('admin_campaign_queue', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-queue-' ~ campaign.id) }}"><button>Queue now</button></form>
+    <form method="post" action="{{ path('admin_campaign_schedule', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-schedule-' ~ campaign.id) }}"><label>Schedule <input type="datetime-local" name="scheduled_at" required></label><button>Schedule</button></form>
+{% endif %}
+{% if campaign.state in ['queueing', 'sending'] %}<form method="post" action="{{ path('admin_campaign_pause', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-pause-' ~ campaign.id) }}"><button>Pause</button></form>{% endif %}
+{% if campaign.state == 'paused' %}<form method="post" action="{{ path('admin_campaign_resume', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-resume-' ~ campaign.id) }}"><button>Resume</button></form>{% endif %}
+{% if campaign.state in ['approved', 'scheduled', 'queueing', 'sending', 'paused'] %}<form method="post" action="{{ path('admin_campaign_cancel', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-cancel-' ~ campaign.id) }}"><button>Cancel unclaimed deliveries</button></form>{% endif %}
+</div>
+{% endif %}
+<h2>Durable delivery progress</h2>
+<table><thead><tr><th>State</th><th>Count</th></tr></thead><tbody>{% for row in campaign.delivery_counts %}<tr><td>{{ row.state }}</td><td>{{ row.count }}</td></tr>{% else %}<tr><td colspan="2">No delivery ledger records yet.</td></tr>{% endfor %}</tbody></table>
+<p>“Accepted” means the configured SMTP transport accepted the message; it does not prove inbox placement.</p>
+{% endblock %}

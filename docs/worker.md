@@ -1,6 +1,6 @@
 # Delivery worker
 
-**Status:** Design only; setup detects CLI capability but implementation is Phase 6 and is required for the Phase 9 MVP.
+**Status:** Implemented in Phase 6; public recipient safety remains Phase 7 and the installable MVP remains Phase 9.
 
 The worker is a CLI-only Symfony Messenger consumer. No HTTP endpoint can start
 delivery. Campaign state survives browser closure and process restart because
@@ -19,10 +19,9 @@ A long-running worker under systemd or Supervisor:
 - routes exhausted failures to an observable dead-letter state;
 - never exposes credentials in command line, environment diagnostics, or logs.
 
-Phase 6 will provide reviewed unit files/configurations and tested commands.
-None exists through Phase 5. Setup records only whether `PHP_BINARY` and
-`bin/console` are available for the selected supervised/cron profile; it does
-not start a worker, create a heartbeat, route a message, or enable delivery.
+Phase 6 provides tested commands and reviewed service examples. Setup records
+whether `PHP_BINARY` and `bin/console` are available for the selected
+supervised/cron profile; it does not itself start a worker.
 
 ## Restricted cron profile
 
@@ -64,3 +63,90 @@ Doctor checks worker/scheduler heartbeat, queue age, stuck processing, dead
 letters, disk, transport/TLS, rate settings, and circuit state. Worker restart,
 concurrent claim, SIGTERM, database loss, provider failure, and ambiguous SMTP
 outcomes require fake-service tests before Phase 6 completes.
+# Phase 6 runtime commands
+
+The preferred production topology is one or more supervised Messenger workers
+plus one scheduler invocation per minute. Messenger messages contain only a
+ledger or test-delivery identifier and an operation version. The database is the
+source of truth; queued payloads never contain recipient addresses, template
+content, credentials, or profile data.
+
+```sh
+php bin/console messenger:consume async --keepalive=5 --time-limit=3600 --memory-limit=256M --failure-limit=10
+php bin/console emailer:scheduler:run
+```
+
+The worker handles one recipient per message. Run more processes only up to the
+configured concurrency limit. Delivery also enforces a database-backed global
+and per-domain rate window across all workers and campaigns. Five consecutive
+transport failures open a five-minute circuit. Transient failures use bounded
+exponential retry with deterministic jitter; permanent and ambiguous outcomes
+are recorded and dead-lettered. “Accepted” means SMTP transport acceptance, not
+inbox placement.
+
+Before maintenance, prevent new claims:
+
+```sh
+php bin/console emailer:delivery:quiesce
+```
+
+Keep the scheduler available for interrupted-claim recovery until
+`active_claims=0`, then stop the scheduler and supervised workers gracefully, perform the
+maintenance, verify the application expects delivery schema version `1`, then:
+
+```sh
+php bin/console emailer:delivery:resume
+```
+
+## systemd example
+
+```ini
+[Unit]
+Description=Emailer Next delivery worker
+After=network-online.target mariadb.service
+
+[Service]
+Type=simple
+User=emailer
+WorkingDirectory=/opt/emailer-next/current
+ExecStart=/usr/bin/php bin/console messenger:consume async --keepalive=5 --time-limit=3600 --memory-limit=256M --failure-limit=10
+Restart=always
+RestartSec=5
+KillSignal=SIGTERM
+TimeoutStopSec=120
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
+```
+
+## Supervisor example
+
+```ini
+[program:emailer-next-worker]
+directory=/opt/emailer-next/current
+command=/usr/bin/php bin/console messenger:consume async --keepalive=5 --time-limit=3600 --memory-limit=256M --failure-limit=10
+user=emailer
+numprocs=1
+autostart=true
+autorestart=true
+stopsignal=TERM
+stopwaitsecs=120
+redirect_stderr=true
+stdout_logfile=/var/log/emailer-next-worker.log
+```
+
+## Bounded cron fallback
+
+Cron fallback is intended for installations that cannot supervise a process.
+The lock-protected scheduler and consumer must both be bounded:
+
+```cron
+* * * * * emailer cd /opt/emailer-next/current && /usr/bin/php bin/console emailer:scheduler:run
+* * * * * emailer cd /opt/emailer-next/current && /usr/bin/php bin/console messenger:consume async --keepalive=5 --time-limit=50 --limit=100 --memory-limit=256M --failure-limit=10
+```
+
+Use an OS process supervisor where available. Do not invoke delivery from HTTP,
+do not run workers as root, and do not point development or CI at a live SMTP
+provider.

@@ -103,6 +103,15 @@ services:
     App\Module\Suppression\Application\Contract\SuppressionLookup: '@App\Module\Suppression\Application\SuppressionManager'
     App\Module\Contacts\Application\Contract\ImportStorage: '@App\Module\Contacts\Infrastructure\PrivateImportStorage'
     App\Module\Templates\Application\Contract\TemplateAssetStorage: '@App\Module\Templates\Infrastructure\TemplateAssetStore'
+    App\Module\Contacts\Application\Contract\AudienceProvider: '@App\Module\Contacts\Infrastructure\DoctrineAudienceProvider'
+    App\Module\Templates\Application\Contract\PublishedTemplateProvider: '@App\Module\Templates\Infrastructure\DoctrinePublishedTemplateProvider'
+    App\Module\Configuration\Application\Contract\DeliveryConfiguration: '@App\Module\Configuration\Infrastructure\DoctrineDeliveryConfiguration'
+    App\Module\Delivery\Application\Contract\CampaignDeliveryGateway: '@App\Module\Delivery\Infrastructure\DoctrineCampaignDeliveryGateway'
+    App\Module\Delivery\Application\Contract\DeliveryTransport: '@App\Module\Delivery\Infrastructure\SymfonySmtpDeliveryTransport'
+
+    App\Module\Delivery\Infrastructure\SymfonySmtpDeliveryTransport:
+        arguments:
+            $environment: '%kernel.environment%'
 
     App\Module\Contacts\Infrastructure\PrivateImportStorage:
         arguments:

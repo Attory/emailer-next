@@ -54,6 +54,19 @@ final class RoutePolicyRegistry
         'admin_template_preview' => ['role' => AdministrativeRole::Operator, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
         'admin_template_test' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
         'admin_template_asset_upload' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
+        'admin_campaigns' => ['role' => AdministrativeRole::Auditor, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
+        'admin_campaign' => ['role' => AdministrativeRole::Auditor, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
+        'admin_campaign_create' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
+        'admin_campaign_review' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
+        'admin_campaign_test' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
+        'admin_campaign_approve' => ['role' => AdministrativeRole::Administrator, 'methods' => ['POST'], 'sensitive' => true],
+        'admin_campaign_schedule' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
+        'admin_campaign_queue' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
+        'admin_campaign_pause' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
+        'admin_campaign_resume' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
+        'admin_campaign_cancel' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
+        'admin_mail_settings' => ['role' => AdministrativeRole::Administrator, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
+        'admin_mail_settings_update' => ['role' => AdministrativeRole::Owner, 'methods' => ['POST'], 'sensitive' => true],
     ];
 
     /** @return array{role: AdministrativeRole, methods: list<string>, sensitive: bool}|null */

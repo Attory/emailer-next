@@ -46,6 +46,11 @@ final class AuthenticatedUser implements UserInterface, PasswordAuthenticatedUse
         return $this->active;
     }
 
+    public function loginIdentifier(): string
+    {
+        return $this->getUserIdentifier();
+    }
+
     /** @return non-empty-string */
     public function getUserIdentifier(): string
     {
