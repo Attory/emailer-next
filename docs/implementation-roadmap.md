@@ -13,12 +13,33 @@ evidence; it does not authorize chaining phases.
 | 4 | Identity, admin shell, sessions and audit | Role model, admin route inventory, TM-06–TM-09 | Generated route-role/CSRF matrix, session tests, last-Owner invariant, audit redaction |
 | 5 | Contacts, suppression, imports and templates | Contacts/Templates boundaries, data classification, TM-10–TM-13 | Streaming/bounds/injection tests, safe assets and previews, no sending |
 | 6 | Campaign, ledger, queue, worker and delivery | ADR 0006/0007/0009, delivery flow/data model | Fake-SMTP end to end, concurrency/restart/race tests, honest durable progress |
-| 7 | Public recipient actions and optional tracking/RSVP | Public route inventory, recipient-token model, TM-17–TM-19 | Token/redirect/privacy tests, RFC 8058 behavior, suppression after unsubscribe |
-| 8 | Doctor, backups, restore, retention and operations | Health/Backup boundaries, TM-20/TM-24/TM-25 | Every sending gate, redacted report, clean restore drill, retention reruns |
-| 9 | Release hardening and v1 acceptance | Entire design and accumulated phase reports | Full aggregate check, mandatory safety properties, SBOM/checksum, accessibility/load review, RC report |
+| 7 | MVP unsubscribe and recipient safety | Public route inventory, recipient-token model, TM-13/TM-17 | Token/privacy tests, RFC 8058 behavior, immediate suppression |
+| 8 | MVP operations, backup, package/update tooling | ADR 0011, Health/Backup boundaries, TM-20/TM-23–TM-25 | Critical sending gates, signed immutable package, install/update/restore drills |
+| 9 | MVP `0.1.0` release acceptance | Implemented MVP design and Phase 1–8 reports | Reproducible signed archive, SBOM/checksum, clean install and update rehearsal, MVP RC report |
+| 10 | Update `0.2`: view-in-browser and optional tracking | Recipient tokens, privacy model, TM-18/TM-19 | Tracking-off proof, safe redirects, retention, tested `0.1.x` update |
+| 11 | Update `0.3`: optional RSVP | RecipientActions/Analytics boundaries | Token/input/privacy tests and tested supported-version update |
+| 12 | Update `0.4`: full Doctor, retention and advanced operations | Full Health/Backup requirements, TM-20/TM-24/TM-25 | Remaining Doctor checks, operational dashboard, retention and backup automation |
+| 13 | Version `1.0.0` hardening and acceptance | Entire design and accumulated phase reports | Full aggregate and safety gates, release-train upgrade matrix, v1 RC report |
 
-Phase 5 is the current implementation boundary. Phases 6–9 remain unstarted;
-this status statement does not authorize the next phase.
+Phase 5 is the current implementation boundary. Phases 6–13 remain unstarted;
+this status statement does not authorize the next phase. Phase 9 is the first
+client-installable MVP boundary; Phase 13 retains the complete Version 1
+definition.
+
+## Release train
+
+| Candidate | Owning phase | Client-visible increment | Required installation evidence |
+| --- | --- | --- | --- |
+| `0.1.0` MVP | 9 | Campaign sending, unsubscribe, critical readiness gates, backup/restore, package/update tooling | Clean-server install plus signed release-candidate update rehearsal |
+| `0.2.0` | 10 | View-in-browser and opt-in open/click tracking | Clean install and supported `0.1.x` update |
+| `0.3.0` | 11 | Optional RSVP | Clean install and supported `0.2.x` update |
+| `0.4.0` | 12 | Full Doctor, retention, operational dashboard, backup automation | Clean install and supported `0.3.x` update |
+| `1.0.0` | 13 | Complete master-specification Version 1 acceptance | Clean install and all supported release-train update paths |
+
+Every post-MVP phase delivers its feature set through the package/update
+contract established in Phase 8. Building an update candidate is part of phase
+acceptance; publishing or installing it remains a separately authorized
+operator action.
 
 ## Per-phase workflow
 

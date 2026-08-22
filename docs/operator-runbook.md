@@ -1,7 +1,8 @@
 # Operator runbook
 
 **Status:** Phase 5 content-administration/local-platform runbook; production
-delivery operations remain unimplemented.
+delivery operations remain unimplemented. The MVP release/update operating
+model is approved but has no executable tooling yet.
 
 ## Current repository state
 
@@ -15,6 +16,12 @@ individual accounts, secure authentication, server sessions, recovery, the
 admin shell, and audit. Phase 5 adds contacts, lists, private imports, durable
 suppression, immutable templates, and safe raster assets. There is no campaign,
 delivery worker, public recipient route, release, or deployment to operate.
+
+The approved delivery sequence is Phase 6 campaigns/worker, Phase 7 safe
+unsubscribe, Phase 8 critical operations plus signed package/update tooling,
+and Phase 9 client-installable `0.1.0` acceptance. Later phases must arrive as
+tested updates (`0.2.0`–`1.0.0`). This sequence is a plan, not authorization to
+install, publish, deploy, or contact a production provider.
 
 Before any work, confirm the repository path and clean status without opening
 credential files:
@@ -86,6 +93,11 @@ When implemented, operators will maintain:
 - CLI scheduler;
 - log rotation, disk monitoring, encrypted backups, and restore drills;
 - full daily/on-demand Doctor plus login-time cached checks.
+- immutable semantic-versioned release directories, an atomic current-release
+  pointer, and external client configuration/private state;
+- an explicit CLI-only signed update flow with maintenance lock, quiescence,
+  verified pre-update backup, migrations, health checks, and safe
+  rollback-or-restore behavior.
 
 Credentials are supplied outside source/history and never placed on process
 command lines. Doctor findings provide redacted evidence and exact remediation

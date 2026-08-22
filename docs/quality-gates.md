@@ -244,9 +244,16 @@ development dependencies/tools, and key material.
 Phase 1 inspection compares the exact top-level allowlist, scans content,
 rejects extra PHP entry points and public symlinks, starts the artifact on a
 loopback PHP server, verifies the exact liveness body, and probes prohibited
-paths for 404 responses. Representative Nginx and Apache profiles, checksum,
-SBOM, and release-candidate production verification remain later release
-hardening; the Phase 1 artifact is not published or deployed.
+paths for 404 responses. Representative Nginx and Apache profiles plus a
+deterministic manifest, checksum, SPDX SBOM, signature, and release-candidate
+production verification remain MVP release work in Phases 8–9; the Phase 1
+artifact is not published or deployed.
+
+After the Phase 9 MVP boundary, every phase gate must additionally build a
+clean-install candidate and update the latest supported released fixture. It
+must reject tampered, wrongly signed, downgraded, and schema-incompatible
+packages and exercise interrupted-update plus compatible rollback or verified
+restore behavior. These tests never publish or deploy the candidate.
 
 ## Gate ownership and exceptions
 

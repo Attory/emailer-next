@@ -1,6 +1,6 @@
 # Delivery worker
 
-**Status:** Design only; Phase 3 detects CLI capability but implementation is Phase 6.
+**Status:** Design only; setup detects CLI capability but implementation is Phase 6 and is required for the Phase 9 MVP.
 
 The worker is a CLI-only Symfony Messenger consumer. No HTTP endpoint can start
 delivery. Campaign state survives browser closure and process restart because
@@ -20,7 +20,7 @@ A long-running worker under systemd or Supervisor:
 - never exposes credentials in command line, environment diagnostics, or logs.
 
 Phase 6 will provide reviewed unit files/configurations and tested commands.
-None exists through Phase 3. Setup records only whether `PHP_BINARY` and
+None exists through Phase 5. Setup records only whether `PHP_BINARY` and
 `bin/console` are available for the selected supervised/cron profile; it does
 not start a worker, create a heartbeat, route a message, or enable delivery.
 
