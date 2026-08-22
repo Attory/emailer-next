@@ -15,11 +15,15 @@ RUN apt-get update \
         jq \
         libcurl4-openssl-dev \
         libicu-dev \
+        libjpeg62-turbo-dev \
         libonig-dev \
+        libpng-dev \
+        libwebp-dev \
         libzip-dev \
         ripgrep \
         unzip \
-    && docker-php-ext-install -j2 curl intl mbstring pdo_mysql zip \
+    && docker-php-ext-configure gd --with-jpeg --with-webp \
+    && docker-php-ext-install -j2 curl gd intl mbstring pdo_mysql zip \
     && curl --fail --silent --show-error --location \
         "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" \
         --output /tmp/gitleaks.tar.gz \

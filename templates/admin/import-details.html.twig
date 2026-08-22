@@ -1,0 +1,9 @@
+{% extends 'admin/layout.html.twig' %}
+{% block title %}Import preview — Emailer Next{% endblock %}
+{% block admin_body %}
+<h1>Import {{ import.id }}</h1><p>Status: {{ import.status }}; valid {{ import.valid_count }}, duplicate {{ import.duplicate_count }}, suppressed {{ import.suppressed_count }}, invalid {{ import.invalid_count }}, rejected {{ import.rejected_count }}.</p>
+{% if import.status != 'committed' %}<form method="post" action="{{ path('admin_import_preview', {id: import.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('import-preview-' ~ import.id) }}"><p>Enter zero-based column positions. Email is required; leave optional columns blank.</p>
+{% for field in ['email','display_name','first_name','last_name','locale','time_zone','consent_source'] %}<label>{{ field|replace({'_':' '})|title }} <input type="number" name="column_{{ field }}" min="0" max="31" {% if field == 'email' %}required value="0"{% endif %}></label>{% endfor %}<button type="submit">Build preview</button></form>{% endif %}
+{% if import.status in ['previewed','committed'] %}<p><a href="{{ path('admin_import_report', {id: import.id}) }}">Download private rejection report</a></p>{% endif %}
+{% if import.status == 'previewed' %}<form method="post" action="{{ path('admin_import_commit', {id: import.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('import-commit-' ~ import.id) }}"><button type="submit">Commit reviewed import</button></form>{% endif %}
+{% endblock %}

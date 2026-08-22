@@ -1,6 +1,6 @@
 # Threat model
 
-**Status:** Phase 4 identity, authorization, session, recovery, and audit controls reviewed.
+**Status:** Phase 5 contact/import/suppression/template controls reviewed.
 
 **Method:** Asset/trust-boundary review with STRIDE-style misuse cases and
 privacy-abuse review
@@ -182,7 +182,29 @@ addresses.
   responses.
 - TM-16/TM-21 audit events contain opaque IDs and bounded redacted summaries;
   application validation and database triggers make the store append-only.
-  Mail remains local Mailpit only and no Phase 5 data surface exists.
+  Mail remains local Mailpit only.
+
+## Phase 5 control status
+
+- Recipient data is masked in ordinary views; full reveal/export is
+  Administrator-only, recent-authenticated, CSRF-protected, formula-neutralized
+  where applicable, and audited without raw addresses.
+- CSV upload is private, random-named, size/row/column/field bounded, UTF-8 and
+  control validated, inode/integrity checked, database staged, and represented
+  in reports only by row number and safe reason. Commit rechecks suppression.
+- Suppression insertion and memberships are idempotent under uniqueness
+  constraints. No suppression removal or bypass path exists in Phase 5.
+- Templates use a maintained strict-allowlist sanitizer, non-evaluating exact
+  merge grammar, context-aware escaping, validated HTTPS/mailto links,
+  immutable version digests, and synthetic-only preview.
+- Uploaded images reject links and unapproved formats, are isolated in private
+  temporary storage, decoded with GD, dimension bounded, metadata-stripped by
+  re-encoding, and published only under random raster filenames.
+
+Residual Phase 5 risks are authorized administrator disclosure, denial of
+service within bounded authenticated import quotas, and local host compromise.
+Campaign snapshotting, final pre-send suppression, public tokens, and live
+delivery remain later phases and are not claimed here.
 
 Residual risk remains from distributed authentication abuse, database
 availability affecting sessions, stolen active browser authority before its

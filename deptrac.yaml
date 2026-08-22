@@ -10,6 +10,10 @@ deptrac:
       collectors:
         - type: classLike
           value: ^App\\Module\\[^\\]+\\Domain\\
+    - name: Shared
+      collectors:
+        - type: classLike
+          value: ^App\\Shared\\
     - name: Application
       collectors:
         - type: classLike
@@ -29,12 +33,15 @@ deptrac:
   ruleset:
     Kernel:
       - SharedInfrastructure
-    Domain: []
+    Domain:
+      - Shared
     Application:
       - Domain
+      - Shared
     ModuleInfrastructure:
       - Application
       - Domain
+      - Shared
     SharedInfrastructure: []
     Presentation:
       - Application

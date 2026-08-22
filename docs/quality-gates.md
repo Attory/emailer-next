@@ -1,6 +1,6 @@
 # CI and quality gates
 
-**Status:** Phase 3 implemented baseline.
+**Status:** Phase 5 implemented baseline.
 
 One aggregate command, `composer check`, runs every executable current quality
 gate. CI invokes the same version-pinned commands rather than maintaining a
@@ -59,6 +59,11 @@ It checks out full history without persisting credentials, starts only MariaDB
 and Mailpit, runs the aggregate gate, then repeats PHPUnit on an internal Docker
 network after proving a connection to `192.0.2.1:25` is impossible. CI has no
 release or deployment step.
+
+Phase 5 adds DOM/GD runtime requirements and the locked Symfony HTML Sanitizer
+dependency. The unchanged aggregate gate now also exercises contact/import,
+suppression, immutable template, sanitizer, asset, privacy, authorization, and
+CSRF safety properties; no live transport or Phase 6 worker is introduced.
 
 Gitleaks 8.30.1 is checksum-pinned. It scans all reachable commits and the
 current directory, including ignored/untracked dependencies, artifacts, and

@@ -13,3 +13,15 @@ identity:
 audit:
     resource: ../src/Module/Audit/Presentation/Http/
     type: attribute
+
+contacts:
+    resource: ../src/Module/Contacts/Presentation/Http/
+    type: attribute
+
+suppression:
+    resource: ../src/Module/Suppression/Presentation/Http/
+    type: attribute
+
+templates:
+    resource: ../src/Module/Templates/Presentation/Http/
+    type: attribute

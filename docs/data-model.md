@@ -1,14 +1,15 @@
 # Initial data model
 
-**Status:** Phase 4 identity/session/audit schema plus conceptual later-phase design.
+**Status:** Phase 5 contact/import/suppression/template schema plus conceptual later-phase design.
 
 `DoctrineMigrations\Version20260723000000` remains the no-schema platform
 smoke check. Phase 3 adds `Version20260815000000`, which creates only the
 secure first-run tables below, and `Version20260816000000`, which constrains
-the setup mail row to the exact local Mailpit probe. Later contact, campaign,
-delivery, session, health, backup, and full audit entities remain conceptual.
+the setup mail row to the exact local Mailpit probe. Phase 4 adds identity and
+audit; Phase 5 adds contact/import/suppression/template storage. Campaign,
+delivery, health, and backup entities remain conceptual.
 
-## Implemented through Phase 4
+## Implemented through Phase 5
 
 | Table | Owner | Enforced purpose |
 | --- | --- | --- |
@@ -25,6 +26,13 @@ delivery, session, health, backup, and full audit entities remain conceptual.
 | `login_throttle` | Identity | Purpose-HMAC login and re-authentication counters, progressive delay and bounded lockout timestamps |
 | `password_reset_token` | Identity | UUIDv7 selector, SHA-256 token hash, short expiry and consumption timestamp |
 | `audit_event` | Audit | Append-only actor/action/opaque target/result/redacted summary; database triggers reject update and delete |
+| `contact` | Contacts | Entered and conservative comparison address, bounded profile/consent fields, active/archive lifecycle |
+| `contact_field_definition` / `contact_attribute` | Contacts | Administrator-defined bounded schema and one validated value per contact/key |
+| `contact_list` / `list_membership` | Contacts | Archiveable named lists and idempotent unique contact/list membership |
+| `suppression` | Suppression | Durable add-only Phase 5 global address suppression with unique comparison value |
+| `contact_import` / `contact_import_candidate` | Contacts | Private upload integrity metadata, bounded preview counters/report token, and database-staged unique candidates |
+| `email_template` / `template_version` | Templates | Template lifecycle and immutable sanitized versions with merge/link manifests and content digests |
+| `template_asset` | Templates | Metadata for content-detected, dimension-bounded, re-encoded raster files |
 
 `Version20260817000000` expands `app_user` to all four administrative roles and
 adds change/login/disable timestamps while reusing the Phase 3 account and MFA
@@ -34,6 +42,10 @@ safe automated rollback.
 `Version20260818000000` preserves session tombstones when users are deleted,
 adds the last accepted TOTP counter, and admits dedicated re-authentication
 throttle scopes. It is also forward-only.
+
+`Version20260819000000` adds the Phase 5 tables above. It is forward-only
+because recipient, suppression, import provenance, and published-content state
+must not be silently discarded by automated rollback.
 
 MariaDB foreign keys protect Owner/MFA and encrypted-secret references. Check
 constraints protect singleton keys, initial roles/types, exact Phase 3 Mailpit
@@ -121,8 +133,7 @@ this document before their migration is accepted.
   claim and immediately before transport.
 - Secret rotation re-encrypts records transactionally and rolls back the whole
   operation on any authentication or write failure.
-- Audit append failure follows a defined fail-closed policy for sensitive
-  mutations; this policy must be finalized before Phase 4.
+- Audit append failure is transactionally fail-closed for sensitive mutations.
 - Timestamps are stored in UTC. Installation time zone is presentation and
   scheduling input only.
 - Soft deletion/archive is used where history, audit, campaign snapshots, or

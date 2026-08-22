@@ -1,19 +1,20 @@
 # Operator runbook
 
-**Status:** Phase 4 secure-administration/local-platform runbook; production
+**Status:** Phase 5 content-administration/local-platform runbook; production
 delivery operations remain unimplemented.
 
 ## Current repository state
 
-Phases 1–4 contain the Symfony scaffold, locked dependencies, local
+Phases 1–5 contain the Symfony scaffold, locked dependencies, local
 application/MariaDB/Mailpit Compose stack, one baseline migration, quality
 pipeline, coarse liveness, logging redaction, and an inspected
 production-shaped artifact, plus filesystem ownership proof and setup-state
 controls. Phase 3 creates the organisation, initial Owner, exact local Mailpit
 evidence, safe policy defaults, and permanent installation lock. Phase 4 adds
 individual accounts, secure authentication, server sessions, recovery, the
-admin shell, and audit. There is no contact/campaign/delivery worker, release,
-or deployment to operate.
+admin shell, and audit. Phase 5 adds contacts, lists, private imports, durable
+suppression, immutable templates, and safe raster assets. There is no campaign,
+delivery worker, public recipient route, release, or deployment to operate.
 
 Before any work, confirm the repository path and clean status without opening
 credential files:
@@ -199,3 +200,22 @@ are erased immediately; their HMAC tombstones remain for seven days beyond
 revocation before bounded garbage collection. Investigate repeated
 lockouts using redacted audit evidence; never ask for a password, MFA seed,
 recovery value, reset token, raw session ID, or full cookie.
+
+## Phase 5 content operations
+
+1. Apply `Version20260819000000` through the normal migration gate and verify
+   DOM/GD plus JPEG, PNG, and WebP support. Keep the import directory private.
+2. Treat CSV preview as a mandatory validation step. Reports contain only row
+   numbers and safe reasons; committed imports remove their source upload, and
+   unfinished uploads expire after two hours.
+3. Do not remove or bypass a suppression through the database. Phase 5 offers
+   an add-only administrative path and rechecks suppression at import commit.
+4. Full-address reveal/export is Administrator-only, requires recent
+   re-authentication and CSRF, and produces an audit event. Export files remain
+   private operational artifacts even though formula-leading cells are escaped.
+5. Template publication selects an immutable sanitized version. The test
+   action is fake-only and sends no mail. Uploaded images are content-detected,
+   dimension-bounded, decoded, and re-encoded before public placement.
+
+No Phase 5 action queues a campaign, starts a worker, calls a live provider, or
+creates a public recipient endpoint.

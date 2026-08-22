@@ -1,13 +1,13 @@
 # Installation
 
-**Status:** Phase 4 secure administration is implemented over the Phase 3
-MariaDB/Mailpit setup. Production deployment and production SMTP remain unavailable.
+**Status:** Phase 5 content administration is implemented over secure setup and identity. Production deployment and production SMTP remain unavailable.
 
 The current repository can create a completed installation with an
 external key, initial Owner, exact local Mailpit test evidence, sender identity,
 safe policies, irreversible lock, individual administrator login, session and
-account management, MFA, recovery, and redacted audit UI. It has no contacts,
-templates, campaigns, delivery worker, backup engine, or production sending.
+account management, MFA, recovery, redacted audit UI, contacts, lists, private
+imports, suppression, and immutable templates. It has no campaigns, delivery
+worker, backup engine, public recipient routes, or production sending.
 
 ## Tested platform matrix
 
@@ -158,6 +158,17 @@ and unsafe HTTP methods are rejected before credentials or session state are
 processed. HSTS is emitted only for requests Symfony has verified as secure. Password
 reset mail remains restricted to the persisted local Mailpit transport; Phase 4
 does not unlock or test a live provider.
+
+## Phase 5 content storage
+
+Apply forward-only `DoctrineMigrations\Version20260819000000` through the
+reviewed migration gate. The PHP runtime now requires DOM and GD with JPEG,
+PNG, and WebP support. `EMAILER_PRIVATE_DIR/imports` must remain private and
+non-public; template assets are the only uploaded files under `public/`, and
+only after MIME/dimension checks plus decoder re-encoding to a random raster
+filename. Do not place imports in `public/` or treat the fake template test as
+a production send. Phase 5 requires no SMTP/provider credential or external
+service.
 
 ## Future production prerequisites
 

@@ -1,6 +1,6 @@
 # Testing
 
-**Status:** Phase 4 executable identity, session, recovery, authorization, and audit baseline.
+**Status:** Phase 5 executable contact/import/suppression/template baseline over all Phase 1–4 coverage.
 
 The stable gate order and executable commands are in
 [quality-gates.md](quality-gates.md). Results are recorded in the phase report
@@ -83,6 +83,21 @@ data is accepted.
 - Real two-process final-Owner demotion, disabling, and deletion races.
 - Transactional MFA secret deletion with synthetic rollback proof.
 - Audit attribution/source redaction plus database-triggered update/delete rejection.
+
+## Phase 5 coverage
+
+- Conservative recipient comparison, masking, service/route role separation,
+  recent-auth full reveal/export, audit redaction, and CSV formula neutralization.
+- Headered/BOM and headerless imports, bounded row/column/field limits,
+  malformed content, semantic profile validation, file-integrity checks,
+  private safe reports, duplicate/suppression counts, commit-time suppression,
+  and bounded-memory database staging over a 5,000-row fixture.
+- Strict sanitizer/merge/link/header policy, context-aware synthetic rendering,
+  immutable versions and publication, and fake-only template tests.
+- Raster MIME/dimension/decoder checks, symlink rejection, private quarantine,
+  metadata-stripping re-encoding, and random public filenames.
+- Exhaustive Phase 5 route registration, all-role read access, and CSRF/method
+  rejection for every Phase 5 browser mutation.
 
 ## Phase 1 coverage
 

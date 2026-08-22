@@ -1,7 +1,6 @@
 # Administrator guide
 
-**Status:** Phase 4 identity and administration shell implemented; content and
-delivery workflows remain planned.
+**Status:** Phase 5 contact, import, suppression, and template administration implemented; campaign and delivery workflows remain planned.
 
 Emailer Next has one organisation per installation and individual
 administrator accounts. There is no self-registration, shared global password,
@@ -36,20 +35,30 @@ re-authentication.
 - Request password recovery without account disclosure. Development and CI
   delivery appears only in Mailpit; links expire after 30 minutes and work once.
 
-## Planned content and delivery workflows
+## Implemented Phase 5 content workflows
+
+- Operators manage masked contacts, bounded custom fields, lists, memberships,
+  private CSV preview/commit, durable global suppression, and immutable template
+  versions.
+- Administrators may reveal or export full addresses only after recent
+  re-authentication; those actions are CSRF protected and audited. Exported CSV
+  cells are neutralized against spreadsheet formulas.
+- Import reports identify only source row and safe reason. Suppressed addresses
+  are excluded again at commit. There is no Phase 5 suppression removal path.
+- Template HTML is sanitized with a strict allowlist. Merge fields are fixed,
+  non-evaluating tokens; previews use synthetic values, and the test action
+  validates through the fake-only path without sending mail.
+
+## Planned campaign and delivery workflows
 
 1. Review Configuration Doctor findings after login; red findings persist and
    may block new production sends.
-2. Manage contacts/lists through bounded private imports and global
-   suppression.
-3. Create and publish immutable template versions using allowlisted merge
-   fields and synthetic preview data.
-4. Draft a campaign, explicitly choose template/sender/audience, review
+2. Draft a campaign, explicitly choose template/sender/audience, review
    exclusions and tracking, run a marked test send, and obtain approval.
-5. Type confirmation to queue/schedule. Progress comes from the durable ledger.
-6. Pause, resume, or cancel idempotently; in-flight/accepted messages cannot be
+3. Type confirmation to queue/schedule. Progress comes from the durable ledger.
+4. Pause, resume, or cancel idempotently; in-flight/accepted messages cannot be
    retracted.
-7. Review masked reports and append-only audit evidence.
+5. Review masked reports and append-only audit evidence.
 
 “Accepted” means the configured transport accepted the message, not that it
 reached an inbox. Open events, if enabled, are approximate.
@@ -66,5 +75,4 @@ and zone, tracking/RSVP settings, sender identity, template version, and
 test-send status. Confirmation pages explain irreversible or externally visible
 effects.
 
-Later phases add the workflows above. Any screenshots must contain synthetic
-data only.
+Later phases add campaigns and delivery. Any screenshots must contain synthetic data only.

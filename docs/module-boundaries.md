@@ -1,6 +1,6 @@
 # Module boundaries and dependency rules
 
-**Status:** Phase 3 rules with executable enforcement.
+**Status:** Phase 5 rules with executable enforcement.
 
 The application is a modular monolith. A module owns its rules, tables,
 repositories, application services, and presentation adapters. Ownership is a
@@ -113,3 +113,10 @@ Phase 3 implements narrow contracts for `Setup` orchestration to consume
 remain in the owning module; cross-module imports target only
 `Application\Contract`. The completion event remains Setup-owned and fixed in
 shape so Phase 3 does not introduce the general Phase 4 Audit module.
+
+Phase 5 implements `Contacts`, `Suppression`, and `Templates`. Contacts consumes
+only the suppression lookup contract; filesystem import and asset stores
+implement application-owned primitive contracts. Controllers call application
+services. Shared conservative email handling and UUIDv7/UTC generation are
+stable technical primitives under `App\Shared`; the static gates report no
+cross-layer or cross-module violation.

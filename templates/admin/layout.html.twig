@@ -8,6 +8,13 @@
         <a href="{{ path('admin_sessions') }}">Sessions</a>
         <a href="{{ path('admin_mfa') }}">MFA</a>
         {% if is_granted('ROLE_ADMINISTRATOR') %}<a href="{{ path('admin_users') }}">Users</a>{% endif %}
+        {% if is_granted('ROLE_OPERATOR') %}
+            <a href="{{ path('admin_contacts') }}">Contacts</a>
+            <a href="{{ path('admin_lists') }}">Lists</a>
+            <a href="{{ path('admin_imports') }}">Imports</a>
+            <a href="{{ path('admin_suppressions') }}">Suppressions</a>
+            <a href="{{ path('admin_templates') }}">Templates</a>
+        {% endif %}
         <a href="{{ path('admin_audit') }}">Audit</a>
         <form method="post" action="{{ path('admin_logout') }}">
             <input type="hidden" name="_token" value="{{ csrf_token('admin-logout') }}">

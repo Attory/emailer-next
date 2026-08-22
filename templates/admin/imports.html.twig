@@ -1,0 +1,10 @@
+{% extends 'admin/layout.html.twig' %}
+{% block title %}Imports — Emailer Next{% endblock %}
+{% block admin_body %}
+<h1>Private CSV import</h1><p>Maximum 10 MiB, 50,000 rows, 32 columns, and 500 bytes per field. Files expire after two hours.</p>
+<form method="post" enctype="multipart/form-data" action="{{ path('admin_import_upload') }}">
+<input type="hidden" name="_token" value="{{ csrf_token('import-upload') }}">
+<label>List <select name="list_id" required>{% for list in lists %}<option value="{{ list.id }}">{{ list.name }}</option>{% endfor %}</select></label>
+<label>Mode <select name="mode"><option value="headered">Headered</option><option value="headerless">Headerless</option></select></label>
+<label>CSV <input type="file" name="csv_file" accept="text/csv,.csv" required></label><button type="submit">Upload privately</button>
+</form>{% endblock %}

@@ -1,0 +1,38 @@
+{% extends 'admin/layout.html.twig' %}
+{% block title %}Contacts — Emailer Next{% endblock %}
+{% block admin_body %}
+<h1>Contacts</h1>
+<p>Addresses remain masked in ordinary views. Suppression is global.</p>
+<form method="post" action="{{ path('admin_contact_create') }}">
+    <input type="hidden" name="_token" value="{{ csrf_token('contact-create') }}">
+    <label>Email <input type="email" name="email" maxlength="254" required></label>
+    <label>Display name <input name="display_name" maxlength="160"></label>
+    <label>First name <input name="first_name" maxlength="100"></label>
+    <label>Last name <input name="last_name" maxlength="100"></label>
+    <label>Locale <input name="locale" maxlength="20"></label>
+    <label>Time zone <input name="time_zone" maxlength="64"></label>
+    <label>Consent source <input name="consent_source" maxlength="120" value="manual" required></label>
+    {% for field in fields %}<label>{{ field.label }} <input name="attribute_{{ field.field_key }}" maxlength="{{ field.max_length ?: 500 }}"></label>{% endfor %}
+    <button type="submit">Create contact</button>
+</form>
+<table><thead><tr><th>Address</th><th>Name</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+{% for contact in contacts %}<tr><td>{{ contact.email_display }}</td><td>{{ contact.display_name ?: contact.first_name }}</td><td>{{ contact.suppressed ? 'Suppressed' : 'Eligible data' }}</td><td>
+    {% if is_granted('ROLE_ADMINISTRATOR') %}<form method="post" action="{{ path('admin_contact_reveal', {id: contact.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('contact-reveal-' ~ contact.id) }}"><button type="submit">Reveal full address</button></form>{% endif %}
+    <form method="post" action="{{ path('admin_contact_archive', {id: contact.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('contact-archive-' ~ contact.id) }}"><button type="submit">Archive</button></form>
+</td></tr>{% else %}<tr><td colspan="4">No contacts.</td></tr>{% endfor %}
+</tbody></table>
+{% if is_granted('ROLE_ADMINISTRATOR') %}
+<p><a href="{{ path('admin_reauthenticate', {purpose: 'contact_data_access'}) }}">Re-authenticate to reveal or export full addresses</a></p>
+<h2>Custom-field schema</h2>
+<ul>{% for field in fields %}<li><code>{{ field.field_key }}</code>: {{ field.label }} ({{ field.field_type }})</li>{% else %}<li>No custom fields.</li>{% endfor %}</ul>
+<form method="post" action="{{ path('admin_contact_field_create') }}">
+    <input type="hidden" name="_token" value="{{ csrf_token('contact-field-create') }}">
+    <label>Key <input name="field_key" pattern="[a-z][a-z0-9_]{1,47}" required></label>
+    <label>Label <input name="label" maxlength="100" required></label>
+    <label>Type <select name="field_type"><option>text</option><option>integer</option><option>boolean</option><option>date</option></select></label>
+    <label>Text maximum <input type="number" name="max_length" min="1" max="500" value="160"></label>
+    <button type="submit">Create field</button>
+</form>
+<form method="post" action="{{ path('admin_contact_export') }}"><input type="hidden" name="_token" value="{{ csrf_token('contact-export') }}"><button type="submit">Export full contact CSV</button></form>
+{% endif %}
+{% endblock %}
