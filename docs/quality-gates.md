@@ -80,8 +80,8 @@ matrix. The artifact remains production-shaped; no package is published.
 Phase 9 adds syntax and behavioral checks for every candidate tool, two-build
 byte-for-byte reproducibility, SPDX license metadata, exact source/version and
 pinned-key verification, a real immutable clean install, the signed RC update
-and rollback/restore matrix, server-rendered accessibility assertions, and the
-bounded 2,000-recipient reference load profile. The CI matrix covers PHP
+and rollback/restore matrix, static Twig/CSS structural accessibility checks,
+and the bounded 2,000-recipient reference load profile. The CI matrix covers PHP
 8.4.24/8.5.9 and MariaDB 10.11.18/11.8.8. CI still cannot sign with or expose an
 operator release key and never publishes a package.
 

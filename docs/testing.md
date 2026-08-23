@@ -35,8 +35,9 @@ data is accepted.
   worker concurrency, and backup/restore.
 - Functional HTTP tests for route authorization, CSRF, caching, headers,
   setup/public/admin isolation, and generic errors.
-- Browser accessibility/workflow tests for setup, identity, imports, campaigns,
-  and Doctor.
+- Static structural accessibility checks cover implemented setup, identity,
+  import, campaign, and Doctor templates. Browser, assistive-technology,
+  tab-order, and contrast testing require separately recorded evidence.
 - Property/fuzz tests for CSV, merge/token parsing, URLs, and malformed input.
 - Deployment tests for Nginx/Apache public exposure and immutable artifact
   allowlist.
