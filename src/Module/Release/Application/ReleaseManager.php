@@ -6,12 +6,13 @@ namespace App\Module\Release\Application;
 
 use App\Module\Backup\Application\Contract\BackupOperations;
 use App\Shared\Identity;
+use App\Shared\MaintenanceOperationLock;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Lock\LockFactory;
 
 final readonly class ReleaseManager
 {
-    public function __construct(private PackageInspector $inspector, private BackupOperations $backups, private Connection $connection, private LockFactory $locks, private string $releasesDirectory, private string $currentVersion, private int $rollbackReserveBytes = 536870912)
+    public function __construct(private PackageInspector $inspector, private BackupOperations $backups, private Connection $connection, private LockFactory $locks, private MaintenanceOperationLock $maintenance, private string $releasesDirectory, private string $currentVersion, private int $rollbackReserveBytes = 536870912)
     {
     }
 
@@ -84,6 +85,16 @@ final readonly class ReleaseManager
 
     public function update(string $archive): void
     {
+        $this->maintenance->acquire();
+        try {
+            $this->updateWithLock($archive);
+        } finally {
+            $this->maintenance->release();
+        }
+    }
+
+    private function updateWithLock(string $archive): void
+    {
         $lock = $this->locks->createLock('emailer-release-update', 900.0);
         if (!$lock->acquire()) {
             throw new \RuntimeException('Another release operation is active.');
@@ -128,7 +139,6 @@ final readonly class ReleaseManager
             $pointerSwitched = true;
             $this->runConsole($target, ['emailer:doctor:run', '--json', '--maintenance-verification'], [0, 1]);
             $this->connection->update('release_operation', ['status' => 'succeeded', 'detail_code' => 'health_passed', 'finished_at' => Identity::now()], ['id' => $operationId]);
-            $this->connection->executeStatement("UPDATE delivery_runtime SET accepting_work = 1, updated_at = ? WHERE singleton_key = '1'", [Identity::now()]);
         } catch (\Throwable $exception) {
             if (null !== $safety) {
                 try {

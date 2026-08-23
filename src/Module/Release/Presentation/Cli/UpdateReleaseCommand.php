@@ -37,7 +37,7 @@ final class UpdateReleaseCommand extends Command
             return Command::INVALID;
         }
         $this->releases->update($package);
-        $output->writeln('<info>Update completed and passed Doctor.</info>');
+        $output->writeln('<info>Update completed and passed maintenance Doctor. Delivery remains quiesced; restart supervised worker/scheduler services, then run emailer:delivery:resume.</info>');
 
         return Command::SUCCESS;
     }

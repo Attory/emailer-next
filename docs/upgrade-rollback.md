@@ -47,9 +47,13 @@ this phase.
 4. Create/verify a pre-upgrade backup.
 5. Install into a new immutable release directory.
 6. Run reviewed maintenance-mode migrations.
-7. Switch the release pointer, clear/warm safe cache, and start services.
-8. Run coarse and authenticated health/Doctor checks.
-9. Observe queue/worker/scheduler/error state before ending maintenance.
+7. Switch the release pointer and run the maintenance-aware Doctor while
+   delivery remains quiesced.
+8. Restart the supervised worker and scheduler units so no long-lived process
+   retains old release code.
+9. Run Doctor again, then use `emailer:delivery:resume`; it rechecks every
+   critical finding before changing `accepting_work`.
+10. Observe queue/worker/scheduler/error state before ending maintenance.
 
 Client configuration, the external master key, private data, writable runtime
 state, and backups remain outside every immutable release directory. The
@@ -59,9 +63,12 @@ metadata.
 Use `emailer:release:inspect <package>` for non-mutating verification and
 `emailer:release:install <package>` to populate a new immutable directory
 without switching. Interactive `emailer:release:update <package>` runs the
-complete maintenance flow. `emailer:release:check` emits only redacted version,
-schema, and pointer-presence evidence. No HTTP route accepts a package or
-triggers migration/switching.
+verified backup/migration/switch/maintenance-Doctor flow and intentionally
+leaves delivery quiesced. Restart `emailer-worker.service` and
+`emailer-scheduler.service`, then run `emailer:delivery:resume` to perform the
+final fail-closed readiness check. `emailer:release:check` emits only redacted
+version, schema, and pointer-presence evidence. No HTTP route accepts a package
+or triggers migration/switching.
 
 `EMAILER_RELEASE_PUBLIC_KEY_FILE` pins the externally provisioned Ed25519 public
 key and `EMAILER_RELEASES_DIR` holds semantic-version directories plus the

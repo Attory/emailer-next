@@ -22,6 +22,10 @@
 - Streaming versioned module-contributor backups cover application tables and
   approved template assets. Sodium secretstream encryption authenticates every
   chunk and final boundary; a manifest binds every entry and version.
+- A process-reentrant installation-wide mutex excludes backup, restore,
+  housekeeping, update, and readiness-checked resume races while allowing the
+  updater's nested safety-backup/restore calls. Scheduler recovery still runs
+  under unrelated critical findings but not after maintenance quiescence.
 - CLI verification/restore enforces private single-file paths, maintenance and
   zero active claims, full preflight, verified pre-restore backup, compensating
   rollback, suppression preservation, asset restore, and post-restore
@@ -35,9 +39,10 @@
   incompatible source/PHP, and malformed metadata before extraction.
 - CLI install/update uses immutable version directories, disk reserve, a
   non-overlap lock, delivery quiescence/drain, verified backup, forward
-  migration, atomic `current` pointer, maintenance-aware Doctor, and only an
-  explicitly reviewed backward-compatible pointer rollback. Packages declaring
-  an incompatible transition are inspection/clean-install-only.
+  migration, atomic `current` pointer, maintenance-aware Doctor, post-update
+  quiescence for supervised process restart and explicit readiness-checked
+  resume, and only an explicitly reviewed backward-compatible pointer rollback.
+  Packages declaring an incompatible transition are inspection/clean-install-only.
 - Bounded idempotent housekeeping covers expired import files, old revoked
   sessions, delivered queue rows, 90-day dead-letter rows, and old Doctor
   evidence in batches of 200. Log rotation is host-owned because application
@@ -68,7 +73,7 @@
 - PHP-CS-Fixer: passed.
 - PHPStan maximum level, Deptrac, custom module boundaries, and package-builder
   syntax: passed.
-- PHPUnit: 160 tests, 2,066 assertions, passed (all Phase 1–7 regressions plus
+- PHPUnit: 163 tests, 2,075 assertions, passed (all Phase 1–7 regressions plus
   Phase 8 Doctor, backup/restore, recovery, package, housekeeping, route/role,
   method, and CSRF coverage).
 - Local signed-package double build was byte-identical for archive, manifest,

@@ -28,10 +28,13 @@ final readonly class DeliveryScheduler
         }
         try {
             $this->heartbeat($schedulerId);
-            $this->sendingGate->assertReady();
+            if (!$this->acceptingWork()) {
+                $this->sendingGate->assertReady();
+            }
             $this->recoverInterruptedClaims();
             $this->recoverInterruptedTests();
             $this->unsubscribeLinks->purgeExpired();
+            $this->sendingGate->assertReady();
             $due = $this->connection->fetchAllAssociative("SELECT id, operation_version FROM campaign WHERE state = 'scheduled' AND scheduled_at <= UTC_TIMESTAMP(6) ORDER BY scheduled_at LIMIT 100");
             $scheduled = 0;
             foreach ($due as $row) {
@@ -102,5 +105,10 @@ final readonly class DeliveryScheduler
         }
 
         return (int) $value;
+    }
+
+    private function acceptingWork(): bool
+    {
+        return 1 === $this->intValue($this->connection->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key = '1'"));
     }
 }

@@ -8,6 +8,7 @@ use App\Module\Backup\Application\Contract\BackupContributor;
 use App\Module\Backup\Application\Contract\BackupOperations;
 use App\Module\Secrets\Application\Contract\MasterKey;
 use App\Shared\Identity;
+use App\Shared\MaintenanceOperationLock;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Lock\LockFactory;
 
@@ -17,12 +18,23 @@ final readonly class BackupEngine implements BackupOperations
     private const CHUNK = 65536;
 
     /** @param iterable<BackupContributor> $contributors */
-    public function __construct(private Connection $connection, private MasterKey $masterKey, private LockFactory $locks, private iterable $contributors, private string $backupDirectory, private string $sourceVersion)
+    public function __construct(private Connection $connection, private MasterKey $masterKey, private LockFactory $locks, private MaintenanceOperationLock $maintenance, private iterable $contributors, private string $backupDirectory, private string $sourceVersion)
     {
     }
 
     /** @return array{id: string, path: string, sha256: string, bytes: int} */
     public function create(): array
+    {
+        $this->maintenance->acquire();
+        try {
+            return $this->createWithLock();
+        } finally {
+            $this->maintenance->release();
+        }
+    }
+
+    /** @return array{id: string, path: string, sha256: string, bytes: int} */
+    private function createWithLock(): array
     {
         $lock = $this->locks->createLock('emailer-backup-create', 3600.0);
         if (!$lock->acquire()) {
@@ -157,6 +169,16 @@ final readonly class BackupEngine implements BackupOperations
     }
 
     public function restore(string $path): void
+    {
+        $this->maintenance->acquire();
+        try {
+            $this->restoreWithLock($path);
+        } finally {
+            $this->maintenance->release();
+        }
+    }
+
+    private function restoreWithLock(string $path): void
     {
         $lock = $this->locks->createLock('emailer-backup-restore', 3600.0);
         if (!$lock->acquire()) {

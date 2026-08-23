@@ -6,6 +6,7 @@ namespace App\Module\Housekeeping\Application;
 
 use App\Module\Contacts\Application\Contract\ImportStorage;
 use App\Shared\Identity;
+use App\Shared\MaintenanceOperationLock;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Lock\LockFactory;
 
@@ -13,12 +14,23 @@ final readonly class Housekeeper
 {
     private const BATCH = 200;
 
-    public function __construct(private Connection $connection, private ImportStorage $imports, private LockFactory $locks)
+    public function __construct(private Connection $connection, private ImportStorage $imports, private LockFactory $locks, private MaintenanceOperationLock $maintenance)
     {
     }
 
     /** @return array{imports: int, sessions: int, queue: int, dead_letter: int, health: int} */
     public function run(bool $dryRun): array
+    {
+        $this->maintenance->acquire();
+        try {
+            return $this->runWithLock($dryRun);
+        } finally {
+            $this->maintenance->release();
+        }
+    }
+
+    /** @return array{imports: int, sessions: int, queue: int, dead_letter: int, health: int} */
+    private function runWithLock(bool $dryRun): array
     {
         $lock = $this->locks->createLock('emailer-housekeeping', 300.0);
         if (!$lock->acquire()) {

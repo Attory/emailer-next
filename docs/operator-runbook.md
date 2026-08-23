@@ -279,3 +279,8 @@ creates a public recipient endpoint.
    quiesces, creates a verified backup, installs immutably, migrates, switches
    atomically, and runs Doctor. Failure remains in maintenance and uses only
    compatible pointer rollback or verified restore.
+7. After `emailer:release:update` succeeds, delivery is still quiesced. Restart
+   `emailer-worker.service` and `emailer-scheduler.service` so every process
+   loads the new immutable release, rerun Doctor, and only then run
+   `emailer:delivery:resume`. Never resume by updating `delivery_runtime`
+   directly.

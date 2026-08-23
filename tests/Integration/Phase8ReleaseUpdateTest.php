@@ -7,6 +7,7 @@ namespace App\Tests\Integration;
 use App\Module\Backup\Application\Contract\BackupOperations;
 use App\Module\Release\Application\PackageInspector;
 use App\Module\Release\Application\ReleaseManager;
+use App\Shared\MaintenanceOperationLock;
 use App\Tests\Support\Phase4State;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
@@ -37,7 +38,7 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
     public function testCleanInstallAndSuccessfulRepresentativeUpdate(): void
     {
         [$connection, $manager, $backups, $archive, $inspector, $locks] = $this->fixture(0);
-        $installer = new ReleaseManager($inspector, $backups, $connection, $locks, $this->directory.'/clean-install', '0.1.0', 0);
+        $installer = new ReleaseManager($inspector, $backups, $connection, $locks, new MaintenanceOperationLock($locks), $this->directory.'/clean-install', '0.1.0', 0);
         $installed = $installer->install($archive, true);
         self::assertSame($installed, realpath($this->directory.'/clean-install/current'));
         self::assertSame(0o444, fileperms($installed.'/bin/console') & 0o777);
@@ -47,7 +48,7 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         self::assertSame($this->directory.'/releases/0.2.0', realpath($this->directory.'/releases/current'));
         self::assertSame(1, $backups->created);
         self::assertSame(0, $backups->restored);
-        self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key = '1'")));
+        self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key = '1'")));
     }
 
     public function testFailedHealthUsesDeclaredCompatiblePointerRollbackAndLeavesSendingQuiesced(): void
@@ -68,7 +69,7 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
     {
         [$connection, , $backups, $archive, $inspector, $locks] = $this->fixture(0);
         $this->publishPreviousRelease();
-        $manager = new ReleaseManager($inspector, $backups, $connection, $locks, $this->directory.'/releases', '0.1.0', PHP_INT_MAX - 1);
+        $manager = new ReleaseManager($inspector, $backups, $connection, $locks, new MaintenanceOperationLock($locks), $this->directory.'/releases', '0.1.0', PHP_INT_MAX - 1);
         try {
             $manager->update($archive);
             self::fail('Impossible rollback reserve was accepted.');
@@ -117,7 +118,7 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         $backups = new RecordingBackupOperations($this->directory.'/safety.enxbackup');
         [$archive, $publicKey] = $this->package($doctorExit, $migrationExit, $minimumSchema, $targetSchema);
         $inspector = new PackageInspector($publicKey, '0.1.0');
-        $manager = new ReleaseManager($inspector, $backups, $connection, $locks, $this->directory.'/releases', '0.1.0', 0);
+        $manager = new ReleaseManager($inspector, $backups, $connection, $locks, new MaintenanceOperationLock($locks), $this->directory.'/releases', '0.1.0', 0);
 
         return [$connection, $manager, $backups, $archive, $inspector, $locks];
     }
