@@ -1,11 +1,11 @@
 # Threat model
 
-**Status:** Phase 8 operational readiness, recovery, backup/restore, and signed-update controls reviewed.
+**Status:** Phase 9 MVP release-candidate acceptance controls reviewed.
 
 **Method:** Asset/trust-boundary review with STRIDE-style misuse cases and
 privacy-abuse review
 
-**Last reviewed:** 2026-08-15
+**Last reviewed:** 2026-08-23
 
 ## Scope and security objectives
 
@@ -243,9 +243,21 @@ production sending state.
   verified backup, migration, atomic pointer, Doctor, and compatible
   rollback-or-restore behavior.
 
-Phase 8 does not claim signing-key custody, published-package distribution,
-production web-server acceptance, unattended backup/update, or the Phase 9
-`0.1.0` candidate.
+## Phase 9 control status
+
+- TM-21/TM-23 now include current and reachable-history scans, deterministic
+  exact-source packaging, SPDX license evidence, external operator signing-key
+  custody, pinned-key handle validation, and independent signature/checksum/file
+  verification before immutable clean install.
+- TM-11/TM-13 acceptance now includes an explicit campaign approval summary,
+  static accessibility checks, and a bounded synthetic audience/load profile.
+- The signed `0.1.0-rc.1` to `0.1.0` rehearsal covers compatible update,
+  interrupted migration restore, failed-health pointer rollback, incompatible
+  schema and inadequate disk without implying a supported client prerelease.
+
+Phase 9 does not claim package publication, production deployment, unattended
+backup/update, DNS/provider configuration, live SMTP contact, or any Phase 10
+tracking/view behavior.
 
 ## Residual risks and non-guarantees
 

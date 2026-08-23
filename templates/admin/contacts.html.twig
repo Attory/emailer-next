@@ -15,7 +15,7 @@
     {% for field in fields %}<label>{{ field.label }} <input name="attribute_{{ field.field_key }}" maxlength="{{ field.max_length ?: 500 }}"></label>{% endfor %}
     <button type="submit">Create contact</button>
 </form>
-<table><thead><tr><th>Address</th><th>Name</th><th>Status</th><th>Actions</th></tr></thead><tbody>
+<table><thead><tr><th scope="col">Address</th><th scope="col">Name</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead><tbody>
 {% for contact in contacts %}<tr><td>{{ contact.email_display }}</td><td>{{ contact.display_name ?: contact.first_name }}</td><td>{{ contact.suppressed ? 'Suppressed' : 'Eligible data' }}</td><td>
     {% if is_granted('ROLE_ADMINISTRATOR') %}<form method="post" action="{{ path('admin_contact_reveal', {id: contact.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('contact-reveal-' ~ contact.id) }}"><button type="submit">Reveal full address</button></form>{% endif %}
     <form method="post" action="{{ path('admin_contact_archive', {id: contact.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('contact-archive-' ~ contact.id) }}"><button type="submit">Archive</button></form>

@@ -1,6 +1,6 @@
 # Testing
 
-**Status:** Phase 8 executable Doctor, recovery, backup/restore, housekeeping, and package-verification baseline over all Phase 1–7 coverage.
+**Status:** Phase 9 MVP release acceptance coverage over the complete Phase 1–8 behavior.
 
 The stable gate order and executable commands are in
 [quality-gates.md](quality-gates.md). Results are recorded in the phase report
@@ -35,8 +35,9 @@ data is accepted.
   worker concurrency, and backup/restore.
 - Functional HTTP tests for route authorization, CSRF, caching, headers,
   setup/public/admin isolation, and generic errors.
-- Browser accessibility/workflow tests for setup, identity, imports, campaigns,
-  and Doctor.
+- Static structural accessibility checks cover implemented setup, identity,
+  import, campaign, and Doctor templates. Browser, assistive-technology,
+  tab-order, and contrast testing require separately recorded evidence.
 - Property/fuzz tests for CSV, merge/token parsing, URLs, and malformed input.
 - Deployment tests for Nginx/Apache public exposure and immutable artifact
   allowlist.
@@ -127,6 +128,24 @@ data is accepted.
 - Ed25519 signature, checksum, SPDX, manifest/file digest, source/PHP
   compatibility, unsafe archive path/link, and tamper rejection.
 - Bounded idempotent housekeeping evidence and full Phase 1–7 regression.
+
+## Phase 9 coverage
+
+- Deterministic double-build comparison of the `0.1.0` archive, manifest,
+  checksum, SPDX SBOM, and detached Ed25519 signature.
+- Exact package identity, source commit, source-version window, pinned-key
+  permissions, required runtime files, SBOM package licenses, tamper, unsafe
+  path/link, and clean immutable install checks.
+- Signed `0.1.0-rc.1` to `0.1.0` update, failure, pointer rollback, verified
+  restore, schema incompatibility, and disk-reserve rehearsals.
+- A 2,000-recipient synthetic campaign materialisation profile that proves the
+  configured 1,000-message dispatch batch bound within 45 seconds and 128 MiB
+  incremental memory on the reference container. This is acceptance evidence,
+  not a client-server throughput promise.
+- Static server-rendered accessibility checks for landmarks, language,
+  viewport, form labels, table-header scope, visible keyboard focus, responsive
+  layout, and the complete campaign approval summary. These source-pattern
+  checks do not claim DOM, assistive-technology, tab-order, or contrast testing.
 
 ## Phase 1 coverage
 

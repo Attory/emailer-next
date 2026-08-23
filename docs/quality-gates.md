@@ -1,6 +1,6 @@
 # CI and quality gates
 
-**Status:** Phase 8 implemented operations/recovery/release-tooling baseline.
+**Status:** Phase 9 MVP release-candidate gate implemented.
 
 One aggregate command, `composer check`, runs every executable current quality
 gate. CI invokes the same version-pinned commands rather than maintaining a
@@ -51,9 +51,9 @@ The GitHub Actions workflow builds from the Dockerfile and tests:
 
 | PHP | MariaDB |
 | --- | --- |
-| 8.4.23 | 10.11.18 |
-| 8.4.23 | 11.8.8 |
-| 8.5.8 | 10.11.18 |
+| 8.4.24 | 10.11.18 |
+| 8.4.24 | 11.8.8 |
+| 8.5.9 | 10.11.18 |
 
 It checks out full history without persisting credentials, starts only MariaDB
 and Mailpit, runs the aggregate gate, then repeats PHPUnit on an internal Docker
@@ -76,6 +76,14 @@ syntax validation for the offline package builder. PHPUnit covers Doctor gates,
 encrypted backup/restore, recovery-key authentication, signed package
 verification, housekeeping bounds, and the expanded admin authorization/CSRF
 matrix. The artifact remains production-shaped; no package is published.
+
+Phase 9 adds syntax and behavioral checks for every candidate tool, two-build
+byte-for-byte reproducibility, SPDX license metadata, exact source/version and
+pinned-key verification, a real immutable clean install, the signed RC update
+and rollback/restore matrix, static Twig/CSS structural accessibility checks,
+and the bounded 2,000-recipient reference load profile. The CI matrix covers PHP
+8.4.24/8.5.9 and MariaDB 10.11.18/11.8.8. CI still cannot sign with or expose an
+operator release key and never publishes a package.
 
 Gitleaks 8.30.1 is checksum-pinned. It scans all reachable commits and the
 current directory, including ignored/untracked dependencies, artifacts, and

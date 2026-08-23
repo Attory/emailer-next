@@ -1,6 +1,6 @@
 # Open decisions
 
-**Status:** Phase 8 handoff with recovery-envelope parameters resolved and Phase 9 release-custody decisions remaining
+**Status:** Phase 9 MVP decisions resolved; later product-policy decisions remain
 
 **Last reviewed:** 2026-08-22
 
@@ -9,7 +9,7 @@ four bounded decisions:
 
 | ID | Resolution |
 | --- | --- |
-| OD-01 | CI supports PHP 8.4 and 8.5, with patches 8.4.23 and 8.5.8 pinned at Phase 1 completion. |
+| OD-01 | CI supports PHP 8.4 and 8.5; Phase 9 revalidation pins 8.4.24 and 8.5.9. |
 | OD-02 | CI tests MariaDB 10.11.18 and the newer long-term branch 11.8.8. |
 | OD-03 | PHP-CS-Fixer, maximum-level PHPStan, Deptrac, and a project boundary checker are the baseline; no static-analysis baseline or ignored error was added. |
 | OD-04 | Compose uses one internal application/database/Mailpit network, loopback host bindings only, no database host port, a strict test-kernel Mailpit DSN allowlist, and a CI-only internal network with an external-egress negative probe. |
@@ -32,7 +32,7 @@ implementation evidence. None authorizes a weaker security outcome.
 | OD-12 | Tracking/RSVP policy defaults beyond “off,” and concrete data-retention periods | Phases 10–12 | Operator legal/privacy decision, minimization, dry-run retention tests |
 | OD-13 | **Resolved Phase 8:** versioned JSON/JSONL ZIP inside sodium secretstream XChaCha20-Poly1305; backup key via HKDF-SHA256 from external master key; separate recovery package uses Argon2id13 (3 ops, 64 MiB) plus XChaCha20-Poly1305. External destination remains Phase 12. | Phase 8 / Phase 12 | Corruption/wrong-passphrase/non-overwrite tests; master key excluded; destination evidence before automation |
 | OD-14 | License and supported-browser/accessibility matrix | Phase 13 | Dependency/license audit and operator product decision; WCAG-oriented acceptance evidence |
-| OD-15 | Release-signing key custody/distribution and the supported-version update window | Phase 8 design; locked before Phase 9 acceptance | Ed25519 private material remains external; public-key pin/rotation/recovery procedure; successful supported and rejected-unsupported update rehearsals |
+| OD-15 | **Resolved Phase 9:** operator-controlled offline Ed25519 private key with separate encrypted recovery custody; independently fingerprint-verified external public-key pin; explicit old-key bridge and out-of-band ceremony for rotation; first release is clean-installed while the acceptance-only path rehearses `0.1.0-rc.1` to `0.1.0`; later minors support the immediately preceding release line as documented | Phase 9 | See [release-signing.md](release-signing.md); supported, tampered, wrongly signed, same/downgrade, and unsupported-source rehearsals remain blocking candidate evidence |
 
 The operator must later supply deployment-specific values—base URL, proxy
 topology, filesystem paths, resource limits, sender identity, SMTP/provider

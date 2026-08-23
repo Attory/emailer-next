@@ -39,14 +39,14 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
     public function testCleanInstallAndSuccessfulRepresentativeUpdate(): void
     {
         [$connection, $manager, $backups, $archive, $inspector, $locks] = $this->fixture(0);
-        $installer = new ReleaseManager($inspector, $backups, $connection, $locks, new MaintenanceOperationLock($locks), self::createStub(InterruptedDeliveryRecovery::class), $this->directory.'/clean-install', '0.1.0', 0);
+        $installer = new ReleaseManager($inspector, $backups, $connection, $locks, new MaintenanceOperationLock($locks), self::createStub(InterruptedDeliveryRecovery::class), $this->directory.'/clean-install', '0.1.0-rc.1', 0);
         $installed = $installer->install($archive, true);
         self::assertSame($installed, realpath($this->directory.'/clean-install/current'));
         self::assertSame(0o444, fileperms($installed.'/bin/console') & 0o777);
 
         $this->publishPreviousRelease();
         $manager->update($archive);
-        self::assertSame($this->directory.'/releases/0.2.0', realpath($this->directory.'/releases/current'));
+        self::assertSame($this->directory.'/releases/0.1.0', realpath($this->directory.'/releases/current'));
         self::assertSame(1, $backups->created);
         self::assertSame(0, $backups->restored);
         self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key = '1'")));
@@ -70,7 +70,7 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
     {
         [$connection, , $backups, $archive, $inspector, $locks] = $this->fixture(0);
         $this->publishPreviousRelease();
-        $manager = new ReleaseManager($inspector, $backups, $connection, $locks, new MaintenanceOperationLock($locks), self::createStub(InterruptedDeliveryRecovery::class), $this->directory.'/releases', '0.1.0', PHP_INT_MAX - 1);
+        $manager = new ReleaseManager($inspector, $backups, $connection, $locks, new MaintenanceOperationLock($locks), self::createStub(InterruptedDeliveryRecovery::class), $this->directory.'/releases', '0.1.0-rc.1', PHP_INT_MAX - 1);
         try {
             $manager->update($archive);
             self::fail('Impossible rollback reserve was accepted.');
@@ -118,19 +118,19 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         $locks = new LockFactory(new FlockStore($this->directory.'/locks'));
         $backups = new RecordingBackupOperations($this->directory.'/safety.enxbackup');
         [$archive, $publicKey] = $this->package($doctorExit, $migrationExit, $minimumSchema, $targetSchema);
-        $inspector = new PackageInspector($publicKey, '0.1.0');
+        $inspector = new PackageInspector($publicKey, '0.1.0-rc.1');
         $recovery = self::createStub(InterruptedDeliveryRecovery::class);
         $recovery->method('recover')->willReturnCallback(static function () use ($connection): void {
             $connection->executeStatement("UPDATE delivery_runtime SET active_claims = 0 WHERE singleton_key = '1'");
         });
-        $manager = new ReleaseManager($inspector, $backups, $connection, $locks, new MaintenanceOperationLock($locks), $recovery, $this->directory.'/releases', '0.1.0', 0);
+        $manager = new ReleaseManager($inspector, $backups, $connection, $locks, new MaintenanceOperationLock($locks), $recovery, $this->directory.'/releases', '0.1.0-rc.1', 0);
 
         return [$connection, $manager, $backups, $archive, $inspector, $locks];
     }
 
     private function publishPreviousRelease(): string
     {
-        $previous = $this->directory.'/releases/0.1.0';
+        $previous = $this->directory.'/releases/0.1.0-rc.1';
         if (!is_dir($previous)) {
             mkdir($previous, 0o755, true);
         }
@@ -143,17 +143,23 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
     /** @return array{string, string} */
     private function package(int $doctorExit, int $migrationExit, string $minimumSchema, string $targetSchema): array
     {
-        $archive = $this->directory.'/emailer-next-0.2.0.zip';
+        $archive = $this->directory.'/emailer-next-0.1.0.zip';
         $console = "<?php\n\$command = \$argv[1] ?? '';\nexit('emailer:doctor:run' === \$command ? ".$doctorExit." : ('doctrine:migrations:migrate' === \$command ? ".$migrationExit." : 0));\n";
+        $frontController = '<?php return true;';
+        $lock = '{"packages":[]}';
+        $services = "parameters:\n    emailer.app_version: '0.1.0'\n";
         $zip = new \ZipArchive();
         self::assertTrue($zip->open($archive, \ZipArchive::CREATE | \ZipArchive::OVERWRITE));
         self::assertTrue($zip->addFromString('bin/console', $console));
+        self::assertTrue($zip->addFromString('composer.lock', $lock));
+        self::assertTrue($zip->addFromString('config/services.yaml', $services));
+        self::assertTrue($zip->addFromString('public/index.php', $frontController));
         $zip->close();
-        $files = ['bin/console' => hash('sha256', $console)];
-        $manifest = ['format' => 'emailer-next-release-v1', 'version' => '0.2.0', 'source_commit' => str_repeat('b', 40), 'minimum_source_version' => '0.1.0', 'minimum_schema_version' => $minimumSchema, 'schema_version' => $targetSchema, 'rollback_schema_compatible' => true, 'platform' => ['php_min' => '8.4.0', 'php_max_exclusive' => '8.6.0', 'mariadb' => ['10.11', '11.8']], 'files' => $files];
+        $files = ['bin/console' => hash('sha256', $console), 'composer.lock' => hash('sha256', $lock), 'config/services.yaml' => hash('sha256', $services), 'public/index.php' => hash('sha256', $frontController)];
+        $manifest = ['format' => 'emailer-next-release-v1', 'version' => '0.1.0', 'source_commit' => str_repeat('b', 40), 'minimum_source_version' => '0.1.0-rc.1', 'minimum_schema_version' => $minimumSchema, 'schema_version' => $targetSchema, 'rollback_schema_compatible' => true, 'platform' => ['php_min' => '8.4.0', 'php_max_exclusive' => '8.6.0', 'mariadb' => ['10.11', '11.8']], 'files' => $files];
         $manifestBytes = json_encode($manifest, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n";
         $checksumBytes = hash_file('sha256', $archive).'  '.basename($archive)."\n";
-        $sbomBytes = json_encode(['spdxVersion' => 'SPDX-2.3'], JSON_THROW_ON_ERROR)."\n";
+        $sbomBytes = json_encode(['spdxVersion' => 'SPDX-2.3', 'dataLicense' => 'CC0-1.0', 'SPDXID' => 'SPDXRef-DOCUMENT', 'name' => 'Emailer Next 0.1.0', 'documentNamespace' => 'https://attory.example.test/spdx/emailer-next/'.str_repeat('b', 40).'/0.1.0', 'packages' => [['SPDXID' => 'SPDXRef-Package-synthetic', 'name' => 'synthetic/runtime', 'versionInfo' => '1.0.0', 'licenseDeclared' => 'MIT']]], JSON_THROW_ON_ERROR)."\n";
         $pair = sodium_crypto_sign_keypair();
         $secret = sodium_crypto_sign_secretkey($pair);
         $public = sodium_crypto_sign_publickey($pair);

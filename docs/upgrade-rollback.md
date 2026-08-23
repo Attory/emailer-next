@@ -1,6 +1,6 @@
 # Upgrade and rollback
 
-**Status:** Phase 8 CLI package verification/install/update mechanism implemented; Phase 9 owns the first `0.1.0` candidate and production-profile acceptance.
+**Status:** Phase 9 MVP package/update contract and supported-version window fixed; first `0.1.0` candidate is accepted only after the recorded rehearsals pass.
 
 There is no unattended update. Build, approval, deployment, migration, health
 verification, and rollback are explicit operator actions using an immutable,
@@ -109,5 +109,8 @@ latest supported release:
 
 Every rehearsal covers tampered and incompatible packages, interrupted update,
 failed post-switch health, and the documented compatible rollback or verified
-restore path. Exact support windows and signing-key custody must be decided
-before the Phase 9 candidate is approved.
+restore path. Exact support windows and signing-key custody follow
+[release-signing.md](release-signing.md). The first production release has no
+predecessor and is clean-installed; `0.1.0-rc.1` to `0.1.0` is an
+acceptance-only signed updater rehearsal, not a promise that clients should
+install prereleases.

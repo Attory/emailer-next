@@ -1,6 +1,6 @@
 # Initial data model
 
-**Status:** Phase 8 operations evidence schema over the Phase 7 delivery and recipient-safety model.
+**Status:** Phase 9 MVP candidate schema; Phase 9 adds no migration or table.
 
 `DoctrineMigrations\Version20260723000000` remains the no-schema platform
 smoke check. Phase 3 adds `Version20260815000000`, which creates only the

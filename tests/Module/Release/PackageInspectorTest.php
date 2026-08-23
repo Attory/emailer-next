@@ -63,19 +63,33 @@ final class PackageInspectorTest extends TestCase
         (new PackageInspector($publicKey, '0.1.0-dev'))->inspect($archive);
     }
 
+    public function testEmbeddedRuntimeVersionMustMatchSignedManifest(): void
+    {
+        [$archive, $publicKey] = $this->fixture('0.1.0', runtimeVersion: '0.2.0');
+
+        $this->expectException(\RuntimeException::class);
+        (new PackageInspector($publicKey, '0.1.0-dev'))->inspect($archive);
+    }
+
     /** @return array{string, string} */
-    private function fixture(string $version, string $phpMinimum = '8.4.0'): array
+    private function fixture(string $version, string $phpMinimum = '8.4.0', ?string $runtimeVersion = null): array
     {
         $archive = $this->directory.'/emailer-next-'.$version.'.zip';
         $payload = '<?php return true;';
+        $console = "#!/usr/bin/env php\n<?php return true;";
+        $lock = '{"packages":[]}';
+        $services = "parameters:\n    emailer.app_version: '".($runtimeVersion ?? $version)."'\n";
         $zip = new \ZipArchive();
         self::assertTrue($zip->open($archive, \ZipArchive::CREATE | \ZipArchive::OVERWRITE));
         self::assertTrue($zip->addFromString('public/index.php', $payload));
+        self::assertTrue($zip->addFromString('bin/console', $console));
+        self::assertTrue($zip->addFromString('composer.lock', $lock));
+        self::assertTrue($zip->addFromString('config/services.yaml', $services));
         $zip->close();
-        $manifest = ['format' => 'emailer-next-release-v1', 'version' => $version, 'source_commit' => str_repeat('a', 40), 'minimum_source_version' => '0.1.0-dev', 'minimum_schema_version' => '20260824000000', 'schema_version' => '20260824000000', 'rollback_schema_compatible' => true, 'platform' => ['php_min' => $phpMinimum, 'php_max_exclusive' => '100.0.0', 'mariadb' => ['10.11', '11.8']], 'files' => ['public/index.php' => hash('sha256', $payload)]];
+        $manifest = ['format' => 'emailer-next-release-v1', 'version' => $version, 'source_commit' => str_repeat('a', 40), 'minimum_source_version' => '0.1.0-dev', 'minimum_schema_version' => '20260824000000', 'schema_version' => '20260824000000', 'rollback_schema_compatible' => true, 'platform' => ['php_min' => $phpMinimum, 'php_max_exclusive' => '100.0.0', 'mariadb' => ['10.11', '11.8']], 'files' => ['bin/console' => hash('sha256', $console), 'composer.lock' => hash('sha256', $lock), 'config/services.yaml' => hash('sha256', $services), 'public/index.php' => hash('sha256', $payload)]];
         $manifestBytes = json_encode($manifest, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n";
         $checksumBytes = hash_file('sha256', $archive).'  '.basename($archive)."\n";
-        $sbomBytes = json_encode(['spdxVersion' => 'SPDX-2.3', 'dataLicense' => 'CC0-1.0', 'SPDXID' => 'SPDXRef-DOCUMENT', 'name' => 'synthetic'], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT)."\n";
+        $sbomBytes = json_encode(['spdxVersion' => 'SPDX-2.3', 'dataLicense' => 'CC0-1.0', 'SPDXID' => 'SPDXRef-DOCUMENT', 'name' => 'Emailer Next '.$version, 'documentNamespace' => 'https://attory.example.test/spdx/emailer-next/'.str_repeat('a', 40).'/'.$version, 'packages' => [['SPDXID' => 'SPDXRef-Package-synthetic', 'name' => 'synthetic/runtime', 'versionInfo' => '1.0.0', 'licenseDeclared' => 'MIT']]], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT)."\n";
         file_put_contents($archive.'.manifest.json', $manifestBytes);
         file_put_contents($archive.'.sha256', $checksumBytes);
         file_put_contents($archive.'.spdx.json', $sbomBytes);

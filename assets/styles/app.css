@@ -8,13 +8,13 @@
 
 body { margin: 0; }
 a { color: #174ea6; }
-a:focus, button:focus, input:focus, select:focus { outline: 3px solid #f4b400; outline-offset: 2px; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #f4b400; outline-offset: 2px; }
 .auth-shell, .admin-content { max-width: 70rem; margin: 2rem auto; padding: 1.5rem; background: #fff; }
 .admin-header { background: #17324d; color: #fff; padding: 1rem 2rem; }
 .admin-header a { color: #fff; margin-right: 1rem; }
 .admin-header form { display: inline; }
 label { display: block; margin: 0.8rem 0; }
-input, select, button { font: inherit; padding: 0.45rem; }
+input, select, textarea, button { font: inherit; padding: 0.45rem; }
 button { cursor: pointer; }
 .alert { border-left: 0.35rem solid #b3261e; padding: 0.7rem; background: #fce8e6; }
 .success { border-left-color: #137333; background: #e6f4ea; }
@@ -22,3 +22,10 @@ table { border-collapse: collapse; width: 100%; }
 th, td { border-bottom: 1px solid #ccd4dc; padding: 0.65rem; text-align: left; vertical-align: top; }
 code { overflow-wrap: anywhere; }
 .muted { color: #5f6368; }
+
+@media (max-width: 48rem) {
+    .auth-shell, .admin-content { margin: 0; padding: 1rem; }
+    .admin-header { padding: 1rem; }
+    .admin-header a, .admin-header form { display: block; margin: 0.45rem 0; }
+    table { display: block; overflow-x: auto; }
+}

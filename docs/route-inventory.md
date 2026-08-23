@@ -1,7 +1,7 @@
 # Route and command inventory
 
-**Status:** Phase 7 implementation inventory. Coarse liveness, secure first-run,
-administration/content/campaign routes, and cookie-free public unsubscribe are implemented.
+**Status:** Phase 9 accepted inventory. Phase 9 adds no HTTP or CLI route over
+the Phase 8 operations and Phase 7 recipient surface.
 
 This inventory is the security review baseline. Every implemented route must be
 added here with method, authentication boundary, authorization rule, CSRF

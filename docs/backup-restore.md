@@ -1,6 +1,6 @@
 # Backup and restore
 
-**Status:** Phase 8 local encrypted backup, recovery-key, verification, and CLI restore implemented. External destinations and automation remain Phase 12.
+**Status:** Phase 9 MVP candidate accepts the Phase 8 encrypted backup/recovery/CLI restore drill. External destinations and automation remain Phase 12.
 
 ## Backup scope
 

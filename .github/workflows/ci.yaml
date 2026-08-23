@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  phase-1:
+  quality:
     name: PHP ${{ matrix.php }} / MariaDB ${{ matrix.mariadb }}
     runs-on: ubuntu-24.04
     timeout-minutes: 30
@@ -22,13 +22,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - php: 8.4.23
+          - php: 8.4.24
             mariadb: 10.11.18
             server_version: 10.11.18-MariaDB
-          - php: 8.4.23
+          - php: 8.4.24
             mariadb: 11.8.8
             server_version: 11.8.8-MariaDB
-          - php: 8.5.8
+          - php: 8.5.9
             mariadb: 10.11.18
             server_version: 10.11.18-MariaDB
     env:
@@ -61,7 +61,7 @@ jobs:
               cp -a /opt/emailer-vendor/. vendor/
           '
 
-      - name: Run aggregate Phase 1 checks
+      - name: Run aggregate release-candidate checks
         run: docker compose run --rm app composer check
 
       - name: Repeat test suite with external egress disabled

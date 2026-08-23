@@ -1,6 +1,21 @@
 # Security model
 
-**Status:** Phase 8 operational readiness, encrypted recovery, and signed-update controls over the Phase 7 recipient-safety baseline.
+**Status:** Phase 9 MVP release-candidate security acceptance over the Phase 8 operational baseline.
+
+## Phase 9 supply-chain controls
+
+- Candidate production requires a clean committed non-main source, an external
+  owner-controlled Ed25519 key, a separately supplied pinned public key, and two
+  byte-identical builds bound to the exact source commit and source epoch.
+- The verifier uses regular single-link files, handle/path identity checks,
+  bounded reads, strict semantic versions and archive naming, exact SPDX
+  document identity, package license declarations, required runtime files, and
+  signature/checksum/per-file digest verification before extraction.
+- The private signing key is absent from Git, CI, candidate contents, client
+  servers, logs and prompts. Rotation and compromise handling are defined in
+  [release-signing.md](release-signing.md).
+- CI uses a disposable synthetic signing key only and deletes it with every
+  generated candidate. CI cannot publish, tag or deploy.
 
 ## Phase 8 operational controls
 

@@ -3,7 +3,7 @@
 {% block admin_body %}
 <h1>Individual administrative accounts</h1>
 <p><a href="{{ path('admin_reauthenticate', {purpose: 'user_management'}) }}">Re-authenticate for user and role changes</a></p>
-<table><thead><tr><th>Account</th><th>Role</th><th>Active</th><th>Actions</th></tr></thead><tbody>
+<table><thead><tr><th scope="col">Account</th><th scope="col">Role</th><th scope="col">Active</th><th scope="col">Actions</th></tr></thead><tbody>
 {% for account in users %}<tr><td>{{ account.login_identifier }}</td><td>{{ account.role }}</td><td>{{ account.active ? 'Yes' : 'No' }}</td><td>
 <form method="post" action="{{ path('admin_user_update', {id: account.id}) }}">
 <input type="hidden" name="_token" value="{{ csrf_token('admin-user-update-' ~ account.id) }}">
