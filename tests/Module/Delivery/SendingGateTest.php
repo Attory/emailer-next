@@ -18,12 +18,14 @@ use PHPUnit\Framework\TestCase;
 
 final class SendingGateTest extends TestCase
 {
-    public function testCriticalGateStopsAQueuedMessageBeforeDatabaseClaimOrTransport(): void
+    public function testCriticalGateDefersQueuedMessageBeforeDatabaseClaimOrTransport(): void
     {
         $connection = self::createMock(Connection::class);
         $connection->expects(self::never())->method('transactional');
         $transport = self::createMock(DeliveryTransport::class);
         $transport->expects(self::never())->method('send');
+        $gateway = self::createMock(CampaignDeliveryGateway::class);
+        $gateway->expects(self::once())->method('dispatchAfter')->with('00000000-0000-7000-8000-000000000001', 1, 30_000);
         $gate = new class implements SendingGate {
             public function assertReady(): void
             {
@@ -34,9 +36,8 @@ final class SendingGateTest extends TestCase
             {
             }
         };
-        $handler = new DeliverCampaignRecipientHandler($connection, self::createStub(DeliveryConfiguration::class), self::createStub(SuppressionLookup::class), $transport, self::createStub(CampaignDeliveryGateway::class), self::createStub(RecipientUnsubscribeLinks::class), self::createStub(AuditSink::class), $gate);
+        $handler = new DeliverCampaignRecipientHandler($connection, self::createStub(DeliveryConfiguration::class), self::createStub(SuppressionLookup::class), $transport, $gateway, self::createStub(RecipientUnsubscribeLinks::class), self::createStub(AuditSink::class), $gate);
 
-        $this->expectException(\DomainException::class);
         $handler(new DeliverCampaignRecipient('00000000-0000-7000-8000-000000000001', 1));
     }
 }

@@ -40,7 +40,13 @@ final readonly class DeliverCampaignRecipientHandler
 
     public function __invoke(DeliverCampaignRecipient $message): void
     {
-        $this->sendingGate->assertReady();
+        try {
+            $this->sendingGate->assertReady();
+        } catch (\DomainException) {
+            $this->gateway->dispatchAfter($message->recipientId, $message->operationVersion, 30_000);
+
+            return;
+        }
         $configuration = $this->configuration->current();
         $claim = $this->claim($message, $configuration);
         if (null === $claim) {
@@ -141,7 +147,8 @@ final readonly class DeliverCampaignRecipientHandler
             }
             $attemptNumber = 1 + $this->intValue($row['attempt_count']);
             $attemptId = Identity::uuidV7();
-            $this->connection->update('delivery_runtime', ['active_claims' => 1 + $this->intValue($runtime['active_claims']), 'rate_window_started_at' => $window->format('Y-m-d H:i:s.u'), 'rate_window_count' => 1 + $rateCount, 'circuit_state' => 'open' === $runtime['circuit_state'] ? 'half_open' : $this->stringValue($runtime['circuit_state']), 'updated_at' => Identity::now()], ['singleton_key' => '1']);
+            $openingProbe = 'open' === $runtime['circuit_state'];
+            $this->connection->update('delivery_runtime', ['active_claims' => 1 + $this->intValue($runtime['active_claims']), 'rate_window_started_at' => $window->format('Y-m-d H:i:s.u'), 'rate_window_count' => 1 + $rateCount, 'circuit_state' => $openingProbe ? 'half_open' : $this->stringValue($runtime['circuit_state']), 'circuit_open_until' => $openingProbe ? $now->modify('+10 minutes')->format('Y-m-d H:i:s.u') : $runtime['circuit_open_until'], 'updated_at' => Identity::now()], ['singleton_key' => '1']);
             $this->connection->update('delivery_domain_rate', ['window_started_at' => $domainWindow->format('Y-m-d H:i:s.u'), 'message_count' => 1 + $domainCount, 'updated_at' => Identity::now()], ['domain_hash' => $domainHash]);
             $this->connection->update('campaign_recipient', ['state' => 'processing', 'attempt_count' => $attemptNumber, 'claimed_at' => Identity::now(), 'updated_at' => Identity::now()], ['id' => $message->recipientId]);
             $this->connection->insert('delivery_attempt', ['id' => $attemptId, 'campaign_recipient_id' => $message->recipientId, 'attempt_number' => $attemptNumber, 'state' => 'started', 'failure_class' => null, 'provider_reference_hash' => null, 'started_at' => Identity::now(), 'finished_at' => null]);

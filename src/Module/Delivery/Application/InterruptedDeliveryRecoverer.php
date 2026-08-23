@@ -19,6 +19,9 @@ final readonly class InterruptedDeliveryRecoverer implements InterruptedDelivery
     public function recover(): void
     {
         $this->connection->transactional(function (): void {
+            if (1 === $this->connection->executeStatement("UPDATE delivery_runtime SET circuit_state = 'open', circuit_open_until = DATE_ADD(UTC_TIMESTAMP(6), INTERVAL 5 MINUTE), updated_at = ? WHERE singleton_key = '1' AND circuit_state = 'half_open' AND (circuit_open_until IS NULL OR circuit_open_until < UTC_TIMESTAMP(6))", [Identity::now()])) {
+                $this->audit->append(new AuditRecord(null, 'delivery.circuit.half_open_interrupted', null, 'failure'));
+            }
             $rows = $this->connection->fetchAllAssociative("SELECT r.id, r.campaign_id, a.id attempt_id FROM campaign_recipient r LEFT JOIN delivery_attempt a ON a.campaign_recipient_id = r.id AND a.state = 'started' WHERE r.state = 'processing' AND r.claimed_at < DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 10 MINUTE) LIMIT 100 FOR UPDATE");
             foreach ($rows as $row) {
                 if (!\is_string($row['id'])) {
