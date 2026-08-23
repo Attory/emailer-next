@@ -1,13 +1,14 @@
 # Installation
 
-**Status:** Phase 5 content administration is implemented over secure setup and identity. Production deployment and production SMTP remain unavailable.
+**Status:** Phase 7 campaign delivery and unsubscribe are implemented. Client installation/recovery/update tooling remains Phase 8–9.
 
 The current repository can create a completed installation with an
 external key, initial Owner, exact local Mailpit test evidence, sender identity,
 safe policies, irreversible lock, individual administrator login, session and
 account management, MFA, recovery, redacted audit UI, contacts, lists, private
-imports, suppression, and immutable templates. It has no campaigns, delivery
-worker, backup engine, public recipient routes, or production sending.
+imports, suppression, immutable templates, durable campaigns, supervised
+delivery, and privacy-safe unsubscribe. It has no backup engine, sending Doctor,
+immutable update package, or supported production deployment yet.
 
 The approved plan makes Phase 9 the first client-installable `0.1.0` MVP after
 campaign delivery, unsubscribe, critical readiness gates, backup/restore, and
@@ -175,6 +176,21 @@ only after MIME/dimension checks plus decoder re-encoding to a random raster
 filename. Do not place imports in `public/` or treat the fake template test as
 a production send. Phase 5 requires no SMTP/provider credential or external
 service.
+
+## Phase 6–7 delivery and recipient safety
+
+Apply forward-only `DoctrineMigrations\Version20260822000000` and
+`DoctrineMigrations\Version20260823000000` through the reviewed migration gate.
+Phase 6 requires a supervised worker plus scheduler, or the documented bounded
+cron fallback. Phase 7 issues encrypted-key, versioned unsubscribe tokens and
+serves `/r/<opaque-token>/unsubscribe` without an admin session or cookie.
+
+Every production message has a manual unsubscribe URL. Leave the RFC 8058 DKIM
+attestation disabled unless the provider is known to sign both unsubscribe
+headers; the application does not create that provider signature. Configure
+proxy access-log redaction for the opaque `/r/` segment. These capabilities do
+not make the tree client-installable: Phase 8 Doctor, backup/restore, and package
+tooling plus Phase 9 acceptance still block production installation.
 
 ## Future production prerequisites
 

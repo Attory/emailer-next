@@ -59,6 +59,8 @@ final readonly class TransportSecuritySubscriber implements EventSubscriberInter
             || '/password-reset' === $path
             || str_starts_with($path, '/password-reset/')
             || '/admin' === $path
-            || str_starts_with($path, '/admin/');
+            || str_starts_with($path, '/admin/')
+            || '/r' === $path
+            || str_starts_with($path, '/r/');
     }
 }

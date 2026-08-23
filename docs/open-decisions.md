@@ -1,6 +1,6 @@
 # Open decisions
 
-**Status:** Phase 5 handoff with accepted MVP release train
+**Status:** Phase 7 handoff with accepted MVP release train
 
 **Last reviewed:** 2026-08-22
 
@@ -28,7 +28,7 @@ implementation evidence. None authorizes a weaker security outcome.
 | OD-08 | Resolved in Phase 5: ordinary contact/suppression views are masked; only Administrator or Owner may reveal/export full addresses after recent re-authentication, CSRF, and audit; Phase 5 exposes no suppression removal/bypass path | Phase 5 | Least privilege and add-only suppression are enforced at route and application layers |
 | OD-09 | Resolved in Phase 5: maintained Symfony HTML Sanitizer with a strict custom allowlist; exact non-evaluating merge fields; URL fields only as complete approved link targets; context-aware render escaping and immutable content digests | Phase 5 | XSS, unsafe URL, merge-expression, attribute-context, header-injection, and synthetic-preview tests |
 | OD-10 | Resolved in Phase 6: transient delivery retries use 60-second exponential backoff with deterministic 0–30-second jitter, capped at one hour and at the configured retry limit; ambiguous outcomes are terminal and never blindly retried; five consecutive transport failures open the circuit for five minutes; the global per-minute limit is configured and each recipient domain receives at most half that limit per window. | Phase 6 | Fake-provider fault tests; at-least-once wording; bounded operator-approved limits |
-| OD-11 | Public token representation, expiry/revocation, forwarding, and key-overlap policies | Phase 7 | Wrong-purpose/tamper/replay tests; no raw address; privacy explanation |
+| OD-11 | Resolved in Phase 7: `vN.random-handle.HMAC` bearer token; 365-day expiry and key-verification overlap; revoked/expired fail generically; rows purged 30 days after expiry; forwarding can only suppress the frozen recipient; replay is idempotent | Phase 7 | Wrong-purpose/tamper/version/expiry/replay/rotation tests; no raw address in URL, logs, rate keys, or response |
 | OD-12 | Tracking/RSVP policy defaults beyond “off,” and concrete data-retention periods | Phases 10–12 | Operator legal/privacy decision, minimization, dry-run retention tests |
 | OD-13 | Backup envelope/manifest format and passphrase KDF parameters; later external destination | Phase 8 / Phase 12 | Independent recovery review, corruption/wrong-passphrase tests, key excluded; destination failure/recovery evidence before automation |
 | OD-14 | License and supported-browser/accessibility matrix | Phase 13 | Dependency/license audit and operator product decision; WCAG-oriented acceptance evidence |

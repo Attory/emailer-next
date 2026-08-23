@@ -9,12 +9,13 @@ use App\Module\Audit\Application\Contract\AuditSink;
 use App\Module\Identity\Application\Contract\AdministrativeAccessLevel;
 use App\Module\Identity\Application\Contract\AdministrativeActor;
 use App\Module\Identity\Application\Contract\AdministrativeAuthorization;
+use App\Module\Suppression\Application\Contract\RecipientSuppression;
 use App\Module\Suppression\Application\Contract\SuppressionLookup;
 use App\Shared\EmailAddress;
 use App\Shared\Identity;
 use Doctrine\DBAL\Connection;
 
-final readonly class SuppressionManager implements SuppressionLookup
+final readonly class SuppressionManager implements SuppressionLookup, RecipientSuppression
 {
     public function __construct(
         private Connection $connection,
@@ -48,6 +49,23 @@ final readonly class SuppressionManager implements SuppressionLookup
             }
             $id = $storedId;
             $this->audit->append(new AuditRecord($actor->id(), 'suppression.added', $id, 'success', ['reason' => $reason]));
+        });
+
+        return $id;
+    }
+
+    public function suppressFromRecipientAction(string $email): string
+    {
+        $address = new EmailAddress($email);
+        $id = Identity::uuidV7();
+        $this->connection->transactional(function () use ($address, &$id): void {
+            $this->connection->executeStatement('INSERT IGNORE INTO suppression (id, email_canonical, reason, source, created_at) VALUES (?, ?, ?, ?, ?)', [$id, $address->canonical, 'unsubscribe', 'recipient_action', Identity::now()]);
+            $storedId = $this->connection->fetchOne('SELECT id FROM suppression WHERE email_canonical = ? FOR UPDATE', [$address->canonical]);
+            if (!\is_string($storedId)) {
+                throw new \UnexpectedValueException('Suppression identity is invalid.');
+            }
+            $id = $storedId;
+            $this->audit->append(new AuditRecord(null, 'recipient.unsubscribe', $id, 'success', ['reason' => 'unsubscribe']));
         });
 
         return $id;

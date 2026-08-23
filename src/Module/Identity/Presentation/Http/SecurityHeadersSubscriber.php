@@ -36,5 +36,10 @@ final class SecurityHeadersSubscriber implements EventSubscriberInterface
             $response->headers->set('Cache-Control', 'no-store, max-age=0, must-revalidate, private');
             $response->headers->set('Pragma', 'no-cache');
         }
+        $path = rawurldecode($request->getPathInfo());
+        if (('/r' === $path || str_starts_with($path, '/r/')) || (\is_string($route) && str_starts_with($route, 'recipient_'))) {
+            $response->headers->set('Cache-Control', 'no-store, max-age=0');
+            $response->headers->set('Pragma', 'no-cache');
+        }
     }
 }

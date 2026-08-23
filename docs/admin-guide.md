@@ -1,6 +1,6 @@
 # Administrator guide
 
-**Status:** Phase 5 contact, import, suppression, and template administration implemented; campaign and delivery workflows remain planned.
+**Status:** Phase 7 campaign delivery and public unsubscribe implemented; MVP operations/release workflows remain planned.
 
 Emailer Next has one organisation per installation and individual
 administrator accounts. There is no self-registration, shared global password,
@@ -49,16 +49,25 @@ re-authentication.
   non-evaluating tokens; previews use synthetic values, and the test action
   validates through the fake-only path without sending mail.
 
-## Planned campaign and delivery workflows
+## Implemented campaign and delivery workflows
 
-1. Review Configuration Doctor findings after login; red findings persist and
-   may block new production sends.
-2. Draft a campaign, explicitly choose template/sender/audience, review
+1. Draft a campaign, explicitly choose template/sender/audience, review
    exclusions and tracking, run a marked test send, and obtain approval.
-3. Type confirmation to queue/schedule. Progress comes from the durable ledger.
-4. Pause, resume, or cancel idempotently; in-flight/accepted messages cannot be
+2. Type confirmation to queue/schedule. Progress comes from the durable ledger.
+3. Pause, resume, or cancel idempotently; in-flight/accepted messages cannot be
    retracted.
-5. Review masked reports and append-only audit evidence.
+4. Review masked progress and append-only audit evidence.
+
+Every recipient message contains a manual unsubscribe link and header. The
+public confirmation never displays the address and does not use an admin login
+or cookie. Manual and mailbox-provider one-click requests immediately create
+durable global suppression and are safe to repeat. A forwarded link can only
+suppress the original recipient represented by that bearer token.
+
+RFC 8058 one-click advertising is disabled until an Owner re-authenticates and
+records that the selected provider DKIM-signs both unsubscribe headers. This is
+an operator attestation, not an application-generated DKIM signature; Phase 8
+Doctor readiness checks remain required before production sending is healthy.
 
 “Accepted” means the configured transport accepted the message, not that it
 reached an inbox. Open events, if enabled, are approximate.
@@ -75,4 +84,5 @@ and zone, tracking/RSVP settings, sender identity, template version, and
 test-send status. Confirmation pages explain irreversible or externally visible
 effects.
 
-Later phases add campaigns and delivery. Any screenshots must contain synthetic data only.
+Later phases add MVP Doctor, recovery, install/update, and release acceptance.
+Any screenshots must contain synthetic data only.

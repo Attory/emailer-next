@@ -1,12 +1,11 @@
 # Operator runbook
 
-**Status:** Phase 5 content-administration/local-platform runbook; production
-delivery operations remain unimplemented. The MVP release/update operating
-model is approved but has no executable tooling yet.
+**Status:** Phase 7 delivery and recipient-safety runbook; MVP Doctor,
+backup/restore, and release/update tooling remain Phase 8.
 
 ## Current repository state
 
-Phases 1–5 contain the Symfony scaffold, locked dependencies, local
+Phases 1–7 contain the Symfony scaffold, locked dependencies, local
 application/MariaDB/Mailpit Compose stack, one baseline migration, quality
 pipeline, coarse liveness, logging redaction, and an inspected
 production-shaped artifact, plus filesystem ownership proof and setup-state
@@ -14,8 +13,10 @@ controls. Phase 3 creates the organisation, initial Owner, exact local Mailpit
 evidence, safe policy defaults, and permanent installation lock. Phase 4 adds
 individual accounts, secure authentication, server sessions, recovery, the
 admin shell, and audit. Phase 5 adds contacts, lists, private imports, durable
-suppression, immutable templates, and safe raster assets. There is no campaign,
-delivery worker, public recipient route, release, or deployment to operate.
+suppression, immutable templates, and safe raster assets. Phase 6 adds campaign
+delivery and supervised workers. Phase 7 adds mandatory unsubscribe links,
+cookie-free public handling, and immediate suppression. Release and deployment
+tooling remain unavailable.
 
 The approved delivery sequence is Phase 6 campaigns/worker, Phase 7 safe
 unsubscribe, Phase 8 critical operations plus signed package/update tooling,
@@ -231,3 +232,26 @@ recovery value, reset token, raw session ID, or full cookie.
 
 No Phase 5 action queues a campaign, starts a worker, calls a live provider, or
 creates a public recipient endpoint.
+
+## Phase 6–7 delivery and unsubscribe operations
+
+1. Apply `Version20260822000000` and `Version20260823000000` through the normal
+   migration gate before starting the corresponding worker code.
+2. Run the supervised worker and one scheduler invocation per minute as shown
+   in [worker.md](worker.md). The scheduler also removes at most 100 expired
+   recipient-token rows per run after their 30-day grace; suppression is never
+   removed by this maintenance.
+3. Every production recipient message gets a manual HTTPS unsubscribe URL in
+   its body and `List-Unsubscribe` header. Public requests need no login or
+   cookie and never reveal the address.
+4. Leave the RFC 8058 provider-signing checkbox off unless the Owner has
+   verified that the selected provider applies valid DKIM covering both
+   unsubscribe headers. Enabling it requires recent re-authentication and is
+   snapshotted per campaign. Phase 8 Doctor evidence is still required before
+   treating production sending as healthy.
+5. Configure the reverse proxy/access logger to redact the opaque segment of
+   `/r/<token>/unsubscribe`; application logs and rate-limit keys never retain
+   the raw token. Preserve generic 404/503 behavior during investigation.
+6. A forwarded link can suppress only its original frozen recipient. Replays
+   are expected and idempotent. Never delete a suppression because a token
+   expired, was forwarded, or was used repeatedly.

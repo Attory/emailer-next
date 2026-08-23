@@ -1,6 +1,6 @@
 # CI and quality gates
 
-**Status:** Phase 5 implemented baseline.
+**Status:** Phase 7 implemented baseline.
 
 One aggregate command, `composer check`, runs every executable current quality
 gate. CI invokes the same version-pinned commands rather than maintaining a
@@ -64,6 +64,12 @@ Phase 5 adds DOM/GD runtime requirements and the locked Symfony HTML Sanitizer
 dependency. The unchanged aggregate gate now also exercises contact/import,
 suppression, immutable template, sanitizer, asset, privacy, authorization, and
 CSRF safety properties; no live transport or Phase 6 worker is introduced.
+
+Phase 6 adds campaign/worker/concurrency/fake-transport coverage. Phase 7 adds
+token codec, encrypted key-ring, expiry/rotation/replay, RFC header/body
+snapshot, public firewall/cookie/cache/HTTPS, rate-limit, immediate suppression,
+and post-unsubscribe delivery-race coverage. The aggregate artifact and
+secret/private-data/history gates remain unchanged.
 
 Gitleaks 8.30.1 is checksum-pinned. It scans all reachable commits and the
 current directory, including ignored/untracked dependencies, artifacts, and

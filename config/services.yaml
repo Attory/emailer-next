@@ -101,6 +101,9 @@ services:
     App\Module\Audit\Application\Contract\AuditSink: '@App\Module\Audit\Infrastructure\DoctrineAuditSink'
     App\Module\Identity\Application\Contract\AdministrativeAuthorization: '@App\Module\Identity\Application\AuthorizationService'
     App\Module\Suppression\Application\Contract\SuppressionLookup: '@App\Module\Suppression\Application\SuppressionManager'
+    App\Module\Suppression\Application\Contract\RecipientSuppression: '@App\Module\Suppression\Application\SuppressionManager'
+    App\Module\Configuration\Application\Contract\RecipientRuntimeConfiguration: '@App\Module\Configuration\Infrastructure\DoctrineRecipientRuntimeConfiguration'
+    App\Module\RecipientActions\Application\Contract\RecipientUnsubscribeLinks: '@App\Module\RecipientActions\Application\RecipientTokenService'
     App\Module\Contacts\Application\Contract\ImportStorage: '@App\Module\Contacts\Infrastructure\PrivateImportStorage'
     App\Module\Templates\Application\Contract\TemplateAssetStorage: '@App\Module\Templates\Infrastructure\TemplateAssetStore'
     App\Module\Contacts\Application\Contract\AudienceProvider: '@App\Module\Contacts\Infrastructure\DoctrineAudienceProvider'
@@ -122,6 +125,10 @@ services:
             $directory: '%emailer.template_asset_dir%'
 
     App\Module\Identity\Application\SensitiveValueHasher:
+        arguments:
+            $key: '%env(APP_SECRET)%'
+
+    App\Module\RecipientActions\Presentation\Http\RecipientActionLimiterSubscriber:
         arguments:
             $key: '%env(APP_SECRET)%'
 

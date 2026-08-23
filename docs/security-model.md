@@ -1,6 +1,6 @@
 # Security model
 
-**Status:** Phase 5 recipient-data, private import, sanitization, and asset controls over the Phase 4 identity foundation.
+**Status:** Phase 7 public unsubscribe and recipient-token controls over Phase 6 durable delivery.
 
 Security controls are default-deny and layered. A UI-hidden action is not a
 security boundary; every protected invariant is checked at the route,
@@ -190,9 +190,32 @@ contain no raw address. A token for tracking cannot unsubscribe; a token for one
 campaign cannot authorize another. Key rotation supports a bounded overlap
 window. Repeated unsubscribe is safe and idempotent.
 
-The Phase 7 implementation may choose a random database-backed handle or an
-authenticated encrypted payload only after comparing revocation, forwarding,
-retention, and key-rotation consequences.
+Phase 7 uses `v<key-version>.<random-handle>.<HMAC>` bearer tokens. The HMAC
+covers purpose, handle, campaign, delivery recipient, contact, expiry, and key
+version. Its random 32-byte key is an encrypted dynamic secret; only the public
+random handle is stored in clear. Verification uses constant-time MAC comparison
+and fails generically for malformed, unknown-version, expired, revoked,
+wrong-purpose, or tampered input.
+
+Unsubscribe tokens expire after 365 days. A rotated key verifies for 365 days,
+so a token issued immediately before rotation retains its advertised lifetime.
+Expired token rows are purged after a 30-day operational grace in bounded
+scheduler batches; durable suppression is independent. A forwarded link lets
+its bearer suppress only the frozen recipient scope. Replays are intentionally
+idempotent and disclose no address or account-existence detail.
+
+`/r/` uses a security-disabled firewall before the administrator firewall, does
+not start or bind an admin session, sets no cookie, and applies no-store policy.
+Source and token limits use keyed cache identifiers rather than raw IPs or
+tokens. Unsafe HTTP POST fails without redirect. Manual and RFC 8058 requests
+share the HTTPS target; the latter accepts only the exact standardized form
+pair and never redirects.
+
+Every production message receives a manual `List-Unsubscribe` HTTPS URL and a
+body link. `List-Unsubscribe-Post` is fail-closed by default and is snapshotted
+only after an Owner records that the provider applies valid DKIM covering both
+unsubscribe headers. Phase 8 Doctor verification of deployment/provider
+readiness remains required before MVP sending is declared healthy.
 
 ## Data and output controls
 

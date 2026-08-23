@@ -24,7 +24,7 @@ final readonly class MailConfigurationManager
     public function view(AdministrativeActor $actor): array
     {
         $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Administrator, 'mail.configuration.view');
-        $row = $this->connection->fetchAssociative("SELECT smtp_host, smtp_port, encryption_mode, smtp_username, sender_address, sender_name, reply_to_address, tls_peer_verification, credential_secret_id IS NOT NULL credential_configured, updated_at FROM sender_identity WHERE singleton_key = '1'");
+        $row = $this->connection->fetchAssociative("SELECT smtp_host, smtp_port, encryption_mode, smtp_username, sender_address, sender_name, reply_to_address, tls_peer_verification, one_click_dkim_confirmed, credential_secret_id IS NOT NULL credential_configured, updated_at FROM sender_identity WHERE singleton_key = '1'");
         if (false === $row) {
             throw new \RuntimeException('Mail configuration is unavailable.');
         }
@@ -35,7 +35,7 @@ final readonly class MailConfigurationManager
         return $row;
     }
 
-    public function configureSecureSmtp(AdministrativeActor $actor, string $host, int $port, string $encryption, string $username, string $password, string $senderAddress, string $senderName, string $replyTo): void
+    public function configureSecureSmtp(AdministrativeActor $actor, string $host, int $port, string $encryption, string $username, string $password, string $senderAddress, string $senderName, string $replyTo, bool $oneClickDkimConfirmed = false): void
     {
         $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Owner, 'mail.configuration.update');
         $host = strtolower(trim($host));
@@ -50,7 +50,7 @@ final readonly class MailConfigurationManager
         }
         $sender = new EmailAddress($senderAddress);
         $reply = '' === trim($replyTo) ? null : new EmailAddress($replyTo);
-        $this->connection->transactional(function () use ($actor, $host, $port, $encryption, $username, $password, $sender, $senderName, $reply): void {
+        $this->connection->transactional(function () use ($actor, $host, $port, $encryption, $username, $password, $sender, $senderName, $reply, $oneClickDkimConfirmed): void {
             $installationId = $this->connection->fetchOne("SELECT installation_uuid FROM organisation_settings WHERE singleton_key = '1' FOR UPDATE");
             $existingId = $this->connection->fetchOne("SELECT credential_secret_id FROM sender_identity WHERE singleton_key = '1' FOR UPDATE");
             if (!\is_string($installationId)) {
@@ -62,8 +62,8 @@ final readonly class MailConfigurationManager
             } else {
                 $secretId = $this->vault->store('smtp.credential', $password, $installationId);
             }
-            $this->connection->update('sender_identity', ['smtp_host' => $host, 'smtp_port' => $port, 'encryption_mode' => $encryption, 'smtp_username' => $username, 'credential_secret_id' => $secretId, 'sender_address' => $sender->canonical, 'sender_name' => $senderName, 'reply_to_address' => $reply?->canonical, 'tls_peer_verification' => 1, 'updated_at' => Identity::now()], ['singleton_key' => '1']);
-            $this->audit->append(new AuditRecord($actor->id(), 'mail.configuration.updated', null, 'success', ['encryption' => $encryption, 'port' => $port]));
+            $this->connection->update('sender_identity', ['smtp_host' => $host, 'smtp_port' => $port, 'encryption_mode' => $encryption, 'smtp_username' => $username, 'credential_secret_id' => $secretId, 'sender_address' => $sender->canonical, 'sender_name' => $senderName, 'reply_to_address' => $reply?->canonical, 'tls_peer_verification' => 1, 'one_click_dkim_confirmed' => $oneClickDkimConfirmed ? 1 : 0, 'updated_at' => Identity::now()], ['singleton_key' => '1']);
+            $this->audit->append(new AuditRecord($actor->id(), 'mail.configuration.updated', null, 'success', ['encryption' => $encryption, 'port' => $port, 'one_click_dkim_confirmed' => $oneClickDkimConfirmed]));
         });
     }
 

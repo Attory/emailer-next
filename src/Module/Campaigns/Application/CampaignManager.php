@@ -73,7 +73,7 @@ final readonly class CampaignManager
             throw new \InvalidArgumentException('Campaign name is invalid.');
         }
         $template = $this->templates->get($templateVersionId);
-        $this->assertPhase6Fields($template['merge_fields']);
+        $this->assertAvailableRecipientFields($template['merge_fields']);
         $listIds = array_values(array_unique($listIds));
         $this->audiences->snapshot($listIds);
         $id = Identity::uuidV7();
@@ -126,7 +126,7 @@ final readonly class CampaignManager
                 throw new \DomainException('An accepted campaign test is required before approval.');
             }
             $template = $this->templates->get($campaign['template_version_id']);
-            $this->assertPhase6Fields($template['merge_fields']);
+            $this->assertAvailableRecipientFields($template['merge_fields']);
             $storedListIds = $this->connection->fetchFirstColumn('SELECT list_id FROM campaign_list_selection WHERE campaign_id = ? ORDER BY list_id', [$id]);
             $listIds = [];
             foreach ($storedListIds as $storedListId) {
@@ -140,7 +140,7 @@ final readonly class CampaignManager
                 throw new \DomainException('Campaign audience size is outside the configured limit.');
             }
             $now = Identity::now();
-            $this->connection->insert('campaign_content_snapshot', ['campaign_id' => $id, 'template_version_id' => $template['id'], 'subject' => $template['subject'], 'preheader' => $template['preheader'], 'html_body' => $template['html'], 'text_body' => $template['text'], 'merge_fields_json' => json_encode($template['merge_fields'], JSON_THROW_ON_ERROR), 'content_sha256' => $template['content_sha256'], 'sender_address' => $configuration['sender_address'], 'sender_name' => $configuration['sender_name'], 'reply_to_address' => $configuration['reply_to'], 'created_at' => $now]);
+            $this->connection->insert('campaign_content_snapshot', ['campaign_id' => $id, 'template_version_id' => $template['id'], 'subject' => $template['subject'], 'preheader' => $template['preheader'], 'html_body' => $template['html'], 'text_body' => $template['text'], 'unsubscribe_footer' => $configuration['unsubscribe_footer'], 'one_click_dkim_confirmed' => $configuration['one_click_dkim_confirmed'] ? 1 : 0, 'merge_fields_json' => json_encode($template['merge_fields'], JSON_THROW_ON_ERROR), 'content_sha256' => $template['content_sha256'], 'sender_address' => $configuration['sender_address'], 'sender_name' => $configuration['sender_name'], 'reply_to_address' => $configuration['reply_to'], 'created_at' => $now]);
             $digestParts = [];
             foreach ($recipients as $recipient) {
                 $digestParts[] = $recipient['contact_id'].'\0'.$recipient['email'];
@@ -227,9 +227,9 @@ final readonly class CampaignManager
     }
 
     /** @param list<string> $fields */
-    private function assertPhase6Fields(array $fields): void
+    private function assertAvailableRecipientFields(array $fields): void
     {
-        if ([] !== array_intersect($fields, ['unsubscribe_url', 'view_in_browser_url', 'rsvp_url'])) {
+        if ([] !== array_intersect($fields, ['view_in_browser_url', 'rsvp_url'])) {
             throw new \DomainException('This template requires a recipient feature from a later phase.');
         }
     }

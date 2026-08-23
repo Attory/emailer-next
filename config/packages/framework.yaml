@@ -36,6 +36,14 @@ framework:
             policy: 'fixed_window'
             limit: 120
             interval: '15 minutes'
+        recipient_action_source:
+            policy: 'fixed_window'
+            limit: 60
+            interval: '1 hour'
+        recipient_action_token:
+            policy: 'fixed_window'
+            limit: 20
+            interval: '1 hour'
 
 when@test:
     framework:

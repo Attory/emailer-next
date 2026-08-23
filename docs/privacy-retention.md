@@ -1,6 +1,6 @@
 # Privacy and retention
 
-**Status:** Phase 5 enforces contact/import/template minimization over the bounded setup defaults; analytics and final retention automation remain later work.
+**Status:** Phase 7 enforces public unsubscribe minimization and bounded token retention; analytics and full retention automation remain later work.
 
 Emailer Next minimizes data to the approved sending, suppression, response,
 operational, and audit purposes of one organisation. It is not a legal-policy
@@ -55,4 +55,14 @@ CSV uploads and safe row/reason-only rejection reports, masked ordinary views,
 and audited Administrator-only full-address reveal/export. Uploaded CSVs are
 integrity checked and expire after two hours if unfinished; a committed import
 removes its source file. Template previews use reserved synthetic values only.
-Tracking, RSVP, retention jobs, campaigns, and delivery remain unimplemented.
+At the Phase 5 boundary, tracking, RSVP, retention jobs, campaigns, and delivery
+remained unimplemented.
+
+Phase 7 public URLs contain only a version, random handle, and authenticator;
+they contain no address, contact ID, campaign ID, or message content. A token
+row privately retains its frozen address/scope for no longer than its 365-day
+lifetime plus a 30-day operational grace, after which the scheduler removes it
+in bounded batches. Source/token rate-limit keys are irreversible keyed hashes.
+Unsubscribe responses never display an address. Forwarding grants the bearer
+only the ability to suppress the original recipient, and repeated use is safe.
+Global suppression remains durable after token expiry or deletion.

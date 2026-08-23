@@ -11,12 +11,10 @@ use App\Module\Delivery\Application\Contract\OutboundMessage;
 use App\Module\Secrets\Application\Contract\SecretVault;
 use Symfony\Component\Mailer\Exception\TransportExceptionInterface;
 use Symfony\Component\Mailer\Transport\Smtp\Stream\SocketStream;
-use Symfony\Component\Mime\Address;
-use Symfony\Component\Mime\Email;
 
 final readonly class SymfonySmtpDeliveryTransport implements DeliveryTransport
 {
-    public function __construct(private DeliveryConfiguration $configuration, private SecretVault $vault, private string $environment)
+    public function __construct(private DeliveryConfiguration $configuration, private SecretVault $vault, private OutboundMimeMessageFactory $messages, private string $environment)
     {
     }
 
@@ -51,16 +49,7 @@ final readonly class SymfonySmtpDeliveryTransport implements DeliveryTransport
                 throw new DeliveryTransportFailure('permanent', 'SMTP credential is unavailable.', $exception, true);
             }
         }
-        $email = (new Email())
-            ->from(new Address($message->senderAddress, $message->senderName))
-            ->to($message->recipient)
-            ->subject($message->subject)
-            ->text($message->text)
-            ->html($message->html);
-        if (null !== $message->replyTo) {
-            $email->replyTo($message->replyTo);
-        }
-        $email->getHeaders()->addIdHeader('Message-ID', $message->messageId);
+        $email = $this->messages->create($message);
         try {
             $sent = $transport->send($email);
 

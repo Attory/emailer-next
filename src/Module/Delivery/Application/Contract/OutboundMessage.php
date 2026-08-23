@@ -15,6 +15,8 @@ final readonly class OutboundMessage
         public string $html,
         public string $text,
         public string $messageId,
+        public ?string $unsubscribeUrl = null,
+        public bool $oneClickUnsubscribe = false,
     ) {
     }
 }
