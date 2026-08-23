@@ -16,13 +16,16 @@ final readonly class DeliveryReadinessProbe implements ReadinessProbe
     public function findings(): array
     {
         $findings = [];
-        $runtime = $this->connection->fetchAssociative("SELECT schema_version, accepting_work, circuit_state FROM delivery_runtime WHERE singleton_key = '1'");
+        $runtime = $this->connection->fetchAssociative("SELECT schema_version, accepting_work, circuit_state, circuit_open_until FROM delivery_runtime WHERE singleton_key = '1'");
         if (false === $runtime || 1 !== $this->integer($runtime['schema_version'])) {
             $findings[] = $this->critical('delivery_schema', 'Delivery runtime compatibility is unavailable.', 'Apply the reviewed compatible schema before sending.');
         } elseif (1 !== $this->integer($runtime['accepting_work'])) {
             $findings[] = $this->critical('delivery_quiesced', 'Delivery is in maintenance mode.', 'Complete the maintenance operation and explicitly resume delivery.');
         } elseif ('open' === $runtime['circuit_state']) {
-            $findings[] = $this->critical('delivery_circuit_open', 'The delivery circuit breaker is open.', 'Resolve the transport failure and allow the bounded recovery policy to close it.');
+            $openUntil = $runtime['circuit_open_until'];
+            if (!\is_string($openUntil) || new \DateTimeImmutable($openUntil, new \DateTimeZone('UTC')) > new \DateTimeImmutable('now', new \DateTimeZone('UTC'))) {
+                $findings[] = $this->critical('delivery_circuit_open', 'The delivery circuit breaker is open.', 'Resolve the transport failure and allow the bounded recovery policy to close it.');
+            }
         }
         if (!\in_array($this->environment, ['dev', 'test'], true)) {
             foreach (['worker', 'scheduler'] as $kind) {

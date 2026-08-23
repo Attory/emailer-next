@@ -122,7 +122,7 @@ final class Phase6CampaignDeliveryTest extends KernelTestCase
         self::assertSame(0, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM delivery_attempt WHERE campaign_recipient_id = ?', [$queued->recipientId])));
     }
 
-    public function testTransientFailureIsBoundedlyRetriedAndOpensCircuitAtThreshold(): void
+    public function testTransientFailureOpensCircuitAndExpiredWindowAllowsHalfOpenRecovery(): void
     {
         self::bootKernel();
         $connection = $this->phase4Service(Connection::class);
@@ -147,6 +147,12 @@ final class Phase6CampaignDeliveryTest extends KernelTestCase
         $delay = $delayStamp->getDelay();
         self::assertGreaterThanOrEqual(60_000, $delay);
         self::assertLessThanOrEqual(90_000, $delay);
+
+        $connection->executeStatement("UPDATE delivery_runtime SET circuit_open_until = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND) WHERE singleton_key = '1'");
+        ($this->faultHandler($connection, 'accepted'))($queued);
+        self::assertSame('accepted', $connection->fetchOne('SELECT state FROM campaign_recipient WHERE id = ?', [$queued->recipientId]));
+        self::assertSame('closed', $connection->fetchOne("SELECT circuit_state FROM delivery_runtime WHERE singleton_key = '1'"));
+        self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT circuit_failures FROM delivery_runtime WHERE singleton_key = '1'")));
     }
 
     public function testAmbiguousOutcomeIsTerminalAndNeverBlindlyRetried(): void

@@ -18,7 +18,8 @@
   worker/scheduler heartbeat, backup recency/storage, and recovery package.
 - Critical findings fail closed at manual queue, manual schedule, and scheduler
   materialisation. Acknowledgement is append-only audit evidence and cannot
-  change a sending gate.
+  change a sending gate. The bounded circuit-open window remains critical, then
+  expires into the existing transactionally serialized half-open probe.
 - Streaming versioned module-contributor backups cover application tables and
   approved template assets. Sodium secretstream encryption authenticates every
   chunk and final boundary; a manifest binds every entry and version.
@@ -75,7 +76,7 @@
 - PHP-CS-Fixer: passed.
 - PHPStan maximum level, Deptrac, custom module boundaries, and package-builder
   syntax: passed.
-- PHPUnit: 164 tests, 2,078 assertions, passed (all Phase 1–7 regressions plus
+- PHPUnit: 164 tests, 2,087 assertions, passed (all Phase 1–7 regressions plus
   Phase 8 Doctor, backup/restore, recovery, package, housekeeping, route/role,
   method, and CSRF coverage).
 - Local signed-package double build was byte-identical for archive, manifest,
