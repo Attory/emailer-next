@@ -5,6 +5,21 @@
 <h1>{{ campaign.name }}</h1>
 <dl><dt>State</dt><dd>{{ campaign.state }}</dd><dt>Audience snapshot</dt><dd>{{ campaign.recipient_count }}</dd><dt>Approved</dt><dd>{{ campaign.approved_at|default('Not yet') }}</dd><dt>Scheduled</dt><dd>{{ campaign.scheduled_at|default('Not scheduled') }}</dd></dl>
 {% if campaign.latest_test %}<p>Latest test: {{ campaign.latest_test.state }}{% if campaign.latest_test.failure_class %} ({{ campaign.latest_test.failure_class }}){% endif %}</p>{% endif %}
+<section aria-labelledby="approval-summary">
+    <h2 id="approval-summary">Approval summary</h2>
+    <dl>
+        <dt>Selected audience</dt><dd>{{ campaign.review.selected_count }}</dd>
+        <dt>Currently suppressed</dt><dd>{{ campaign.review.suppressed_count }}</dd>
+        <dt>Currently eligible</dt><dd>{{ campaign.review.eligible_count }}</dd>
+        <dt>Template</dt><dd>{{ campaign.template_name }} version {{ campaign.template_version }}</dd>
+        <dt>Sender</dt><dd>{{ campaign.review.sender_name }} &lt;{{ campaign.review.sender_address }}&gt;</dd>
+        <dt>Schedule time zone</dt><dd>{{ campaign.review.time_zone }}</dd>
+        <dt>Tracking</dt><dd>{{ campaign.review.tracking }}</dd>
+        <dt>RSVP</dt><dd>{{ campaign.review.rsvp }}</dd>
+        <dt>One-click unsubscribe</dt><dd>{{ campaign.review.one_click }}</dd>
+        <dt>Test send</dt><dd>{{ campaign.latest_test ? campaign.latest_test.state : 'Not run' }}</dd>
+    </dl>
+</section>
 {% if is_granted('ROLE_OPERATOR') %}
 <div class="actions">
 {% if campaign.state in ['draft', 'review'] %}
@@ -22,6 +37,6 @@
 </div>
 {% endif %}
 <h2>Durable delivery progress</h2>
-<table><thead><tr><th>State</th><th>Count</th></tr></thead><tbody>{% for row in campaign.delivery_counts %}<tr><td>{{ row.state }}</td><td>{{ row.count }}</td></tr>{% else %}<tr><td colspan="2">No delivery ledger records yet.</td></tr>{% endfor %}</tbody></table>
+<table><thead><tr><th scope="col">State</th><th scope="col">Count</th></tr></thead><tbody>{% for row in campaign.delivery_counts %}<tr><td>{{ row.state }}</td><td>{{ row.count }}</td></tr>{% else %}<tr><td colspan="2">No delivery ledger records yet.</td></tr>{% endfor %}</tbody></table>
 <p>“Accepted” means the configured SMTP transport accepted the message; it does not prove inbox placement.</p>
 {% endblock %}

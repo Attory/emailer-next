@@ -1,14 +1,16 @@
 # Installation
 
-**Status:** Phase 8 recovery and signed update tooling implemented; Phase 9 still owns the first client-installable `0.1.0` candidate and deployment-profile acceptance.
+**Status:** Phase 9 MVP installation contract. A signed `0.1.0` candidate may be rehearsed but is not published or deployed by this phase.
 
 The current repository can create a completed installation with an
 external key, initial Owner, exact local Mailpit test evidence, sender identity,
 safe policies, irreversible lock, individual administrator login, session and
 account management, MFA, recovery, redacted audit UI, contacts, lists, private
 imports, suppression, immutable templates, durable campaigns, supervised
-delivery, and privacy-safe unsubscribe. It has no backup engine, sending Doctor,
-immutable update package, or supported production deployment yet.
+delivery, privacy-safe unsubscribe, encrypted backup/restore, critical sending
+Doctor gates, and signed immutable package/update tooling. Production
+installation still requires operator-provided infrastructure, secrets,
+provider configuration, and explicit deployment approval.
 
 The approved plan makes Phase 9 the first client-installable `0.1.0` MVP after
 campaign delivery, unsubscribe, critical readiness gates, backup/restore, and
@@ -22,8 +24,8 @@ The Phase 1 CI matrix is:
 
 | Component | Tested versions |
 | --- | --- |
-| PHP | 8.4.23 and 8.5.8 |
-| Symfony | locked 7.4 LTS packages (core 7.4.14 at Phase 1 completion) |
+| PHP | 8.4.24 and 8.5.9 |
+| Symfony | locked 7.4 LTS packages (current components through 7.4.17) |
 | MariaDB | 10.11.18 and 11.8.8 |
 | Composer | 2.10.2 |
 | Mailpit | 1.30.5 |
@@ -190,8 +192,44 @@ attestation disabled unless the provider is known to sign both unsubscribe
 headers; the application does not create that provider signature. Configure
 proxy access-log redaction for the opaque `/r/` segment. Phase 8 now supplies
 Doctor, backup/restore, recovery, housekeeping, and signed package tooling;
-Phase 9 acceptance and the actual `0.1.0` candidate still block production
-installation.
+The actual signed `0.1.0` candidate and its acceptance record remain required
+before any production installation.
+
+## Clean-server `0.1.0` installation
+
+1. Provision a supported Linux host with PHP-FPM 8.4.24 or 8.5.9 and every
+   extension in `composer.json`, MariaDB 10.11.18 or 11.8.8, Nginx or Apache,
+   a non-root `emailer` process account, a supervised worker or the bounded cron
+   fallback, and a CLI scheduler. Do not install a production Node.js runtime.
+2. Create separate operator-owned paths for immutable releases, external
+   runtime configuration, private writable data, backups, the master key,
+   recovery package, and pinned release public key. The web process may write
+   only the approved private/runtime paths, never source or release files.
+3. Obtain the archive, manifest, checksum, SBOM, signature, and public-key
+   fingerprint through the approved release channels. Independently verify and
+   pin the public key as described in [release-signing.md](release-signing.md).
+4. Supply placeholder-free runtime values through a protected service
+   environment file outside releases. Never place a credential on a command
+   line or in this repository. Set the document root exactly to the future
+   `current/public` path and keep the virtual host unavailable externally until
+   verification completes.
+5. Run `php bin/console emailer:release:inspect
+   /private/path/emailer-next-0.1.0.zip`, then `php bin/console
+   emailer:release:install /private/path/emailer-next-0.1.0.zip`. The installer
+   verifies all signed sidecars before extracting into a
+   new immutable `0.1.0` directory.
+6. Point service working directories to the atomic `current` link, apply
+   migrations through `Version20260824010000`, and complete the HTTPS ownership
+   proof and first-run setup. Setup begins with local Mailpit evidence; configure
+   authenticated TLS production SMTP only afterward through the protected Owner
+   workflow.
+7. Start worker and scheduler, run `emailer:doctor:run --json`, create and
+   verify an encrypted backup and separate recovery package, verify the web
+   exposure probes, and keep delivery quiesced until every critical finding is
+   cleared. A real provider test or DNS change is a separate action.
+
+The Phase 9 rehearsal performs these steps only against disposable synthetic
+services and Mailpit. It does not deploy a client server.
 
 ## Phase 8 operations configuration
 

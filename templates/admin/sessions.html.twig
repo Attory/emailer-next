@@ -3,7 +3,7 @@
 {% block admin_body %}
 <h1>Your active sessions</h1>
 <p><a href="{{ path('admin_reauthenticate', {purpose: 'session_management'}) }}">Re-authenticate for session revocation</a></p>
-<table><thead><tr><th>Session</th><th>Created</th><th>Last seen</th><th>Expiry</th><th>Action</th></tr></thead><tbody>
+<table><thead><tr><th scope="col">Session</th><th scope="col">Created</th><th scope="col">Last seen</th><th scope="col">Expiry</th><th scope="col">Action</th></tr></thead><tbody>
 {% for session in sessions %}
 <tr><td>{{ session.current ? 'Current session' : 'Other session' }}</td><td>{{ session.created_at }}</td><td>{{ session.last_seen_at }}</td><td>{{ session.absolute_expires_at }}</td><td>
 <form method="post" action="{{ path('admin_session_revoke') }}">

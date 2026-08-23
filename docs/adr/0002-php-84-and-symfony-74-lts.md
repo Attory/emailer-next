@@ -28,6 +28,11 @@ Phase 1 resolves the initial matrix to PHP 8.4.23 and 8.5.8. Composer requires
 components remain constrained to `7.4.*`; the Phase 1 lockfile resolves the core
 framework to 7.4.14.
 
+Phase 9 revalidation on 2026-08-23 keeps the same supported branches and
+constraints, advances the CI/runtime pins to PHP 8.4.24 and 8.5.9, and resolves
+the locked Symfony 7.4 components through 7.4.17 where released. MariaDB remains
+on the maintained 10.11.18 and 11.8.8 lines.
+
 ## Consequences
 
 - Hosts must provide PHP 8.4+ and the extensions in the master specification.

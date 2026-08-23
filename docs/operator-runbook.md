@@ -1,6 +1,6 @@
 # Operator runbook
 
-**Status:** Phase 8 MVP Doctor, backup/restore, recovery, housekeeping, and signed update runbook.
+**Status:** Phase 9 client-installable MVP candidate runbook.
 
 ## Current repository state
 
@@ -16,8 +16,9 @@ suppression, immutable templates, and safe raster assets. Phase 6 adds campaign
 delivery and supervised workers. Phase 7 adds mandatory unsubscribe links,
 cookie-free public handling, and immediate suppression. Phase 8 adds critical
 readiness gates, encrypted local backup/restore and key recovery, bounded
-housekeeping, and CLI-only signed immutable update tooling. Phase 9 still owns
-the first `0.1.0` candidate and production-profile acceptance.
+housekeeping, and CLI-only signed immutable update tooling. Phase 9 adds the
+first `0.1.0` candidate workflow, current platform matrix, accessibility/load
+evidence, and production-profile rehearsal without publishing or deploying it.
 
 The approved delivery sequence is Phase 6 campaigns/worker, Phase 7 safe
 unsubscribe, Phase 8 critical operations plus signed package/update tooling,
@@ -84,9 +85,9 @@ docker compose down
 Do not substitute a live SMTP hostname, add real runtime values, expose Compose
 ports beyond loopback, or treat this stack as production.
 
-## Production operating model (future)
+## Production operating model
 
-When implemented, operators will maintain:
+Operators maintain:
 
 - PHP-FPM web application behind TLS with document root `public/`;
 - MariaDB and reviewed migrations;
@@ -286,3 +287,19 @@ creates a public recipient endpoint.
    loads the new immutable release, rerun Doctor, and only then run
    `emailer:delivery:resume`. Never resume by updating `delivery_runtime`
    directly.
+
+## Phase 9 candidate operations
+
+1. Provision the signing private key outside the repository/build/client host
+   and the pinned public key through the custody and fingerprint ceremony in
+   [release-signing.md](release-signing.md).
+2. From a clean committed Phase 9 branch, run `composer check`, then invoke
+   `tools/release/build-0.1.0-candidate.sh` with the private key, independently
+   supplied public key, and an empty private output directory.
+3. Retain the emitted candidate record, archive, deterministic manifest,
+   checksum, SPDX SBOM, signature and public-key transfer copy together. Verify
+   fingerprints through the independent channel before client installation.
+4. Rehearse the documented clean install and inspect/Doctor/backup/restore
+   workflow on a disposable server profile. Do not use production SMTP or DNS.
+5. Stop after acceptance evidence. Publication, tag, deployment, client change,
+   and production provider testing require separate authorization.

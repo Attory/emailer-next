@@ -1,6 +1,6 @@
 # Administrator guide
 
-**Status:** Phase 8 MVP operations and release-status workflows implemented; Phase 9 release acceptance remains.
+**Status:** Phase 9 client-installable MVP candidate workflows documented.
 
 Emailer Next has one organisation per installation and individual
 administrator accounts. There is no self-registration, shared global password,
@@ -96,5 +96,8 @@ effects.
 - Owners can view version/schema/pointer status. Package upload, installation,
   migration, update, rollback, and switching remain CLI-only.
 
-Phase 9 adds the actual `0.1.0` candidate and release acceptance. Any
-screenshots must contain synthetic data only.
+Phase 9 acceptance verifies that campaign review displays the currently
+selected, suppressed, and eligible audience counts; sender identity; immutable
+template name/version; scheduled time and organisation time zone; tracking,
+RSVP and one-click state; and test-send status before approval. Any screenshots
+must contain synthetic data only.

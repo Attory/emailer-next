@@ -1,4 +1,4 @@
-ARG PHP_VERSION=8.4.23
+ARG PHP_VERSION=8.4.24
 
 FROM composer:2.10.2 AS composer_binary
 

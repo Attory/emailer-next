@@ -126,7 +126,9 @@
             "phpstan analyse --memory-limit=512M",
             "deptrac analyse --no-progress --cache-file=var/cache/deptrac.cache",
             "@php tools/quality/check-module-boundaries.php",
-            "@php -l tools/release/build-package.php"
+            "@php -l tools/release/build-package.php",
+            "@php -l tools/release/verify-package.php",
+            "@php -l tools/release/generate-test-keypair.php"
         ],
         "test": "phpunit",
         "check:migrations": "bash tools/quality/check-migrations.sh",
@@ -136,7 +138,8 @@
             "bash tools/security/scan-private-data.sh",
             "bash tools/artifact/inspect.sh",
             "bash tools/artifact/probe-public.sh",
-            "bash tools/artifact/probe-deployment-profiles.sh"
+            "bash tools/artifact/probe-deployment-profiles.sh",
+            "bash tools/release/check-candidate-tooling.sh"
         ],
         "check:shell": "bash tools/quality/check-shell.sh",
         "check": [

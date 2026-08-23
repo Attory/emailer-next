@@ -56,12 +56,28 @@ final readonly class CampaignManager
     {
         $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Auditor, 'campaign.view');
         $this->uuid($id);
-        $row = $this->connection->fetchAssociative('SELECT c.*, COALESCE(a.recipient_count, 0) recipient_count, a.audience_sha256 FROM campaign c LEFT JOIN campaign_audience_snapshot a ON a.campaign_id = c.id WHERE c.id = ?', [$id]);
+        $row = $this->connection->fetchAssociative('SELECT c.*, COALESCE(a.recipient_count, 0) recipient_count, a.audience_sha256, t.name template_name, v.version_number template_version FROM campaign c INNER JOIN template_version v ON v.id = c.template_version_id INNER JOIN email_template t ON t.id = v.template_id LEFT JOIN campaign_audience_snapshot a ON a.campaign_id = c.id WHERE c.id = ?', [$id]);
         if (false === $row) {
             throw new \InvalidArgumentException('Campaign is unavailable.');
         }
         $row['delivery_counts'] = $this->connection->fetchAllAssociative('SELECT state, COUNT(*) count FROM campaign_recipient WHERE campaign_id = ? GROUP BY state ORDER BY state', [$id]);
         $row['latest_test'] = $this->connection->fetchAssociative('SELECT state, failure_class, requested_at, accepted_at FROM campaign_test_delivery WHERE campaign_id = ? ORDER BY requested_at DESC LIMIT 1', [$id]);
+        $audience = $this->connection->fetchAssociative("SELECT COUNT(DISTINCT c.id) selected_count, COUNT(DISTINCT CASE WHEN s.id IS NOT NULL THEN c.id END) suppressed_count FROM campaign_list_selection x INNER JOIN contact_list l ON l.id = x.list_id AND l.archived_at IS NULL INNER JOIN list_membership m ON m.list_id = x.list_id INNER JOIN contact c ON c.id = m.contact_id AND c.status = 'active' AND c.archived_at IS NULL LEFT JOIN suppression s ON s.email_canonical = c.email_canonical WHERE x.campaign_id = ?", [$id]);
+        $selected = false === $audience ? 0 : $this->intValue($audience['selected_count']);
+        $suppressed = false === $audience ? 0 : $this->intValue($audience['suppressed_count']);
+        $configuration = $this->configuration->current();
+        $timeZone = $this->connection->fetchOne("SELECT time_zone FROM organisation_settings WHERE singleton_key = '1'");
+        $row['review'] = [
+            'selected_count' => $selected,
+            'suppressed_count' => $suppressed,
+            'eligible_count' => max(0, $selected - $suppressed),
+            'sender_address' => $configuration['sender_address'],
+            'sender_name' => $configuration['sender_name'],
+            'one_click' => $configuration['one_click_dkim_confirmed'] ? 'Enabled by provider DKIM attestation' : 'Disabled',
+            'tracking' => 'Off in MVP 0.1.0',
+            'rsvp' => 'Off in MVP 0.1.0',
+            'time_zone' => \is_string($timeZone) && '' !== $timeZone ? $timeZone : 'UTC',
+        ];
 
         return $row;
     }

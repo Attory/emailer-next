@@ -1,6 +1,6 @@
 # Release
 
-**Status:** Not yet releasable. Phase 8 package/update tooling is implemented and rehearsed locally; Phase 9 produces and accepts the first `0.1.0` release candidate.
+**Status:** Phase 9 `0.1.0` release-candidate process implemented. Candidate acceptance remains blocked until every recorded gate and operator-key build passes; nothing is published or deployed.
 
 Production deployment is an explicit operator action and never a side effect of
 CI, a phase job, or an update check. No release has an unattended auto-update.
@@ -52,6 +52,9 @@ artifacts, and client installations. Installation pins the trusted public key.
 Package verification is fail-closed before any file, migration, or release
 pointer change.
 
+Key custody, fingerprint distribution, rotation, recovery, and the supported
+update window are fixed in [release-signing.md](release-signing.md).
+
 The package never contains client configuration, a master/recovery/signing
 private key, SMTP credentials, recipient or campaign data, writable runtime
 state, logs, sessions, exports, imports, or backups. Those paths remain outside
@@ -88,9 +91,11 @@ immutable release directories.
 8. Stop. Tagging, publishing, deploying, DNS/provider changes, and production
    mail tests need separate explicit authorization.
 
-Phase 8's builder can create a local deterministic archive and signed sidecars
-for verification drills, but none is a published candidate. Phase 9 supplies
-the first `0.1.0` archive and acceptance report. Every later
+`tools/release/build-0.1.0-candidate.sh` builds twice from a clean committed
+tree, verifies byte identity and the pinned signature, then emits the archive,
+manifest, checksum, SPDX SBOM, signature, public-key transfer copy, and a local
+candidate record. These ignored local outputs are not a publication. Phase 9
+supplies the first `0.1.0` archive and acceptance report. Every later
 phase must supply a clean-install candidate and a supported-version update
 candidate. Phase 1 deliberately does not build a distributable archive, sign,
 tag, publish, release, or deploy anything.

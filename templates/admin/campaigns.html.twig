@@ -22,7 +22,7 @@
 {% endif %}
 <section>
     <h2>Campaign history</h2>
-    <table><thead><tr><th>Name</th><th>State</th><th>Audience</th><th>Accepted</th><th>Failures</th><th>Updated</th></tr></thead><tbody>
+    <table><thead><tr><th scope="col">Name</th><th scope="col">State</th><th scope="col">Audience</th><th scope="col">Accepted</th><th scope="col">Failures</th><th scope="col">Updated</th></tr></thead><tbody>
     {% for campaign in campaigns %}
         <tr><td><a href="{{ path('admin_campaign', {id: campaign.id}) }}">{{ campaign.name }}</a></td><td>{{ campaign.state }}</td><td>{{ campaign.recipient_count }}</td><td>{{ campaign.accepted_count|default(0) }}</td><td>{{ campaign.failure_count|default(0) }}</td><td>{{ campaign.updated_at }}</td></tr>
     {% else %}<tr><td colspan="6">No campaigns.</td></tr>{% endfor %}

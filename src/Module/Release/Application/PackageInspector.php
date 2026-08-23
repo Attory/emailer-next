@@ -21,15 +21,11 @@ final readonly class PackageInspector
         foreach ([$manifestFile, $checksumFile, $sbomFile, $signatureFile, $this->publicKeyFile] as $file) {
             $this->assertRegularFile($file);
         }
-        $publicKeyStat = @lstat($this->publicKeyFile);
-        if (!\is_array($publicKeyStat) || 0 !== ($publicKeyStat['mode'] & 0o022)) {
-            throw new \RuntimeException('Pinned release public key permissions are unsafe.');
-        }
         $manifestBytes = $this->readBounded($manifestFile, 1048576);
         $checksumBytes = $this->readBounded($checksumFile, 256);
         $sbomBytes = $this->readBounded($sbomFile, 8388608);
         $signatureBytes = trim($this->readBounded($signatureFile, 256));
-        $publicKeyBytes = trim($this->readBounded($this->publicKeyFile, 256));
+        $publicKeyBytes = trim($this->readBounded($this->publicKeyFile, 256, true));
         $manifest = json_decode($manifestBytes, true, 32, JSON_THROW_ON_ERROR);
         $sbom = json_decode($sbomBytes, true, 32, JSON_THROW_ON_ERROR);
         if (!\is_array($manifest) || 'emailer-next-release-v1' !== ($manifest['format'] ?? null) || !\is_array($manifest['files'] ?? null) || !\is_array($sbom) || 'SPDX-2.3' !== ($sbom['spdxVersion'] ?? null)) {
@@ -45,7 +41,9 @@ final readonly class PackageInspector
                 throw new \RuntimeException('Release manifest is incomplete.');
             }
         }
-        if (1 !== preg_match('/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$/', $manifest['version']) || 1 !== preg_match('/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$/', $manifest['minimum_source_version']) || 1 !== preg_match('/^[a-f0-9]{40}$/', $manifest['source_commit']) || version_compare($manifest['minimum_source_version'], $this->currentVersion, '>')) {
+        $identifier = '(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)';
+        $semanticVersion = '/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-'.$identifier.'(?:\.'.$identifier.')*)?$/D';
+        if (1 !== preg_match($semanticVersion, $manifest['version']) || 1 !== preg_match($semanticVersion, $manifest['minimum_source_version']) || 1 !== preg_match($semanticVersion, $this->currentVersion) || 1 !== preg_match('/^[a-f0-9]{40}$/', $manifest['source_commit']) || version_compare($manifest['minimum_source_version'], $this->currentVersion, '>') || basename($archive) !== 'emailer-next-'.$manifest['version'].'.zip') {
             throw new \RuntimeException('Release source compatibility check failed.');
         }
         if (1 !== preg_match('/^[0-9]{14}$/', $manifest['minimum_schema_version']) || 1 !== preg_match('/^[0-9]{14}$/', $manifest['schema_version']) || $manifest['schema_version'] < $manifest['minimum_schema_version']) {
@@ -54,11 +52,17 @@ final readonly class PackageInspector
         if (!\is_bool($manifest['rollback_schema_compatible'] ?? null)) {
             throw new \RuntimeException('Release rollback compatibility declaration is invalid.');
         }
+        foreach (['bin/console', 'composer.lock', 'public/index.php'] as $requiredRuntimeFile) {
+            if (!\is_string($files[$requiredRuntimeFile] ?? null)) {
+                throw new \RuntimeException('Release manifest omits a required runtime file.');
+            }
+        }
         $platform = $manifest['platform'] ?? null;
         $mariaDb = \is_array($platform) ? ($platform['mariadb'] ?? null) : null;
         if (!\is_array($platform) || !\is_string($platform['php_min'] ?? null) || !\is_string($platform['php_max_exclusive'] ?? null) || !\is_array($mariaDb) || ['10.11', '11.8'] !== array_values($mariaDb) || version_compare(PHP_VERSION, $platform['php_min'], '<') || !version_compare(PHP_VERSION, $platform['php_max_exclusive'], '<')) {
             throw new \RuntimeException('Release PHP compatibility check failed.');
         }
+        $this->assertSbom($sbom, $manifest);
         $archiveHash = hash_file('sha256', $archive);
         $expectedLine = $archiveHash.'  '.basename($archive)."\n";
         if (false === $archiveHash || !hash_equals($expectedLine, $checksumBytes)) {
@@ -126,6 +130,25 @@ final readonly class PackageInspector
         return $manifest;
     }
 
+    /** @param array<mixed> $sbom
+     * @param array<string, mixed> $manifest
+     */
+    private function assertSbom(array $sbom, array $manifest): void
+    {
+        $version = $manifest['version'] ?? null;
+        $source = $manifest['source_commit'] ?? null;
+        if (!\is_string($version) || !\is_string($source) || 'SPDX-2.3' !== ($sbom['spdxVersion'] ?? null) || 'CC0-1.0' !== ($sbom['dataLicense'] ?? null) || 'SPDXRef-DOCUMENT' !== ($sbom['SPDXID'] ?? null) || 'Emailer Next '.$version !== ($sbom['name'] ?? null) || 'https://attory.example.test/spdx/emailer-next/'.$source.'/'.$version !== ($sbom['documentNamespace'] ?? null) || !\is_array($sbom['packages'] ?? null) || [] === $sbom['packages']) {
+            throw new \RuntimeException('Release SBOM is incomplete or mismatched.');
+        }
+        $seen = [];
+        foreach ($sbom['packages'] as $package) {
+            if (!\is_array($package) || !\is_string($package['SPDXID'] ?? null) || '' === trim($package['SPDXID']) || !\is_string($package['name'] ?? null) || '' === trim($package['name']) || !\is_string($package['versionInfo'] ?? null) || '' === trim($package['versionInfo']) || !\is_string($package['licenseDeclared'] ?? null) || '' === trim($package['licenseDeclared']) || isset($seen[$package['SPDXID']])) {
+                throw new \RuntimeException('Release SBOM package metadata is invalid.');
+            }
+            $seen[$package['SPDXID']] = true;
+        }
+    }
+
     private function safeEntry(string $name): bool
     {
         return '' !== $name && !str_starts_with($name, '/') && !str_contains($name, "\0") && 1 !== preg_match('~(^|/)\.\.(/|$)~', $name) && 1 !== preg_match('~^[A-Za-z]:~', $name);
@@ -139,15 +162,27 @@ final readonly class PackageInspector
         }
     }
 
-    private function readBounded(string $path, int $limit): string
+    private function readBounded(string $path, int $limit, bool $rejectGroupOrWorldWrite = false): string
     {
-        $size = filesize($path);
-        if (false === $size || 1 > $size || $size > $limit) {
-            throw new \RuntimeException('Release metadata size is invalid.');
+        $pathStat = @lstat($path);
+        $handle = @fopen($path, 'rb');
+        if (!\is_array($pathStat) || false === $handle) {
+            throw new \RuntimeException('Release metadata cannot be opened safely.');
         }
-        $contents = file_get_contents($path);
-        if (false === $contents) {
-            throw new \RuntimeException('Release metadata cannot be read.');
+        try {
+            $handleStat = fstat($handle);
+            if (!\is_array($handleStat) || $pathStat['dev'] !== $handleStat['dev'] || $pathStat['ino'] !== $handleStat['ino'] || 0o100000 !== ($handleStat['mode'] & 0o170000) || 1 !== $handleStat['nlink'] || 1 > $handleStat['size'] || $handleStat['size'] > $limit) {
+                throw new \RuntimeException('Release metadata size or identity is invalid.');
+            }
+            if ($rejectGroupOrWorldWrite && 0 !== ($handleStat['mode'] & 0o022)) {
+                throw new \RuntimeException('Pinned release public key permissions are unsafe.');
+            }
+            $contents = stream_get_contents($handle, $limit + 1);
+            if (false === $contents || \strlen($contents) !== $handleStat['size'] || !feof($handle)) {
+                throw new \RuntimeException('Release metadata cannot be read safely.');
+            }
+        } finally {
+            fclose($handle);
         }
 
         return $contents;

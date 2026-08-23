@@ -25,6 +25,11 @@ Use this initial CI matrix:
 - PHP 8.4.23 with MariaDB 11.8.8;
 - PHP 8.5.8 with MariaDB 10.11.18.
 
+Phase 9 revalidation on 2026-08-23 updates the matrix patches to PHP 8.4.24
+with both MariaDB lines and PHP 8.5.9 with MariaDB 10.11.18. Composer 2.10.2,
+Mailpit 1.30.5, Gitleaks 8.30.1, MariaDB 10.11.18/11.8.8, and the isolation
+model remain current and unchanged.
+
 Use Composer 2.10.2 with a committed lockfile. Use PHP-CS-Fixer for style,
 PHPStan at maximum level with strict/Symfony/Doctrine extensions, Deptrac plus a
 project-owned PHP boundary check for architecture, PHPUnit for executable

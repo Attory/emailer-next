@@ -1,6 +1,6 @@
 # Architecture
 
-**Status:** Phase 8 MVP operations, recovery, and signed immutable update tooling over the Phase 7 delivery baseline.
+**Status:** Phase 9 client-installable MVP candidate architecture over the Phase 8 operations baseline.
 
 **Last reviewed:** 2026-08-23
 
@@ -91,7 +91,10 @@ Offline tooling builds deterministic archives with a manifest, checksum, SPDX
 SBOM, and detached Ed25519 signature; the CLI pins an external public key before
 extracting into immutable release directories. Updates quiesce, back up,
 migrate, atomically switch, run Doctor, and use compatible pointer rollback or
-verified restore. Phase 9 still owns the first `0.1.0` candidate.
+verified restore. Phase 9 turns that mechanism into the reproducible signed
+`0.1.0` candidate workflow, with exact source identity, SPDX licenses,
+operator-controlled signing custody, clean-install/update rehearsal, and no
+publication or deployment side effect.
 
 Template assets move to persistent private storage outside immutable release
 directories and are exposed only through the exact random-name public asset

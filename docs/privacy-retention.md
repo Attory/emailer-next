@@ -1,6 +1,6 @@
 # Privacy and retention
 
-**Status:** Phase 8 adds bounded MVP housekeeping evidence to Phase 7 unsubscribe minimization; full policy automation remains Phase 12.
+**Status:** Phase 9 MVP candidate retains the Phase 8 bounded housekeeping policy; full policy automation remains Phase 12.
 
 Phase 8 `emailer:retention:run` defaults to dry-run and processes at most 200
 eligible rows per category when `--apply` is explicit: expired import files,

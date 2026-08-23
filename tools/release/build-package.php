@@ -15,18 +15,31 @@ foreach ($required as $name) {
         exit(2);
     }
 }
-if (1 !== preg_match('/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-[0-9A-Za-z.-]+)?$/', $options['version']) || 1 !== preg_match('/^[a-f0-9]{40}$/', $options['source']) || 1 !== preg_match('/^[0-9]{14}$/', $options['schema']) || !in_array($options['rollback-schema-compatible'], ['true', 'false'], true) || !ctype_digit($options['source-date-epoch'])) {
+$identifier = '(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)';
+$semanticVersion = '/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-'.$identifier.'(?:\.'.$identifier.')*)?$/D';
+if (1 !== preg_match($semanticVersion, $options['version']) || 1 !== preg_match($semanticVersion, $options['minimum-source']) || 1 !== preg_match('/^[a-f0-9]{40}$/', $options['source']) || 1 !== preg_match('/^[0-9]{14}$/', $options['schema']) || !in_array($options['rollback-schema-compatible'], ['true', 'false'], true) || !ctype_digit($options['source-date-epoch'])) {
     fwrite(STDERR, "Release metadata is invalid.\n");
     exit(2);
 }
 $artifact = realpath($options['artifact']);
 $outputDirectory = realpath($options['output']);
 $keyStat = @lstat($options['signing-key']);
-if (false === $artifact || !is_dir($artifact) || false === $outputDirectory || !is_dir($outputDirectory) || !is_array($keyStat) || 0o100000 !== ($keyStat['mode'] & 0o170000) || 1 !== $keyStat['nlink'] || 0 !== ($keyStat['mode'] & 0o077) || $keyStat['size'] > 256) {
+$keyHandle = @fopen($options['signing-key'], 'rb');
+$openedKeyStat = false === $keyHandle ? false : fstat($keyHandle);
+if (false === $artifact || !is_dir($artifact) || false === $outputDirectory || !is_dir($outputDirectory) || !is_array($keyStat) || !is_array($openedKeyStat) || $keyStat['dev'] !== $openedKeyStat['dev'] || $keyStat['ino'] !== $openedKeyStat['ino'] || 0o100000 !== ($keyStat['mode'] & 0o170000) || 1 !== $keyStat['nlink'] || 0 !== ($keyStat['mode'] & 0o077) || $keyStat['size'] > 256) {
+    if (is_resource($keyHandle)) {
+        fclose($keyHandle);
+    }
     fwrite(STDERR, "Release input path or signing-key permissions are unsafe.\n");
     exit(2);
 }
-$secretEncoded = trim((string) file_get_contents($options['signing-key']));
+$secretEncoded = stream_get_contents($keyHandle, 257);
+fclose($keyHandle);
+if (false === $secretEncoded || 256 < strlen($secretEncoded)) {
+    fwrite(STDERR, "Signing key is malformed.\n");
+    exit(2);
+}
+$secretEncoded = trim($secretEncoded);
 try {
     $secret = sodium_base642bin($secretEncoded, SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING, '');
 } catch (SodiumException) {
@@ -63,6 +76,13 @@ foreach ($iterator as $file) {
     $files[$relative] = ['path' => $file->getPathname(), 'sha256' => $digest];
 }
 ksort($files, SORT_STRING);
+foreach (['bin/console', 'composer.lock', 'public/index.php'] as $requiredRuntimeFile) {
+    if (!isset($files[$requiredRuntimeFile])) {
+        sodium_memzero($secret);
+        fwrite(STDERR, "Artifact is missing a required runtime file.\n");
+        exit(2);
+    }
+}
 $filename = 'emailer-next-'.$options['version'].'.zip';
 $archive = $outputDirectory.'/'.$filename;
 foreach ([$archive, $archive.'.manifest.json', $archive.'.sha256', $archive.'.spdx.json', $archive.'.sig'] as $target) {
@@ -106,7 +126,9 @@ $lock = json_decode((string) file_get_contents($artifact.'/composer.lock'), true
 $packages = [];
 foreach (is_array($lock['packages'] ?? null) ? $lock['packages'] : [] as $package) {
     if (is_array($package) && is_string($package['name'] ?? null) && is_string($package['version'] ?? null)) {
-        $packages[] = ['SPDXID' => 'SPDXRef-Package-'.preg_replace('/[^A-Za-z0-9.-]/', '-', $package['name']), 'name' => $package['name'], 'versionInfo' => $package['version'], 'downloadLocation' => 'NOASSERTION', 'filesAnalyzed' => false, 'licenseConcluded' => 'NOASSERTION', 'licenseDeclared' => 'NOASSERTION', 'copyrightText' => 'NOASSERTION'];
+        $licenses = is_array($package['license'] ?? null) ? array_values(array_filter($package['license'], static fn (mixed $license): bool => is_string($license) && '' !== trim($license))) : [];
+        $declaredLicense = 1 === count($licenses) ? $licenses[0] : (1 < count($licenses) ? '('.implode(' OR ', $licenses).')' : 'NOASSERTION');
+        $packages[] = ['SPDXID' => 'SPDXRef-Package-'.preg_replace('/[^A-Za-z0-9.-]/', '-', $package['name']).'-'.substr(hash('sha256', $package['name']), 0, 12), 'name' => $package['name'], 'versionInfo' => $package['version'], 'downloadLocation' => 'NOASSERTION', 'filesAnalyzed' => false, 'licenseConcluded' => 'NOASSERTION', 'licenseDeclared' => $declaredLicense, 'copyrightText' => 'NOASSERTION'];
     }
 }
 usort($packages, static fn (array $left, array $right): int => $left['name'] <=> $right['name']);
@@ -114,11 +136,47 @@ $sbom = ['spdxVersion' => 'SPDX-2.3', 'dataLicense' => 'CC0-1.0', 'SPDXID' => 'S
 $sbomBytes = json_encode($sbom, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n";
 $signature = sodium_crypto_sign_detached($manifestBytes.$checksumBytes.hash('sha256', $sbomBytes), $secret);
 sodium_memzero($secret);
-file_put_contents($archive.'.manifest.json', $manifestBytes, LOCK_EX);
-file_put_contents($archive.'.sha256', $checksumBytes, LOCK_EX);
-file_put_contents($archive.'.spdx.json', $sbomBytes, LOCK_EX);
-file_put_contents($archive.'.sig', sodium_bin2base64($signature, SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING)."\n", LOCK_EX);
-foreach ([$archive, $archive.'.manifest.json', $archive.'.sha256', $archive.'.spdx.json', $archive.'.sig'] as $target) {
-    chmod($target, 0o644);
+try {
+    writeExclusive($archive.'.manifest.json', $manifestBytes);
+    writeExclusive($archive.'.sha256', $checksumBytes);
+    writeExclusive($archive.'.spdx.json', $sbomBytes);
+    writeExclusive($archive.'.sig', sodium_bin2base64($signature, SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING)."\n");
+    foreach ([$archive, $archive.'.manifest.json', $archive.'.sha256', $archive.'.spdx.json', $archive.'.sig'] as $target) {
+        if (!chmod($target, 0o644)) {
+            throw new RuntimeException('Release output permissions cannot be finalized.');
+        }
+    }
+} catch (Throwable) {
+    foreach ([$archive, $archive.'.manifest.json', $archive.'.sha256', $archive.'.spdx.json', $archive.'.sig'] as $target) {
+        @unlink($target);
+    }
+    fwrite(STDERR, "Release metadata publication failed.\n");
+    exit(2);
 }
 fwrite(STDOUT, $archive."\n");
+
+function writeExclusive(string $path, string $contents): void
+{
+    $handle = @fopen($path, 'xb');
+    if (false === $handle || !chmod($path, 0o600)) {
+        if (is_resource($handle)) {
+            fclose($handle);
+        }
+        throw new RuntimeException('Release sidecar cannot be created.');
+    }
+    try {
+        $offset = 0;
+        while ($offset < strlen($contents)) {
+            $written = fwrite($handle, substr($contents, $offset));
+            if (false === $written || 0 === $written) {
+                throw new RuntimeException('Release sidecar cannot be written.');
+            }
+            $offset += $written;
+        }
+        if (!fflush($handle)) {
+            throw new RuntimeException('Release sidecar cannot be flushed.');
+        }
+    } finally {
+        fclose($handle);
+    }
+}

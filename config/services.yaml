@@ -15,7 +15,7 @@ parameters:
     emailer.release_public_key_file: '%env(default:emailer.default_release_public_key_file:EMAILER_RELEASE_PUBLIC_KEY_FILE)%'
     emailer.default_releases_dir: ''
     emailer.releases_dir: '%env(default:emailer.default_releases_dir:EMAILER_RELEASES_DIR)%'
-    emailer.app_version: '0.1.0-dev'
+    emailer.app_version: '0.1.0'
     emailer.schema_version: '20260824010000'
     emailer.default_uri: '%env(DEFAULT_URI)%'
     emailer.default_master_key_file: ''
