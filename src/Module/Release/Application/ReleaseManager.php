@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Release\Application;
 
 use App\Module\Backup\Application\Contract\BackupOperations;
+use App\Module\Delivery\Application\Contract\InterruptedDeliveryRecovery;
 use App\Shared\Identity;
 use App\Shared\MaintenanceOperationLock;
 use Doctrine\DBAL\Connection;
@@ -12,7 +13,7 @@ use Symfony\Component\Lock\LockFactory;
 
 final readonly class ReleaseManager
 {
-    public function __construct(private PackageInspector $inspector, private BackupOperations $backups, private Connection $connection, private LockFactory $locks, private MaintenanceOperationLock $maintenance, private string $releasesDirectory, private string $currentVersion, private int $rollbackReserveBytes = 536870912)
+    public function __construct(private PackageInspector $inspector, private BackupOperations $backups, private Connection $connection, private LockFactory $locks, private MaintenanceOperationLock $maintenance, private InterruptedDeliveryRecovery $recovery, private string $releasesDirectory, private string $currentVersion, private int $rollbackReserveBytes = 536870912)
     {
     }
 
@@ -124,6 +125,7 @@ final readonly class ReleaseManager
             $operationId = Identity::uuidV7();
             $this->connection->insert('release_operation', ['id' => $operationId, 'operation' => 'update', 'source_version' => $this->currentVersion, 'target_version' => $manifest['version'], 'package_sha256' => hash_file('sha256', $archive), 'status' => 'started', 'detail_code' => 'verified', 'started_at' => Identity::now(), 'finished_at' => null]);
             $this->connection->executeStatement("UPDATE delivery_runtime SET accepting_work = 0, updated_at = ? WHERE singleton_key = '1'", [Identity::now()]);
+            $this->recovery->recover();
             $deadline = microtime(true) + 30.0;
             while (false !== $this->connection->fetchOne("SELECT 1 FROM delivery_runtime WHERE singleton_key = '1' AND active_claims > 0")) {
                 if (microtime(true) >= $deadline) {

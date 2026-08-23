@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Integration;
 
 use App\Module\Backup\Application\Contract\BackupOperations;
+use App\Module\Delivery\Application\Contract\InterruptedDeliveryRecovery;
 use App\Module\Release\Application\PackageInspector;
 use App\Module\Release\Application\ReleaseManager;
 use App\Shared\MaintenanceOperationLock;
@@ -38,7 +39,7 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
     public function testCleanInstallAndSuccessfulRepresentativeUpdate(): void
     {
         [$connection, $manager, $backups, $archive, $inspector, $locks] = $this->fixture(0);
-        $installer = new ReleaseManager($inspector, $backups, $connection, $locks, new MaintenanceOperationLock($locks), $this->directory.'/clean-install', '0.1.0', 0);
+        $installer = new ReleaseManager($inspector, $backups, $connection, $locks, new MaintenanceOperationLock($locks), self::createStub(InterruptedDeliveryRecovery::class), $this->directory.'/clean-install', '0.1.0', 0);
         $installed = $installer->install($archive, true);
         self::assertSame($installed, realpath($this->directory.'/clean-install/current'));
         self::assertSame(0o444, fileperms($installed.'/bin/console') & 0o777);
@@ -69,7 +70,7 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
     {
         [$connection, , $backups, $archive, $inspector, $locks] = $this->fixture(0);
         $this->publishPreviousRelease();
-        $manager = new ReleaseManager($inspector, $backups, $connection, $locks, new MaintenanceOperationLock($locks), $this->directory.'/releases', '0.1.0', PHP_INT_MAX - 1);
+        $manager = new ReleaseManager($inspector, $backups, $connection, $locks, new MaintenanceOperationLock($locks), self::createStub(InterruptedDeliveryRecovery::class), $this->directory.'/releases', '0.1.0', PHP_INT_MAX - 1);
         try {
             $manager->update($archive);
             self::fail('Impossible rollback reserve was accepted.');
@@ -112,13 +113,17 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         self::bootKernel();
         $connection = $this->phase4Service(Connection::class);
         $this->preparePhase4State($connection);
-        $connection->executeStatement("UPDATE delivery_runtime SET accepting_work = 1, active_claims = 0 WHERE singleton_key = '1'");
+        $connection->executeStatement("UPDATE delivery_runtime SET accepting_work = 1, active_claims = 1 WHERE singleton_key = '1'");
         mkdir($this->directory.'/locks', 0o700);
         $locks = new LockFactory(new FlockStore($this->directory.'/locks'));
         $backups = new RecordingBackupOperations($this->directory.'/safety.enxbackup');
         [$archive, $publicKey] = $this->package($doctorExit, $migrationExit, $minimumSchema, $targetSchema);
         $inspector = new PackageInspector($publicKey, '0.1.0');
-        $manager = new ReleaseManager($inspector, $backups, $connection, $locks, new MaintenanceOperationLock($locks), $this->directory.'/releases', '0.1.0', 0);
+        $recovery = self::createStub(InterruptedDeliveryRecovery::class);
+        $recovery->method('recover')->willReturnCallback(static function () use ($connection): void {
+            $connection->executeStatement("UPDATE delivery_runtime SET active_claims = 0 WHERE singleton_key = '1'");
+        });
+        $manager = new ReleaseManager($inspector, $backups, $connection, $locks, new MaintenanceOperationLock($locks), $recovery, $this->directory.'/releases', '0.1.0', 0);
 
         return [$connection, $manager, $backups, $archive, $inspector, $locks];
     }

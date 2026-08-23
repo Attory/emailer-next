@@ -41,7 +41,8 @@ this phase.
 ## Implemented CLI sequence
 
 1. Announce/enter maintenance mode and stop new campaign queueing.
-2. Gracefully drain or stop workers according to the release policy.
+2. Gracefully drain workers; interrupted claims are recovered immediately after
+   the updater closes new claims, before it waits for a zero active count.
 3. Verify manifest, checksum, signature, version compatibility, ownership,
    paths, and free space before extracting into the releases area.
 4. Create/verify a pre-upgrade backup.

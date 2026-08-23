@@ -18,17 +18,26 @@ final class MaintenanceOperationLock
 
     public function acquire(): void
     {
+        if (!$this->tryAcquire()) {
+            throw new \RuntimeException('Another installation-wide maintenance operation is active.');
+        }
+    }
+
+    public function tryAcquire(): bool
+    {
         if (0 < $this->depth) {
             ++$this->depth;
 
-            return;
+            return true;
         }
         $lock = $this->locks->createLock('emailer-maintenance-operation', 7200.0);
         if (!$lock->acquire()) {
-            throw new \RuntimeException('Another installation-wide maintenance operation is active.');
+            return false;
         }
         $this->lock = $lock;
         $this->depth = 1;
+
+        return true;
     }
 
     public function release(): void

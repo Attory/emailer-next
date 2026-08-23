@@ -123,6 +123,7 @@ services:
     App\Module\Configuration\Application\Contract\DeliveryConfiguration: '@App\Module\Configuration\Infrastructure\DoctrineDeliveryConfiguration'
     App\Module\Delivery\Application\Contract\CampaignDeliveryGateway: '@App\Module\Delivery\Infrastructure\DoctrineCampaignDeliveryGateway'
     App\Module\Delivery\Application\Contract\DeliveryTransport: '@App\Module\Delivery\Infrastructure\SymfonySmtpDeliveryTransport'
+    App\Module\Delivery\Application\Contract\InterruptedDeliveryRecovery: '@App\Module\Delivery\Application\InterruptedDeliveryRecoverer'
     App\Module\Campaigns\Application\Contract\SendingGate: '@App\Module\Health\Infrastructure\CampaignSendingGate'
     App\Module\Delivery\Application\Contract\SendingGate: '@App\Module\Health\Infrastructure\DeliverySendingGate'
 

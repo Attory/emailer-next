@@ -24,8 +24,10 @@
   chunk and final boundary; a manifest binds every entry and version.
 - A process-reentrant installation-wide mutex excludes backup, restore,
   housekeeping, update, and readiness-checked resume races while allowing the
-  updater's nested safety-backup/restore calls. Scheduler recovery still runs
-  under unrelated critical findings but not after maintenance quiescence.
+  updater's nested safety-backup/restore calls. Interrupted-work recovery still
+  runs under unrelated critical findings and while delivery drains after
+  quiescence, but yields once a maintenance operation owns the mutex. The
+  updater performs its own recovery pass immediately after closing new claims.
 - CLI verification/restore enforces private single-file paths, maintenance and
   zero active claims, full preflight, verified pre-restore backup, compensating
   rollback, suppression preservation, asset restore, and post-restore
@@ -73,7 +75,7 @@
 - PHP-CS-Fixer: passed.
 - PHPStan maximum level, Deptrac, custom module boundaries, and package-builder
   syntax: passed.
-- PHPUnit: 163 tests, 2,075 assertions, passed (all Phase 1–7 regressions plus
+- PHPUnit: 164 tests, 2,078 assertions, passed (all Phase 1–7 regressions plus
   Phase 8 Doctor, backup/restore, recovery, package, housekeeping, route/role,
   method, and CSRF coverage).
 - Local signed-package double build was byte-identical for archive, manifest,

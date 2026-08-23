@@ -269,16 +269,18 @@ creates a public recipient endpoint.
 3. Export the recovery package with `emailer:secrets:export-recovery-key`; do
    not record its passphrase. Create and verify backups with
    `emailer:backup:create` and `emailer:backup:verify`.
-4. For restore, quiesce delivery, stop worker/scheduler, confirm zero claims,
-   run interactive `emailer:backup:restore`, verify suppression and Doctor, then
+4. For restore, quiesce delivery and allow the scheduler to recover interrupted
+   claims until the reported count reaches zero. Then stop worker/scheduler,
+   run interactive `emailer:backup:restore`, verify suppression and Doctor, and
    explicitly resume. Restore never resumes delivery itself.
 5. Run `emailer:retention:run` for dry-run and add `--apply` only after review.
    Each category is capped at 200 rows; rerun for further bounded batches.
 6. Inspect packages before change. The updater verifies pinned signature,
    checksum, manifest, SBOM, compatibility and disk space before mutation. It
-   quiesces, creates a verified backup, installs immutably, migrates, switches
-   atomically, and runs Doctor. Failure remains in maintenance and uses only
-   compatible pointer rollback or verified restore.
+   quiesces, performs an interrupted-claim recovery pass, creates a verified
+   backup, installs immutably, migrates, switches atomically, and runs Doctor.
+   Failure remains in maintenance and uses only compatible pointer rollback or
+   verified restore.
 7. After `emailer:release:update` succeeds, delivery is still quiesced. Restart
    `emailer-worker.service` and `emailer-scheduler.service` so every process
    loads the new immutable release, rerun Doctor, and only then run
