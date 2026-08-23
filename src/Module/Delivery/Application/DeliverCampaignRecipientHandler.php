@@ -198,7 +198,9 @@ final readonly class DeliverCampaignRecipientHandler
     {
         $this->connection->transactional(function () use ($recipientId, $attemptId, $reference): void {
             $this->connection->update('delivery_attempt', ['state' => 'accepted', 'provider_reference_hash' => hash('sha256', $reference), 'finished_at' => Identity::now()], ['id' => $attemptId, 'state' => 'started']);
-            $this->connection->update('campaign_recipient', ['state' => 'accepted', 'accepted_at' => Identity::now(), 'terminal_at' => Identity::now(), 'claimed_at' => null, 'updated_at' => Identity::now()], ['id' => $recipientId, 'state' => 'processing']);
+            if (1 !== $this->connection->update('campaign_recipient', ['state' => 'accepted', 'accepted_at' => Identity::now(), 'terminal_at' => Identity::now(), 'claimed_at' => null, 'updated_at' => Identity::now()], ['id' => $recipientId, 'state' => 'processing'])) {
+                return;
+            }
             $this->releaseRuntime(true);
             $this->completeCampaignIfTerminal($recipientId);
         });
@@ -208,7 +210,9 @@ final readonly class DeliverCampaignRecipientHandler
     {
         $this->connection->transactional(function () use ($recipientId, $attemptId): void {
             $this->connection->delete('delivery_attempt', ['id' => $attemptId, 'state' => 'started']);
-            $this->connection->update('campaign_recipient', ['state' => 'suppressed', 'terminal_at' => Identity::now(), 'claimed_at' => null, 'updated_at' => Identity::now()], ['id' => $recipientId, 'state' => 'processing']);
+            if (1 !== $this->connection->update('campaign_recipient', ['state' => 'suppressed', 'terminal_at' => Identity::now(), 'claimed_at' => null, 'updated_at' => Identity::now()], ['id' => $recipientId, 'state' => 'processing'])) {
+                return;
+            }
             $this->releaseRuntime(true);
             $this->completeCampaignIfTerminal($recipientId);
         });
@@ -222,7 +226,9 @@ final readonly class DeliverCampaignRecipientHandler
             $state = $retry ? 'retry' : ('permanent' === $classification ? 'permanent_failure' : 'ambiguous');
             $next = null === $delay ? null : (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->modify('+'.$delay.' milliseconds')->format('Y-m-d H:i:s.u');
             $this->connection->update('delivery_attempt', ['state' => $classification, 'failure_class' => $classification, 'finished_at' => Identity::now()], ['id' => $attemptId, 'state' => 'started']);
-            $this->connection->update('campaign_recipient', ['state' => $state, 'next_attempt_at' => $next, 'claimed_at' => null, 'terminal_at' => $retry ? null : Identity::now(), 'last_failure_class' => $classification, 'operation_version' => $operationVersion, 'updated_at' => Identity::now()], ['id' => $recipientId, 'state' => 'processing']);
+            if (1 !== $this->connection->update('campaign_recipient', ['state' => $state, 'next_attempt_at' => $next, 'claimed_at' => null, 'terminal_at' => $retry ? null : Identity::now(), 'last_failure_class' => $classification, 'operation_version' => $operationVersion, 'updated_at' => Identity::now()], ['id' => $recipientId, 'state' => 'processing'])) {
+                return null;
+            }
             $this->releaseRuntime(false, $affectsCircuit);
             if (!$retry) {
                 $this->completeCampaignIfTerminal($recipientId);

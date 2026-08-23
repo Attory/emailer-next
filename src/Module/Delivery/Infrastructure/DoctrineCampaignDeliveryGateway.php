@@ -24,6 +24,11 @@ final readonly class DoctrineCampaignDeliveryGateway implements CampaignDelivery
         $this->bus->dispatch(new DeliverCampaignTest($testDeliveryId));
     }
 
+    public function dispatchTestAfter(string $testDeliveryId, int $delayMilliseconds): void
+    {
+        $this->bus->dispatch(new DeliverCampaignTest($testDeliveryId), [new DelayStamp($delayMilliseconds)]);
+    }
+
     public function materializeAndDispatch(string $campaignId, int $operationVersion): void
     {
         $configuration = $this->configuration->current();

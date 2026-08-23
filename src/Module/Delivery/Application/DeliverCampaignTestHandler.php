@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Delivery\Application;
 
 use App\Module\Configuration\Application\Contract\DeliveryConfiguration;
+use App\Module\Delivery\Application\Contract\CampaignDeliveryGateway;
 use App\Module\Delivery\Application\Contract\DeliveryTransport;
 use App\Module\Delivery\Application\Contract\DeliveryTransportFailure;
 use App\Module\Delivery\Application\Contract\OutboundMessage;
@@ -20,13 +21,19 @@ use Symfony\Component\Messenger\Exception\UnrecoverableMessageHandlingException;
 #[AsMessageHandler]
 final readonly class DeliverCampaignTestHandler
 {
-    public function __construct(private Connection $connection, private PublishedTemplateProvider $templates, private DeliveryConfiguration $configuration, private DeliveryTransport $transport, private SuppressionLookup $suppressions, private SendingGate $sendingGate)
+    public function __construct(private Connection $connection, private PublishedTemplateProvider $templates, private DeliveryConfiguration $configuration, private DeliveryTransport $transport, private SuppressionLookup $suppressions, private SendingGate $sendingGate, private CampaignDeliveryGateway $gateway)
     {
     }
 
     public function __invoke(DeliverCampaignTest $message): void
     {
-        $this->sendingGate->assertReady();
+        try {
+            $this->sendingGate->assertReady();
+        } catch (\DomainException) {
+            $this->gateway->dispatchTestAfter($message->testDeliveryId, 30_000);
+
+            return;
+        }
         $row = $this->connection->transactional(function () use ($message): array|false {
             $row = $this->connection->fetchAssociative('SELECT t.state, t.recipient_address, c.id campaign_id, c.name, c.template_version_id FROM campaign_test_delivery t INNER JOIN campaign c ON c.id = t.campaign_id WHERE t.id = ? FOR UPDATE', [$message->testDeliveryId]);
             if (false === $row || 'pending' !== $row['state']) {

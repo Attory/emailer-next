@@ -79,7 +79,7 @@
 - PHP-CS-Fixer: passed.
 - PHPStan maximum level, Deptrac, custom module boundaries, and package-builder
   syntax: passed.
-- PHPUnit: 165 tests, 2,103 assertions, passed (all Phase 1–7 regressions plus
+- PHPUnit: 166 tests, 2,108 assertions, passed (all Phase 1–7 regressions plus
   Phase 8 Doctor, backup/restore, recovery, package, housekeeping, route/role,
   method, and CSRF coverage).
 - Local signed-package double build was byte-identical for archive, manifest,
