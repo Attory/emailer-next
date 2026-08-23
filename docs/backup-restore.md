@@ -1,7 +1,6 @@
 # Backup and restore
 
-**Status:** Accepted MVP design; local backup/restore and the first restore drill
-are Phase 8. External destinations and automation are deferred to Phase 12.
+**Status:** Phase 8 local encrypted backup, recovery-key, verification, and CLI restore implemented. External destinations and automation remain Phase 12.
 
 ## Backup scope
 
@@ -32,7 +31,7 @@ CLI-only recovery export encrypts a versioned key package using an
 operator-provided strong passphrase that is never stored or logged. Doctor warns
 until a verified recovery package is recorded.
 
-## Planned backup procedure
+## Backup procedure
 
 1. Check free space, key access, schema/application version, and destination.
 2. Obtain a consistent database/filesystem view.
@@ -43,19 +42,38 @@ until a verified recovery package is recorded.
    implemented in Phase 12 or by an operator-controlled process outside the
    application.
 
-## Planned restore procedure
+Create and verify with `emailer:backup:create`; authenticate an existing private
+artifact with `emailer:backup:verify <path>`. Tables and approved assets are
+streamed from explicit versioned module contributors. A sodium secretstream
+envelope derived from the external master key authenticates every chunk and its
+final boundary; the inner manifest binds each entry, application/schema
+version, backup ID, and creation time.
+
+Export the separate package interactively with
+`emailer:secrets:export-recovery-key`. Its hidden passphrase uses Argon2id (3
+operations, 64 MiB) and XChaCha20-Poly1305. Recover only a missing key with
+`emailer:secrets:recover-master-key`; an existing key is never replaced.
+
+## Restore procedure
 
 Restore is CLI-only and requires maintenance mode, Owner/operator approval,
 format/version/integrity/key/free-space preflight, and a pre-restore backup. It
 restores into a staging namespace where practical, validates constraints and
 suppression, then switches transactionally or follows a tested rollback.
 
+Quiesce delivery, stop workers/scheduler, and confirm zero active claims. Run
+interactive `emailer:backup:restore <path>`. It authenticates and validates the
+entire artifact, creates and verifies a pre-restore backup, applies database and
+approved assets, and reapplies that safety backup on failure. Delivery remains
+quiesced after every outcome; run Doctor and verify suppression before explicit
+resume.
+
 The restore command never obtains a backup path or passphrase from an HTTP
 request and never prints decrypted contents or key material.
 
 ## Drill and policy
 
-Phase 8 must test corruption, wrong passphrase/key, partial data, incompatible
+Phase 8 tests corruption, wrong passphrase/key, partial data, incompatible
 version, insufficient space, interrupted restore, rollback, and preservation of
 suppression. It must also create and verify the encrypted pre-update backup used
 by the updater. Phase 12 adds approved external destinations and automated

@@ -1,13 +1,13 @@
 # Initial data model
 
-**Status:** Phase 7 recipient-token and unsubscribe schema over implemented Phase 6 campaign delivery.
+**Status:** Phase 8 operations evidence schema over the Phase 7 delivery and recipient-safety model.
 
 `DoctrineMigrations\Version20260723000000` remains the no-schema platform
 smoke check. Phase 3 adds `Version20260815000000`, which creates only the
 secure first-run tables below, and `Version20260816000000`, which constrains
 the setup mail row to the exact local Mailpit probe. Phase 4 adds identity and
-audit; Phase 5 adds contact/import/suppression/template storage. Campaign,
-delivery, health, and backup entities remain conceptual.
+audit; Phase 5 adds contact/import/suppression/template storage; Phases 6–7 add
+campaign/delivery and recipient-token state; Phase 8 adds operational evidence.
 
 ## Implemented through Phase 5
 
@@ -33,6 +33,10 @@ delivery, health, and backup entities remain conceptual.
 | `contact_import` / `contact_import_candidate` | Contacts | Private upload integrity metadata, bounded preview counters/report token, and database-staged unique candidates |
 | `email_template` / `template_version` | Templates | Template lifecycle and immutable sanitized versions with merge/link manifests and content digests |
 | `template_asset` | Templates | Metadata for content-detected, dimension-bounded, re-encoded raster files |
+| `health_check_run` | Health | Redacted immutable Doctor result, counts, stable findings, and timestamps |
+| `backup_record` | Backup | Encrypted artifact identity/digest/size, source/schema versions, and verification time; no path or key |
+| `release_operation` | Release | Redacted inspect/install/update/rollback version, digest, state, and result code |
+| `housekeeping_run` | Housekeeping | Dry-run/apply flag, bounded per-category counts, result, and timestamps |
 
 `Version20260817000000` expands `app_user` to all four administrative roles and
 adds change/login/disable timestamps while reusing the Phase 3 account and MFA
@@ -46,6 +50,11 @@ throttle scopes. It is also forward-only.
 `Version20260819000000` adds the Phase 5 tables above. It is forward-only
 because recipient, suppression, import provenance, and published-content state
 must not be silently discarded by automated rollback.
+
+`Version20260824000000` adds the four Phase 8 evidence tables above;
+`Version20260824010000` adds the explicit dead-letter deletion counter. Both are
+forward-only because discarding recovery and operational evidence is not a safe
+automated rollback.
 
 MariaDB foreign keys protect Owner/MFA and encrypted-secret references. Check
 constraints protect singleton keys, initial roles/types, exact Phase 3 Mailpit

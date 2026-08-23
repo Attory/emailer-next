@@ -11,6 +11,7 @@ use App\Module\Delivery\Application\Contract\CampaignDeliveryGateway;
 use App\Module\Delivery\Application\Contract\DeliveryTransport;
 use App\Module\Delivery\Application\Contract\DeliveryTransportFailure;
 use App\Module\Delivery\Application\Contract\OutboundMessage;
+use App\Module\Delivery\Application\Contract\SendingGate;
 use App\Module\Delivery\Application\Message\DeliverCampaignRecipient;
 use App\Module\RecipientActions\Application\Contract\RecipientUnsubscribeLinks;
 use App\Module\Suppression\Application\Contract\SuppressionLookup;
@@ -33,11 +34,19 @@ final readonly class DeliverCampaignRecipientHandler
         private CampaignDeliveryGateway $gateway,
         private RecipientUnsubscribeLinks $unsubscribeLinks,
         private AuditSink $audit,
+        private SendingGate $sendingGate,
     ) {
     }
 
     public function __invoke(DeliverCampaignRecipient $message): void
     {
+        try {
+            $this->sendingGate->assertReady();
+        } catch (\DomainException) {
+            $this->gateway->dispatchAfter($message->recipientId, $message->operationVersion, 30_000);
+
+            return;
+        }
         $configuration = $this->configuration->current();
         $claim = $this->claim($message, $configuration);
         if (null === $claim) {
@@ -138,7 +147,8 @@ final readonly class DeliverCampaignRecipientHandler
             }
             $attemptNumber = 1 + $this->intValue($row['attempt_count']);
             $attemptId = Identity::uuidV7();
-            $this->connection->update('delivery_runtime', ['active_claims' => 1 + $this->intValue($runtime['active_claims']), 'rate_window_started_at' => $window->format('Y-m-d H:i:s.u'), 'rate_window_count' => 1 + $rateCount, 'circuit_state' => 'open' === $runtime['circuit_state'] ? 'half_open' : $this->stringValue($runtime['circuit_state']), 'updated_at' => Identity::now()], ['singleton_key' => '1']);
+            $openingProbe = 'open' === $runtime['circuit_state'];
+            $this->connection->update('delivery_runtime', ['active_claims' => 1 + $this->intValue($runtime['active_claims']), 'rate_window_started_at' => $window->format('Y-m-d H:i:s.u'), 'rate_window_count' => 1 + $rateCount, 'circuit_state' => $openingProbe ? 'half_open' : $this->stringValue($runtime['circuit_state']), 'circuit_open_until' => $openingProbe ? $now->modify('+10 minutes')->format('Y-m-d H:i:s.u') : $runtime['circuit_open_until'], 'updated_at' => Identity::now()], ['singleton_key' => '1']);
             $this->connection->update('delivery_domain_rate', ['window_started_at' => $domainWindow->format('Y-m-d H:i:s.u'), 'message_count' => 1 + $domainCount, 'updated_at' => Identity::now()], ['domain_hash' => $domainHash]);
             $this->connection->update('campaign_recipient', ['state' => 'processing', 'attempt_count' => $attemptNumber, 'claimed_at' => Identity::now(), 'updated_at' => Identity::now()], ['id' => $message->recipientId]);
             $this->connection->insert('delivery_attempt', ['id' => $attemptId, 'campaign_recipient_id' => $message->recipientId, 'attempt_number' => $attemptNumber, 'state' => 'started', 'failure_class' => null, 'provider_reference_hash' => null, 'started_at' => Identity::now(), 'finished_at' => null]);
@@ -188,7 +198,9 @@ final readonly class DeliverCampaignRecipientHandler
     {
         $this->connection->transactional(function () use ($recipientId, $attemptId, $reference): void {
             $this->connection->update('delivery_attempt', ['state' => 'accepted', 'provider_reference_hash' => hash('sha256', $reference), 'finished_at' => Identity::now()], ['id' => $attemptId, 'state' => 'started']);
-            $this->connection->update('campaign_recipient', ['state' => 'accepted', 'accepted_at' => Identity::now(), 'terminal_at' => Identity::now(), 'claimed_at' => null, 'updated_at' => Identity::now()], ['id' => $recipientId, 'state' => 'processing']);
+            if (1 !== $this->connection->update('campaign_recipient', ['state' => 'accepted', 'accepted_at' => Identity::now(), 'terminal_at' => Identity::now(), 'claimed_at' => null, 'updated_at' => Identity::now()], ['id' => $recipientId, 'state' => 'processing'])) {
+                return;
+            }
             $this->releaseRuntime(true);
             $this->completeCampaignIfTerminal($recipientId);
         });
@@ -198,7 +210,9 @@ final readonly class DeliverCampaignRecipientHandler
     {
         $this->connection->transactional(function () use ($recipientId, $attemptId): void {
             $this->connection->delete('delivery_attempt', ['id' => $attemptId, 'state' => 'started']);
-            $this->connection->update('campaign_recipient', ['state' => 'suppressed', 'terminal_at' => Identity::now(), 'claimed_at' => null, 'updated_at' => Identity::now()], ['id' => $recipientId, 'state' => 'processing']);
+            if (1 !== $this->connection->update('campaign_recipient', ['state' => 'suppressed', 'terminal_at' => Identity::now(), 'claimed_at' => null, 'updated_at' => Identity::now()], ['id' => $recipientId, 'state' => 'processing'])) {
+                return;
+            }
             $this->releaseRuntime(true);
             $this->completeCampaignIfTerminal($recipientId);
         });
@@ -212,7 +226,9 @@ final readonly class DeliverCampaignRecipientHandler
             $state = $retry ? 'retry' : ('permanent' === $classification ? 'permanent_failure' : 'ambiguous');
             $next = null === $delay ? null : (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->modify('+'.$delay.' milliseconds')->format('Y-m-d H:i:s.u');
             $this->connection->update('delivery_attempt', ['state' => $classification, 'failure_class' => $classification, 'finished_at' => Identity::now()], ['id' => $attemptId, 'state' => 'started']);
-            $this->connection->update('campaign_recipient', ['state' => $state, 'next_attempt_at' => $next, 'claimed_at' => null, 'terminal_at' => $retry ? null : Identity::now(), 'last_failure_class' => $classification, 'operation_version' => $operationVersion, 'updated_at' => Identity::now()], ['id' => $recipientId, 'state' => 'processing']);
+            if (1 !== $this->connection->update('campaign_recipient', ['state' => $state, 'next_attempt_at' => $next, 'claimed_at' => null, 'terminal_at' => $retry ? null : Identity::now(), 'last_failure_class' => $classification, 'operation_version' => $operationVersion, 'updated_at' => Identity::now()], ['id' => $recipientId, 'state' => 'processing'])) {
+                return null;
+            }
             $this->releaseRuntime(false, $affectsCircuit);
             if (!$retry) {
                 $this->completeCampaignIfTerminal($recipientId);

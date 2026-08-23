@@ -9,6 +9,15 @@ final class RoutePolicyRegistry
     /** @var array<string, array{role: AdministrativeRole, methods: list<string>, sensitive: bool}> */
     private const POLICIES = [
         'admin_dashboard' => ['role' => AdministrativeRole::Auditor, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
+        'admin_doctor' => ['role' => AdministrativeRole::Auditor, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
+        'admin_doctor_run' => ['role' => AdministrativeRole::Administrator, 'methods' => ['POST'], 'sensitive' => false],
+        'admin_doctor_export' => ['role' => AdministrativeRole::Auditor, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
+        'admin_doctor_acknowledge' => ['role' => AdministrativeRole::Administrator, 'methods' => ['POST'], 'sensitive' => false],
+        'admin_backups' => ['role' => AdministrativeRole::Owner, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
+        'admin_backup_create' => ['role' => AdministrativeRole::Owner, 'methods' => ['POST'], 'sensitive' => true],
+        'admin_retention' => ['role' => AdministrativeRole::Administrator, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
+        'admin_retention_run' => ['role' => AdministrativeRole::Administrator, 'methods' => ['POST'], 'sensitive' => false],
+        'admin_release' => ['role' => AdministrativeRole::Owner, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
         'admin_logout' => ['role' => AdministrativeRole::Auditor, 'methods' => ['POST'], 'sensitive' => false],
         'admin_reauthenticate' => ['role' => AdministrativeRole::Auditor, 'methods' => ['GET', 'HEAD', 'POST'], 'sensitive' => false],
         'admin_profile' => ['role' => AdministrativeRole::Auditor, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],

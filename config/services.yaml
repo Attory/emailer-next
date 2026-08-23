@@ -7,7 +7,17 @@ parameters:
     emailer.proof_file: '%kernel.project_dir%/.emailer-install-proof'
     emailer.install_lock_file: '%emailer.private_dir%/install.lock'
     emailer.import_dir: '%emailer.private_dir%/imports'
-    emailer.template_asset_dir: '%kernel.project_dir%/public/template-assets'
+    emailer.template_asset_dir: '%emailer.private_dir%/template-assets'
+    emailer.backup_dir: '%emailer.private_dir%/backups'
+    emailer.default_recovery_key_file: ''
+    emailer.recovery_key_file: '%env(default:emailer.default_recovery_key_file:EMAILER_RECOVERY_KEY_FILE)%'
+    emailer.default_release_public_key_file: ''
+    emailer.release_public_key_file: '%env(default:emailer.default_release_public_key_file:EMAILER_RELEASE_PUBLIC_KEY_FILE)%'
+    emailer.default_releases_dir: ''
+    emailer.releases_dir: '%env(default:emailer.default_releases_dir:EMAILER_RELEASES_DIR)%'
+    emailer.app_version: '0.1.0-dev'
+    emailer.schema_version: '20260824010000'
+    emailer.default_uri: '%env(DEFAULT_URI)%'
     emailer.default_master_key_file: ''
     emailer.master_key_file: '%env(default:emailer.default_master_key_file:EMAILER_SECRET_KEY_FILE)%'
     emailer.default_trusted_proxies: '127.0.0.1,::1'
@@ -19,6 +29,12 @@ services:
     _defaults:
         autowire: true
         autoconfigure: true
+
+    _instanceof:
+        App\Module\Health\Application\Contract\ReadinessProbe:
+            tags: ['emailer.readiness_probe']
+        App\Module\Backup\Application\Contract\BackupContributor:
+            tags: ['emailer.backup_contributor']
 
     App\:
         resource: '../src/'
@@ -65,11 +81,7 @@ services:
 
     App\Module\Setup\Application\Contract\CliSetupState: '@App\Module\Setup\Infrastructure\CliSetupStateStore'
 
-    App\Module\Setup\Infrastructure\RecentBackupValidator:
-        arguments:
-            $publicDirectory: '%kernel.project_dir%/public'
-
-    App\Module\Setup\Application\Contract\BackupValidator: '@App\Module\Setup\Infrastructure\RecentBackupValidator'
+    App\Module\Setup\Application\Contract\BackupValidator: '@App\Module\Backup\Infrastructure\VerifiedBackupValidator'
 
     App\Module\Setup\Infrastructure\SystemPreflight:
         arguments:
@@ -111,6 +123,80 @@ services:
     App\Module\Configuration\Application\Contract\DeliveryConfiguration: '@App\Module\Configuration\Infrastructure\DoctrineDeliveryConfiguration'
     App\Module\Delivery\Application\Contract\CampaignDeliveryGateway: '@App\Module\Delivery\Infrastructure\DoctrineCampaignDeliveryGateway'
     App\Module\Delivery\Application\Contract\DeliveryTransport: '@App\Module\Delivery\Infrastructure\SymfonySmtpDeliveryTransport'
+    App\Module\Delivery\Application\Contract\InterruptedDeliveryRecovery: '@App\Module\Delivery\Application\InterruptedDeliveryRecoverer'
+    App\Module\Campaigns\Application\Contract\SendingGate: '@App\Module\Health\Infrastructure\CampaignSendingGate'
+    App\Module\Delivery\Application\Contract\SendingGate: '@App\Module\Health\Infrastructure\DeliverySendingGate'
+
+    App\Module\Health\Application\Doctor:
+        arguments:
+            $probes: !tagged_iterator emailer.readiness_probe
+
+    App\Module\Backup\Application\BackupEngine:
+        arguments:
+            $contributors: !tagged_iterator emailer.backup_contributor
+            $backupDirectory: '%emailer.backup_dir%'
+            $sourceVersion: '%emailer.app_version%'
+
+    App\Module\Backup\Application\Contract\BackupOperations: '@App\Module\Backup\Application\BackupEngine'
+
+    App\Module\Health\Infrastructure\SystemReadinessProbe:
+        arguments:
+            $privateDirectory: '%emailer.private_dir%'
+            $projectDirectory: '%kernel.project_dir%'
+            $canonicalUri: '%emailer.default_uri%'
+            $environment: '%kernel.environment%'
+            $trustedProxies: '%emailer.trusted_proxies%'
+            $trustedHosts: '%emailer.trusted_hosts%'
+            $expectedSchemaVersion: '%emailer.schema_version%'
+            $releasesDirectory: '%emailer.releases_dir%'
+            $releasePublicKeyFile: '%emailer.release_public_key_file%'
+
+    App\Module\Configuration\Infrastructure\ConfigurationReadinessProbe:
+        arguments:
+            $canonicalUri: '%emailer.default_uri%'
+            $environment: '%kernel.environment%'
+
+    App\Module\Delivery\Infrastructure\DeliveryReadinessProbe:
+        arguments:
+            $environment: '%kernel.environment%'
+
+    App\Module\Backup\Infrastructure\BackupReadinessProbe:
+        arguments:
+            $backupDirectory: '%emailer.backup_dir%'
+            $recoveryKeyFile: '%emailer.recovery_key_file%'
+            $environment: '%kernel.environment%'
+
+    App\Module\Identity\Infrastructure\IdentityReadinessProbe:
+        arguments:
+            $environment: '%kernel.environment%'
+
+    App\Module\Secrets\Application\RecoveryKeyExporter:
+        arguments:
+            $outputFile: '%emailer.recovery_key_file%'
+
+    App\Module\Templates\Infrastructure\TemplatesBackupContributor:
+        arguments:
+            $assetDirectory: '%emailer.template_asset_dir%'
+
+    App\Module\Release\Application\PackageInspector:
+        arguments:
+            $publicKeyFile: '%emailer.release_public_key_file%'
+            $currentVersion: '%emailer.app_version%'
+
+    App\Module\Release\Application\ReleaseManager:
+        arguments:
+            $releasesDirectory: '%emailer.releases_dir%'
+            $currentVersion: '%emailer.app_version%'
+
+    App\Module\Release\Presentation\Cli\CheckReleaseCommand:
+        arguments:
+            $releasesDirectory: '%emailer.releases_dir%'
+            $version: '%emailer.app_version%'
+
+    App\Module\Release\Presentation\Http\ReleaseController:
+        arguments:
+            $releasesDirectory: '%emailer.releases_dir%'
+            $version: '%emailer.app_version%'
 
     App\Module\Delivery\Infrastructure\SymfonySmtpDeliveryTransport:
         arguments:

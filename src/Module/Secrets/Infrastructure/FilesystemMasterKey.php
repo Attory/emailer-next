@@ -139,6 +139,69 @@ final readonly class FilesystemMasterKey implements MasterKey
         return $this->pathExists($this->validatedKeyPath());
     }
 
+    public function recover(string $key): void
+    {
+        if (32 !== \strlen($key)) {
+            throw new \InvalidArgumentException('Recovered master key is malformed.');
+        }
+        $keyFile = $this->validatedKeyPath();
+        if ($this->pathExists($keyFile)) {
+            throw new \RuntimeException('Master key already exists; recovery will not replace it.');
+        }
+        $directory = \dirname($keyFile);
+        $this->createMissingDirectories($directory);
+        $ancestors = $this->validateAncestorChain($directory, true);
+        $temporaryFile = $directory.'/.master-key-recovery-'.bin2hex(random_bytes(12)).'.tmp';
+        $encoded = sodium_bin2base64($key, SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING)."\n";
+        try {
+            $handle = @fopen($temporaryFile, 'x+b');
+            if (false === $handle) {
+                throw new \RuntimeException('Recovered master key cannot be staged safely.');
+            }
+            try {
+                if (!@chmod($temporaryFile, 0o600) || \strlen($encoded) !== fwrite($handle, $encoded) || !fflush($handle)) {
+                    throw new \RuntimeException('Recovered master key cannot be written safely.');
+                }
+            } finally {
+                fclose($handle);
+            }
+            $this->assertSnapshotUnchanged($ancestors);
+            if (!@link($temporaryFile, $keyFile)) {
+                throw new \RuntimeException('Recovered master key cannot be published safely.');
+            }
+            try {
+                $this->assertSnapshotUnchanged($ancestors);
+            } catch (\Throwable $exception) {
+                @unlink($keyFile);
+                throw $exception;
+            }
+            if (!@unlink($temporaryFile)) {
+                @unlink($keyFile);
+                throw new \RuntimeException('Recovered master key staging cannot be removed safely.');
+            }
+            $publishedMetadata = @lstat($keyFile);
+            try {
+                $loaded = $this->load();
+                try {
+                    if (!hash_equals($key, $loaded)) {
+                        throw new \RuntimeException('Recovered master key verification failed.');
+                    }
+                } finally {
+                    sodium_memzero($loaded);
+                }
+            } catch (\Throwable $exception) {
+                $currentMetadata = @lstat($keyFile);
+                if (\is_array($publishedMetadata) && \is_array($currentMetadata) && $this->sameObject($publishedMetadata, $currentMetadata)) {
+                    @unlink($keyFile);
+                }
+                throw $exception;
+            }
+        } finally {
+            @unlink($temporaryFile);
+            sodium_memzero($encoded);
+        }
+    }
+
     private function validatedKeyPath(): string
     {
         if ('' === $this->keyFile || !str_starts_with($this->keyFile, '/') || str_contains($this->keyFile, "\0")) {

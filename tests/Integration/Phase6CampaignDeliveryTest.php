@@ -122,7 +122,7 @@ final class Phase6CampaignDeliveryTest extends KernelTestCase
         self::assertSame(0, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM delivery_attempt WHERE campaign_recipient_id = ?', [$queued->recipientId])));
     }
 
-    public function testTransientFailureIsBoundedlyRetriedAndOpensCircuitAtThreshold(): void
+    public function testTransientFailureOpensCircuitAndExpiredWindowAllowsHalfOpenRecovery(): void
     {
         self::bootKernel();
         $connection = $this->phase4Service(Connection::class);
@@ -147,6 +147,42 @@ final class Phase6CampaignDeliveryTest extends KernelTestCase
         $delay = $delayStamp->getDelay();
         self::assertGreaterThanOrEqual(60_000, $delay);
         self::assertLessThanOrEqual(90_000, $delay);
+
+        $connection->executeStatement("UPDATE delivery_runtime SET circuit_open_until = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND) WHERE singleton_key = '1'");
+        ($this->faultHandler($connection, 'accepted'))($queued);
+        self::assertSame('accepted', $connection->fetchOne('SELECT state FROM campaign_recipient WHERE id = ?', [$queued->recipientId]));
+        self::assertSame('closed', $connection->fetchOne("SELECT circuit_state FROM delivery_runtime WHERE singleton_key = '1'"));
+        self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT circuit_failures FROM delivery_runtime WHERE singleton_key = '1'")));
+    }
+
+    public function testInterruptedHalfOpenProbeReopensCircuitForBoundedRecovery(): void
+    {
+        self::bootKernel();
+        $connection = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($connection);
+        $actor = $this->createPhase4User($connection, 'phase6-half-open@example.test', 'phase6-password-'.bin2hex(random_bytes(8)));
+        [$campaigns, $campaignId] = $this->campaign($connection, $actor);
+        $campaigns->submitForReview($actor, $campaignId);
+        $campaigns->approve($actor, $campaignId, true);
+        $this->transport()->reset();
+        $campaigns->queue($actor, $campaignId);
+        $queued = $this->transport()->getSent()[0]->getMessage();
+        self::assertInstanceOf(DeliverCampaignRecipient::class, $queued);
+        $old = (new \DateTimeImmutable('-11 minutes'))->format('Y-m-d H:i:s.u');
+        $attemptId = Identity::uuidV7();
+        $connection->update('campaign_recipient', ['state' => 'processing', 'attempt_count' => 1, 'claimed_at' => $old], ['id' => $queued->recipientId]);
+        $connection->insert('delivery_attempt', ['id' => $attemptId, 'campaign_recipient_id' => $queued->recipientId, 'attempt_number' => 1, 'state' => 'started', 'failure_class' => null, 'provider_reference_hash' => null, 'started_at' => $old, 'finished_at' => null]);
+        $connection->executeStatement("UPDATE delivery_runtime SET active_claims = 1, circuit_failures = 5, circuit_state = 'half_open', circuit_open_until = ?, updated_at = UTC_TIMESTAMP(6) WHERE singleton_key = '1'", [$old]);
+
+        try {
+            $this->phase4Service(DeliveryScheduler::class)->run('phase6-half-open-recovery');
+            self::fail('A freshly reopened circuit did not stop new scheduling.');
+        } catch (\DomainException) {
+        }
+        self::assertSame('ambiguous', $connection->fetchOne('SELECT state FROM campaign_recipient WHERE id = ?', [$queued->recipientId]));
+        self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT active_claims FROM delivery_runtime WHERE singleton_key = '1'")));
+        self::assertSame('open', $connection->fetchOne("SELECT circuit_state FROM delivery_runtime WHERE singleton_key = '1'"));
+        self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT circuit_open_until > UTC_TIMESTAMP(6) FROM delivery_runtime WHERE singleton_key = '1'")));
     }
 
     public function testAmbiguousOutcomeIsTerminalAndNeverBlindlyRetried(): void
@@ -419,6 +455,7 @@ final class Phase6CampaignDeliveryTest extends KernelTestCase
             $this->phase4Service(CampaignDeliveryGateway::class),
             $this->phase4Service(RecipientUnsubscribeLinks::class),
             $this->phase4Service(AuditSink::class),
+            $this->phase4Service(\App\Module\Delivery\Application\Contract\SendingGate::class),
         );
     }
 }

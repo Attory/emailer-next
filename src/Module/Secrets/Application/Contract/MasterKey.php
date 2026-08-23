@@ -11,4 +11,6 @@ interface MasterKey
     public function load(): string;
 
     public function exists(): bool;
+
+    public function recover(string $key): void;
 }

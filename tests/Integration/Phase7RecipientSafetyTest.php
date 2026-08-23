@@ -93,6 +93,7 @@ final class Phase7RecipientSafetyTest extends KernelTestCase
             $this->phase4Service(CampaignDeliveryGateway::class),
             $this->phase4Service(RecipientUnsubscribeLinks::class),
             $this->phase4Service(\App\Module\Audit\Application\Contract\AuditSink::class),
+            $this->phase4Service(\App\Module\Delivery\Application\Contract\SendingGate::class),
         );
         $handler($queued);
         self::assertNotNull($capture->message);
@@ -122,7 +123,7 @@ final class Phase7RecipientSafetyTest extends KernelTestCase
         $tokens = $this->phase4Service(RecipientTokenService::class);
         $tokens->unsubscribe($this->tokenFromUrl($tokens->issue($campaignId, $recipientId, $contactId, 'phase7-race-recipient@example.test')));
         $capture = new Phase7CaptureTransport();
-        $handler = new DeliverCampaignRecipientHandler($connection, $this->phase4Service(DeliveryConfiguration::class), $this->phase4Service(SuppressionLookup::class), $capture, $this->phase4Service(CampaignDeliveryGateway::class), $tokens, $this->phase4Service(\App\Module\Audit\Application\Contract\AuditSink::class));
+        $handler = new DeliverCampaignRecipientHandler($connection, $this->phase4Service(DeliveryConfiguration::class), $this->phase4Service(SuppressionLookup::class), $capture, $this->phase4Service(CampaignDeliveryGateway::class), $tokens, $this->phase4Service(\App\Module\Audit\Application\Contract\AuditSink::class), $this->phase4Service(\App\Module\Delivery\Application\Contract\SendingGate::class));
         $handler($this->queuedMessage($recipientId));
         self::assertNull($capture->message);
         self::assertSame('suppressed', $connection->fetchOne('SELECT state FROM campaign_recipient WHERE id = ?', [$recipientId]));

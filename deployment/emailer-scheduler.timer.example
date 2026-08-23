@@ -1,0 +1,10 @@
+[Unit]
+Description=Run Emailer Next scheduler every minute
+
+[Timer]
+OnCalendar=*-*-* *:*:00
+Persistent=true
+Unit=emailer-scheduler.service
+
+[Install]
+WantedBy=timers.target

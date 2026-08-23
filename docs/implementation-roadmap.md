@@ -21,7 +21,7 @@ evidence; it does not authorize chaining phases.
 | 12 | Update `0.4`: full Doctor, retention and advanced operations | Full Health/Backup requirements, TM-20/TM-24/TM-25 | Remaining Doctor checks, operational dashboard, retention and backup automation |
 | 13 | Version `1.0.0` hardening and acceptance | Entire design and accumulated phase reports | Full aggregate and safety gates, release-train upgrade matrix, v1 RC report |
 
-Phase 5 is the current implementation boundary. Phases 6–13 remain unstarted;
+Phase 8 is the current implementation boundary. Phases 9–13 remain unstarted;
 this status statement does not authorize the next phase. Phase 9 is the first
 client-installable MVP boundary; Phase 13 retains the complete Version 1
 definition.

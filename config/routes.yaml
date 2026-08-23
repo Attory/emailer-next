@@ -37,3 +37,15 @@ configuration:
 recipient_actions:
     resource: ../src/Module/RecipientActions/Presentation/Http/
     type: attribute
+
+backup:
+    resource: ../src/Module/Backup/Presentation/Http/
+    type: attribute
+
+housekeeping:
+    resource: ../src/Module/Housekeeping/Presentation/Http/
+    type: attribute
+
+release:
+    resource: ../src/Module/Release/Presentation/Http/
+    type: attribute

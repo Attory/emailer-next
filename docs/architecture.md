@@ -1,8 +1,8 @@
 # Architecture
 
-**Status:** Phase 7 MVP recipient safety over durable Phase 6 campaign delivery; MVP operations/release tooling remains unimplemented.
+**Status:** Phase 8 MVP operations, recovery, and signed immutable update tooling over the Phase 7 delivery baseline.
 
-**Last reviewed:** 2026-08-22
+**Last reviewed:** 2026-08-23
 
 ## System context
 
@@ -80,6 +80,22 @@ random, encrypted through the secret vault, and separated by key version.
 One-click headers are snapshotted and emitted only after an Owner attests that
 the provider will DKIM-sign both unsubscribe headers; manual unsubscribe remains
 available without that attestation.
+
+Phase 8 adds module-owned readiness probes aggregated by Health, persistent
+redacted Doctor evidence, and fail-closed sending gates at manual queue,
+schedule, and scheduled materialisation. Versioned contributors feed streaming
+authenticated-encrypted backups of database state and approved assets. A
+separate Argon2id/XChaCha20-Poly1305 package can recover only a missing master
+key. CLI restore creates a pre-restore backup and leaves delivery quiesced.
+Offline tooling builds deterministic archives with a manifest, checksum, SPDX
+SBOM, and detached Ed25519 signature; the CLI pins an external public key before
+extracting into immutable release directories. Updates quiesce, back up,
+migrate, atomically switch, run Doctor, and use compatible pointer rollback or
+verified restore. Phase 9 still owns the first `0.1.0` candidate.
+
+Template assets move to persistent private storage outside immutable release
+directories and are exposed only through the exact random-name public asset
+route; updates therefore never make mutable data part of a release tree.
 
 ### Setup state transition
 

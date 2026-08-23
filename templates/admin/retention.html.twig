@@ -1,0 +1,3 @@
+{% extends 'admin/layout.html.twig' %}
+{% block title %}Retention · Emailer Next{% endblock %}
+{% block admin_body %}<h1>Bounded housekeeping</h1><p>Each run processes at most 200 eligible rows per category. Preview is the default.</p><form method="post" action="{{ path('admin_retention_run') }}"><input type="hidden" name="_token" value="{{ csrf_token('retention-run') }}"><button>Preview</button><button name="apply" value="1">Apply bounded batch</button></form>{% endblock %}

@@ -1,6 +1,6 @@
 # Threat model
 
-**Status:** Phase 7 public recipient-token and unsubscribe controls reviewed.
+**Status:** Phase 8 operational readiness, recovery, backup/restore, and signed-update controls reviewed.
 
 **Method:** Asset/trust-boundary review with STRIDE-style misuse cases and
 privacy-abuse review
@@ -228,6 +228,24 @@ availability affecting sessions, stolen active browser authority before its
 deadline, and root/process-memory compromise. Owner MFA health enforcement is
 still owned by the later authenticated Doctor; Phase 4 does not claim a green
 production sending state.
+
+## Phase 8 control status
+
+- TM-20 now has authenticated-encrypted streaming backups, separate
+  passphrase-encrypted key recovery, corruption/wrong-passphrase rejection,
+  pre-restore safety backup, suppression-preserving restore, and post-restore
+  quiescence.
+- TM-24/TM-25 now have bounded readiness probes and redacted evidence. Critical
+  results fail closed at campaign queue, schedule, and scheduler materialisation.
+- TM-23/TM-26 now have deterministic metadata, SPDX, checksum, detached
+  Ed25519 verification against a pinned external key, unsafe archive rejection,
+  compatibility/disk checks, immutable install, update lock, quiescence,
+  verified backup, migration, atomic pointer, Doctor, and compatible
+  rollback-or-restore behavior.
+
+Phase 8 does not claim signing-key custody, published-package distribution,
+production web-server acceptance, unattended backup/update, or the Phase 9
+`0.1.0` candidate.
 
 ## Residual risks and non-guarantees
 

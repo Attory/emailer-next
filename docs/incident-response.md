@@ -63,8 +63,9 @@ screenshots, or CI output.
 ### Master-key loss or suspected theft
 
 - Missing/unreadable key: fail closed; do not overwrite it or create a new one
-  over existing ciphertext. Locate and verify the separately protected recovery
-  package.
+  over existing ciphertext. Locate the separately protected recovery package
+  and use interactive `emailer:secrets:recover-master-key`; it refuses when any
+  key already exists. Then verify a backup and run Doctor before resuming.
 - Suspected theft: contain host access and have an authorized Owner rotate the
   master key plus downstream reversible credentials. Database/backup exposure
   changes the scope.

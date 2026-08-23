@@ -1,8 +1,6 @@
 # Upgrade and rollback
 
-**Status:** Phase 1 migration baseline with an accepted MVP update contract;
-production tooling begins in Phase 8 and the first candidate is rehearsed in
-Phase 9.
+**Status:** Phase 8 CLI package verification/install/update mechanism implemented; Phase 9 owns the first `0.1.0` candidate and production-profile acceptance.
 
 There is no unattended update. Build, approval, deployment, migration, health
 verification, and rollback are explicit operator actions using an immutable,
@@ -40,32 +38,55 @@ this phase.
 - Its checksum, SPDX SBOM, and detached Ed25519 signature validate against the
   public key pinned by the operator.
 
-## Planned sequence
+## Implemented CLI sequence
 
 1. Announce/enter maintenance mode and stop new campaign queueing.
-2. Gracefully drain or stop workers according to the release policy.
+2. Gracefully drain workers; interrupted claims are recovered immediately after
+   the updater closes new claims, before it waits for a zero active count.
 3. Verify manifest, checksum, signature, version compatibility, ownership,
    paths, and free space before extracting into the releases area.
 4. Create/verify a pre-upgrade backup.
 5. Install into a new immutable release directory.
 6. Run reviewed maintenance-mode migrations.
-7. Switch the release pointer, clear/warm safe cache, and start services.
-8. Run coarse and authenticated health/Doctor checks.
-9. Observe queue/worker/scheduler/error state before ending maintenance.
+7. Switch the release pointer and run the maintenance-aware Doctor while
+   delivery remains quiesced.
+8. Restart the supervised worker and scheduler units so no long-lived process
+   retains old release code.
+9. Run Doctor again, then use `emailer:delivery:resume`; it rechecks every
+   critical finding before changing `accepting_work`.
+10. Observe queue/worker/scheduler/error state before ending maintenance.
 
 Client configuration, the external master key, private data, writable runtime
 state, and backups remain outside every immutable release directory. The
 updater records only redacted version, migration, backup, health, and outcome
 metadata.
 
-Exact commands are not documented until they exist and pass a representative
-rehearsal.
+Use `emailer:release:inspect <package>` for non-mutating verification and
+`emailer:release:install <package>` to populate a new immutable directory
+without switching. Interactive `emailer:release:update <package>` runs the
+verified backup/migration/switch/maintenance-Doctor flow and intentionally
+leaves delivery quiesced. Restart `emailer-worker.service` and
+`emailer-scheduler.service`, then run `emailer:delivery:resume` to perform the
+final fail-closed readiness check. `emailer:release:check` emits only redacted
+version, schema, and pointer-presence evidence. No HTTP route accepts a package
+or triggers migration/switching.
+
+`EMAILER_RELEASE_PUBLIC_KEY_FILE` pins the externally provisioned Ed25519 public
+key and `EMAILER_RELEASES_DIR` holds semantic-version directories plus the
+atomic `current` symlink. Only the offline `tools/release/build-package.php`
+reads a signing private key; that key remains outside Git, artifacts, client
+installations, logs, prompts, and CI output.
 
 ## Rollback
 
 Rollback returns to a known artifact only when its code/schema compatibility is
 proven. If migrations are not backward compatible, use the tested
 backup/forward-fix plan instead of blindly pointing old code at a new schema.
+The automated updater therefore rejects a package unless its reviewed manifest
+explicitly declares the schema and data transition backward compatible. A
+`false` declaration permits inspection and clean installation only; it cannot
+authorize an in-place update that a data-only application backup could not
+reverse.
 Preserve audit, suppression, and ambiguous delivery evidence. Never resend
 unknown ledger work to “catch up.”
 

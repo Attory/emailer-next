@@ -8,6 +8,8 @@ interface CampaignDeliveryGateway
 {
     public function dispatchTest(string $testDeliveryId): void;
 
+    public function dispatchTestAfter(string $testDeliveryId, int $delayMilliseconds): void;
+
     public function materializeAndDispatch(string $campaignId, int $operationVersion): void;
 
     public function dispatchDue(string $campaignId): void;

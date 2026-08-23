@@ -1,6 +1,6 @@
 # Module boundaries and dependency rules
 
-**Status:** Phase 7 rules with executable enforcement.
+**Status:** Phase 8 rules with executable enforcement.
 
 The application is a modular monolith. A module owns its rules, tables,
 repositories, application services, and presentation adapters. Ownership is a
@@ -25,6 +25,7 @@ code-review boundary even though all modules deploy in one process.
 | `Health` | Doctor probes, findings, heartbeats, sending-gate projection | Read-only health contracts; never direct mutation of business state |
 | `Backup` | Backup records, manifests, encryption/export and restore orchestration | Versioned backup contributor contracts from data-owning modules |
 | `Release` | Artifact metadata, version compatibility, update/rollback checks | Health and migration status contracts |
+| `Housekeeping` | Bounded dry-run/apply retention and run evidence | Primitive storage contracts owned by affected modules |
 
 ## Dependency rules
 
@@ -83,6 +84,8 @@ flowchart TD
     Backup -. versioned contributors .-> Templates
     Backup -. versioned contributors .-> Campaigns
     Release --> Health
+    Release --> Backup
+    Housekeeping --> Contacts
 ```
 
 Audit emission is omitted from the diagram because every mutating module uses

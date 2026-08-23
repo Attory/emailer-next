@@ -1,0 +1,20 @@
+[Unit]
+Description=Emailer Next delivery worker
+After=network.target mariadb.service
+
+[Service]
+Type=simple
+User=emailer
+Group=emailer
+WorkingDirectory=/srv/emailer/releases/current
+EnvironmentFile=/etc/emailer/runtime.env
+ExecStart=/usr/bin/php /srv/emailer/releases/current/bin/console messenger:consume async --time-limit=3600 --memory-limit=256M
+Restart=always
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=/srv/emailer-private
+
+[Install]
+WantedBy=multi-user.target
