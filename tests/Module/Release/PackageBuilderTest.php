@@ -14,11 +14,13 @@ final class PackageBuilderTest extends TestCase
     {
         $this->directory = sys_get_temp_dir().'/emailer-package-builder-'.bin2hex(random_bytes(8));
         mkdir($this->directory.'/artifact/bin', 0o700, true);
+        mkdir($this->directory.'/artifact/config', 0o700, true);
         mkdir($this->directory.'/artifact/public', 0o700, true);
         mkdir($this->directory.'/first', 0o700);
         mkdir($this->directory.'/second', 0o700);
         file_put_contents($this->directory.'/artifact/bin/console', "#!/usr/bin/env php\n<?php return true;\n");
         file_put_contents($this->directory.'/artifact/public/index.php', "<?php return true;\n");
+        file_put_contents($this->directory.'/artifact/config/services.yaml', "parameters:\n    emailer.app_version: '0.1.0'\n");
         file_put_contents($this->directory.'/artifact/composer.lock', json_encode(['packages' => [['name' => 'synthetic/runtime', 'version' => '1.2.3', 'license' => ['MIT']]]], JSON_THROW_ON_ERROR));
         $pair = sodium_crypto_sign_keypair();
         $secret = sodium_crypto_sign_secretkey($pair);
@@ -57,6 +59,12 @@ final class PackageBuilderTest extends TestCase
         self::assertSame(2, $this->runBuilder($this->directory.'/first', '0.1.0-01'));
         symlink($this->directory.'/signing.key', $this->directory.'/linked.key');
         self::assertSame(2, $this->runBuilder($this->directory.'/second', '0.1.0', $this->directory.'/linked.key'));
+    }
+
+    public function testManifestVersionMustMatchEmbeddedRuntimeVersion(): void
+    {
+        file_put_contents($this->directory.'/artifact/config/services.yaml', "parameters:\n    emailer.app_version: '0.2.0'\n");
+        self::assertSame(2, $this->runBuilder($this->directory.'/first'));
     }
 
     private function build(string $output): string

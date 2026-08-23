@@ -76,12 +76,20 @@ foreach ($iterator as $file) {
     $files[$relative] = ['path' => $file->getPathname(), 'sha256' => $digest];
 }
 ksort($files, SORT_STRING);
-foreach (['bin/console', 'composer.lock', 'public/index.php'] as $requiredRuntimeFile) {
+foreach (['bin/console', 'composer.lock', 'config/services.yaml', 'public/index.php'] as $requiredRuntimeFile) {
     if (!isset($files[$requiredRuntimeFile])) {
         sodium_memzero($secret);
         fwrite(STDERR, "Artifact is missing a required runtime file.\n");
         exit(2);
     }
+}
+$servicesSize = filesize($files['config/services.yaml']['path']);
+$servicesBytes = false === $servicesSize || 1048576 < $servicesSize ? false : file_get_contents($files['config/services.yaml']['path']);
+$versionMatches = [];
+if (false === $servicesBytes || 1 !== preg_match_all('/^\s*emailer\.app_version:\s*[\'\"]([^\'\"]+)[\'\"]\s*$/m', $servicesBytes, $versionMatches) || 1 !== count($versionMatches[1]) || $options['version'] !== $versionMatches[1][0]) {
+    sodium_memzero($secret);
+    fwrite(STDERR, "Artifact application version differs from the release version.\n");
+    exit(2);
 }
 $filename = 'emailer-next-'.$options['version'].'.zip';
 $archive = $outputDirectory.'/'.$filename;
@@ -132,7 +140,7 @@ foreach (is_array($lock['packages'] ?? null) ? $lock['packages'] : [] as $packag
     }
 }
 usort($packages, static fn (array $left, array $right): int => $left['name'] <=> $right['name']);
-$sbom = ['spdxVersion' => 'SPDX-2.3', 'dataLicense' => 'CC0-1.0', 'SPDXID' => 'SPDXRef-DOCUMENT', 'name' => 'Emailer Next '.$options['version'], 'documentNamespace' => 'https://attory.example.test/spdx/emailer-next/'.$options['source'].'/'.$options['version'], 'creationInfo' => ['created' => gmdate('Y-m-d\TH:i:s\Z', $epoch), 'creators' => ['Tool: emailer-next-phase8-builder']], 'packages' => $packages];
+$sbom = ['spdxVersion' => 'SPDX-2.3', 'dataLicense' => 'CC0-1.0', 'SPDXID' => 'SPDXRef-DOCUMENT', 'name' => 'Emailer Next '.$options['version'], 'documentNamespace' => 'https://attory.example.test/spdx/emailer-next/'.$options['source'].'/'.$options['version'], 'creationInfo' => ['created' => gmdate('Y-m-d\TH:i:s\Z', $epoch), 'creators' => ['Tool: emailer-next-phase9-builder']], 'packages' => $packages];
 $sbomBytes = json_encode($sbom, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n";
 $signature = sodium_crypto_sign_detached($manifestBytes.$checksumBytes.hash('sha256', $sbomBytes), $secret);
 sodium_memzero($secret);

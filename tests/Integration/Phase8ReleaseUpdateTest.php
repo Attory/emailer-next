@@ -147,13 +147,15 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         $console = "<?php\n\$command = \$argv[1] ?? '';\nexit('emailer:doctor:run' === \$command ? ".$doctorExit." : ('doctrine:migrations:migrate' === \$command ? ".$migrationExit." : 0));\n";
         $frontController = '<?php return true;';
         $lock = '{"packages":[]}';
+        $services = "parameters:\n    emailer.app_version: '0.1.0'\n";
         $zip = new \ZipArchive();
         self::assertTrue($zip->open($archive, \ZipArchive::CREATE | \ZipArchive::OVERWRITE));
         self::assertTrue($zip->addFromString('bin/console', $console));
         self::assertTrue($zip->addFromString('composer.lock', $lock));
+        self::assertTrue($zip->addFromString('config/services.yaml', $services));
         self::assertTrue($zip->addFromString('public/index.php', $frontController));
         $zip->close();
-        $files = ['bin/console' => hash('sha256', $console), 'composer.lock' => hash('sha256', $lock), 'public/index.php' => hash('sha256', $frontController)];
+        $files = ['bin/console' => hash('sha256', $console), 'composer.lock' => hash('sha256', $lock), 'config/services.yaml' => hash('sha256', $services), 'public/index.php' => hash('sha256', $frontController)];
         $manifest = ['format' => 'emailer-next-release-v1', 'version' => '0.1.0', 'source_commit' => str_repeat('b', 40), 'minimum_source_version' => '0.1.0-rc.1', 'minimum_schema_version' => $minimumSchema, 'schema_version' => $targetSchema, 'rollback_schema_compatible' => true, 'platform' => ['php_min' => '8.4.0', 'php_max_exclusive' => '8.6.0', 'mariadb' => ['10.11', '11.8']], 'files' => $files];
         $manifestBytes = json_encode($manifest, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n";
         $checksumBytes = hash_file('sha256', $archive).'  '.basename($archive)."\n";

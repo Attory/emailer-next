@@ -52,7 +52,7 @@ final readonly class PackageInspector
         if (!\is_bool($manifest['rollback_schema_compatible'] ?? null)) {
             throw new \RuntimeException('Release rollback compatibility declaration is invalid.');
         }
-        foreach (['bin/console', 'composer.lock', 'public/index.php'] as $requiredRuntimeFile) {
+        foreach (['bin/console', 'composer.lock', 'config/services.yaml', 'public/index.php'] as $requiredRuntimeFile) {
             if (!\is_string($files[$requiredRuntimeFile] ?? null)) {
                 throw new \RuntimeException('Release manifest omits a required runtime file.');
             }
@@ -81,6 +81,7 @@ final readonly class PackageInspector
         try {
             $seen = [];
             $totalSize = 0;
+            $servicesBytes = null;
             if ($zip->numFiles > 100000) {
                 throw new \RuntimeException('Release archive contains too many entries.');
             }
@@ -109,7 +110,20 @@ final readonly class PackageInspector
                     throw new \RuntimeException('Release archive differs from its manifest.');
                 }
                 $hash = hash_init('sha256');
-                hash_update_stream($hash, $stream);
+                if ('config/services.yaml' === $name) {
+                    if (1048576 < $stat['size']) {
+                        fclose($stream);
+                        throw new \RuntimeException('Release runtime configuration is too large.');
+                    }
+                    $servicesBytes = stream_get_contents($stream, 1048577);
+                    if (false === $servicesBytes || \strlen($servicesBytes) !== $stat['size'] || !feof($stream)) {
+                        fclose($stream);
+                        throw new \RuntimeException('Release runtime configuration cannot be read safely.');
+                    }
+                    hash_update($hash, $servicesBytes);
+                } else {
+                    hash_update_stream($hash, $stream);
+                }
                 fclose($stream);
                 if (!hash_equals($expected, hash_final($hash))) {
                     throw new \RuntimeException('Release file digest verification failed.');
@@ -119,6 +133,10 @@ final readonly class PackageInspector
                 if (!\is_string($name) || !isset($seen[$name])) {
                     throw new \RuntimeException('Release manifest names a missing file.');
                 }
+            }
+            $versionMatches = [];
+            if (!\is_string($servicesBytes) || 1 !== preg_match_all('/^\s*emailer\.app_version:\s*[\'\"]([^\'\"]+)[\'\"]\s*$/m', $servicesBytes, $versionMatches) || 1 !== \count($versionMatches[1]) || $manifest['version'] !== $versionMatches[1][0]) {
+                throw new \RuntimeException('Release runtime version differs from its manifest.');
             }
         } finally {
             $zip->close();

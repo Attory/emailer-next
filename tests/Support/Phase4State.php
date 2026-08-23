@@ -90,24 +90,26 @@ SQL);
             }
         }
 
-        $importDirectory = self::getContainer()->getParameter('emailer.import_dir');
-        if (!\is_string($importDirectory) || !is_dir($importDirectory)) {
-            return;
-        }
-
-        $entries = scandir($importDirectory);
-        if (false === $entries) {
-            throw new \RuntimeException('Unable to inspect the test import directory.');
-        }
-
-        foreach ($entries as $entry) {
-            if ('.' === $entry || '..' === $entry) {
+        foreach (['emailer.import_dir', 'emailer.template_asset_dir', 'emailer.backup_dir'] as $parameter) {
+            $directory = self::getContainer()->getParameter($parameter);
+            if (!\is_string($directory) || !is_dir($directory)) {
                 continue;
             }
 
-            $path = $importDirectory.'/'.$entry;
-            if ((is_file($path) || is_link($path)) && !unlink($path)) {
-                throw new \RuntimeException('Unable to remove a generated test import file.');
+            $entries = scandir($directory);
+            if (false === $entries) {
+                throw new \RuntimeException('Unable to inspect a generated test directory.');
+            }
+
+            foreach ($entries as $entry) {
+                if ('.' === $entry || '..' === $entry) {
+                    continue;
+                }
+
+                $path = $directory.'/'.$entry;
+                if ((!is_file($path) && !is_link($path)) || !unlink($path)) {
+                    throw new \RuntimeException('Unable to remove a generated test file safely.');
+                }
             }
         }
     }

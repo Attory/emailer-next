@@ -24,7 +24,8 @@
 - Hardened build and verification against malformed semantic versions,
   mismatched archive/SBOM identity, absent runtime files, linked or swapped key
   files, unsafe key permissions, unbounded metadata, unsafe ZIP objects,
-  duplicate/missing entries and output replacement.
+  duplicate/missing entries, manifest/runtime-version drift and output
+  replacement.
 - Added the operator-controlled offline signing-key custody, independent public
   fingerprint, rotation, compromise/loss and supported-update policy. Test/CI
   keys are disposable and cannot become release trust anchors.
@@ -61,7 +62,7 @@
 - PHP-CS-Fixer, PHPStan maximum level, Deptrac and custom module boundaries:
   passed with no baseline, ignore or skipped violation.
 - Doctrine migrations/up-to-date and mapping validation: passed on MariaDB.
-- PHPUnit: 170 tests and 2,247 assertions passed on PHP 8.4.24, including all
+- PHPUnit: 172 tests and 2,264 assertions passed on PHP 8.4.24, including all
   Phase 1–8 regressions plus Phase 9 packaging, accessibility and load checks.
 - Artifact build, exact allowlist inspection, public-path and representative
   Nginx/Apache probes: passed.
