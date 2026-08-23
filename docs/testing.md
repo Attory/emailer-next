@@ -143,7 +143,8 @@ data is accepted.
   not a client-server throughput promise.
 - Static server-rendered accessibility checks for landmarks, language,
   viewport, form labels, table-header scope, visible keyboard focus, responsive
-  layout, and the complete campaign approval summary.
+  layout, and the complete campaign approval summary. These source-pattern
+  checks do not claim DOM, assistive-technology, tab-order, or contrast testing.
 
 ## Phase 1 coverage
 

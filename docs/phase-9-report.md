@@ -37,8 +37,9 @@
   selected/suppressed/eligible audience, immutable template version, sender,
   schedule/time zone, tracking/RSVP/one-click state and test-send state.
 - Added semantic table headers, file-input labeling, visible keyboard focus,
-  responsive navigation/table behavior, and executable server-rendered
-  accessibility assertions.
+  responsive navigation/table behavior, and executable static Twig/CSS
+  structural checks. No browser, assistive-technology, tab-order or contrast
+  conformance claim is made.
 - Added a reference 2,000-recipient synthetic audience profile. It proves
   snapshot/ledger materialisation and the configured 1,000-message initial
   dispatch batch within 45 seconds and 128 MiB incremental memory; it is not a
@@ -82,7 +83,9 @@
 - Deterministic semantic-versioned package, manifest, checksum, SPDX and
   detached-signature path: passed with a disposable non-release test key.
 - Clean install and signed update/rollback/restore rehearsal: passed.
-- Accessibility and approved-limit load evidence: passed.
+- Static structural accessibility baseline and approved-limit load evidence:
+  passed. Browser/assistive-technology and manual contrast testing were not
+  performed by this phase gate.
 - Installation, operation, backup, restore, update, rollback, signing and
   support-window documentation: completed.
 - Critical/high findings: none unresolved in local review; exact-head Codex and
