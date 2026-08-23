@@ -7,6 +7,7 @@ namespace App\Module\Delivery\Application;
 use App\Module\Audit\Application\Contract\AuditRecord;
 use App\Module\Audit\Application\Contract\AuditSink;
 use App\Module\Delivery\Application\Contract\CampaignDeliveryGateway;
+use App\Module\Delivery\Application\Contract\SendingGate;
 use App\Module\RecipientActions\Application\Contract\RecipientUnsubscribeLinks;
 use App\Shared\Identity;
 use Doctrine\DBAL\Connection;
@@ -14,7 +15,7 @@ use Symfony\Component\Lock\LockFactory;
 
 final readonly class DeliveryScheduler
 {
-    public function __construct(private Connection $connection, private CampaignDeliveryGateway $gateway, private AuditSink $audit, private LockFactory $lockFactory, private RecipientUnsubscribeLinks $unsubscribeLinks)
+    public function __construct(private Connection $connection, private CampaignDeliveryGateway $gateway, private AuditSink $audit, private LockFactory $lockFactory, private RecipientUnsubscribeLinks $unsubscribeLinks, private SendingGate $sendingGate)
     {
     }
 
@@ -27,6 +28,7 @@ final readonly class DeliveryScheduler
         }
         try {
             $this->heartbeat($schedulerId);
+            $this->sendingGate->assertReady();
             $this->recoverInterruptedClaims();
             $this->recoverInterruptedTests();
             $this->unsubscribeLinks->purgeExpired();

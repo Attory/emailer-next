@@ -6,6 +6,7 @@ namespace App\Module\Campaigns\Application;
 
 use App\Module\Audit\Application\Contract\AuditRecord;
 use App\Module\Audit\Application\Contract\AuditSink;
+use App\Module\Campaigns\Application\Contract\SendingGate;
 use App\Module\Configuration\Application\Contract\DeliveryConfiguration;
 use App\Module\Contacts\Application\Contract\AudienceProvider;
 use App\Module\Delivery\Application\Contract\CampaignDeliveryGateway;
@@ -27,6 +28,7 @@ final readonly class CampaignManager
         private PublishedTemplateProvider $templates,
         private DeliveryConfiguration $configuration,
         private CampaignDeliveryGateway $delivery,
+        private SendingGate $sendingGate,
     ) {
     }
 
@@ -155,6 +157,7 @@ final readonly class CampaignManager
     public function schedule(AdministrativeActor $actor, string $id, \DateTimeImmutable $at): void
     {
         $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'campaign.schedule');
+        $this->sendingGate->assertReady();
         $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
         if ($at <= $now || $at > $now->modify('+1 year')) {
             throw new \InvalidArgumentException('Campaign schedule is invalid.');
@@ -172,6 +175,7 @@ final readonly class CampaignManager
     public function queue(AdministrativeActor $actor, string $id): void
     {
         $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'campaign.queue');
+        $this->sendingGate->assertReady();
         $this->uuid($id);
         $version = 0;
         $this->connection->transactional(function () use ($actor, $id, &$version): void {
@@ -193,6 +197,7 @@ final readonly class CampaignManager
 
     public function resume(AdministrativeActor $actor, string $id): void
     {
+        $this->sendingGate->assertReady();
         $this->transition($actor, $id, ['paused'], 'sending', 'campaign.resumed');
         $this->delivery->dispatchDue($id);
     }

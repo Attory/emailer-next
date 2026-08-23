@@ -1,0 +1,78 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Module\Health;
+
+use App\Module\Health\Application\Contract\ReadinessProbe;
+use App\Module\Health\Application\Doctor;
+use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\TestCase;
+
+final class DoctorTest extends TestCase
+{
+    public function testCriticalFindingFailsSendingClosedAndPersistsOnlyRedactedEvidence(): void
+    {
+        $probe = new class implements ReadinessProbe {
+            public function findings(): array
+            {
+                return [['code' => 'smtp_transport_security', 'severity' => 'critical', 'summary' => 'Production SMTP is not ready.', 'remediation' => 'Configure authenticated TLS.']];
+            }
+        };
+        $connection = $this->createMock(Connection::class);
+        $connection->expects(self::once())->method('insert')->with('health_check_run', self::callback(static function (array $row): bool {
+            $encoded = json_encode($row, JSON_THROW_ON_ERROR);
+
+            return 'critical' === $row['status'] && 1 === $row['critical_count'] && !str_contains($encoded, 'password') && !str_contains($encoded, '@');
+        }));
+        $doctor = new Doctor([$probe], $connection);
+        self::assertSame('critical', $doctor->run()['status']);
+
+        $this->expectException(\DomainException::class);
+        $doctor->assertSendingReady();
+    }
+
+    public function testProbeFailureBecomesAStableCriticalFinding(): void
+    {
+        $probe = new class implements ReadinessProbe {
+            public function findings(): array
+            {
+                throw new \RuntimeException('credential@example.invalid');
+            }
+        };
+        $connection = self::createStub(Connection::class);
+        $result = (new Doctor([$probe], $connection))->run(false);
+        self::assertSame('probe_unavailable', $result['findings'][0]['code']);
+        self::assertStringNotContainsString('@', json_encode($result, JSON_THROW_ON_ERROR));
+    }
+
+    public function testMaintenanceVerificationDowngradesOnlyKnownQuiescenceFinding(): void
+    {
+        $probe = new class implements ReadinessProbe {
+            public function findings(): array
+            {
+                return [
+                    ['code' => 'delivery_quiesced', 'severity' => 'critical', 'summary' => 'maintenance', 'remediation' => 'resume'],
+                    ['code' => 'master_key_unavailable', 'severity' => 'critical', 'summary' => 'key', 'remediation' => 'recover'],
+                ];
+            }
+        };
+        $result = (new Doctor([$probe], self::createStub(Connection::class)))->run(false, true);
+        self::assertSame(1, $result['critical_count']);
+        self::assertSame(1, $result['warning_count']);
+        self::assertSame('warning', $result['findings'][1]['severity']);
+    }
+
+    public function testProbeCannotInjectRawAddressIntoPersistedReport(): void
+    {
+        $probe = new class implements ReadinessProbe {
+            public function findings(): array
+            {
+                return [['code' => 'unsafe', 'severity' => 'critical', 'summary' => 'recipient@example.test', 'remediation' => 'repair']];
+            }
+        };
+        $result = (new Doctor([$probe], self::createStub(Connection::class)))->run(false);
+        self::assertSame('probe_unavailable', $result['findings'][0]['code']);
+        self::assertStringNotContainsString('@', json_encode($result, JSON_THROW_ON_ERROR));
+    }
+}

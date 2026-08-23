@@ -1,7 +1,6 @@
 # Operator runbook
 
-**Status:** Phase 7 delivery and recipient-safety runbook; MVP Doctor,
-backup/restore, and release/update tooling remain Phase 8.
+**Status:** Phase 8 MVP Doctor, backup/restore, recovery, housekeeping, and signed update runbook.
 
 ## Current repository state
 
@@ -15,8 +14,10 @@ individual accounts, secure authentication, server sessions, recovery, the
 admin shell, and audit. Phase 5 adds contacts, lists, private imports, durable
 suppression, immutable templates, and safe raster assets. Phase 6 adds campaign
 delivery and supervised workers. Phase 7 adds mandatory unsubscribe links,
-cookie-free public handling, and immediate suppression. Release and deployment
-tooling remain unavailable.
+cookie-free public handling, and immediate suppression. Phase 8 adds critical
+readiness gates, encrypted local backup/restore and key recovery, bounded
+housekeeping, and CLI-only signed immutable update tooling. Phase 9 still owns
+the first `0.1.0` candidate and production-profile acceptance.
 
 The approved delivery sequence is Phase 6 campaigns/worker, Phase 7 safe
 unsubscribe, Phase 8 critical operations plus signed package/update tooling,
@@ -255,3 +256,26 @@ creates a public recipient endpoint.
 6. A forwarded link can suppress only its original frozen recipient. Replays
    are expected and idempotent. Never delete a suppression because a token
    expired, was forwarded, or was used repeatedly.
+
+## Phase 8 operations
+
+1. Apply through `Version20260824010000`. Configure absolute external
+   `EMAILER_RECOVERY_KEY_FILE`, `EMAILER_RELEASE_PUBLIC_KEY_FILE`, and
+   `EMAILER_RELEASES_DIR` paths. Keep recovery package, master key, backups, and
+   signing private key in distinct protection domains.
+2. Run `emailer:doctor:run --json`. Exit 2 means critical and blocks sending;
+   exit 1 means warning; exit 0 means healthy. `/admin/doctor` and its export
+   contain stable codes, summaries, remediation, counts, opaque IDs, and times.
+3. Export the recovery package with `emailer:secrets:export-recovery-key`; do
+   not record its passphrase. Create and verify backups with
+   `emailer:backup:create` and `emailer:backup:verify`.
+4. For restore, quiesce delivery, stop worker/scheduler, confirm zero claims,
+   run interactive `emailer:backup:restore`, verify suppression and Doctor, then
+   explicitly resume. Restore never resumes delivery itself.
+5. Run `emailer:retention:run` for dry-run and add `--apply` only after review.
+   Each category is capped at 200 rows; rerun for further bounded batches.
+6. Inspect packages before change. The updater verifies pinned signature,
+   checksum, manifest, SBOM, compatibility and disk space before mutation. It
+   quiesces, creates a verified backup, installs immutably, migrates, switches
+   atomically, and runs Doctor. Failure remains in maintenance and uses only
+   compatible pointer rollback or verified restore.

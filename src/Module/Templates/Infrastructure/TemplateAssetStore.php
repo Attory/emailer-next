@@ -72,6 +72,21 @@ final readonly class TemplateAssetStore implements TemplateAssetStorage
         @unlink(rtrim($this->directory, '/').'/'.$filename);
     }
 
+    public function publicPath(string $filename): string
+    {
+        if (1 !== preg_match('/^[a-f0-9]{48}\.(jpg|png|webp)$/', $filename)) {
+            throw new \InvalidArgumentException('Template asset filename is invalid.');
+        }
+        $root = realpath($this->directory);
+        $path = realpath(rtrim($this->directory, '/').'/'.$filename);
+        $stat = false === $path ? false : @lstat($path);
+        if (false === $root || false === $path || !str_starts_with($path.'/', rtrim($root, '/').'/') || !\is_array($stat) || 0o100000 !== ($stat['mode'] & 0o170000) || 1 !== $stat['nlink']) {
+            throw new \RuntimeException('Template asset is unavailable.');
+        }
+
+        return $path;
+    }
+
     private function ensureDirectory(): void
     {
         if (!is_dir($this->directory) && !@mkdir($this->directory, 0755, true) && !is_dir($this->directory)) {

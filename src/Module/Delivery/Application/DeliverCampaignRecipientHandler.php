@@ -11,6 +11,7 @@ use App\Module\Delivery\Application\Contract\CampaignDeliveryGateway;
 use App\Module\Delivery\Application\Contract\DeliveryTransport;
 use App\Module\Delivery\Application\Contract\DeliveryTransportFailure;
 use App\Module\Delivery\Application\Contract\OutboundMessage;
+use App\Module\Delivery\Application\Contract\SendingGate;
 use App\Module\Delivery\Application\Message\DeliverCampaignRecipient;
 use App\Module\RecipientActions\Application\Contract\RecipientUnsubscribeLinks;
 use App\Module\Suppression\Application\Contract\SuppressionLookup;
@@ -33,11 +34,13 @@ final readonly class DeliverCampaignRecipientHandler
         private CampaignDeliveryGateway $gateway,
         private RecipientUnsubscribeLinks $unsubscribeLinks,
         private AuditSink $audit,
+        private SendingGate $sendingGate,
     ) {
     }
 
     public function __invoke(DeliverCampaignRecipient $message): void
     {
+        $this->sendingGate->assertReady();
         $configuration = $this->configuration->current();
         $claim = $this->claim($message, $configuration);
         if (null === $claim) {

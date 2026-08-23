@@ -1,8 +1,6 @@
 # Release
 
-**Status:** Not yet releasable. The MVP release contract is accepted; Phase 8
-implements package/update tooling and Phase 9 produces the first `0.1.0`
-release candidate.
+**Status:** Not yet releasable. Phase 8 package/update tooling is implemented and rehearsed locally; Phase 9 produces and accepts the first `0.1.0` release candidate.
 
 Production deployment is an explicit operator action and never a side effect of
 CI, a phase job, or an update check. No release has an unattended auto-update.
@@ -90,7 +88,9 @@ immutable release directories.
 8. Stop. Tagging, publishing, deploying, DNS/provider changes, and production
    mail tests need separate explicit authorization.
 
-Phase 9 supplies the first `0.1.0` archive and acceptance report. Every later
+Phase 8's builder can create a local deterministic archive and signed sidecars
+for verification drills, but none is a published candidate. Phase 9 supplies
+the first `0.1.0` archive and acceptance report. Every later
 phase must supply a clean-install candidate and a supported-version update
 candidate. Phase 1 deliberately does not build a distributable archive, sign,
 tag, publish, release, or deploy anything.

@@ -419,6 +419,7 @@ final class Phase6CampaignDeliveryTest extends KernelTestCase
             $this->phase4Service(CampaignDeliveryGateway::class),
             $this->phase4Service(RecipientUnsubscribeLinks::class),
             $this->phase4Service(AuditSink::class),
+            $this->phase4Service(\App\Module\Delivery\Application\Contract\SendingGate::class),
         );
     }
 }

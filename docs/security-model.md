@@ -1,6 +1,23 @@
 # Security model
 
-**Status:** Phase 7 public unsubscribe and recipient-token controls over Phase 6 durable delivery.
+**Status:** Phase 8 operational readiness, encrypted recovery, and signed-update controls over the Phase 7 recipient-safety baseline.
+
+## Phase 8 operational controls
+
+- Critical Doctor findings are stable redacted codes and block manual
+  queue/schedule plus scheduler materialisation. Probe exceptions become a
+  critical generic result; acknowledgement never disables a gate.
+- Backups stream explicit module contributions through an authenticated sodium
+  secretstream envelope. The master key is excluded; suppression and approved
+  assets are restored, and delivery stays quiesced.
+- Recovery packages use Argon2id and XChaCha20-Poly1305, hidden passphrases,
+  restrictive files, and can recover only a missing master key.
+- Packages fail closed on pinned Ed25519 signature, checksum, SPDX,
+  manifest/file digests, unsafe paths/links, PHP/source compatibility, and disk
+  reserve. Updates add locking, quiescence, verified backup, immutable install,
+  forward migration, atomic pointer, Doctor, and rollback-or-restore.
+- No browser endpoint accepts a backup path, recovery value, package, migration,
+  restore, release switch, rollback, or deployment operation.
 
 Security controls are default-deny and layered. A UI-hidden action is not a
 security boundary; every protected invariant is checked at the route,

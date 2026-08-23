@@ -10,4 +10,6 @@ interface TemplateAssetStorage
     public function store(string $sourcePath): array;
 
     public function delete(string $filename): void;
+
+    public function publicPath(string $filename): string;
 }

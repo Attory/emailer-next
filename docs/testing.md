@@ -1,6 +1,6 @@
 # Testing
 
-**Status:** Phase 7 executable recipient-token/unsubscribe baseline over all Phase 1–6 coverage.
+**Status:** Phase 8 executable Doctor, recovery, backup/restore, housekeeping, and package-verification baseline over all Phase 1–7 coverage.
 
 The stable gate order and executable commands are in
 [quality-gates.md](quality-gates.md). Results are recorded in the phase report
@@ -114,6 +114,19 @@ data is accepted.
   suppression-before-delivery claim test.
 - Message/body/header snapshots prove a manual URL is always generated and
   `List-Unsubscribe-Post` appears only for the frozen provider-DKIM attestation.
+
+## Phase 8 coverage
+
+- Stable redacted Doctor findings, probe-failure containment, critical sending
+  gates, persistent runs, role/method/CSRF coverage, and test isolation.
+- Streaming encrypted backup verification, corruption/unsafe-path rejection,
+  suppression-preserving restore, safety backup, rollback, approved assets, and
+  post-restore quiescence.
+- Hidden-passphrase recovery export, wrong-passphrase failure, restrictive
+  files, recovery of only a missing master key, and non-overwrite.
+- Ed25519 signature, checksum, SPDX, manifest/file digest, source/PHP
+  compatibility, unsafe archive path/link, and tamper rejection.
+- Bounded idempotent housekeeping evidence and full Phase 1–7 regression.
 
 ## Phase 1 coverage
 

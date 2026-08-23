@@ -190,9 +190,9 @@ final class Phase5ContentDataTest extends KernelTestCase
             self::assertSame(2, $asset['width']);
             self::assertSame(2, $asset['height']);
             $filename = basename($asset['url']);
-            $publicFile = \dirname(__DIR__, 2).'/public/template-assets/'.$filename;
-            self::assertSame('image/png', (new \finfo(FILEINFO_MIME_TYPE))->file($publicFile));
-            $this->phase4Service(TemplateAssetStorage::class)->delete($filename);
+            $storage = $this->phase4Service(TemplateAssetStorage::class);
+            self::assertSame('image/png', (new \finfo(FILEINFO_MIME_TYPE))->file($storage->publicPath($filename)));
+            $storage->delete($filename);
         } finally {
             unlink($imagePath);
         }

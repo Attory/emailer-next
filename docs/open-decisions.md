@@ -1,6 +1,6 @@
 # Open decisions
 
-**Status:** Phase 7 handoff with accepted MVP release train
+**Status:** Phase 8 handoff with recovery-envelope parameters resolved and Phase 9 release-custody decisions remaining
 
 **Last reviewed:** 2026-08-22
 
@@ -30,7 +30,7 @@ implementation evidence. None authorizes a weaker security outcome.
 | OD-10 | Resolved in Phase 6: transient delivery retries use 60-second exponential backoff with deterministic 0–30-second jitter, capped at one hour and at the configured retry limit; ambiguous outcomes are terminal and never blindly retried; five consecutive transport failures open the circuit for five minutes; the global per-minute limit is configured and each recipient domain receives at most half that limit per window. | Phase 6 | Fake-provider fault tests; at-least-once wording; bounded operator-approved limits |
 | OD-11 | Resolved in Phase 7: `vN.random-handle.HMAC` bearer token; 365-day expiry and key-verification overlap; revoked/expired fail generically; rows purged 30 days after expiry; forwarding can only suppress the frozen recipient; replay is idempotent | Phase 7 | Wrong-purpose/tamper/version/expiry/replay/rotation tests; no raw address in URL, logs, rate keys, or response |
 | OD-12 | Tracking/RSVP policy defaults beyond “off,” and concrete data-retention periods | Phases 10–12 | Operator legal/privacy decision, minimization, dry-run retention tests |
-| OD-13 | Backup envelope/manifest format and passphrase KDF parameters; later external destination | Phase 8 / Phase 12 | Independent recovery review, corruption/wrong-passphrase tests, key excluded; destination failure/recovery evidence before automation |
+| OD-13 | **Resolved Phase 8:** versioned JSON/JSONL ZIP inside sodium secretstream XChaCha20-Poly1305; backup key via HKDF-SHA256 from external master key; separate recovery package uses Argon2id13 (3 ops, 64 MiB) plus XChaCha20-Poly1305. External destination remains Phase 12. | Phase 8 / Phase 12 | Corruption/wrong-passphrase/non-overwrite tests; master key excluded; destination evidence before automation |
 | OD-14 | License and supported-browser/accessibility matrix | Phase 13 | Dependency/license audit and operator product decision; WCAG-oriented acceptance evidence |
 | OD-15 | Release-signing key custody/distribution and the supported-version update window | Phase 8 design; locked before Phase 9 acceptance | Ed25519 private material remains external; public-key pin/rotation/recovery procedure; successful supported and rejected-unsupported update rehearsals |
 

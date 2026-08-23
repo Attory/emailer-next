@@ -1,0 +1,20 @@
+{% extends 'admin/layout.html.twig' %}
+{% block title %}Configuration Doctor · Emailer Next{% endblock %}
+{% block admin_body %}
+    <h1>Configuration Doctor</h1>
+    <p>Critical findings block queueing and scheduled materialisation. Acknowledgement never disables a gate.</p>
+    <form method="post" action="{{ path('admin_doctor_run') }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('doctor-run') }}">
+        <button type="submit">Run Doctor</button>
+    </form>
+    <p><a href="{{ path('admin_doctor_export') }}">Export redacted JSON report</a></p>
+    {% for run in runs %}
+        <article>
+            <h2>{{ run.status|capitalize }} — {{ run.finished_at }}</h2>
+            <p>{{ run.critical_count }} critical; {{ run.warning_count }} warning.</p>
+            <ul>
+                {% for finding in run.findings %}<li><strong>{{ finding.severity|upper }} {{ finding.code }}</strong>: {{ finding.summary }} {{ finding.remediation }} {% if is_granted('ROLE_ADMINISTRATOR') %}<form method="post" action="{{ path('admin_doctor_acknowledge', {code: finding.code}) }}"><input type="hidden" name="_token" value="{{ csrf_token('doctor-acknowledge-' ~ finding.code) }}"><button>Acknowledge without disabling gate</button></form>{% endif %}</li>{% else %}<li>No findings.</li>{% endfor %}
+            </ul>
+        </article>
+    {% else %}<p>No Doctor run has been recorded.</p>{% endfor %}
+{% endblock %}

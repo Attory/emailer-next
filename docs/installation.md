@@ -1,6 +1,6 @@
 # Installation
 
-**Status:** Phase 7 campaign delivery and unsubscribe are implemented. Client installation/recovery/update tooling remains Phase 8–9.
+**Status:** Phase 8 recovery and signed update tooling implemented; Phase 9 still owns the first client-installable `0.1.0` candidate and deployment-profile acceptance.
 
 The current repository can create a completed installation with an
 external key, initial Owner, exact local Mailpit test evidence, sender identity,
@@ -188,9 +188,29 @@ serves `/r/<opaque-token>/unsubscribe` without an admin session or cookie.
 Every production message has a manual unsubscribe URL. Leave the RFC 8058 DKIM
 attestation disabled unless the provider is known to sign both unsubscribe
 headers; the application does not create that provider signature. Configure
-proxy access-log redaction for the opaque `/r/` segment. These capabilities do
-not make the tree client-installable: Phase 8 Doctor, backup/restore, and package
-tooling plus Phase 9 acceptance still block production installation.
+proxy access-log redaction for the opaque `/r/` segment. Phase 8 now supplies
+Doctor, backup/restore, recovery, housekeeping, and signed package tooling;
+Phase 9 acceptance and the actual `0.1.0` candidate still block production
+installation.
+
+## Phase 8 operations configuration
+
+Apply migrations through `DoctrineMigrations\Version20260824010000`. Provide
+absolute external paths for `EMAILER_RECOVERY_KEY_FILE`,
+`EMAILER_RELEASE_PUBLIC_KEY_FILE`, and `EMAILER_RELEASES_DIR`; none may be under
+`public/` or an immutable release.
+The recovery package and master key must not share backup custody, and the
+release signing private key never belongs on the client server.
+
+Run `emailer:doctor:run` before production sending. Critical findings block
+queue, schedule, and scheduled materialisation. Use the CLI backup, restore,
+recovery, housekeeping, and release commands documented in the operator,
+backup, and upgrade runbooks. No Phase 8 command publishes a package, creates a
+tag, deploys a server, changes DNS/provider state, or contacts live SMTP.
+
+`EMAILER_PRIVATE_DIR/template-assets` is persistent mutable content, not part of
+an immutable application release. The application serves only validated random
+asset filenames from the `/template-assets/` route.
 
 ## Future production prerequisites
 

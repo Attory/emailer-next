@@ -84,7 +84,8 @@ production data exists unless the explicit destructive flag is supplied, and
 never prints or exports existing secrets. Phase 2 has no trusted backup producer
 or authentication key, so a self-declared checksum cannot establish meaningful
 backup provenance. Production backup validation therefore fails closed and
-reset remains unavailable until Phase 8 supplies a supported artifact. The
+Phase 8 now binds reset to the authenticated encrypted backup verifier. Reset
+can proceed only with a verified artifact created within 24 hours, while the
 data, `--destructive`, confirmation, CLI-only, and no-secret boundaries remain
 enforced and independently tested.
 
@@ -104,7 +105,8 @@ self-declared and therefore does not authenticate backup provenance.
   credential-free CLI ownership marker. It does not collect credentials or
   create the final installation lock.
 - `emailer:setup:reset` has the reset lifecycle and all guards, but the
-  production backup validator intentionally accepts no Phase 2 artifact.
+  Phase 2 self-declared evidence remains rejected. Phase 8 encrypted backup
+  verification is now the only accepted producer.
 - Phase 2 adds no database schema, master key, Owner, organisation, SMTP
   transport, recipient data, worker, or sending behavior. Those remain bounded
   to later phases.

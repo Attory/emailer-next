@@ -1,6 +1,6 @@
 # Administrator guide
 
-**Status:** Phase 7 campaign delivery and public unsubscribe implemented; MVP operations/release workflows remain planned.
+**Status:** Phase 8 MVP operations and release-status workflows implemented; Phase 9 release acceptance remains.
 
 Emailer Next has one organisation per installation and individual
 administrator accounts. There is no self-registration, shared global password,
@@ -84,5 +84,17 @@ and zone, tracking/RSVP settings, sender identity, template version, and
 test-send status. Confirmation pages explain irreversible or externally visible
 effects.
 
-Later phases add MVP Doctor, recovery, install/update, and release acceptance.
-Any screenshots must contain synthetic data only.
+## Phase 8 operations workflows
+
+- Auditors can view/export redacted Doctor evidence. Administrators can run
+  checks, but no acknowledgement disables a critical sending gate.
+- Owners can view redacted backup metadata and create a verified encrypted
+  backup after recent re-authentication. Paths/content stay out of the browser;
+  restore and key recovery are CLI-only.
+- Administrators can preview or apply one bounded housekeeping batch.
+  Suppression is never deleted.
+- Owners can view version/schema/pointer status. Package upload, installation,
+  migration, update, rollback, and switching remain CLI-only.
+
+Phase 9 adds the actual `0.1.0` candidate and release acceptance. Any
+screenshots must contain synthetic data only.

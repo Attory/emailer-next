@@ -93,10 +93,15 @@ mutations, `/admin/users` and its create/update/delete mutations, and
 `/admin/audit`. `RoutePolicyRegistry` is exhaustive for every resolved
 `admin_` route and rejects an absent policy or unapproved method.
 Phase 5 implements the contact, list, import, suppression, export, and template
-families shown below. Full-address reveal and export are Administrator-only,
+families shown below. Phase 8 implements Doctor, backup metadata/create,
+retention execution, and release-status routes. Full-address reveal and export are Administrator-only,
 POST/CSRF, recently re-authenticated, and audited. Import detail/report access
 is restricted to its uploader or an Administrator. Campaign, delivery, Doctor,
-backup, release, and other later rows below remain planned.
+other later rows below remain planned.
+
+`GET|HEAD /template-assets/{random filename}` preserves the Phase 5 public image
+URL while storing the bytes outside immutable releases. The route accepts only
+48-hex-character JPEG, PNG, or WebP names and returns no directory listing.
 
 | Methods and family | Minimum role | Mutations and constraints | Phase |
 | --- | --- | --- | --- |
@@ -137,7 +142,7 @@ backup, release, and other later rows below remain planned.
 | `GET /doctor/export` | Auditor | Redacted report only | 8 |
 | `POST /doctor/findings/*/acknowledge` | Administrator | Cannot turn off a sending gate; audited | 8 |
 | `GET/POST /backups/*` | Owner | Create/verify metadata only; recent auth; no public path | 8 |
-| `GET/PATCH /retention` | Administrator | Dry-run preview and audited policy change | 8 |
+| `GET/POST /retention` | Administrator | Bounded dry-run preview/apply with audit | 8 |
 | `GET /release` | Owner | Redacted version/compatibility status | 8 |
 
 There is deliberately no HTTP route for a worker, arbitrary send, restore,
@@ -153,22 +158,22 @@ rollback.
 | `emailer:secrets:replace` | Fail-closed replacement skeleton; no arguments or mutation until re-authenticated secret administration exists | 3 |
 | `emailer:secrets:rotate-master-key` | Fail-closed rotation skeleton; transactional re-encryption remains unavailable pending later recovery/authentication controls | 3 |
 | `emailer:secrets:export-recovery-key` | Passphrase-encrypted recovery package; passphrase never stored | 8 |
+| `emailer:secrets:recover-master-key` | Recover only a missing key from the separately stored package; never replace | 8 |
 | `messenger:consume async` | Supervised or bounded/locked cron delivery worker | 6 |
 | `emailer:scheduler:run` | Due schedules and maintenance under a non-overlap lock | 6/8 |
 | `emailer:doctor:run` | Full redacted Doctor, with machine-safe exit status | 8 |
 | `emailer:backup:create` / `verify` | Encrypted private backup and verification | 8 |
 | `emailer:backup:restore` | Maintenance-only preflight, staging restore, and rollback | 8 |
 | `emailer:retention:run --dry-run` | Observable idempotent retention preview/apply | 8 |
-| `emailer:release:check` | Version, migration, artifact, and support checks | 8 |
+| `emailer:release:inspect` / `install` / `update` / `check` | Pinned verification, immutable install, explicit maintenance update, and redacted status | 8 |
 
 Exact Symfony route names, rate-limit values, token lifetimes, and fine-grained
 permissions are finalized in their owning phases and then generated into an
 authorization matrix test. Any additional public route requires a threat-model
 update before implementation.
 
-The two Phase 2 CLI commands remain implemented. `emailer:setup:install`
-continues to provide credential-free CLI ownership/preflight; the secure
-credential workflow is the HTTPS wizard in this phase. The two Phase 3 secret
-commands exist only as fail-closed, argument-free skeletons and cannot replace
-or rotate anything. No worker, restore, backup, release, or later CLI command is
-implemented.
+The two Phase 2 setup commands, Phase 6 worker/scheduler commands, and Phase 8
+Doctor, backup/restore, recovery, retention, and release commands are
+implemented. The Phase 3 replace/rotate secret commands remain fail-closed,
+argument-free skeletons. There is no browser worker, restore, recovery,
+migration, package upload, release switch, rollback, or deployment route.

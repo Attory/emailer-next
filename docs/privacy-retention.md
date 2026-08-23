@@ -1,6 +1,14 @@
 # Privacy and retention
 
-**Status:** Phase 7 enforces public unsubscribe minimization and bounded token retention; analytics and full retention automation remain later work.
+**Status:** Phase 8 adds bounded MVP housekeeping evidence to Phase 7 unsubscribe minimization; full policy automation remains Phase 12.
+
+Phase 8 `emailer:retention:run` defaults to dry-run and processes at most 200
+eligible rows per category when `--apply` is explicit: expired import files,
+old revoked sessions, old delivered queue rows, 90-day failed/dead-letter rows,
+and old Doctor runs. Application logs are emitted only to stderr; the supplied
+systemd profile leaves their bounded rotation and retention to journald. It never
+deletes suppression, campaign ledger, audit, backup, or ambiguous delivery
+evidence. Runs are recorded with counts only and are safe to repeat.
 
 Emailer Next minimizes data to the approved sending, suppression, response,
 operational, and audit purposes of one organisation. It is not a legal-policy
