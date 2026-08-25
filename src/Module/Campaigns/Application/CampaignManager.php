@@ -77,7 +77,7 @@ final readonly class CampaignManager
             'sender_name' => $configuration['sender_name'],
             'one_click' => $configuration['one_click_dkim_confirmed'] ? 'Enabled by provider DKIM attestation' : 'Disabled',
             'tracking' => $openTracking || $clickTracking ? \sprintf('Open: %s; click: %s', $openTracking ? 'on' : 'off', $clickTracking ? 'on' : 'off') : 'Off',
-            'rsvp' => 'Off in MVP 0.1.0',
+            'rsvp' => 'Off (not available in this release)',
             'time_zone' => \is_string($timeZone) && '' !== $timeZone ? $timeZone : 'UTC',
         ];
 
