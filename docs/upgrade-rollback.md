@@ -87,11 +87,13 @@ installations, logs, prompts, and CI output.
 Rollback returns to a known artifact only when its code/schema compatibility is
 proven. If migrations are not backward compatible, use the tested
 backup/forward-fix plan instead of blindly pointing old code at a new schema.
-The automated updater therefore rejects a package unless its reviewed manifest
-explicitly declares the schema and data transition backward compatible. A
-`false` declaration permits inspection and clean installation only; it cannot
-authorize an in-place update that a data-only application backup could not
-reverse.
+For a package whose reviewed manifest declares
+`rollback_schema_compatible=true`, the automated updater may restore the prior
+release pointer after a failed post-migration health check. A `false`
+declaration instead requires the updater to restore the verified pre-update
+backup before reinstating the prior pointer; the supported source-to-target
+path must have passed the recorded update and restore rehearsals. It must never
+point old code at the incompatible migrated schema.
 Preserve audit, suppression, and ambiguous delivery evidence. Never resend
 unknown ledger work to “catch up.”
 
