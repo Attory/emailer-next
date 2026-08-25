@@ -34,6 +34,8 @@ final class RoutePolicyRegistry
         'admin_user_update' => ['role' => AdministrativeRole::Administrator, 'methods' => ['POST'], 'sensitive' => true],
         'admin_user_delete' => ['role' => AdministrativeRole::Administrator, 'methods' => ['POST'], 'sensitive' => true],
         'admin_audit' => ['role' => AdministrativeRole::Auditor, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
+        'admin_analytics' => ['role' => AdministrativeRole::Auditor, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
+        'admin_analytics_policy' => ['role' => AdministrativeRole::Administrator, 'methods' => ['POST'], 'sensitive' => false],
         'admin_contacts' => ['role' => AdministrativeRole::Operator, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
         'admin_contact_create' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
         'admin_contact_update' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],

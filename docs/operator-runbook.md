@@ -1,6 +1,19 @@
 # Operator runbook
 
-**Status:** Phase 9 client-installable MVP candidate runbook.
+**Status:** Phase 10 `0.2.0` update-candidate runbook.
+
+## Updating 0.1.0 to 0.2.0
+
+Inspect and apply the signed `emailer-next-0.2.0.zip` using the existing release
+CLI. It accepts `0.1.0` as its minimum source and migrates through
+`Version20260826000000`. Preserve the automatic pre-update backup: this schema
+is not pointer-rollback compatible, so failure restores that backup before the
+previous release pointer is reinstated.
+
+After a healthy update, visit **Analytics** as an Administrator. Open and click
+tracking are off until independently enabled. The retention period is 1–365
+days, and policy changes apply only to campaigns approved later. Use
+**Retention → Preview** before applying deletion.
 
 ## Current repository state
 

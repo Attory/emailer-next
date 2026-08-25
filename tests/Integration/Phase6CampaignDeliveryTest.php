@@ -59,7 +59,7 @@ final class Phase6CampaignDeliveryTest extends KernelTestCase
         self::assertIsArray($review);
         self::assertSame(1, $this->phase4Int($review['selected_count'] ?? null));
         self::assertSame(0, $this->phase4Int($review['suppressed_count'] ?? null));
-        self::assertSame('Off in MVP 0.1.0', $review['tracking'] ?? null);
+        self::assertSame('Off', $review['tracking'] ?? null);
         self::assertSame('Off in MVP 0.1.0', $review['rsvp'] ?? null);
         $templateName = $detail['template_name'] ?? null;
         self::assertIsString($templateName);

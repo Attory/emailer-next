@@ -1,6 +1,11 @@
 # Upgrade and rollback
 
-**Status:** Phase 9 MVP package/update contract and supported-version window fixed; first `0.1.0` candidate is accepted only after the recorded rehearsals pass.
+**Status:** Phase 10 supports clean installation of `0.2.0` and update from `0.1.0`.
+
+The `0.2.0` target schema is `Version20260826000000`. The package declares
+`rollback_schema_compatible=false`: after migration, a failed update restores
+the verified automatic pre-update backup before reinstating the prior immutable
+pointer. Never point `0.1.0` code at the `0.2.0` schema.
 
 There is no unattended update. Build, approval, deployment, migration, health
 verification, and rollback are explicit operator actions using an immutable,

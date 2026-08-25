@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration;
 
+use App\Module\Analytics\Application\Contract\RecipientAnalyticsLinks;
 use App\Module\Campaigns\Application\CampaignManager;
 use App\Module\Configuration\Application\Contract\DeliveryConfiguration;
 use App\Module\Delivery\Application\Contract\CampaignDeliveryGateway;
@@ -12,8 +13,10 @@ use App\Module\Delivery\Application\Contract\OutboundMessage;
 use App\Module\Delivery\Application\DeliverCampaignRecipientHandler;
 use App\Module\Delivery\Application\Message\DeliverCampaignRecipient;
 use App\Module\Delivery\Infrastructure\OutboundMimeMessageFactory;
+use App\Module\Housekeeping\Application\Housekeeper;
 use App\Module\Identity\Application\AuthenticatedUser;
 use App\Module\RecipientActions\Application\Contract\RecipientUnsubscribeLinks;
+use App\Module\RecipientActions\Application\RecipientAnalyticsService;
 use App\Module\RecipientActions\Application\RecipientTokenInvalid;
 use App\Module\RecipientActions\Application\RecipientTokenService;
 use App\Module\Suppression\Application\Contract\SuppressionLookup;
@@ -129,8 +132,66 @@ final class Phase7RecipientSafetyTest extends KernelTestCase
         self::assertSame('suppressed', $connection->fetchOne('SELECT state FROM campaign_recipient WHERE id = ?', [$recipientId]));
     }
 
+    public function testPhase10PurposeScopedTrackingUsesFrozenLinksAndMinimizedReplayAggregates(): void
+    {
+        self::bootKernel();
+        $connection = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($connection);
+        $actor = $this->createPhase4User($connection, 'phase10-owner@example.test', 'phase10-password-'.bin2hex(random_bytes(8)));
+
+        [$disabledCampaign, $disabledRecipient] = $this->queuedCampaign($connection, $actor, 'phase10-disabled@example.test', false, true);
+        $disabledCapture = new Phase7CaptureTransport();
+        $this->deliveryHandler($connection, $disabledCapture)($this->queuedMessage($disabledRecipient));
+        self::assertNotNull($disabledCapture->message);
+        self::assertStringNotContainsString('/open.gif', $disabledCapture->message->html);
+        self::assertStringNotContainsString('/click/', $disabledCapture->message->html);
+        self::assertStringContainsString('/view', $disabledCapture->message->html);
+        self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM recipient_token WHERE campaign_id = ? AND purpose IN ('open', 'click')", [$disabledCampaign])));
+
+        $connection->executeStatement("UPDATE privacy_policy SET open_tracking = 1, click_tracking = 1, tracking_retention_days = 30 WHERE singleton_key = '1'");
+        [$campaignId, $recipientId] = $this->queuedCampaign($connection, $actor, 'phase10-enabled@example.test', false, true);
+        $connection->executeStatement("UPDATE privacy_policy SET open_tracking = 0, click_tracking = 0 WHERE singleton_key = '1'");
+        $detail = $this->phase4Service(CampaignManager::class)->detail($actor, $campaignId);
+        self::assertIsArray($detail['review'] ?? null);
+        self::assertSame('Open: on; click: on', $detail['review']['tracking'] ?? null);
+        $capture = new Phase7CaptureTransport();
+        $this->deliveryHandler($connection, $capture)($this->queuedMessage($recipientId));
+        self::assertNotNull($capture->message);
+        self::assertMatchesRegularExpression('#https://localhost/r/(v[^"/]+)/open\.gif#', $capture->message->html);
+        self::assertMatchesRegularExpression('#https://localhost/r/(v[^"/]+)/click/1#', $capture->message->html);
+        self::assertStringNotContainsString('https://example.test/frozen-target', $capture->message->html);
+        self::assertStringNotContainsString('phase10-enabled@example.test', $capture->message->html);
+
+        $openToken = $this->analyticsToken('#/r/(v[^"/]+)/open\.gif#', $capture->message->html);
+        $clickToken = $this->analyticsToken('#/r/(v[^"/]+)/click/1#', $capture->message->html);
+        $viewToken = $this->analyticsToken('#/r/(v[^"/]+)/view#', $capture->message->html);
+        $analytics = $this->phase4Service(RecipientAnalyticsService::class);
+        self::assertSame('view', $analytics->verify($viewToken, 'view')['purpose']);
+        $this->assertAnalyticsInvalid($analytics, $viewToken, 'open');
+        $tampered = substr($clickToken, 0, -1).('A' === substr($clickToken, -1) ? 'B' : 'A');
+        $this->assertAnalyticsInvalid($analytics, $tampered, 'click');
+        self::assertSame('https://example.test/frozen-target', $analytics->clickTarget($clickToken, 1, true));
+        self::assertSame('https://example.test/frozen-target', $analytics->clickTarget($clickToken, 1, true));
+        $analytics->recordOpen($openToken);
+        $analytics->recordOpen($openToken);
+        self::assertSame(2, $this->phase4Int($connection->fetchOne("SELECT event_count FROM analytics_aggregate WHERE campaign_recipient_id = ? AND event_type = 'click'", [$recipientId])));
+        self::assertSame(2, $this->phase4Int($connection->fetchOne("SELECT event_count FROM analytics_aggregate WHERE campaign_recipient_id = ? AND event_type = 'open'", [$recipientId])));
+        self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM recipient_token WHERE campaign_recipient_id = ? AND purpose IN ('view', 'open', 'click') AND email_canonical IS NOT NULL", [$recipientId])));
+        $storedOpen = $connection->fetchAssociative("SELECT * FROM analytics_aggregate WHERE campaign_recipient_id = ? AND event_type = 'open'", [$recipientId]);
+        self::assertIsArray($storedOpen);
+        self::assertSame(['campaign_recipient_id', 'event_type', 'link_index', 'event_count', 'first_seen_at', 'last_seen_at'], array_keys($storedOpen));
+        self::assertStringContainsString('Phase 7 body', $analytics->browserContent($viewToken));
+        $connection->executeStatement('UPDATE analytics_aggregate SET last_seen_at = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 31 DAY) WHERE campaign_recipient_id = ?', [$recipientId]);
+        $housekeeper = $this->phase4Service(Housekeeper::class);
+        self::assertSame(2, $housekeeper->run(true)['analytics']);
+        self::assertSame(2, $housekeeper->run(false)['analytics']);
+        self::assertSame(0, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM analytics_aggregate WHERE campaign_recipient_id = ?', [$recipientId])));
+        $connection->executeStatement("UPDATE recipient_token SET expires_at = DATE_SUB(UTC_TIMESTAMP(6), INTERVAL 1 SECOND) WHERE campaign_id = ? AND purpose IN ('view', 'open', 'click')", [$campaignId]);
+        $this->assertAnalyticsInvalid($analytics, $openToken, 'open');
+    }
+
     /** @return array{string, string, string} */
-    private function queuedCampaign(Connection $connection, AuthenticatedUser $actor, string $email, bool $withMergeField = false): array
+    private function queuedCampaign(Connection $connection, AuthenticatedUser $actor, string $email, bool $withMergeField = false, bool $withAnalyticsContent = false): array
     {
         $contactId = Identity::uuidV7();
         $listId = Identity::uuidV7();
@@ -140,6 +201,9 @@ final class Phase7RecipientSafetyTest extends KernelTestCase
         $connection->insert('list_membership', ['contact_id' => $contactId, 'list_id' => $listId, 'source' => 'manual', 'created_at' => $now]);
         $templates = $this->phase4Service(TemplateManager::class);
         $html = $withMergeField ? '<p>Phase 7 body. <a href="{{ unsubscribe_url }}">Leave this list</a></p>' : '<p>Phase 7 body.</p>';
+        if ($withAnalyticsContent) {
+            $html = '<p><a href="{{ view_in_browser_url }}">Browser view</a> Phase 7 body. <a href="https://example.test/frozen-target">Read more</a></p>';
+        }
         $templateId = $templates->create($actor, 'Phase 7 template '.substr($listId, -6), 'Phase 7 subject', '', $html, 'Phase 7 body.');
         $versions = $templates->versions($actor, $templateId);
         $versionId = $versions[0]['id'] ?? null;
@@ -194,6 +258,30 @@ final class Phase7RecipientSafetyTest extends KernelTestCase
         } catch (RecipientTokenInvalid) {
             return;
         }
+    }
+
+    private function deliveryHandler(Connection $connection, Phase7CaptureTransport $capture): DeliverCampaignRecipientHandler
+    {
+        return new DeliverCampaignRecipientHandler($connection, $this->phase4Service(DeliveryConfiguration::class), $this->phase4Service(SuppressionLookup::class), $capture, $this->phase4Service(CampaignDeliveryGateway::class), $this->phase4Service(RecipientUnsubscribeLinks::class), $this->phase4Service(\App\Module\Audit\Application\Contract\AuditSink::class), $this->phase4Service(\App\Module\Delivery\Application\Contract\SendingGate::class), $this->phase4Service(RecipientAnalyticsLinks::class));
+    }
+
+    private function assertAnalyticsInvalid(RecipientAnalyticsService $analytics, string $token, string $purpose): void
+    {
+        try {
+            $analytics->verify($token, $purpose);
+            self::fail('Invalid analytics token was accepted.');
+        } catch (RecipientTokenInvalid) {
+        }
+    }
+
+    private function analyticsToken(string $pattern, string $html): string
+    {
+        $matches = [];
+        if (1 !== preg_match($pattern, $html, $matches)) {
+            self::fail('Analytics token URL is unavailable.');
+        }
+
+        return $matches[1];
     }
 }
 

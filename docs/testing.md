@@ -147,6 +147,18 @@ data is accepted.
   layout, and the complete campaign approval summary. These source-pattern
   checks do not claim DOM, assistive-technology, tab-order, or contrast testing.
 
+## Phase 10 coverage
+
+- Disabled-output checks prove no open pixel, tracked click URL, or open/click
+  token is produced while view-in-browser remains available.
+- Purpose, tamper, expiry, forwarding/bearer, and repeat-request behavior is
+  exercised against separate view/open/click tokens.
+- Redirect tests accept only the immutable published-template HTTPS manifest.
+- Analytics storage is limited to ledger identity, event/link counters, and
+  first/last timestamps, with bounded dry-run/apply retention.
+- Package gates build `0.2.0` for clean install and rehearse the supported
+  `0.1.0` update, failure, restore, and schema-rejection paths.
+
 ## Phase 1 coverage
 
 Phase 1 implements:
