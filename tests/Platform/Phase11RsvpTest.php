@@ -48,7 +48,7 @@ final class Phase11RsvpTest extends WebTestCase
         self::assertStringNotContainsString($email, $url);
         self::assertStringNotContainsString($campaignId, $url);
         $path = $this->path($url);
-        $server = $this->phase4HttpsServer('2001:db8:11::1');
+        $server = $this->phase4HttpsServer('2001:db8:11::'.random_int(1, 65_535));
 
         $client->request('GET', $path, server: $server);
         self::assertResponseIsSuccessful();
