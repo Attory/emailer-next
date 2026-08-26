@@ -30,7 +30,7 @@ trait Phase4State
         }
         $connection->executeStatement("UPDATE recipient_token_key_state SET current_version = 0, updated_at = UTC_TIMESTAMP(6) WHERE singleton_key = '1'");
         $connection->executeStatement("UPDATE delivery_runtime SET schema_version = 1, accepting_work = 1, active_claims = 0, rate_window_started_at = UTC_TIMESTAMP(6), rate_window_count = 0, circuit_state = 'closed', circuit_failures = 0, circuit_open_until = NULL, updated_at = UTC_TIMESTAMP(6) WHERE singleton_key = '1'");
-        $connection->executeStatement("UPDATE privacy_policy SET open_tracking = 0, click_tracking = 0, rsvp_enabled = 0, tracking_retention_days = 90 WHERE singleton_key = '1'");
+        $connection->executeStatement("UPDATE privacy_policy SET open_tracking = 0, click_tracking = 0, rsvp_enabled = 0, tracking_retention_days = 90, rsvp_retention_days = 90, rsvp_repeat_policy = 'replace' WHERE singleton_key = '1'");
         $installationId = IdentityUtil::uuidV7();
         $now = IdentityUtil::now();
         $connection->executeStatement(<<<'SQL'

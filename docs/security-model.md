@@ -300,6 +300,16 @@ A likely credential, private key, or private-data finding blocks merge and
 release. Suppression of a scanner finding requires review showing it is a safe
 placeholder or false positive; a blanket path exclusion is prohibited.
 
+## Optional RSVP boundary
+
+RSVP is off by default and is frozen only after two explicit opt-ins. Its
+public form is cookie-free, rate limited, no-store, and authorized solely by a
+dedicated opaque purpose-scoped bearer token. Input has a fixed bounded schema.
+Responses are private, minimized, separately retained and backed up. Aggregate
+views require Auditor authority; private export additionally requires
+Administrator authority, CSRF, recent re-authentication, audit, and formula
+neutralization.
+
 ## Security exceptions
 
 An exception must name its owner, scope, expiry, threat-model impact,

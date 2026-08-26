@@ -7,7 +7,7 @@ if (PHP_SAPI !== 'cli') {
     exit(2);
 }
 
-$options = getopt('', ['artifact:', 'output:', 'version:', 'source:', 'minimum-source:', 'schema:', 'rollback-schema-compatible:', 'signing-key:', 'source-date-epoch:']);
+$options = getopt('', ['artifact:', 'output:', 'version:', 'source:', 'minimum-source:', 'minimum-schema::', 'schema:', 'rollback-schema-compatible:', 'signing-key:', 'source-date-epoch:']);
 $required = ['artifact', 'output', 'version', 'source', 'minimum-source', 'schema', 'rollback-schema-compatible', 'signing-key', 'source-date-epoch'];
 foreach ($required as $name) {
     if (!isset($options[$name]) || !is_string($options[$name]) || '' === $options[$name]) {
@@ -17,7 +17,8 @@ foreach ($required as $name) {
 }
 $identifier = '(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)';
 $semanticVersion = '/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-'.$identifier.'(?:\.'.$identifier.')*)?$/D';
-if (1 !== preg_match($semanticVersion, $options['version']) || 1 !== preg_match($semanticVersion, $options['minimum-source']) || 1 !== preg_match('/^[a-f0-9]{40}$/', $options['source']) || 1 !== preg_match('/^[0-9]{14}$/', $options['schema']) || !in_array($options['rollback-schema-compatible'], ['true', 'false'], true) || !ctype_digit($options['source-date-epoch'])) {
+$minimumSchema = $options['minimum-schema'] ?? $options['schema'];
+if (1 !== preg_match($semanticVersion, $options['version']) || 1 !== preg_match($semanticVersion, $options['minimum-source']) || 1 !== preg_match('/^[a-f0-9]{40}$/', $options['source']) || !is_string($minimumSchema) || 1 !== preg_match('/^[0-9]{14}$/', $minimumSchema) || 1 !== preg_match('/^[0-9]{14}$/', $options['schema']) || $minimumSchema > $options['schema'] || !in_array($options['rollback-schema-compatible'], ['true', 'false'], true) || !ctype_digit($options['source-date-epoch'])) {
     fwrite(STDERR, "Release metadata is invalid.\n");
     exit(2);
 }
@@ -121,7 +122,7 @@ $digests = [];
 foreach ($files as $relative => $entry) {
     $digests[$relative] = $entry['sha256'];
 }
-$manifest = ['format' => 'emailer-next-release-v1', 'version' => $options['version'], 'source_commit' => $options['source'], 'minimum_source_version' => $options['minimum-source'], 'minimum_schema_version' => $options['schema'], 'schema_version' => $options['schema'], 'rollback_schema_compatible' => 'true' === $options['rollback-schema-compatible'], 'platform' => ['php_min' => '8.4.0', 'php_max_exclusive' => '8.6.0', 'mariadb' => ['10.11', '11.8']], 'files' => $digests];
+$manifest = ['format' => 'emailer-next-release-v1', 'version' => $options['version'], 'source_commit' => $options['source'], 'minimum_source_version' => $options['minimum-source'], 'minimum_schema_version' => $minimumSchema, 'schema_version' => $options['schema'], 'rollback_schema_compatible' => 'true' === $options['rollback-schema-compatible'], 'platform' => ['php_min' => '8.4.0', 'php_max_exclusive' => '8.6.0', 'mariadb' => ['10.11', '11.8']], 'files' => $digests];
 $manifestBytes = json_encode($manifest, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n";
 $archiveHash = hash_file('sha256', $archive);
 if (false === $archiveHash) {

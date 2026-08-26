@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Delivery\Application;
 
 use App\Module\Analytics\Application\Contract\RecipientAnalyticsLinks;
+use App\Module\Analytics\Application\Contract\RecipientRsvpLinks;
 use App\Module\Audit\Application\Contract\AuditRecord;
 use App\Module\Audit\Application\Contract\AuditSink;
 use App\Module\Configuration\Application\Contract\DeliveryConfiguration;
@@ -37,6 +38,7 @@ final readonly class DeliverCampaignRecipientHandler
         private AuditSink $audit,
         private SendingGate $sendingGate,
         private ?RecipientAnalyticsLinks $analyticsLinks = null,
+        private ?RecipientRsvpLinks $rsvpLinks = null,
     ) {
     }
 
@@ -161,7 +163,7 @@ final readonly class DeliverCampaignRecipientHandler
 
     private function outbound(string $recipientId, string $email, string $profileJson): OutboundMessage
     {
-        $row = $this->connection->fetchAssociative("SELECT c.id campaign_id, c.name, s.subject, s.html_body, s.text_body, s.unsubscribe_footer, s.one_click_dkim_confirmed, s.sender_address, s.sender_name, s.reply_to_address, s.link_manifest_json, s.open_tracking, s.click_tracking, r.contact_id, r.message_id FROM campaign_recipient r INNER JOIN campaign c ON c.id = r.campaign_id INNER JOIN campaign_content_snapshot s ON s.campaign_id = c.id WHERE r.id = ? AND r.state = 'processing'", [$recipientId]);
+        $row = $this->connection->fetchAssociative("SELECT c.id campaign_id, c.name, s.subject, s.html_body, s.text_body, s.unsubscribe_footer, s.one_click_dkim_confirmed, s.sender_address, s.sender_name, s.reply_to_address, s.link_manifest_json, s.open_tracking, s.click_tracking, s.rsvp_enabled, r.contact_id, r.message_id FROM campaign_recipient r INNER JOIN campaign c ON c.id = r.campaign_id INNER JOIN campaign_content_snapshot s ON s.campaign_id = c.id WHERE r.id = ? AND r.state = 'processing'", [$recipientId]);
         if (false === $row) {
             throw new \RuntimeException('Claimed campaign content is unavailable.');
         }
@@ -173,7 +175,14 @@ final readonly class DeliverCampaignRecipientHandler
         $displayName = $profile['display_name'] ?? '';
         $unsubscribeUrl = $this->unsubscribeLinks->issue($this->stringValue($row['campaign_id']), $recipientId, $this->stringValue($row['contact_id']), $email);
         $links = null === $this->analyticsLinks ? ['view' => '', 'open' => null, 'click' => null] : $this->analyticsLinks->issue($this->stringValue($row['campaign_id']), $recipientId, $this->stringValue($row['contact_id']), $email, 1 === $this->intValue($row['open_tracking']), 1 === $this->intValue($row['click_tracking']));
-        $values = ['contact.first_name' => \is_string($firstName) ? $firstName : '', 'contact.display_name' => \is_string($displayName) ? $displayName : '', 'campaign.name' => $this->stringValue($row['name']), 'unsubscribe_url' => $unsubscribeUrl, 'view_in_browser_url' => $links['view']];
+        $rsvpUrl = '';
+        if (1 === $this->intValue($row['rsvp_enabled'])) {
+            if (null === $this->rsvpLinks) {
+                throw new \RuntimeException('RSVP link service is unavailable.');
+            }
+            $rsvpUrl = $this->rsvpLinks->issueRsvp($this->stringValue($row['campaign_id']), $recipientId, $this->stringValue($row['contact_id']), $email);
+        }
+        $values = ['contact.first_name' => \is_string($firstName) ? $firstName : '', 'contact.display_name' => \is_string($displayName) ? $displayName : '', 'campaign.name' => $this->stringValue($row['name']), 'unsubscribe_url' => $unsubscribeUrl, 'view_in_browser_url' => $links['view'], 'rsvp_url' => $rsvpUrl];
         $subject = $this->render($this->stringValue($row['subject']), $values, false);
         $html = $this->render($this->stringValue($row['html_body']), $values, true);
         $text = $this->render($this->stringValue($row['text_body']), $values, false);

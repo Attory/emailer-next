@@ -31,8 +31,8 @@ final class AnalyticsController extends AbstractController
             return new Response('Request not accepted.', Response::HTTP_BAD_REQUEST);
         }
         try {
-            $this->analytics->configure($this->actor(), $request->request->getBoolean('open_tracking'), $request->request->getBoolean('click_tracking'), $request->request->getInt('retention_days'));
-            $this->addFlash('success', 'Tracking policy updated for future campaign approvals.');
+            $this->analytics->configure($this->actor(), $request->request->getBoolean('open_tracking'), $request->request->getBoolean('click_tracking'), $request->request->getInt('retention_days'), $request->request->getBoolean('rsvp_enabled'), $request->request->getInt('rsvp_retention_days'), $request->request->getString('rsvp_repeat_policy'));
+            $this->addFlash('success', 'Privacy policy updated for future campaign approvals.');
         } catch (\Throwable) {
             $this->addFlash('error', 'Tracking policy was not accepted.');
         }

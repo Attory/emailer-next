@@ -1,7 +1,6 @@
 # Route and command inventory
 
-**Status:** Phase 9 accepted inventory. Phase 9 adds no HTTP or CLI route over
-the Phase 8 operations and Phase 7 recipient surface.
+**Status:** Phase 11 `0.3.0` inventory.
 
 This inventory is the security review baseline. Every implemented route must be
 added here with method, authentication boundary, authorization rule, CSRF
@@ -31,7 +30,7 @@ CSRF unless it is a purpose-scoped public recipient action.
 | `GET\|HEAD /r/{token}/view` | View the authorized message snapshot | Purpose-scoped token | Implemented; cookie-free, private/no-store frozen content | 10 |
 | `GET\|HEAD /r/{token}/open.gif` | Optional approximate open event | Purpose-scoped token | Implemented; fixed response; disabled means no generated pixel | 10 |
 | `GET\|HEAD /r/{token}/click/{link}` | Optional allowlisted click redirect | Purpose-scoped token | Implemented; HTTPS target fixed at publication; no open redirect | 10 |
-| `GET/POST /r/{token}/rsvp` | Optional bounded response form | Purpose-scoped token | Planned; idempotency/repeat policy; no admin session | 11 |
+| `GET|HEAD|POST /r/{token}/rsvp` | Optional bounded response form | Purpose-scoped opaque RSVP token | Cookie-free/private/no-store; source/token rate limits; fixed schema; frozen repeat policy | 11 |
 
 After installation lock, every `/setup` path returns 404. Public recipient
 responses never reveal a raw address, internal identifier, stack trace, secret,
@@ -138,7 +137,9 @@ URL while storing the bytes outside immutable releases. The route accepts only
 | `POST /campaigns/*/cancel` | Operator | Idempotent; cannot retract accepted mail | 6 |
 | `GET /campaigns/*/progress` | Auditor | Counts from durable ledger, masked detail | 6 |
 | `GET /analytics/*` | Auditor | Aggregate/redacted; full data separately authorized | 10 |
-| `GET /rsvp/*`, `POST /rsvp/*/export` | Auditor / Administrator | Private values; export is authorized and neutralized | 11 |
+| `GET /admin/rsvp` | Auditor | Aggregate counts only; no private note or recipient identity | 11 |
+| `POST /admin/rsvp/{campaign}/export` | Administrator | CSRF, recent re-authentication, audited opaque-identity CSV, formula neutralization | 11 |
+| `POST /admin/campaigns/{id}/rsvp` | Operator | CSRF; draft-only explicit campaign enablement; audited | 11 |
 | `GET /audit` | Auditor | Redacted append-only view; no edit/delete route | 4 |
 | `POST /doctor/run` | Administrator | On-demand checks only; no automatic repair | 8 |
 | `GET /doctor/export` | Auditor | Redacted report only | 8 |

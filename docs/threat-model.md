@@ -282,6 +282,26 @@ tracking/view behavior.
 Phase 10 does not implement RSVP, publish/deploy a package, contact a live mail
 provider, or claim exact/person-level analytics.
 
+## Phase 11 control status
+
+- RSVP requires independent installation and draft-campaign opt-in; approval
+  freezes enablement, fixed schema, and repeat policy.
+- A dedicated authenticated token purpose prevents view, tracking, or
+  unsubscribe authority from being reused. Tokens and rows contain no raw
+  address, IP, user agent, or request headers. Forwarding transfers only the
+  bounded RSVP authority for the original campaign recipient.
+- Exact field allowlisting, a 2 KiB request bound, enum/range/length checks,
+  database constraints, and serialized unique-row writes limit injection,
+  storage abuse, and concurrent repeats.
+- Ordinary authorized views expose aggregates only. Private CSV export requires
+  Administrator authority, CSRF and recent re-authentication, is audited, uses
+  opaque recipient IDs, and neutralizes spreadsheet formulas.
+- Separate bounded retention and encrypted backup coverage apply to responses.
+  The `0.2.x` to `0.3.0` update uses verified backup restore on failure.
+
+Phase 11 does not publish/deploy the package, contact live SMTP, or implement
+Phase 12 Doctor and automation expansion.
+
 ## Residual risks and non-guarantees
 
 The design cannot guarantee protection after full root compromise, a malicious

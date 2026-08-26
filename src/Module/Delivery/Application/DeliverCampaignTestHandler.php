@@ -35,7 +35,7 @@ final readonly class DeliverCampaignTestHandler
             return;
         }
         $row = $this->connection->transactional(function () use ($message): array|false {
-            $row = $this->connection->fetchAssociative('SELECT t.state, t.recipient_address, c.id campaign_id, c.name, c.template_version_id FROM campaign_test_delivery t INNER JOIN campaign c ON c.id = t.campaign_id WHERE t.id = ? FOR UPDATE', [$message->testDeliveryId]);
+            $row = $this->connection->fetchAssociative('SELECT t.state, t.recipient_address, c.id campaign_id, c.name, c.template_version_id, c.rsvp_enabled FROM campaign_test_delivery t INNER JOIN campaign c ON c.id = t.campaign_id WHERE t.id = ? FOR UPDATE', [$message->testDeliveryId]);
             if (false === $row || 'pending' !== $row['state']) {
                 return false;
             }
@@ -53,7 +53,10 @@ final readonly class DeliverCampaignTestHandler
             }
             $template = $this->templates->get($row['template_version_id']);
             $configuration = $this->configuration->current();
-            $values = ['contact.first_name' => 'Test', 'contact.display_name' => 'Test Recipient', 'campaign.name' => $row['name'], 'unsubscribe_url' => 'https://example.test/r/test-only/unsubscribe'];
+            if (!is_numeric($row['rsvp_enabled'])) {
+                throw new \UnexpectedValueException('Campaign RSVP state is invalid.');
+            }
+            $values = ['contact.first_name' => 'Test', 'contact.display_name' => 'Test Recipient', 'campaign.name' => $row['name'], 'unsubscribe_url' => 'https://example.test/r/test-only/unsubscribe', 'view_in_browser_url' => 'https://example.test/r/test-only/view', 'rsvp_url' => 1 === (int) $row['rsvp_enabled'] ? 'https://example.test/r/test-only/rsvp' : ''];
             $render = static function (string $content, bool $html) use ($values): string {
                 foreach ($values as $field => $value) {
                     $content = preg_replace('/\{\{\s*'.preg_quote($field, '/').'\s*\}\}/', $html ? htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8') : $value, $content) ?? $content;

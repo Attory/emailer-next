@@ -1,6 +1,14 @@
 # Operator runbook
 
-**Status:** Phase 10 `0.2.0` update-candidate runbook.
+**Status:** Phase 11 `0.3.0` update-candidate runbook.
+
+## Updating 0.2.x to 0.3.0
+
+Use the separately supplied `CLIENT-UPDATE-0.3.0.md` and signed
+`emailer-next-0.3.0.zip`. Inspect first, then run the existing supervised
+`emailer:release:update` workflow. It quiesces delivery, verifies and backs up,
+migrates to `Version20260827000000`, switches atomically, and runs Doctor.
+RSVP remains off until separately enabled globally and on a draft campaign.
 
 ## Updating 0.1.0 to 0.2.0
 

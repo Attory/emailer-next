@@ -69,6 +69,7 @@ final class RoutePolicyRegistry
         'admin_campaign' => ['role' => AdministrativeRole::Auditor, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
         'admin_campaign_create' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
         'admin_campaign_review' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
+        'admin_campaign_rsvp' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
         'admin_campaign_test' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
         'admin_campaign_approve' => ['role' => AdministrativeRole::Administrator, 'methods' => ['POST'], 'sensitive' => true],
         'admin_campaign_schedule' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
@@ -76,6 +77,8 @@ final class RoutePolicyRegistry
         'admin_campaign_pause' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
         'admin_campaign_resume' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
         'admin_campaign_cancel' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
+        'admin_rsvp' => ['role' => AdministrativeRole::Auditor, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
+        'admin_rsvp_export' => ['role' => AdministrativeRole::Administrator, 'methods' => ['POST'], 'sensitive' => true],
         'admin_mail_settings' => ['role' => AdministrativeRole::Administrator, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
         'admin_mail_settings_update' => ['role' => AdministrativeRole::Owner, 'methods' => ['POST'], 'sensitive' => true],
     ];
