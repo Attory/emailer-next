@@ -5,10 +5,11 @@ explain why a choice was locked; operational documents explain how that choice
 is implemented and verified. A later phase may refine a document but may not
 silently contradict the master specification or an accepted ADR.
 
-**Current implementation boundary:** authorized Phase 12 advanced operations
-and `0.4.0` candidate source over the accepted Phase 11 `0.3.0` base. Phase 12
-is not accepted, published, or deployed until its exact PR head is separately
-reviewed and authorized.
+**Current implementation boundary:** accepted Phase 12 advanced operations and
+the operator-signed `0.4.0` update candidate. The candidate supports clean
+install and update from supported `0.3.x`, but has not been tagged, published,
+deployed, or installed on a client server. Phase 13 remains unstarted and
+requires separate authorization.
 The approved roadmap targets a client-installable MVP at Phase 9, followed by
 installable feature/operations updates through Version 1 at Phase 13.
 
@@ -37,7 +38,7 @@ installable feature/operations updates through Version 1 at Phase 13.
 | [Phase 9 report](phase-9-report.md) | MVP candidate, reproducibility, installation, accessibility, load, and acceptance evidence |
 | [Phase 10 report](phase-10-report.md) | View-in-browser, optional tracking, privacy, update, and gate evidence |
 | [Phase 11 report](phase-11-report.md) | Optional RSVP, operator-signed `0.3.0` candidate, independent review, CI, and merge evidence |
-| [Phase 12 report](phase-12-report.md) | Full Doctor, operational dashboard, configurable retention, external backup automation, and `0.4.0` evidence |
+| [Phase 12 report](phase-12-report.md) | Full Doctor, operational dashboard, configurable retention, external backup automation, operator-signed `0.4.0` candidate, independent review, CI, and merge evidence |
 
 ## Product and operator documents
 

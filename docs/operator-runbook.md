@@ -1,6 +1,6 @@
 # Operator runbook
 
-**Status:** Phase 12 `0.4.0` update-candidate operations runbook.
+**Status:** Accepted Phase 12 `0.4.0` update-candidate operations runbook.
 
 ## Updating 0.3.x to 0.4.0
 

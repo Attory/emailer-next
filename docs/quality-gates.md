@@ -1,6 +1,7 @@
 # CI and quality gates
 
-**Status:** Phase 12 aggregate and signed update-candidate gates implemented.
+**Status:** Phase 12 aggregate and operator-signed update-candidate gates
+accepted.
 
 One aggregate command, `composer check`, runs every executable current quality
 gate. CI invokes the same version-pinned commands rather than maintaining a

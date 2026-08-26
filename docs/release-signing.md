@@ -1,8 +1,9 @@
 # Release-signing custody and trust
 
-**Status:** Phase 12 policy. The accepted Phase 11 operator-supplied external key and independently
-verified public key produced the accepted `0.3.0` candidate; no candidate is
-published or deployed by this repository.
+**Status:** Phase 12 accepted. The existing operator-supplied external key and
+independently verified pinned public key produced the accepted `0.4.0`
+candidate without rotating client trust; no candidate is published or deployed
+by this repository.
 
 ## Custody boundary
 

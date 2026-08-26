@@ -1,8 +1,8 @@
 # Release
 
-**Status:** Phase 12 `0.4.0` candidate tooling over the accepted operator-signed
-`0.3.0` base. Phase 12 has not been signed with the operator key, tagged,
-published, or deployed.
+**Status:** Accepted operator-signed Phase 12 `0.4.0` candidate over the
+accepted `0.3.0` base. It has not been tagged, published, deployed, or installed
+on a client server.
 
 Production deployment is an explicit operator action and never a side effect of
 CI, a phase job, or an update check. No release has an unattended auto-update.

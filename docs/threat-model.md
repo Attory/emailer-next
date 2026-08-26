@@ -1,6 +1,6 @@
 # Threat model
 
-**Status:** Phase 12 `0.4.0` candidate operational controls reviewed.
+**Status:** Accepted Phase 12 `0.4.0` candidate operational controls.
 
 **Method:** Asset/trust-boundary review with STRIDE-style misuse cases and
 privacy-abuse review

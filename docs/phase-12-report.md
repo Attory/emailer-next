@@ -7,9 +7,11 @@
 - Verified base: `e1756ae25b391ac9c8d4fd1c2b60e7c25cc9e13a`
 - Repository: `Attory/emailer-next`
 - Later scope: Phase 13 Version 1 hardening and acceptance are absent.
-- No merge, tag, operator-key signature, publication, deployment, credential or
-  DNS change, client-server mutation, provider contact, or live SMTP use was
-  performed.
+- Implementation-branch boundary: no merge, tag, operator-key signature,
+  publication, deployment, credential or DNS change, client-server mutation,
+  provider contact, or live SMTP use was performed before exact-SHA approval.
+  The authorized signature and merge are recorded below; publication,
+  deployment, client mutation, and external-provider contact remain absent.
 
 ## Implemented outcome
 
@@ -96,10 +98,42 @@
 - The full aggregate gate passed after the repair, including formatting,
   maximum-level PHPStan, zero-violation Deptrac, migration/mapping validation,
   183 tests with 2,483 assertions, artifact/security scans, deterministic
-  disposable-key candidate verification, and clean install. Exact-head
-  independent delta review, replacement GitHub matrix CI, operator-key
-  candidate build, and exact merge approval are recorded only after they
-  complete; they are not pre-claimed here.
+  disposable-key candidate verification, and clean install.
+
+## Final acceptance and integration
+
+- The authorized external Claude Sonnet delta review covered the finding
+  repair through exact head
+  `936afeff19e791349f92580bdc5f132d58fba467`. It confirmed the original
+  medium-severity finding was closed and found no new confirmed correctness,
+  security, privacy, or architecture defect at that head. This was an external
+  independent audit, not a GitHub-hosted review.
+- All three replacement PR-head CI jobs passed at that exact head: PHP 8.4.24
+  with MariaDB 10.11.19, PHP 8.4.24 with MariaDB 11.8.9, and PHP 8.5.9 with
+  MariaDB 10.11.19.
+- The final operator-signed `emailer-next-0.4.0.zip` candidate was built from
+  that reviewed head with the existing externally held signing key and
+  independently verified pinned public key. Its SHA-256 is
+  `13feaf315b2c20214c6186857e8f811b601bcba197739630484fa137e428c618`;
+  the detached Ed25519 signature, manifest, checksum, SPDX SBOM, two-build
+  reproducibility, package inspection, immutable clean install, and supported
+  `0.3.x` update contract were verified. The pinned public-key SHA-256 remains
+  `01a3773c7ea4acb569254e954856924d53b827878477e30f71b21b2a7ee1f61c`;
+  no key rotation occurred. Candidate outputs remain outside Git.
+- Anton approved PR [#15](https://github.com/Attory/emailer-next/pull/15) at
+  exact head `936afeff19e791349f92580bdc5f132d58fba467`. It was squash-merged at
+  `2026-08-26T20:24:51Z` as
+  `c3c5d0ba5373e46f42183c3fc31264316f512afd`.
+- The PR head and squash-merge commit both have tree
+  `e4ef0d7c8a72067292b682e4b92c4bdee6f8735e`; the signed candidate therefore
+  binds the byte-identical reviewed Phase 12 source tree.
+- Post-merge CI run `33010275446` passed the same three PHP/MariaDB jobs on
+  exact `main` commit `c3c5d0ba5373e46f42183c3fc31264316f512afd`, including the
+  external-egress-disabled test repeat and clean resulting-diff inspection.
+  Local `HEAD`, local `main`, and `origin/main` were synchronized and clean at
+  ahead/behind `0/0`.
+- Phase 12 is accepted as an unpublished, undeployed `0.4.0` update candidate.
+  No tag or GitHub Release is required by the Phase 12 stop condition.
 
 ## Manual actions and residual limits
 
@@ -114,6 +148,7 @@
   squash merges and authorized branch deletion. No such object is referenced by
   the Phase 12 base or remote refs; no destructive object cleanup was attempted.
 - No unresolved critical/high implementation finding is knowingly accepted.
-  Final exact-head review, replacement matrix CI, operator-signed
-  reproducibility, clean install, and supported `0.3.x` update remain
-  acceptance prerequisites.
+  Publication, client installation/update, deployment-specific retention and
+  backup policy, external mount custody, restore drills, TLS/proxy, SMTP/DNS,
+  worker supervision, and delivery resumption remain explicit operator
+  responsibilities.
