@@ -1,11 +1,11 @@
 # Threat model
 
-**Status:** Phase 9 MVP release-candidate acceptance controls reviewed.
+**Status:** Phase 11 `0.3.0` release-candidate controls reviewed.
 
 **Method:** Asset/trust-boundary review with STRIDE-style misuse cases and
 privacy-abuse review
 
-**Last reviewed:** 2026-08-23
+**Last reviewed:** 2026-08-26
 
 ## Scope and security objectives
 

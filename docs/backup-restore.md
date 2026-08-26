@@ -1,6 +1,8 @@
 # Backup and restore
 
-**Status:** Phase 9 MVP candidate accepts the Phase 8 encrypted backup/recovery/CLI restore drill. External destinations and automation remain Phase 12.
+**Status:** Phase 11 encrypted backup/recovery/CLI restore contract, including
+analytics and private RSVP response contributors. External destinations and
+automation remain Phase 12.
 
 ## Backup scope
 

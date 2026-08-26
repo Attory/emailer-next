@@ -1,6 +1,7 @@
 # Security model
 
-**Status:** Phase 9 MVP release-candidate security acceptance over the Phase 8 operational baseline.
+**Status:** Phase 11 `0.3.0` candidate security acceptance, including optional
+tracking and RSVP over the MVP operational baseline.
 
 ## Phase 9 supply-chain controls
 

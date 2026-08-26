@@ -1,6 +1,8 @@
 # Release
 
-**Status:** Phase 11 `0.3.0` update-candidate process implemented. Candidate acceptance remains blocked until every recorded gate and operator-key build passes; nothing is published or deployed.
+**Status:** Phase 11 `0.3.0` operator-signed update candidate accepted. All
+recorded gates, exact-head independent review, and operator-key build passed;
+nothing is tagged, published, or deployed.
 
 Production deployment is an explicit operator action and never a side effect of
 CI, a phase job, or an update check. No release has an unattended auto-update.

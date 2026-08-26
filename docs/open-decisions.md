@@ -1,8 +1,9 @@
 # Open decisions
 
-**Status:** Phase 9 MVP decisions resolved; later product-policy decisions remain
+**Status:** Decisions through Phase 11 resolved; Phase 12–13 product and
+operations decisions remain bounded to their assigned phases.
 
-**Last reviewed:** 2026-08-22
+**Last reviewed:** 2026-08-26
 
 The core architecture in ADRs `0001`–`0011` is accepted. Phase 1 resolved its
 four bounded decisions:

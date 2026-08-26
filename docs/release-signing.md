@@ -1,6 +1,8 @@
 # Release-signing custody and trust
 
-**Status:** Phase 9 MVP policy. The operator must supply the external signing key before the `0.1.0` candidate is accepted.
+**Status:** Phase 11 policy. The operator-supplied external key and independently
+verified public key produced the accepted `0.3.0` candidate; no candidate is
+published or deployed by this repository.
 
 ## Custody boundary
 
