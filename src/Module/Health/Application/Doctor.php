@@ -37,7 +37,7 @@ final readonly class Doctor implements ScheduledHealthOperations
                     $findings[] = $this->normalizeFinding($finding, $sendingBlocked);
                 }
             } catch (\Throwable) {
-                $findings[] = $this->failedProbeFinding($sendingBlocked);
+                $findings[] = $this->failedProbeFinding($probe, $sendingBlocked);
             }
         }
         if ($maintenanceVerification) {
@@ -184,9 +184,11 @@ final readonly class Doctor implements ScheduledHealthOperations
     }
 
     /** @return array{code: string, severity: 'critical'|'warning', summary: string, risk: string, evidence: string, remediation: string, sending_blocked: bool} */
-    private function failedProbeFinding(bool $sendingBlocked): array
+    private function failedProbeFinding(ReadinessProbe $probe, bool $sendingBlocked): array
     {
-        return $this->normalizeFinding(['code' => 'probe_unavailable', 'severity' => 'critical', 'summary' => 'A readiness check could not complete.', 'remediation' => 'Inspect the affected runtime component and rerun Doctor.'], $sendingBlocked);
+        $probeCode = substr(hash('sha256', $probe::class), 0, 40);
+
+        return $this->normalizeFinding(['code' => 'probe_unavailable_'.$probeCode, 'severity' => 'critical', 'summary' => 'A readiness check could not complete.', 'remediation' => 'Inspect the affected runtime component and rerun Doctor.'], $sendingBlocked);
     }
 
     /** @param list<array<string, mixed>> $findings */

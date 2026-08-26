@@ -44,8 +44,36 @@ final class DoctorTest extends TestCase
         };
         $connection = self::createStub(Connection::class);
         $result = (new Doctor([$probe], $connection))->run(false);
-        self::assertSame('probe_unavailable', $result['findings'][0]['code']);
+        self::assertStringStartsWith('probe_unavailable_', $result['findings'][0]['code']);
         self::assertStringNotContainsString('@', json_encode($result, JSON_THROW_ON_ERROR));
+    }
+
+    public function testDistinctProbeFailuresHaveDistinctStableFindingCodes(): void
+    {
+        $first = new class implements ReadinessProbe {
+            public function findings(): array
+            {
+                throw new \RuntimeException('first failure');
+            }
+        };
+        $second = new class implements ReadinessProbe {
+            public function findings(): array
+            {
+                throw new \RuntimeException('second failure');
+            }
+        };
+        $doctor = new Doctor([$first, $second], self::createStub(Connection::class));
+
+        $firstRun = $doctor->run(false);
+        $secondRun = $doctor->run(false);
+        $firstCodes = array_column($firstRun['findings'], 'code');
+        $secondCodes = array_column($secondRun['findings'], 'code');
+
+        self::assertCount(2, array_unique($firstCodes));
+        self::assertSame($firstCodes, $secondCodes);
+        foreach ($firstCodes as $code) {
+            self::assertMatchesRegularExpression('/^probe_unavailable_[a-f0-9]{40}$/', $code);
+        }
     }
 
     public function testMaintenanceVerificationDowngradesOnlyKnownQuiescenceFinding(): void
@@ -74,7 +102,7 @@ final class DoctorTest extends TestCase
             }
         };
         $result = (new Doctor([$probe], self::createStub(Connection::class)))->run(false);
-        self::assertSame('probe_unavailable', $result['findings'][0]['code']);
+        self::assertStringStartsWith('probe_unavailable_', $result['findings'][0]['code']);
         self::assertStringNotContainsString('@', json_encode($result, JSON_THROW_ON_ERROR));
     }
 

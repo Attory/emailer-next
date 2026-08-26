@@ -61,9 +61,10 @@
   custom module boundaries: passed during the aggregate gate.
 - Doctrine migrated cleanly to `Version20260828000000`, reported up to date,
   and mapping validation passed on MariaDB 10.11.
-- Focused Doctor/policy/external-copy/housekeeping/update regression: 16 tests,
-  85 assertions passed on PHP 8.4.24.
-- Full PHPUnit: 182 tests and 2,479 assertions passed on PHP 8.4.24.
+- Focused Doctor/policy/external-copy/housekeeping/update regression: 17 tests,
+  89 assertions passed on PHP 8.4.24 after the review repair.
+- Full PHPUnit: 183 tests and 2,483 assertions passed on PHP 8.4.24 after the
+  review repair.
 - Production artifact allowlist/inspection, public and deployment-profile
   probes, current/reachable-history secret and private-data scans: passed.
 - Deterministic `0.4.0` archive, manifest, checksum, SPDX SBOM, detached
@@ -73,9 +74,32 @@
   execution, and stable redacted JSON output passed against the synthetic local
   stack. Its critical result reflected intentionally incomplete development
   recovery/production configuration; no live service was contacted.
-- GitHub matrix CI, independent exact-head review, operator-key candidate build,
-  PR identity, and exact head are recorded only after they complete; they are
-  not pre-claimed here.
+- The initial GitHub matrix passed on implementation head
+  `7f9aeccd32af7b3be31584e989dd5b2c521fcc4c`: PHP 8.4.24 with MariaDB
+  10.11.19, PHP 8.4.24 with MariaDB 11.8.9, and PHP 8.5.9 with MariaDB
+  10.11.19.
+
+## Independent review and repair
+
+- An authorized external Claude Sonnet read-only review covered the complete
+  Phase 12 diff at implementation head
+  `7f9aeccd32af7b3be31584e989dd5b2c521fcc4c` against the verified base. It
+  found one medium-severity observability defect: simultaneous readiness-probe
+  exceptions shared `probe_unavailable`, so the active finding table's
+  primary key could collapse multiple failures. The live sending gate remained
+  fail-closed and was not bypassed.
+- The finding was confirmed and repaired by deriving a stable, redacted
+  per-probe failure code from the probe class. Regression coverage proves two
+  simultaneous probe failures remain distinct and stable without exposing
+  exception content. Focused Doctor/backup tests passed with 8 tests and 27
+  assertions; maximum-level PHPStan and Deptrac passed with zero violations.
+- The full aggregate gate passed after the repair, including formatting,
+  maximum-level PHPStan, zero-violation Deptrac, migration/mapping validation,
+  183 tests with 2,483 assertions, artifact/security scans, deterministic
+  disposable-key candidate verification, and clean install. Exact-head
+  independent delta review, replacement GitHub matrix CI, operator-key
+  candidate build, and exact merge approval are recorded only after they
+  complete; they are not pre-claimed here.
 
 ## Manual actions and residual limits
 
@@ -90,5 +114,6 @@
   squash merges and authorized branch deletion. No such object is referenced by
   the Phase 12 base or remote refs; no destructive object cleanup was attempted.
 - No unresolved critical/high implementation finding is knowingly accepted.
-  Exact-head review, all matrix CI jobs, operator-signed reproducibility, clean
-  install, and supported `0.3.x` update remain acceptance prerequisites.
+  Final exact-head review, replacement matrix CI, operator-signed
+  reproducibility, clean install, and supported `0.3.x` update remain
+  acceptance prerequisites.
