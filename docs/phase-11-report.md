@@ -54,7 +54,7 @@
   with zero errors or violations.
 - Doctrine migration, up-to-date status, and mapping validation: passed on
   MariaDB 10.11.
-- PHPUnit: 176 tests and 2,438 assertions passed on PHP 8.4.24, including the
+- PHPUnit: 177 tests and 2,454 assertions passed on PHP 8.4.24, including the
   new RSVP platform, release/update, authorization, CSRF, and accessibility
   coverage.
 - Artifact allowlist build/inspection, public/deployment probes, current and
