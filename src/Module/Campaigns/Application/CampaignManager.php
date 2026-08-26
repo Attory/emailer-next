@@ -56,7 +56,7 @@ final readonly class CampaignManager
     {
         $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Auditor, 'campaign.view');
         $this->uuid($id);
-        $row = $this->connection->fetchAssociative('SELECT c.*, COALESCE(a.recipient_count, 0) recipient_count, a.audience_sha256, t.name template_name, v.version_number template_version, s.open_tracking snapshot_open_tracking, s.click_tracking snapshot_click_tracking FROM campaign c INNER JOIN template_version v ON v.id = c.template_version_id INNER JOIN email_template t ON t.id = v.template_id LEFT JOIN campaign_audience_snapshot a ON a.campaign_id = c.id LEFT JOIN campaign_content_snapshot s ON s.campaign_id = c.id WHERE c.id = ?', [$id]);
+        $row = $this->connection->fetchAssociative('SELECT c.*, COALESCE(a.recipient_count, 0) recipient_count, a.audience_sha256, t.name template_name, v.version_number template_version, s.open_tracking snapshot_open_tracking, s.click_tracking snapshot_click_tracking, s.rsvp_enabled snapshot_rsvp_enabled, s.rsvp_repeat_policy snapshot_rsvp_repeat_policy FROM campaign c INNER JOIN template_version v ON v.id = c.template_version_id INNER JOIN email_template t ON t.id = v.template_id LEFT JOIN campaign_audience_snapshot a ON a.campaign_id = c.id LEFT JOIN campaign_content_snapshot s ON s.campaign_id = c.id WHERE c.id = ?', [$id]);
         if (false === $row) {
             throw new \InvalidArgumentException('Campaign is unavailable.');
         }
@@ -77,7 +77,7 @@ final readonly class CampaignManager
             'sender_name' => $configuration['sender_name'],
             'one_click' => $configuration['one_click_dkim_confirmed'] ? 'Enabled by provider DKIM attestation' : 'Disabled',
             'tracking' => $openTracking || $clickTracking ? \sprintf('Open: %s; click: %s', $openTracking ? 'on' : 'off', $clickTracking ? 'on' : 'off') : 'Off',
-            'rsvp' => 'Off (not available in this release)',
+            'rsvp' => (is_numeric($row['snapshot_rsvp_enabled']) ? 1 === $this->intValue($row['snapshot_rsvp_enabled']) : 1 === $this->intValue($row['rsvp_enabled'])) ? 'Enabled; repeat policy: '.(\is_string($row['snapshot_rsvp_repeat_policy']) ? $row['snapshot_rsvp_repeat_policy'] : $configuration['rsvp_repeat_policy']) : 'Off',
             'time_zone' => \is_string($timeZone) && '' !== $timeZone ? $timeZone : 'UTC',
         ];
 
@@ -93,13 +93,12 @@ final readonly class CampaignManager
             throw new \InvalidArgumentException('Campaign name is invalid.');
         }
         $template = $this->templates->get($templateVersionId);
-        $this->assertAvailableRecipientFields($template['merge_fields']);
         $listIds = array_values(array_unique($listIds));
         $this->audiences->snapshot($listIds);
         $id = Identity::uuidV7();
         $this->connection->transactional(function () use ($actor, $id, $name, $templateVersionId, $listIds): void {
             $now = Identity::now();
-            $this->connection->insert('campaign', ['id' => $id, 'name' => $name, 'template_version_id' => $templateVersionId, 'state' => 'draft', 'scheduled_at' => null, 'approved_at' => null, 'approved_by' => null, 'approval_waived_test' => 0, 'operation_version' => 1, 'created_by' => $actor->id(), 'created_at' => $now, 'updated_at' => $now]);
+            $this->connection->insert('campaign', ['id' => $id, 'name' => $name, 'template_version_id' => $templateVersionId, 'state' => 'draft', 'scheduled_at' => null, 'approved_at' => null, 'approved_by' => null, 'approval_waived_test' => 0, 'rsvp_enabled' => 0, 'operation_version' => 1, 'created_by' => $actor->id(), 'created_at' => $now, 'updated_at' => $now]);
             foreach ($listIds as $listId) {
                 $this->connection->insert('campaign_list_selection', ['campaign_id' => $id, 'list_id' => $listId]);
             }
@@ -107,6 +106,19 @@ final readonly class CampaignManager
         });
 
         return $id;
+    }
+
+    public function configureRsvp(AdministrativeActor $actor, string $id, bool $enabled): void
+    {
+        $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'campaign.rsvp.configure');
+        $this->uuid($id);
+        $this->connection->transactional(function () use ($actor, $id, $enabled): void {
+            $updated = $this->connection->executeStatement("UPDATE campaign SET rsvp_enabled = ?, operation_version = operation_version + 1, updated_at = ? WHERE id = ? AND state = 'draft'", [$enabled ? 1 : 0, Identity::now(), $id]);
+            if (1 !== $updated) {
+                throw new \DomainException('Campaign RSVP can only be configured while draft.');
+            }
+            $this->audit->append(new AuditRecord($actor->id(), 'campaign.rsvp.configured', $id, 'success', ['enabled' => $enabled]));
+        });
     }
 
     public function submitForReview(AdministrativeActor $actor, string $id): void
@@ -138,7 +150,7 @@ final readonly class CampaignManager
         $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Administrator, 'campaign.approve');
         $this->uuid($id);
         $this->connection->transactional(function () use ($actor, $id, $waiveTest): void {
-            $campaign = $this->connection->fetchAssociative('SELECT state, template_version_id FROM campaign WHERE id = ? FOR UPDATE', [$id]);
+            $campaign = $this->connection->fetchAssociative('SELECT state, template_version_id, rsvp_enabled FROM campaign WHERE id = ? FOR UPDATE', [$id]);
             if (false === $campaign || 'review' !== $campaign['state'] || !\is_string($campaign['template_version_id'])) {
                 throw new \DomainException('Campaign is not awaiting approval.');
             }
@@ -146,7 +158,6 @@ final readonly class CampaignManager
                 throw new \DomainException('An accepted campaign test is required before approval.');
             }
             $template = $this->templates->get($campaign['template_version_id']);
-            $this->assertAvailableRecipientFields($template['merge_fields']);
             $storedListIds = $this->connection->fetchFirstColumn('SELECT list_id FROM campaign_list_selection WHERE campaign_id = ? ORDER BY list_id', [$id]);
             $listIds = [];
             foreach ($storedListIds as $storedListId) {
@@ -156,11 +167,19 @@ final readonly class CampaignManager
             }
             $recipients = $this->audiences->snapshot($listIds);
             $configuration = $this->configuration->current();
+            $rsvpEnabled = 1 === $this->intValue($campaign['rsvp_enabled']);
+            $templateUsesRsvp = \in_array('rsvp_url', $template['merge_fields'], true);
+            if ($rsvpEnabled && !$configuration['rsvp_enabled']) {
+                throw new \DomainException('RSVP is disabled by the installation privacy policy.');
+            }
+            if ($rsvpEnabled !== $templateUsesRsvp) {
+                throw new \DomainException('Campaign RSVP selection and template must agree.');
+            }
             if ([] === $recipients || \count($recipients) > $configuration['max_campaign_size']) {
                 throw new \DomainException('Campaign audience size is outside the configured limit.');
             }
             $now = Identity::now();
-            $this->connection->insert('campaign_content_snapshot', ['campaign_id' => $id, 'template_version_id' => $template['id'], 'subject' => $template['subject'], 'preheader' => $template['preheader'], 'html_body' => $template['html'], 'text_body' => $template['text'], 'unsubscribe_footer' => $configuration['unsubscribe_footer'], 'one_click_dkim_confirmed' => $configuration['one_click_dkim_confirmed'] ? 1 : 0, 'merge_fields_json' => json_encode($template['merge_fields'], JSON_THROW_ON_ERROR), 'link_manifest_json' => json_encode($template['links'], JSON_THROW_ON_ERROR), 'open_tracking' => $configuration['open_tracking'] ? 1 : 0, 'click_tracking' => $configuration['click_tracking'] ? 1 : 0, 'content_sha256' => $template['content_sha256'], 'sender_address' => $configuration['sender_address'], 'sender_name' => $configuration['sender_name'], 'reply_to_address' => $configuration['reply_to'], 'created_at' => $now]);
+            $this->connection->insert('campaign_content_snapshot', ['campaign_id' => $id, 'template_version_id' => $template['id'], 'subject' => $template['subject'], 'preheader' => $template['preheader'], 'html_body' => $template['html'], 'text_body' => $template['text'], 'unsubscribe_footer' => $configuration['unsubscribe_footer'], 'one_click_dkim_confirmed' => $configuration['one_click_dkim_confirmed'] ? 1 : 0, 'merge_fields_json' => json_encode($template['merge_fields'], JSON_THROW_ON_ERROR), 'link_manifest_json' => json_encode($template['links'], JSON_THROW_ON_ERROR), 'open_tracking' => $configuration['open_tracking'] ? 1 : 0, 'click_tracking' => $configuration['click_tracking'] ? 1 : 0, 'rsvp_enabled' => $rsvpEnabled ? 1 : 0, 'rsvp_repeat_policy' => $configuration['rsvp_repeat_policy'], 'rsvp_form_schema_json' => json_encode(['fields' => ['response', 'guests', 'note'], 'choices' => ['yes', 'no', 'maybe'], 'max_guests' => 20, 'max_note_length' => 500], JSON_THROW_ON_ERROR), 'content_sha256' => $template['content_sha256'], 'sender_address' => $configuration['sender_address'], 'sender_name' => $configuration['sender_name'], 'reply_to_address' => $configuration['reply_to'], 'created_at' => $now]);
             $digestParts = [];
             foreach ($recipients as $recipient) {
                 $digestParts[] = $recipient['contact_id'].'\0'.$recipient['email'];
@@ -247,14 +266,6 @@ final readonly class CampaignManager
             }
             $this->audit->append(new AuditRecord($actor->id(), $action, $id, 'success'));
         });
-    }
-
-    /** @param list<string> $fields */
-    private function assertAvailableRecipientFields(array $fields): void
-    {
-        if ([] !== array_intersect($fields, ['rsvp_url'])) {
-            throw new \DomainException('This template requires a recipient feature from a later phase.');
-        }
     }
 
     private function uuid(string $id): void

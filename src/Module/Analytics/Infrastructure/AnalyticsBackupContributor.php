@@ -10,7 +10,7 @@ final readonly class AnalyticsBackupContributor implements BackupContributor
 {
     public function tables(): array
     {
-        return ['analytics_aggregate'];
+        return ['analytics_aggregate', 'rsvp_response'];
     }
 
     public function assetRoots(): array

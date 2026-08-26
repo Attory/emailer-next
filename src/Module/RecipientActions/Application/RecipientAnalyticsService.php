@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\RecipientActions\Application;
 
 use App\Module\Analytics\Application\Contract\RecipientAnalyticsLinks;
+use App\Module\Analytics\Application\Contract\RecipientRsvpLinks;
 use App\Module\Configuration\Application\Contract\RecipientRuntimeConfiguration;
 use App\Module\RecipientActions\Application\Contract\RecipientUnsubscribeLinks;
 use App\Module\Secrets\Application\Contract\SecretVault;
@@ -12,7 +13,7 @@ use App\Shared\EmailAddress;
 use App\Shared\Identity;
 use Doctrine\DBAL\Connection;
 
-final readonly class RecipientAnalyticsService implements RecipientAnalyticsLinks
+final readonly class RecipientAnalyticsService implements RecipientAnalyticsLinks, RecipientRsvpLinks
 {
     private const SECRET_TYPE = 'recipient.token.key';
     private const LIFETIME = '90 days';
@@ -40,7 +41,7 @@ final readonly class RecipientAnalyticsService implements RecipientAnalyticsLink
     /** @return array<string, mixed> */
     public function verify(string $token, string $purpose): array
     {
-        if (!\in_array($purpose, ['view', 'open', 'click'], true) || null === ($parsed = $this->codec->parse($token))) {
+        if (!\in_array($purpose, ['view', 'open', 'click', 'rsvp'], true) || null === ($parsed = $this->codec->parse($token))) {
             throw new RecipientTokenInvalid();
         }
         $row = $this->connection->fetchAssociative('SELECT t.*, k.secret_id, k.active, k.verify_until FROM recipient_token t INNER JOIN recipient_token_key k ON k.key_version = t.key_version WHERE t.handle = ? AND t.purpose = ?', [$parsed['handle'], $purpose]);
@@ -78,10 +79,81 @@ final readonly class RecipientAnalyticsService implements RecipientAnalyticsLink
         $this->connection->executeStatement('INSERT INTO analytics_aggregate (campaign_recipient_id, event_type, link_index, event_count, first_seen_at, last_seen_at) VALUES (?, ?, ?, 1, ?, ?) ON DUPLICATE KEY UPDATE event_count = LEAST(4294967295, event_count + 1), last_seen_at = VALUES(last_seen_at)', [$recipientId, $type, $link, Identity::now(), Identity::now()]);
     }
 
+    public function issueRsvp(string $campaignId, string $campaignRecipientId, string $contactId, string $email): string
+    {
+        foreach ([$campaignId, $campaignRecipientId, $contactId] as $id) {
+            if (1 !== preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/D', $id)) {
+                throw new \InvalidArgumentException('Recipient RSVP scope is invalid.');
+            }
+        }
+        new EmailAddress($email);
+        $runtime = $this->configuration->current();
+        $token = $this->token('rsvp', $campaignId, $campaignRecipientId, $contactId, $runtime['installation_id']);
+
+        return $runtime['canonical_origin'].'/r/'.rawurlencode($token).'/rsvp';
+    }
+
+    /** @return array{campaign_name: string, response: ?string, guests: int, note: string, submitted: bool} */
+    public function rsvpForm(string $token): array
+    {
+        $tokenRow = $this->verify($token, 'rsvp');
+        $row = $this->connection->fetchAssociative('SELECT c.name, s.rsvp_enabled, s.rsvp_form_schema_json, rr.response_choice, rr.guest_count, rr.note FROM campaign_recipient r INNER JOIN campaign c ON c.id = r.campaign_id INNER JOIN campaign_content_snapshot s ON s.campaign_id = c.id LEFT JOIN rsvp_response rr ON rr.campaign_recipient_id = r.id WHERE r.id = ?', [$this->string($tokenRow['campaign_recipient_id'])]);
+        if (false === $row || 1 !== $this->integer($row['rsvp_enabled'])) {
+            throw new RecipientTokenInvalid();
+        }
+        $this->rsvpSchema($row['rsvp_form_schema_json']);
+
+        return ['campaign_name' => $this->string($row['name']), 'response' => \is_string($row['response_choice']) ? $row['response_choice'] : null, 'guests' => is_numeric($row['guest_count']) ? (int) $row['guest_count'] : 0, 'note' => \is_string($row['note']) ? $row['note'] : '', 'submitted' => \is_string($row['response_choice'])];
+    }
+
+    public function submitRsvp(string $token, string $response, int $guests, string $note): void
+    {
+        if (!\in_array($response, ['yes', 'no', 'maybe'], true) || 0 > $guests || 20 < $guests || 500 < mb_strlen($note) || 1 === preg_match('/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/', $note)) {
+            throw new \InvalidArgumentException('RSVP response is invalid.');
+        }
+        $note = trim($note);
+        $tokenRow = $this->verify($token, 'rsvp');
+        $recipientId = $this->string($tokenRow['campaign_recipient_id']);
+        $this->connection->transactional(function () use ($recipientId, $response, $guests, $note): void {
+            $campaignId = $this->connection->fetchOne('SELECT campaign_id FROM campaign_recipient WHERE id = ? FOR UPDATE', [$recipientId]);
+            $snapshot = \is_string($campaignId) ? $this->connection->fetchAssociative('SELECT rsvp_enabled, rsvp_repeat_policy, rsvp_form_schema_json FROM campaign_content_snapshot WHERE campaign_id = ?', [$campaignId]) : false;
+            if (false === $snapshot || 1 !== $this->integer($snapshot['rsvp_enabled'])) {
+                throw new RecipientTokenInvalid();
+            }
+            $this->rsvpSchema($snapshot['rsvp_form_schema_json']);
+            $now = Identity::now();
+            $inserted = $this->connection->executeStatement('INSERT IGNORE INTO rsvp_response (campaign_recipient_id, response_choice, guest_count, note, submission_count, first_submitted_at, last_submitted_at) VALUES (?, ?, ?, ?, 1, ?, ?)', [$recipientId, $response, $guests, '' === $note ? null : $note, $now, $now]);
+            if (0 === $inserted) {
+                $existing = $this->connection->fetchAssociative('SELECT submission_count FROM rsvp_response WHERE campaign_recipient_id = ? FOR UPDATE', [$recipientId]);
+                if (false === $existing) {
+                    throw new \RuntimeException('RSVP response is unavailable.');
+                }
+                if ('replace' === $this->string($snapshot['rsvp_repeat_policy'])) {
+                    $this->connection->update('rsvp_response', ['response_choice' => $response, 'guest_count' => $guests, 'note' => '' === $note ? null : $note, 'submission_count' => min(65_535, 1 + $this->integer($existing['submission_count'])), 'last_submitted_at' => $now], ['campaign_recipient_id' => $recipientId]);
+                }
+            }
+        });
+    }
+
+    private function rsvpSchema(mixed $encoded): void
+    {
+        if (!\is_string($encoded)) {
+            throw new RecipientTokenInvalid();
+        }
+        try {
+            $schema = json_decode($encoded, true, 8, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            throw new RecipientTokenInvalid();
+        }
+        if (['fields' => ['response', 'guests', 'note'], 'choices' => ['yes', 'no', 'maybe'], 'max_guests' => 20, 'max_note_length' => 500] !== $schema) {
+            throw new RecipientTokenInvalid();
+        }
+    }
+
     public function browserContent(string $token): string
     {
         $tokenRow = $this->verify($token, 'view');
-        $row = $this->connection->fetchAssociative('SELECT c.id campaign_id, c.name, s.html_body, s.unsubscribe_footer, r.id recipient_id, r.contact_id, a.email_canonical, a.profile_json FROM campaign_recipient r INNER JOIN campaign c ON c.id = r.campaign_id INNER JOIN campaign_content_snapshot s ON s.campaign_id = c.id INNER JOIN campaign_audience_recipient a ON a.campaign_id = r.campaign_id AND a.contact_id = r.contact_id WHERE r.id = ?', [$this->string($tokenRow['campaign_recipient_id'])]);
+        $row = $this->connection->fetchAssociative('SELECT c.id campaign_id, c.name, s.html_body, s.unsubscribe_footer, s.rsvp_enabled, r.id recipient_id, r.contact_id, a.email_canonical, a.profile_json FROM campaign_recipient r INNER JOIN campaign c ON c.id = r.campaign_id INNER JOIN campaign_content_snapshot s ON s.campaign_id = c.id INNER JOIN campaign_audience_recipient a ON a.campaign_id = r.campaign_id AND a.contact_id = r.contact_id WHERE r.id = ?', [$this->string($tokenRow['campaign_recipient_id'])]);
         if (false === $row) {
             throw new RecipientTokenInvalid();
         }
@@ -91,7 +163,8 @@ final readonly class RecipientAnalyticsService implements RecipientAnalyticsLink
         }
         $unsubscribe = $this->unsubscribe->issue($this->string($row['campaign_id']), $this->string($row['recipient_id']), $this->string($row['contact_id']), $this->string($row['email_canonical']));
         $runtime = $this->configuration->current();
-        $values = ['contact.first_name' => \is_string($profile['first_name'] ?? null) ? $profile['first_name'] : '', 'contact.display_name' => \is_string($profile['display_name'] ?? null) ? $profile['display_name'] : '', 'campaign.name' => $this->string($row['name']), 'unsubscribe_url' => $unsubscribe, 'view_in_browser_url' => $runtime['canonical_origin'].'/r/'.rawurlencode($token).'/view'];
+        $rsvp = 1 === $this->integer($row['rsvp_enabled']) ? $this->issueRsvp($this->string($row['campaign_id']), $this->string($row['recipient_id']), $this->string($row['contact_id']), $this->string($row['email_canonical'])) : '';
+        $values = ['contact.first_name' => \is_string($profile['first_name'] ?? null) ? $profile['first_name'] : '', 'contact.display_name' => \is_string($profile['display_name'] ?? null) ? $profile['display_name'] : '', 'campaign.name' => $this->string($row['name']), 'unsubscribe_url' => $unsubscribe, 'view_in_browser_url' => $runtime['canonical_origin'].'/r/'.rawurlencode($token).'/view', 'rsvp_url' => $rsvp];
         $html = $this->string($row['html_body']);
         foreach ($values as $field => $value) {
             $html = preg_replace('/\{\{\s*'.preg_quote($field, '/').'\s*\}\}/', htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8'), $html) ?? $html;

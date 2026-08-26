@@ -1,6 +1,6 @@
 # Release
 
-**Status:** Phase 10 `0.2.0` update-candidate process implemented. Candidate acceptance remains blocked until every recorded gate and operator-key build passes; nothing is published or deployed.
+**Status:** Phase 11 `0.3.0` update-candidate process implemented. Candidate acceptance remains blocked until every recorded gate and operator-key build passes; nothing is published or deployed.
 
 Production deployment is an explicit operator action and never a side effect of
 CI, a phase job, or an update check. No release has an unattended auto-update.
@@ -98,3 +98,7 @@ candidate record. Its minimum source is `0.1.0`, its target schema is
 `Version20260826000000`, and rollback after migration requires restoration of
 the verified pre-update backup. These ignored local outputs are not a
 publication. The Phase 9 builder remains available to reproduce `0.1.0`.
+
+`tools/release/build-0.3.0-candidate.sh` applies the same deterministic signed
+workflow for schema `20260827000000`, declares minimum source `0.2.0`, and
+includes `CLIENT-UPDATE-0.3.0.md` beside the downloadable candidate files.

@@ -36,7 +36,7 @@ final readonly class RecipientActionLimiterSubscriber implements EventSubscriber
             return;
         }
         $path = rawurldecode($event->getRequest()->getPathInfo());
-        if (1 !== preg_match('#^/r/([^/]+)/(?:unsubscribe|view|open\.gif|click/[0-9]+)$#D', $path, $matches)) {
+        if (1 !== preg_match('#^/r/([^/]+)/(?:unsubscribe|view|open\.gif|click/[0-9]+|rsvp)$#D', $path, $matches)) {
             return;
         }
         $source = $event->getRequest()->getClientIp() ?? 'unknown';

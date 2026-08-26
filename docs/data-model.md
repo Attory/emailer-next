@@ -1,6 +1,6 @@
 # Initial data model
 
-**Status:** Phase 10 `0.2.0` candidate schema.
+**Status:** Phase 11 `0.3.0` candidate schema.
 
 `DoctrineMigrations\Version20260723000000` remains the no-schema platform
 smoke check. Phase 3 adds `Version20260815000000`, which creates only the
@@ -38,6 +38,7 @@ campaign/delivery and recipient-token state; Phase 8 adds operational evidence.
 | `release_operation` | Release | Redacted inspect/install/update/rollback version, digest, state, and result code |
 | `housekeeping_run` | Housekeeping | Dry-run/apply flag, bounded per-category counts, result, and timestamps |
 | `analytics_aggregate` | Analytics | Approximate per-recipient event/link counters and first/last UTC timestamps; no request metadata or raw URL |
+| `rsvp_response` | Analytics | One bounded private response per opaque campaign-recipient identity; no address or request metadata |
 
 `Version20260817000000` expands `app_user` to all four administrative roles and
 adds change/login/disable timestamps while reusing the Phase 3 account and MFA
@@ -61,6 +62,11 @@ automated rollback.
 manifest into each approved campaign, extends recipient tokens with separate
 `view`, `open`, and `click` purposes, and adds minimized analytics aggregates
 plus bounded-retention evidence. It is forward-only.
+
+`Version20260827000000` adds installation and frozen campaign RSVP policy, a
+fixed bounded form schema, purpose-scoped RSVP tokens, private response rows,
+and separate housekeeping evidence. Concurrent submissions serialize on the
+campaign recipient and unique response key. It is forward-only.
 
 MariaDB foreign keys protect Owner/MFA and encrypted-secret references. Check
 constraints protect singleton keys, initial roles/types, exact Phase 3 Mailpit
@@ -126,6 +132,7 @@ values.
 | `DeliveryAttempt` | Delivery | Ledger FK, sequence, timestamps, classification and redacted diagnostics; unique ledger/sequence; no credentials or rendered body |
 | `RecipientToken` | RecipientActions | Random public handle plus key-versioned HMAC authenticator, recipient/campaign scope, purpose, issue/expiry/revocation/use metadata; never raw address in the token |
 | `TrackingEvent` | Analytics | Opaque recipient/campaign references, event type and UTC time, minimized/redacted request metadata; policy-controlled retention |
+| `RsvpResponse` | Analytics | Campaign-recipient PK, yes/no/maybe, 0–20 guests, optional 500-character note, bounded submission count and UTC timestamps; no address, IP, user agent, or raw token |
 | `AuditEvent` | Audit | Append-only UUIDv7, actor or system identity, action, opaque target, UTC time, redacted source/result/change summary; no update/delete UI |
 | `HealthCheckResult` | Health | Check key, severity, redacted evidence/remediation, sending-block flag and observation timestamps |
 | `BackupRecord` | Backup | UUIDv7, format/application/migration versions, encrypted artifact reference, manifest digest, verification and restore-drill timestamps; no master key |

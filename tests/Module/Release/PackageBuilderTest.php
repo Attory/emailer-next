@@ -51,6 +51,8 @@ final class PackageBuilderTest extends TestCase
         $manifest = json_decode((string) file_get_contents($first.'.manifest.json'), true, flags: JSON_THROW_ON_ERROR);
         self::assertIsArray($manifest);
         self::assertSame('0.1.0', $manifest['version'] ?? null);
+        self::assertSame('20260824000000', $manifest['minimum_schema_version'] ?? null);
+        self::assertSame('20260824010000', $manifest['schema_version'] ?? null);
     }
 
     public function testMalformedMinimumSourceAndLinkedSigningKeyFailClosed(): void
@@ -76,7 +78,7 @@ final class PackageBuilderTest extends TestCase
 
     private function runBuilder(string $output, string $minimumSource = '0.1.0', ?string $key = null): int
     {
-        $command = [PHP_BINARY, \dirname(__DIR__, 3).'/tools/release/build-package.php', '--artifact='.$this->directory.'/artifact', '--output='.$output, '--version=0.1.0', '--source='.str_repeat('a', 40), '--minimum-source='.$minimumSource, '--schema=20260824010000', '--rollback-schema-compatible=true', '--signing-key='.($key ?? $this->directory.'/signing.key'), '--source-date-epoch=1787466661'];
+        $command = [PHP_BINARY, \dirname(__DIR__, 3).'/tools/release/build-package.php', '--artifact='.$this->directory.'/artifact', '--output='.$output, '--version=0.1.0', '--source='.str_repeat('a', 40), '--minimum-source='.$minimumSource, '--minimum-schema=20260824000000', '--schema=20260824010000', '--rollback-schema-compatible=true', '--signing-key='.($key ?? $this->directory.'/signing.key'), '--source-date-epoch=1787466661'];
         $process = proc_open($command, [['file', '/dev/null', 'r'], ['file', '/dev/null', 'w'], ['file', '/dev/null', 'w']], $pipes);
         self::assertIsResource($process);
 

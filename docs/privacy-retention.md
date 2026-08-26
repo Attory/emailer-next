@@ -1,6 +1,6 @@
 # Privacy and retention
 
-**Status:** Phase 10 adds bounded optional-analytics retention; full policy automation remains Phase 12.
+**Status:** Phase 11 adds bounded optional-RSVP retention; full policy automation remains Phase 12.
 
 Open and click tracking are separate Administrator opt-ins and remain disabled
 by default. Changes affect only campaigns approved afterwards because the
@@ -11,6 +11,14 @@ message; forwarding can attribute later requests to the original recipient.
 Storage excludes address, IP, user agent, headers, and raw destination URL.
 Aggregates expire after the configured 1–365 days in the existing 200-row
 dry-run/apply housekeeping workflow.
+
+RSVP is independently disabled by default and must be enabled both globally
+and on a draft campaign. Approval freezes enablement, the fixed field schema,
+and either keep-first or replace-latest repeat behavior. Input is limited to
+yes/no/maybe, 0–20 guests, and a 500-character note. Stored rows exclude
+address, IP, user agent, and raw token. Reports expose aggregates; Administrator
+export requires recent re-authentication, is audited, uses an opaque recipient
+identity, and neutralizes formulas. RSVP has separate 1–365 day retention.
 
 Phase 8 `emailer:retention:run` defaults to dry-run and processes at most 200
 eligible rows per category when `--apply` is explicit: expired import files,

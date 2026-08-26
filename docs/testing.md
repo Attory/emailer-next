@@ -219,3 +219,12 @@ See [phase-0-report.md](phase-0-report.md) for the executed command outcomes and
 scanner limitations. Phase 1 replaced those fallback expressions with the
 pinned scanner and executable platform tests recorded in
 [phase-1-report.md](phase-1-report.md).
+
+## Phase 11 coverage
+
+- Platform tests cover RSVP purpose separation, tamper rejection, cookie-free
+  no-store responses, exact bounded input, frozen policy, keep-first and
+  replace-latest behavior, delivery issuance, aggregate reporting,
+  formula-neutralized export, and separate retention.
+- Migration and release gates cover clean schema application and the supported
+  signed `0.2.x` to `0.3.0` update, failure, and backup-restore contract.
