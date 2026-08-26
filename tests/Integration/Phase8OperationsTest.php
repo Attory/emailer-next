@@ -77,7 +77,7 @@ final class Phase8OperationsTest extends KernelTestCase
         self::assertSame('healthy', $doctor->run()['status']);
         self::assertSame('healthy', $doctor->run()['status']);
         $housekeeper = $this->phase4Service(Housekeeper::class);
-        self::assertSame(['imports' => 0, 'sessions' => 0, 'queue' => 0, 'dead_letter' => 0, 'health' => 0], $housekeeper->run(true));
+        self::assertSame(['imports' => 0, 'sessions' => 0, 'queue' => 0, 'dead_letter' => 0, 'health' => 0, 'analytics' => 0], $housekeeper->run(true));
         self::assertSame(1, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM housekeeping_run')));
     }
 }

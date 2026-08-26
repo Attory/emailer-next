@@ -1,6 +1,6 @@
 # Initial data model
 
-**Status:** Phase 9 MVP candidate schema; Phase 9 adds no migration or table.
+**Status:** Phase 10 `0.2.0` candidate schema.
 
 `DoctrineMigrations\Version20260723000000` remains the no-schema platform
 smoke check. Phase 3 adds `Version20260815000000`, which creates only the
@@ -20,7 +20,7 @@ campaign/delivery and recipient-token state; Phase 8 adds operational evidence.
 | `mfa_credential` | Identity | Encrypted TOTP-secret reference with last accepted counter, or hashed single-use recovery code |
 | `sender_identity` | Configuration | Exact plaintext/unauthenticated local Mailpit metadata and sender identity; no credential or TLS-verification claim |
 | `delivery_policy` | Configuration | Bounded delivery/import limits and detected CLI execution mode |
-| `privacy_policy` | Configuration | Tracking/RSVP off, global suppression mode, and bounded retention/footer defaults |
+| `privacy_policy` | Configuration | Independent future-campaign open/click opt-ins, RSVP off, global suppression mode, and bounded retention/footer defaults |
 | `setup_installation_event` | Setup | Exactly one append-only `installation.completed` event; not the Phase 4 audit system |
 | `user_session` | Identity | HMAC-identified server session payload, nullable account binding, idle/absolute deadlines, permanent revocation tombstone and hashed source metadata |
 | `login_throttle` | Identity | Purpose-HMAC login and re-authentication counters, progressive delay and bounded lockout timestamps |
@@ -37,6 +37,7 @@ campaign/delivery and recipient-token state; Phase 8 adds operational evidence.
 | `backup_record` | Backup | Encrypted artifact identity/digest/size, source/schema versions, and verification time; no path or key |
 | `release_operation` | Release | Redacted inspect/install/update/rollback version, digest, state, and result code |
 | `housekeeping_run` | Housekeeping | Dry-run/apply flag, bounded per-category counts, result, and timestamps |
+| `analytics_aggregate` | Analytics | Approximate per-recipient event/link counters and first/last UTC timestamps; no request metadata or raw URL |
 
 `Version20260817000000` expands `app_user` to all four administrative roles and
 adds change/login/disable timestamps while reusing the Phase 3 account and MFA
@@ -55,6 +56,11 @@ must not be silently discarded by automated rollback.
 `Version20260824010000` adds the explicit dead-letter deletion counter. Both are
 forward-only because discarding recovery and operational evidence is not a safe
 automated rollback.
+
+`Version20260826000000` freezes open/click choices and the published link
+manifest into each approved campaign, extends recipient tokens with separate
+`view`, `open`, and `click` purposes, and adds minimized analytics aggregates
+plus bounded-retention evidence. It is forward-only.
 
 MariaDB foreign keys protect Owner/MFA and encrypted-secret references. Check
 constraints protect singleton keys, initial roles/types, exact Phase 3 Mailpit

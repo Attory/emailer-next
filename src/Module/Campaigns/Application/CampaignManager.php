@@ -56,7 +56,7 @@ final readonly class CampaignManager
     {
         $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Auditor, 'campaign.view');
         $this->uuid($id);
-        $row = $this->connection->fetchAssociative('SELECT c.*, COALESCE(a.recipient_count, 0) recipient_count, a.audience_sha256, t.name template_name, v.version_number template_version FROM campaign c INNER JOIN template_version v ON v.id = c.template_version_id INNER JOIN email_template t ON t.id = v.template_id LEFT JOIN campaign_audience_snapshot a ON a.campaign_id = c.id WHERE c.id = ?', [$id]);
+        $row = $this->connection->fetchAssociative('SELECT c.*, COALESCE(a.recipient_count, 0) recipient_count, a.audience_sha256, t.name template_name, v.version_number template_version, s.open_tracking snapshot_open_tracking, s.click_tracking snapshot_click_tracking FROM campaign c INNER JOIN template_version v ON v.id = c.template_version_id INNER JOIN email_template t ON t.id = v.template_id LEFT JOIN campaign_audience_snapshot a ON a.campaign_id = c.id LEFT JOIN campaign_content_snapshot s ON s.campaign_id = c.id WHERE c.id = ?', [$id]);
         if (false === $row) {
             throw new \InvalidArgumentException('Campaign is unavailable.');
         }
@@ -66,6 +66,8 @@ final readonly class CampaignManager
         $selected = false === $audience ? 0 : $this->intValue($audience['selected_count']);
         $suppressed = false === $audience ? 0 : $this->intValue($audience['suppressed_count']);
         $configuration = $this->configuration->current();
+        $openTracking = is_numeric($row['snapshot_open_tracking']) ? 1 === $this->intValue($row['snapshot_open_tracking']) : $configuration['open_tracking'];
+        $clickTracking = is_numeric($row['snapshot_click_tracking']) ? 1 === $this->intValue($row['snapshot_click_tracking']) : $configuration['click_tracking'];
         $timeZone = $this->connection->fetchOne("SELECT time_zone FROM organisation_settings WHERE singleton_key = '1'");
         $row['review'] = [
             'selected_count' => $selected,
@@ -74,8 +76,8 @@ final readonly class CampaignManager
             'sender_address' => $configuration['sender_address'],
             'sender_name' => $configuration['sender_name'],
             'one_click' => $configuration['one_click_dkim_confirmed'] ? 'Enabled by provider DKIM attestation' : 'Disabled',
-            'tracking' => 'Off in MVP 0.1.0',
-            'rsvp' => 'Off in MVP 0.1.0',
+            'tracking' => $openTracking || $clickTracking ? \sprintf('Open: %s; click: %s', $openTracking ? 'on' : 'off', $clickTracking ? 'on' : 'off') : 'Off',
+            'rsvp' => 'Off (not available in this release)',
             'time_zone' => \is_string($timeZone) && '' !== $timeZone ? $timeZone : 'UTC',
         ];
 
@@ -158,7 +160,7 @@ final readonly class CampaignManager
                 throw new \DomainException('Campaign audience size is outside the configured limit.');
             }
             $now = Identity::now();
-            $this->connection->insert('campaign_content_snapshot', ['campaign_id' => $id, 'template_version_id' => $template['id'], 'subject' => $template['subject'], 'preheader' => $template['preheader'], 'html_body' => $template['html'], 'text_body' => $template['text'], 'unsubscribe_footer' => $configuration['unsubscribe_footer'], 'one_click_dkim_confirmed' => $configuration['one_click_dkim_confirmed'] ? 1 : 0, 'merge_fields_json' => json_encode($template['merge_fields'], JSON_THROW_ON_ERROR), 'content_sha256' => $template['content_sha256'], 'sender_address' => $configuration['sender_address'], 'sender_name' => $configuration['sender_name'], 'reply_to_address' => $configuration['reply_to'], 'created_at' => $now]);
+            $this->connection->insert('campaign_content_snapshot', ['campaign_id' => $id, 'template_version_id' => $template['id'], 'subject' => $template['subject'], 'preheader' => $template['preheader'], 'html_body' => $template['html'], 'text_body' => $template['text'], 'unsubscribe_footer' => $configuration['unsubscribe_footer'], 'one_click_dkim_confirmed' => $configuration['one_click_dkim_confirmed'] ? 1 : 0, 'merge_fields_json' => json_encode($template['merge_fields'], JSON_THROW_ON_ERROR), 'link_manifest_json' => json_encode($template['links'], JSON_THROW_ON_ERROR), 'open_tracking' => $configuration['open_tracking'] ? 1 : 0, 'click_tracking' => $configuration['click_tracking'] ? 1 : 0, 'content_sha256' => $template['content_sha256'], 'sender_address' => $configuration['sender_address'], 'sender_name' => $configuration['sender_name'], 'reply_to_address' => $configuration['reply_to'], 'created_at' => $now]);
             $digestParts = [];
             foreach ($recipients as $recipient) {
                 $digestParts[] = $recipient['contact_id'].'\0'.$recipient['email'];
@@ -250,7 +252,7 @@ final readonly class CampaignManager
     /** @param list<string> $fields */
     private function assertAvailableRecipientFields(array $fields): void
     {
-        if ([] !== array_intersect($fields, ['view_in_browser_url', 'rsvp_url'])) {
+        if ([] !== array_intersect($fields, ['rsvp_url'])) {
             throw new \DomainException('This template requires a recipient feature from a later phase.');
         }
     }

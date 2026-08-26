@@ -1,6 +1,6 @@
 # Release
 
-**Status:** Phase 9 `0.1.0` release-candidate process implemented. Candidate acceptance remains blocked until every recorded gate and operator-key build passes; nothing is published or deployed.
+**Status:** Phase 10 `0.2.0` update-candidate process implemented. Candidate acceptance remains blocked until every recorded gate and operator-key build passes; nothing is published or deployed.
 
 Production deployment is an explicit operator action and never a side effect of
 CI, a phase job, or an update check. No release has an unattended auto-update.
@@ -91,11 +91,10 @@ immutable release directories.
 8. Stop. Tagging, publishing, deploying, DNS/provider changes, and production
    mail tests need separate explicit authorization.
 
-`tools/release/build-0.1.0-candidate.sh` builds twice from a clean committed
+`tools/release/build-0.2.0-candidate.sh` builds twice from a clean committed
 tree, verifies byte identity and the pinned signature, then emits the archive,
 manifest, checksum, SPDX SBOM, signature, public-key transfer copy, and a local
-candidate record. These ignored local outputs are not a publication. Phase 9
-supplies the first `0.1.0` archive and acceptance report. Every later
-phase must supply a clean-install candidate and a supported-version update
-candidate. Phase 1 deliberately does not build a distributable archive, sign,
-tag, publish, release, or deploy anything.
+candidate record. Its minimum source is `0.1.0`, its target schema is
+`Version20260826000000`, and rollback after migration requires restoration of
+the verified pre-update backup. These ignored local outputs are not a
+publication. The Phase 9 builder remains available to reproduce `0.1.0`.

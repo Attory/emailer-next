@@ -14,6 +14,10 @@ audit:
     resource: ../src/Module/Audit/Presentation/Http/
     type: attribute
 
+analytics:
+    resource: ../src/Module/Analytics/Presentation/Http/
+    type: attribute
+
 contacts:
     resource: ../src/Module/Contacts/Presentation/Http/
     type: attribute

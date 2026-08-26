@@ -28,9 +28,9 @@ CSRF unless it is a purpose-scoped public recipient action.
 | `GET/POST /password-reset/*` | Request and consume reset token | Anonymous | Generic request result; random single-use token; throttled | 4 |
 | `GET /r/{token}/unsubscribe` | Minimal unsubscribe confirmation/status | Purpose-scoped token | No admin session/cookie; no address or existence disclosure | 7 |
 | `POST /r/{token}/unsubscribe` | Manual or RFC 8058 one-click unsubscribe | Purpose-scoped token | Exact bounded form; immediate idempotent global suppression; one-click never redirects or needs login/cookie/admin CSRF | 7 |
-| `GET /r/{token}/view` | View the authorized message snapshot | Purpose-scoped token | Planned; no admin session; private-cache policy | 10 |
-| `GET /r/{token}/open.gif` | Optional approximate open event | Purpose-scoped token | Planned; no cookie; disabled means route is inert/not generated | 10 |
-| `GET /r/{token}/click/{link}` | Optional allowlisted click redirect | Purpose-scoped token | Planned; target fixed at publication; no open redirect | 10 |
+| `GET\|HEAD /r/{token}/view` | View the authorized message snapshot | Purpose-scoped token | Implemented; cookie-free, private/no-store frozen content | 10 |
+| `GET\|HEAD /r/{token}/open.gif` | Optional approximate open event | Purpose-scoped token | Implemented; fixed response; disabled means no generated pixel | 10 |
+| `GET\|HEAD /r/{token}/click/{link}` | Optional allowlisted click redirect | Purpose-scoped token | Implemented; HTTPS target fixed at publication; no open redirect | 10 |
 | `GET/POST /r/{token}/rsvp` | Optional bounded response form | Purpose-scoped token | Planned; idempotency/repeat policy; no admin session | 11 |
 
 After installation lock, every `/setup` path returns 404. Public recipient
@@ -90,7 +90,9 @@ Phase 4 implements `/admin`, `/admin/logout`, `/admin/reauthenticate`,
 `/admin/profile`, `/admin/profile/password`, `/admin/sessions`,
 `/admin/sessions/revoke`, `/admin/mfa` and its start/confirm/disable/recovery
 mutations, `/admin/users` and its create/update/delete mutations, and
-`/admin/audit`. `RoutePolicyRegistry` is exhaustive for every resolved
+`/admin/audit`, Auditor-readable `GET|HEAD /admin/analytics`, and
+Administrator-only CSRF-protected `POST /admin/analytics/policy`.
+`RoutePolicyRegistry` is exhaustive for every resolved
 `admin_` route and rejects an absent policy or unapproved method.
 Phase 5 implements the contact, list, import, suppression, export, and template
 families shown below. Phase 8 implements Doctor, backup metadata/create,

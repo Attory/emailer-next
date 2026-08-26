@@ -1,6 +1,16 @@
 # Privacy and retention
 
-**Status:** Phase 9 MVP candidate retains the Phase 8 bounded housekeeping policy; full policy automation remains Phase 12.
+**Status:** Phase 10 adds bounded optional-analytics retention; full policy automation remains Phase 12.
+
+Open and click tracking are separate Administrator opt-ins and remain disabled
+by default. Changes affect only campaigns approved afterwards because the
+choice and published-template link allowlist are frozen in the campaign
+snapshot. Disabled tracking emits neither an open pixel nor tracked click URL.
+Analytics are approximate bearer-link observations, not proof a person read a
+message; forwarding can attribute later requests to the original recipient.
+Storage excludes address, IP, user agent, headers, and raw destination URL.
+Aggregates expire after the configured 1–365 days in the existing 200-row
+dry-run/apply housekeeping workflow.
 
 Phase 8 `emailer:retention:run` defaults to dry-run and processes at most 200
 eligible rows per category when `--apply` is explicit: expired import files,

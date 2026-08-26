@@ -114,9 +114,6 @@ final readonly class ReleaseManager
                 throw new \RuntimeException('Release downgrade or same-version update is not allowed.');
             }
             $this->assertPlatformAndSchemaCompatibility($manifest);
-            if (true !== ($manifest['rollback_schema_compatible'] ?? false)) {
-                throw new \RuntimeException('Automated update requires an explicitly reviewed backward-compatible schema and data transition.');
-            }
             $this->assertDiskCapacity($archive, $manifest);
             $previous = realpath($this->releasesDirectory.'/current');
             if (false === $previous || !is_dir($previous)) {

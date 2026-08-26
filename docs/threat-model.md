@@ -259,6 +259,29 @@ Phase 9 does not claim package publication, production deployment, unattended
 backup/update, DNS/provider configuration, live SMTP contact, or any Phase 10
 tracking/view behavior.
 
+## Phase 10 control status
+
+- TM-17/TM-18 now cover separate view/open/click purposes, authenticated scope
+  and expiry, cookie-free/no-store public handling, and HTTPS redirects selected
+  only by an index into the link manifest frozen at template publication and
+  campaign approval. A request cannot supply a redirect URL.
+- Tracking is independently disabled by default and frozen at approval. When a
+  feature is disabled, delivery generates neither its token nor its pixel or
+  rewritten link. View-in-browser remains separately purpose-scoped.
+- Analytics rows contain only recipient-ledger identity, event kind, bounded
+  link index, count, and first/last UTC timestamps. Analytics-token rows omit
+  the recipient address. IP, user agent, headers, and raw destinations are not
+  stored, logged, or emitted as metrics.
+- Replay increments an approximate aggregate and forwarding is intentionally
+  bearer behavior attributed to the original campaign recipient; neither is
+  represented as proof of human readership. Retention is configurable from 1
+  to 365 days and processed in bounded dry-run/apply batches.
+- The `0.1.0` to `0.2.0` update is fail-closed and uses verified backup restore
+  rather than pointing old code at the forward-only Phase 10 schema.
+
+Phase 10 does not implement RSVP, publish/deploy a package, contact a live mail
+provider, or claim exact/person-level analytics.
+
 ## Residual risks and non-guarantees
 
 The design cannot guarantee protection after full root compromise, a malicious

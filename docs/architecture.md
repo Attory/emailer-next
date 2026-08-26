@@ -1,10 +1,15 @@
 # Architecture
 
-**Status:** Phase 9 client-installable MVP candidate architecture over the Phase 8 operations baseline.
+**Status:** Phase 10 `0.2.0` candidate architecture over the client-installable MVP.
 
 **Last reviewed:** 2026-08-23
 
 ## System context
+
+Phase 10 adds an `Analytics` module for Administrator policy, Auditor reports,
+and minimized aggregate backup data. Public bearer endpoints and cryptographic
+token handling remain in `RecipientActions`; delivery consumes only the
+analytics-link contract. No RSVP behavior is included.
 
 Emailer Next is one self-hosted installation for one organisation on one
 server. Several individually authenticated administrators may use it, but there

@@ -15,7 +15,7 @@ final readonly class DoctrineDeliveryConfiguration implements DeliveryConfigurat
 
     public function current(): array
     {
-        $row = $this->connection->fetchAssociative("SELECT o.installation_uuid, s.smtp_host, s.smtp_port, s.encryption_mode, s.smtp_username, s.credential_secret_id, s.tls_peer_verification, s.sender_address, s.sender_name, s.reply_to_address, s.one_click_dkim_confirmed, p.unsubscribe_footer, d.messages_per_minute, d.worker_concurrency, d.retry_limit, d.maximum_campaign_size FROM organisation_settings o CROSS JOIN sender_identity s CROSS JOIN privacy_policy p CROSS JOIN delivery_policy d WHERE o.singleton_key = '1' AND s.singleton_key = '1' AND p.singleton_key = '1' AND d.singleton_key = '1'");
+        $row = $this->connection->fetchAssociative("SELECT o.installation_uuid, s.smtp_host, s.smtp_port, s.encryption_mode, s.smtp_username, s.credential_secret_id, s.tls_peer_verification, s.sender_address, s.sender_name, s.reply_to_address, s.one_click_dkim_confirmed, p.unsubscribe_footer, p.open_tracking, p.click_tracking, d.messages_per_minute, d.worker_concurrency, d.retry_limit, d.maximum_campaign_size FROM organisation_settings o CROSS JOIN sender_identity s CROSS JOIN privacy_policy p CROSS JOIN delivery_policy d WHERE o.singleton_key = '1' AND s.singleton_key = '1' AND p.singleton_key = '1' AND d.singleton_key = '1'");
         if (false === $row) {
             throw new \RuntimeException('Delivery configuration is incomplete.');
         }
@@ -33,6 +33,7 @@ final readonly class DoctrineDeliveryConfiguration implements DeliveryConfigurat
             'reply_to' => \is_string($row['reply_to_address']) ? $row['reply_to_address'] : null,
             'one_click_dkim_confirmed' => 1 === $this->intValue($row['one_click_dkim_confirmed']),
             'unsubscribe_footer' => $this->stringValue($row['unsubscribe_footer']), 'messages_per_minute' => $this->intValue($row['messages_per_minute']),
+            'open_tracking' => 1 === $this->intValue($row['open_tracking']), 'click_tracking' => 1 === $this->intValue($row['click_tracking']),
             'concurrency' => $this->intValue($row['worker_concurrency']), 'retry_limit' => $this->intValue($row['retry_limit']), 'max_campaign_size' => $this->intValue($row['maximum_campaign_size']),
         ];
     }

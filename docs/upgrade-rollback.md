@@ -1,6 +1,11 @@
 # Upgrade and rollback
 
-**Status:** Phase 9 MVP package/update contract and supported-version window fixed; first `0.1.0` candidate is accepted only after the recorded rehearsals pass.
+**Status:** Phase 10 supports clean installation of `0.2.0` and update from `0.1.0`.
+
+The `0.2.0` target schema is `Version20260826000000`. The package declares
+`rollback_schema_compatible=false`: after migration, a failed update restores
+the verified automatic pre-update backup before reinstating the prior immutable
+pointer. Never point `0.1.0` code at the `0.2.0` schema.
 
 There is no unattended update. Build, approval, deployment, migration, health
 verification, and rollback are explicit operator actions using an immutable,
@@ -82,11 +87,13 @@ installations, logs, prompts, and CI output.
 Rollback returns to a known artifact only when its code/schema compatibility is
 proven. If migrations are not backward compatible, use the tested
 backup/forward-fix plan instead of blindly pointing old code at a new schema.
-The automated updater therefore rejects a package unless its reviewed manifest
-explicitly declares the schema and data transition backward compatible. A
-`false` declaration permits inspection and clean installation only; it cannot
-authorize an in-place update that a data-only application backup could not
-reverse.
+For a package whose reviewed manifest declares
+`rollback_schema_compatible=true`, the automated updater may restore the prior
+release pointer after a failed post-migration health check. A `false`
+declaration instead requires the updater to restore the verified pre-update
+backup before reinstating the prior pointer; the supported source-to-target
+path must have passed the recorded update and restore rehearsals. It must never
+point old code at the incompatible migrated schema.
 Preserve audit, suppression, and ambiguous delivery evidence. Never resend
 unknown ledger work to “catch up.”
 
