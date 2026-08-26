@@ -1,6 +1,6 @@
 # CI and quality gates
 
-**Status:** Phase 9 MVP release-candidate gate implemented.
+**Status:** Phase 11 aggregate and signed update-candidate gates implemented.
 
 One aggregate command, `composer check`, runs every executable current quality
 gate. CI invokes the same version-pinned commands rather than maintaining a

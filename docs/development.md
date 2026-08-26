@@ -1,6 +1,7 @@
 # Development
 
-**Status:** Phase 9 MVP release-candidate acceptance baseline.
+**Status:** Phase 11 `0.3.0` candidate acceptance baseline; Phase 12 is
+unstarted.
 
 ## Clean-room rule
 
@@ -17,7 +18,7 @@ CI output, or build artifacts.
 
 ## Current state
 
-Phases 1–9 provide Symfony 7.4, a locked Composer project, Docker Compose services
+Phases 1–11 provide Symfony 7.4, a locked Composer project, Docker Compose services
 for the application/MariaDB/Mailpit, executable quality gates, coarse liveness,
 structured redaction, an inspected production-shaped artifact, and the bounded
 setup ownership/state flow, external-key crypto, individual identity/session
@@ -27,8 +28,10 @@ delivery, supervised workers, public unsubscribe, critical Doctor/send gates,
 encrypted local backup/restore, recovery-key handling, bounded housekeeping,
 and signed immutable package/update mechanisms. Phase 9 adds the deterministic
 `0.1.0` candidate workflow, release-key policy, clean-install/update rehearsal,
-accessibility checks, bounded load evidence, and current dependency matrix. No
-candidate is published or deployed by development or CI.
+accessibility checks, bounded load evidence, and current dependency matrix.
+Phases 10–11 add independently optional view/tracking and RSVP with signed
+`0.2.0` and `0.3.0` update workflows. No candidate is published or deployed by
+development or CI.
 
 ## Phase workflow
 

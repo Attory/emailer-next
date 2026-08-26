@@ -2,12 +2,14 @@
 
 Emailer Next is the clean-room successor to Emailer: a self-hosted email
 campaign application for exactly one organisation per installation. The
-repository has completed **Phase 1 only**: a reproducible Symfony platform
-scaffold and its safety gates.
+repository has completed **Phase 11** and currently identifies as `0.3.0` with
+schema `20260827000000`. It includes the client-installable MVP, optional
+view-in-browser and privacy-minimized tracking, and optional RSVP. Phase 12 has
+not started.
 
-There is no setup wizard, authentication UI, contact/template/campaign
-functionality, worker, or production sending. The only application route is the
-coarse `GET|HEAD /health/live` liveness endpoint.
+An operator-signed `0.3.0` update candidate was built and independently
+verified outside Git. No package has been tagged, published, deployed, or used
+to contact a production mail service.
 
 ## Safe local bootstrap
 
@@ -37,13 +39,14 @@ See [Installation](docs/installation.md) and
 - Composer validation/audit, formatting, static and boundary analysis,
   PHPUnit, MariaDB migration smoke, artifact exposure, and current/history
   secret/private-data scans are aggregated by `composer check`.
-- The production-shaped artifact is assembled from an explicit allowlist and
-  is not a release or deployment.
+- Production artifacts and signed candidates are assembled from an explicit
+  allowlist; neither CI nor a phase merge publishes or deploys them.
 - Legacy source, history, templates, dependencies, credentials, and private
   records remain prohibited.
 
-See the [Phase 1 report](docs/phase-1-report.md) for the exact implementation,
-checks, migration, limitations, and manual actions.
+See the [Phase 11 report](docs/phase-11-report.md) for the current implementation
+boundary, acceptance evidence, candidate identity, limitations, and manual
+actions. Earlier phase reports remain the authoritative incremental record.
 
 ## Documentation map
 

@@ -1,6 +1,7 @@
 # Testing
 
-**Status:** Phase 9 MVP release acceptance coverage over the complete Phase 1–8 behavior.
+**Status:** Phase 11 acceptance coverage over the complete Phase 1–10 behavior
+and optional RSVP update boundary.
 
 The stable gate order and executable commands are in
 [quality-gates.md](quality-gates.md). Results are recorded in the phase report

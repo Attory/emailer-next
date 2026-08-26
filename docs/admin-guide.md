@@ -1,6 +1,7 @@
 # Administrator guide
 
-**Status:** Phase 9 client-installable MVP candidate workflows documented.
+**Status:** Phase 11 administration, optional tracking, and optional RSVP
+candidate workflows documented.
 
 Emailer Next has one organisation per installation and individual
 administrator accounts. There is no self-registration, shared global password,
