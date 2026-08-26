@@ -111,7 +111,6 @@ latest supported release:
 | --- | --- |
 | `0.2.0` | latest supported `0.1.x` |
 | `0.3.0` | latest supported `0.2.x` |
-| `0.3.0` | latest supported `0.2.x` |
 | `0.4.0` | latest supported `0.3.x` |
 | `1.0.0` | every release line still declared supported |
 

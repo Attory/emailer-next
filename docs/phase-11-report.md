@@ -65,7 +65,9 @@
 - Independent Claude Sonnet review found one low-severity campaign-wide RSVP
   lock contention path. It was confirmed and repaired by locking only the
   individual campaign-recipient row while reading the immutable campaign
-  snapshot without a locking join; focused tests and static gates passed.
+  snapshot without a locking join. A cross-process regression now holds the
+  former shared lock while proving another recipient can submit immediately;
+  focused tests and static gates passed.
 
 ## Manual actions and residual limits
 

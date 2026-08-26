@@ -122,6 +122,57 @@ final class Phase11RsvpTest extends WebTestCase
         self::assertSame(0, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM rsvp_response WHERE campaign_recipient_id = ?', [$recipientId])));
     }
 
+    public function testDifferentRecipientsDoNotContendOnTheSharedCampaignSnapshot(): void
+    {
+        self::bootKernel();
+        $connection = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($connection);
+        $connection->executeStatement("UPDATE privacy_policy SET rsvp_enabled = 1 WHERE singleton_key = '1'");
+        $actor = $this->createPhase4User($connection, 'phase11-concurrency@example.test', 'phase11-password-'.bin2hex(random_bytes(8)));
+        [$campaignId, $recipients, $contacts, $emails] = $this->campaignWithTwoRecipients($connection, $actor);
+        $tokens = $this->phase4Service(RecipientTokenService::class);
+        $tokens->issue($campaignId, $recipients[1], $contacts[1], $emails[1]);
+        $rsvpToken = $this->token($this->phase4Service(RecipientAnalyticsService::class)->issueRsvp($campaignId, $recipients[1], $contacts[1], $emails[1]));
+
+        $connection->beginTransaction();
+        $process = null;
+        try {
+            $connection->fetchOne('SELECT s.campaign_id FROM campaign_recipient r INNER JOIN campaign_content_snapshot s ON s.campaign_id = r.campaign_id WHERE r.id = ? FOR UPDATE', [$recipients[0]]);
+            $command = [PHP_BINARY, \dirname(__DIR__).'/Support/RsvpConcurrencyWorker.php'];
+            $process = proc_open($command, [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']], $pipes);
+            self::assertIsResource($process);
+            fwrite($pipes[0], $rsvpToken);
+            fclose($pipes[0]);
+            stream_set_blocking($pipes[1], false);
+            stream_set_blocking($pipes[2], false);
+            $output = '';
+            $error = '';
+            $deadline = microtime(true) + 5.0;
+            do {
+                $output .= stream_get_contents($pipes[1]);
+                $error .= stream_get_contents($pipes[2]);
+                if (str_contains($output, 'DONE')) {
+                    break;
+                }
+                usleep(20_000);
+            } while (microtime(true) < $deadline);
+            $output .= stream_get_contents($pipes[1]);
+            $error .= stream_get_contents($pipes[2]);
+            self::assertStringContainsString('DONE', $output, 'A different recipient was blocked or the worker failed: '.$error);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            self::assertSame(0, proc_close($process));
+            $process = null;
+        } finally {
+            $connection->rollBack();
+            if (\is_resource($process)) {
+                proc_terminate($process);
+                proc_close($process);
+            }
+        }
+        self::assertSame(1, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM rsvp_response WHERE campaign_recipient_id = ?', [$recipients[1]])));
+    }
+
     /** @return array{string, string, string, string} */
     private function campaign(Connection $connection, \App\Module\Identity\Application\AuthenticatedUser $actor, bool $enabled): array
     {
@@ -147,6 +198,49 @@ final class Phase11RsvpTest extends WebTestCase
         self::assertIsString($recipientId);
 
         return [$campaignId, $recipientId, $contactId, $email];
+    }
+
+    /** @return array{string, list<string>, list<string>, list<string>} */
+    private function campaignWithTwoRecipients(Connection $connection, \App\Module\Identity\Application\AuthenticatedUser $actor): array
+    {
+        $listId = Identity::uuidV7();
+        $now = Identity::now();
+        $connection->insert('contact_list', ['id' => $listId, 'name' => 'Phase 11 concurrency list', 'created_at' => $now, 'updated_at' => $now, 'archived_at' => null]);
+        $contactIds = [];
+        $emails = [];
+        foreach ([1, 2] as $index) {
+            $contactId = Identity::uuidV7();
+            $email = 'phase11-concurrent-'.$index.'@example.test';
+            $connection->insert('contact', ['id' => $contactId, 'email_entered' => $email, 'email_canonical' => $email, 'display_name' => 'Concurrent Recipient '.$index, 'first_name' => 'Rae', 'last_name' => null, 'locale' => 'en_AU', 'time_zone' => 'Australia/Sydney', 'status' => 'active', 'consent_source' => 'phase11-test', 'consent_at' => $now, 'created_at' => $now, 'updated_at' => $now, 'archived_at' => null]);
+            $connection->insert('list_membership', ['contact_id' => $contactId, 'list_id' => $listId, 'source' => 'manual', 'created_at' => $now]);
+            $contactIds[] = $contactId;
+            $emails[] = $email;
+        }
+        $templates = $this->phase4Service(TemplateManager::class);
+        $templateId = $templates->create($actor, 'Phase 11 concurrency template', 'Phase 11 subject', '', '<p><a href="{{ rsvp_url }}">RSVP</a></p>', 'RSVP: {{ rsvp_url }}');
+        $versionId = $templates->versions($actor, $templateId)[0]['id'] ?? null;
+        self::assertIsString($versionId);
+        $templates->publish($actor, $templateId, $versionId);
+        $campaigns = $this->phase4Service(CampaignManager::class);
+        $campaignId = $campaigns->create($actor, 'Phase 11 concurrency campaign', $versionId, [$listId]);
+        $campaigns->configureRsvp($actor, $campaignId, true);
+        $campaigns->submitForReview($actor, $campaignId);
+        $campaigns->approve($actor, $campaignId, true);
+        $campaigns->queue($actor, $campaignId);
+        $rows = $connection->fetchAllAssociative('SELECT id, contact_id FROM campaign_recipient WHERE campaign_id = ? ORDER BY contact_id', [$campaignId]);
+        $byContact = [];
+        foreach ($rows as $row) {
+            if (\is_string($row['id']) && \is_string($row['contact_id'])) {
+                $byContact[$row['contact_id']] = $row['id'];
+            }
+        }
+        $recipientIds = [];
+        foreach ($contactIds as $contactId) {
+            self::assertArrayHasKey($contactId, $byContact);
+            $recipientIds[] = $byContact[$contactId];
+        }
+
+        return [$campaignId, $recipientIds, $contactIds, $emails];
     }
 
     private function path(string $url): string
