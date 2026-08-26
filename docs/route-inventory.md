@@ -1,6 +1,6 @@
 # Route and command inventory
 
-**Status:** Phase 12 `0.4.0` inventory.
+**Status:** Accepted Phase 12 `0.4.0` inventory.
 
 This inventory is the security review baseline. Every implemented route must be
 added here with method, authentication boundary, authorization rule, CSRF

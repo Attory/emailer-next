@@ -1,6 +1,6 @@
 # Module boundaries and dependency rules
 
-**Status:** Phase 12 rules with executable enforcement.
+**Status:** Accepted Phase 12 rules with executable enforcement.
 
 The application is a modular monolith. A module owns its rules, tables,
 repositories, application services, and presentation adapters. Ownership is a

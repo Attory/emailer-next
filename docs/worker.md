@@ -1,6 +1,6 @@
 # Delivery worker
 
-**Status:** Phase 12 candidate, including readiness gates, maintenance
+**Status:** Accepted Phase 12 candidate, including readiness gates, maintenance
 quiescence, and bounded analytics/RSVP housekeeping.
 
 The worker is a CLI-only Symfony Messenger consumer. No HTTP endpoint can start

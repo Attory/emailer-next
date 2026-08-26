@@ -1,7 +1,8 @@
 # Backup and restore
 
-**Status:** Phase 12 encrypted backup/recovery/CLI restore contract, including
-off-by-default scheduled transfer to an approved filesystem destination.
+**Status:** Accepted Phase 12 encrypted backup/recovery/CLI restore contract,
+including off-by-default scheduled transfer to an approved filesystem
+destination.
 
 ## Backup scope
 

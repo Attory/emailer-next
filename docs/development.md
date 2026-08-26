@@ -1,7 +1,6 @@
 # Development
 
-**Status:** Phase 12 `0.4.0` candidate implementation over the accepted Phase
-11 base.
+**Status:** Accepted Phase 12 `0.4.0` candidate implementation.
 
 ## Clean-room rule
 

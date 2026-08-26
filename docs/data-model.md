@@ -1,6 +1,6 @@
 # Initial data model
 
-**Status:** Phase 12 `0.4.0` candidate schema.
+**Status:** Accepted Phase 12 `0.4.0` candidate schema.
 
 `DoctrineMigrations\Version20260723000000` remains the no-schema platform
 smoke check. Phase 3 adds `Version20260815000000`, which creates only the

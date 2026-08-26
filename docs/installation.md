@@ -1,8 +1,8 @@
 # Installation
 
-**Status:** Phase 12 installation contract. The repository targets clean
-installation of `0.4.0` and update from the accepted `0.3.x` line; the Phase 12
-candidate is not operator-signed, published, or deployed.
+**Status:** Accepted Phase 12 installation contract. The operator-signed
+`0.4.0` candidate supports clean installation and update from the accepted
+`0.3.x` line; it is not published, deployed, or installed on a client server.
 
 The current repository can create a completed installation with an
 external key, initial Owner, exact local Mailpit test evidence, sender identity,

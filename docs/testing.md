@@ -1,6 +1,6 @@
 # Testing
 
-**Status:** Phase 12 acceptance coverage over the complete Phase 1–11 behavior
+**Status:** Accepted Phase 12 coverage over the complete Phase 1–11 behavior
 and optional RSVP update boundary.
 
 The stable gate order and executable commands are in

@@ -1,6 +1,7 @@
 # Privacy and retention
 
-**Status:** Phase 12 configurable bounded retention and optional scheduling.
+**Status:** Accepted Phase 12 configurable bounded retention and optional
+scheduling.
 
 Open and click tracking are separate Administrator opt-ins and remain disabled
 by default. Changes affect only campaigns approved afterwards because the

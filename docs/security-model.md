@@ -1,6 +1,6 @@
 # Security model
 
-**Status:** Phase 12 `0.4.0` candidate controls, including full Doctor,
+**Status:** Accepted Phase 12 `0.4.0` candidate controls, including full Doctor,
 retention scheduling, redacted operations status, and external backup transfer.
 
 ## Phase 12 operational controls
