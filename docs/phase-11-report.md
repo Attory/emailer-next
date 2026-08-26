@@ -62,6 +62,10 @@
 - Deterministic `0.3.0` archive/manifest/checksum/SBOM/signature double-build
   and immutable clean-install tooling passed with a disposable test key.
 - `git diff --check`: passed.
+- Independent Claude Sonnet review found one low-severity campaign-wide RSVP
+  lock contention path. It was confirmed and repaired by locking only the
+  individual campaign-recipient row while reading the immutable campaign
+  snapshot without a locking join; focused tests and static gates passed.
 
 ## Manual actions and residual limits
 

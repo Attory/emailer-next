@@ -115,7 +115,8 @@ final readonly class RecipientAnalyticsService implements RecipientAnalyticsLink
         $tokenRow = $this->verify($token, 'rsvp');
         $recipientId = $this->string($tokenRow['campaign_recipient_id']);
         $this->connection->transactional(function () use ($recipientId, $response, $guests, $note): void {
-            $snapshot = $this->connection->fetchAssociative('SELECT s.rsvp_enabled, s.rsvp_repeat_policy, s.rsvp_form_schema_json FROM campaign_recipient r INNER JOIN campaign_content_snapshot s ON s.campaign_id = r.campaign_id WHERE r.id = ? FOR UPDATE', [$recipientId]);
+            $campaignId = $this->connection->fetchOne('SELECT campaign_id FROM campaign_recipient WHERE id = ? FOR UPDATE', [$recipientId]);
+            $snapshot = \is_string($campaignId) ? $this->connection->fetchAssociative('SELECT rsvp_enabled, rsvp_repeat_policy, rsvp_form_schema_json FROM campaign_content_snapshot WHERE campaign_id = ?', [$campaignId]) : false;
             if (false === $snapshot || 1 !== $this->integer($snapshot['rsvp_enabled'])) {
                 throw new RecipientTokenInvalid();
             }
