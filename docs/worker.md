@@ -1,6 +1,6 @@
 # Delivery worker
 
-**Status:** Accepted through Phase 11, including readiness gates, maintenance
+**Status:** Phase 12 candidate, including readiness gates, maintenance
 quiescence, and bounded analytics/RSVP housekeeping.
 
 The worker is a CLI-only Symfony Messenger consumer. No HTTP endpoint can start
@@ -151,6 +151,7 @@ The lock-protected scheduler and consumer must both be bounded:
 
 ```cron
 * * * * * emailer cd /opt/emailer-next/current && /usr/bin/php bin/console emailer:scheduler:run
+* * * * * emailer cd /opt/emailer-next/current && /usr/bin/php bin/console emailer:operations:run
 * * * * * emailer cd /opt/emailer-next/current && /usr/bin/php bin/console messenger:consume async --keepalive=5 --time-limit=50 --limit=100 --memory-limit=256M --failure-limit=10
 ```
 

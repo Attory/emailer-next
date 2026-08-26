@@ -1,7 +1,26 @@
 # Security model
 
-**Status:** Phase 11 `0.3.0` candidate security acceptance, including optional
-tracking and RSVP over the MVP operational baseline.
+**Status:** Phase 12 `0.4.0` candidate controls, including full Doctor,
+retention scheduling, redacted operations status, and external backup transfer.
+
+## Phase 12 operational controls
+
+- Login invokes cached lightweight read-only probes; full Doctor runs daily or
+  on demand. Persistent findings include bounded redacted summary, risk,
+  evidence, remediation, observation times, acknowledgement, and explicit
+  sending-block classification. Acknowledgement never changes a gate.
+- Sending evaluates only declared SMTP/configuration/delivery/suppression
+  gates. Backup or restore-cadence findings remain prominent operational risks
+  without unexpectedly blocking an otherwise safe send.
+- Dashboard providers return counts, status codes, opaque operation names, and
+  timestamps only. The composition layer rejects addresses and overlong text.
+- Retention settings have database and application bounds, default off for
+  scheduling, process at most 200 records per category, and exclude durable
+  audit, suppression, campaign, content, and ambiguous-outcome evidence.
+- External backup automation defaults off and supports only an approved
+  filesystem mount outside release/private roots. Copies are exclusive,
+  mode-0600, byte-counted, SHA-256 read-back verified, and represented only by
+  redacted metadata. No cloud credential or network provider is introduced.
 
 ## Phase 9 supply-chain controls
 

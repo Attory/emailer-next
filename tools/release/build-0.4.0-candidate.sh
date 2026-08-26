@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if [ "$#" -ne 3 ]; then
+    printf 'Usage: %s SIGNING_PRIVATE_KEY PINNED_PUBLIC_KEY OUTPUT_DIRECTORY\n' "$0" >&2
+    exit 2
+fi
+
+project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+signing_key="$(realpath "$1")"
+public_key="$(realpath "$2")"
+output_directory="$(realpath "$3")"
+
+case "$signing_key" in
+    "$project_root"|"$project_root"/*)
+        printf 'Signing private key must remain outside the repository.\n' >&2
+        exit 2
+        ;;
+esac
+test -f "$public_key"
+test -d "$output_directory"
+test -z "$(git -C "$project_root" status --porcelain --untracked-files=normal)"
+test "$(git -C "$project_root" rev-parse --abbrev-ref HEAD)" != main
+
+source_commit="$(git -C "$project_root" rev-parse HEAD)"
+source_epoch="$(git -C "$project_root" show -s --format=%ct HEAD)"
+temporary_root="$(mktemp -d)"
+candidate_directory="$output_directory/emailer-next-0.4.0-candidate"
+published=false
+cleanup() {
+    if [ "$published" = false ] && [ -d "$candidate_directory" ]; then
+        find "$candidate_directory" -mindepth 1 -depth -delete
+        rmdir "$candidate_directory"
+    fi
+    find "$temporary_root" -mindepth 1 -depth -delete
+    rmdir "$temporary_root"
+}
+trap cleanup EXIT
+mkdir "$temporary_root/first" "$temporary_root/second"
+mkdir -m 0755 "$candidate_directory"
+
+bash "$project_root/tools/artifact/build.sh"
+for output in "$temporary_root/first" "$temporary_root/second"; do
+    php "$project_root/tools/release/build-package.php" \
+        --artifact="$project_root/build/artifact" \
+        --output="$output" \
+        --version=0.4.0 \
+        --source="$source_commit" \
+        --minimum-source=0.3.0 \
+        --minimum-schema=20260827000000 \
+        --schema=20260828000000 \
+        --rollback-schema-compatible=false \
+        --signing-key="$signing_key" \
+        --source-date-epoch="$source_epoch" >/dev/null
+done
+
+candidate=emailer-next-0.4.0.zip
+for suffix in '' .manifest.json .sha256 .spdx.json .sig; do
+    cmp "$temporary_root/first/$candidate$suffix" "$temporary_root/second/$candidate$suffix"
+done
+
+php "$project_root/tools/release/verify-package.php" \
+    --archive="$temporary_root/first/$candidate" \
+    --public-key="$public_key" \
+    --current-version=0.3.0 \
+    --expected-version=0.4.0 \
+    --expected-source="$source_commit" >/dev/null
+
+for suffix in '' .manifest.json .sha256 .spdx.json .sig; do
+    install -m 0644 "$temporary_root/first/$candidate$suffix" "$candidate_directory/$candidate$suffix"
+done
+install -m 0644 "$public_key" "$candidate_directory/emailer-next-0.4.0-release.pub"
+
+archive_sha256="$(sha256sum "$candidate_directory/$candidate" | cut -d' ' -f1)"
+sed -e "s/@SOURCE_COMMIT@/$source_commit/g" -e "s/@SOURCE_EPOCH@/$source_epoch/g" -e "s/@ARCHIVE_SHA256@/$archive_sha256/g" \
+    "$project_root/tools/release/RELEASE-CANDIDATE-0.4.0.md.in" >"$candidate_directory/RELEASE-CANDIDATE-RECORD.md"
+install -m 0644 "$project_root/docs/CLIENT-UPDATE-0.4.0.md" "$candidate_directory/CLIENT-UPDATE-0.4.0.md"
+published=true
+
+printf '%s\n' "$candidate_directory/$candidate"

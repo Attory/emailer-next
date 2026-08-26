@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace App\Module\Backup\Infrastructure;
 
-use App\Module\Health\Application\Contract\ReadinessProbe;
+use App\Module\Backup\Application\Contract\AutomatedBackupOperations;
+use App\Module\Health\Application\Contract\LightweightReadinessProbe;
+use App\Module\Operations\Application\Contract\OperationsPolicyReader;
 use Doctrine\DBAL\Connection;
 
-final readonly class BackupReadinessProbe implements ReadinessProbe
+final readonly class BackupReadinessProbe implements LightweightReadinessProbe
 {
-    public function __construct(private Connection $connection, private string $backupDirectory, private string $recoveryKeyFile, private string $environment)
+    public function __construct(private Connection $connection, private AutomatedBackupOperations $automation, private OperationsPolicyReader $policy, private string $backupDirectory, private string $recoveryKeyFile, private string $environment)
     {
     }
 
@@ -28,6 +30,22 @@ final readonly class BackupReadinessProbe implements ReadinessProbe
         }
         if (!is_dir($this->backupDirectory) || !is_writable($this->backupDirectory)) {
             $findings[] = ['code' => 'backup_storage', 'severity' => 'critical', 'summary' => 'Private backup storage is unavailable.', 'remediation' => 'Provide writable restrictive backup storage outside the release and public roots.'];
+        }
+        $policy = $this->policy->current();
+        if (1 === $policy['backup_automation_enabled']) {
+            if (!$this->automation->destinationAvailable((string) $policy['backup_destination_type'])) {
+                $findings[] = ['code' => 'backup_destination', 'severity' => 'critical', 'summary' => 'The approved external backup destination is unavailable.', 'remediation' => 'Restore the provisioned destination or disable automation after preserving recovery coverage.'];
+            }
+            $lastTransfer = $this->connection->fetchOne("SELECT completed_at FROM backup_transfer WHERE status = 'succeeded' ORDER BY completed_at DESC LIMIT 1");
+            $transferCutoff = (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->modify('-'.(int) $policy['backup_interval_hours'].' hours');
+            if (!\is_string($lastTransfer) || new \DateTimeImmutable($lastTransfer, new \DateTimeZone('UTC')) < $transferCutoff) {
+                $findings[] = ['code' => 'backup_external_recency', 'severity' => 'critical', 'summary' => 'No recent verified external backup transfer is recorded.', 'remediation' => 'Run the operations scheduler and verify the approved destination.'];
+            }
+        }
+        $lastRestore = $this->connection->fetchOne('SELECT MAX(restored_at) FROM backup_record');
+        $restoreCutoff = (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->modify('-'.(int) $policy['restore_drill_interval_days'].' days');
+        if (!\is_string($lastRestore) || new \DateTimeImmutable($lastRestore, new \DateTimeZone('UTC')) < $restoreCutoff) {
+            $findings[] = ['code' => 'restore_drill_overdue', 'severity' => 'warning', 'summary' => 'No restore verification is recorded within the configured cadence.', 'remediation' => 'Perform a supervised restore drill in an isolated environment and preserve the evidence.'];
         }
 
         return $findings;

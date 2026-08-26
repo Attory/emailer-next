@@ -21,10 +21,10 @@ evidence; it does not authorize chaining phases.
 | 12 | Update `0.4`: full Doctor, retention and advanced operations | Full Health/Backup requirements, TM-20/TM-24/TM-25 | Remaining Doctor checks, operational dashboard, retention and backup automation |
 | 13 | Version `1.0.0` hardening and acceptance | Entire design and accumulated phase reports | Full aggregate and safety gates, release-train upgrade matrix, v1 RC report |
 
-Phase 11 is the current implementation boundary and produces the optional RSVP
-`0.3.0` update candidate without publishing or deploying it. Phases 12–13
-remain unstarted and require separate authorization; Phase 13 retains the
-complete Version 1 definition.
+Phase 12 is the current authorized implementation boundary and produces the
+advanced-operations `0.4.0` candidate source without publishing or deploying
+it. Phase 13 remains unstarted and requires separate authorization; it retains
+the complete Version 1 hardening and acceptance definition.
 
 ## Release train
 

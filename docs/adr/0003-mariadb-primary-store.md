@@ -62,4 +62,7 @@ feature concurrency tests arrive with their owning phases. Doctor will check
 connectivity, version, pending migrations, constraints/indexes, suppression
 integrity, backup age, and restore evidence.
 
+Phase 12 revalidation advances the tested maintenance patches to MariaDB
+10.11.19 and 11.8.9 without changing the supported branches or SQL contract.
+
 Reference: https://mariadb.org/about/#maintenance-policy

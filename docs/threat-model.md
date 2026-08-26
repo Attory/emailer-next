@@ -1,6 +1,6 @@
 # Threat model
 
-**Status:** Phase 11 `0.3.0` release-candidate controls reviewed.
+**Status:** Phase 12 `0.4.0` candidate operational controls reviewed.
 
 **Method:** Asset/trust-boundary review with STRIDE-style misuse cases and
 privacy-abuse review
@@ -301,6 +301,25 @@ provider, or claim exact/person-level analytics.
 
 Phase 11 does not publish/deploy the package, contact live SMTP, or implement
 Phase 12 Doctor and automation expansion.
+
+## Phase 12 control status
+
+- TM-20 readiness bypass is reduced by explicit marker contracts for
+  lightweight, full, and send-gating probes; failures are generic/redacted and
+  critical banners persist across sessions.
+- TM-24 backup loss/corruption is reduced by off-by-default approved-destination
+  policy, safe-root checks, exclusive restrictive copies, byte/hash read-back,
+  recency/cadence findings, and bounded deletion that preserves the newest
+  verified backup.
+- TM-25 unsafe maintenance is reduced by one non-overlap scheduler, due-time
+  evidence, bounded dry-run/apply retention, forward-only migration recovery,
+  and no HTTP restore/update/deployment path.
+- A malicious or compromised mounted filesystem can still deny service or
+  delete copies. Operators need independent mount credentials/snapshots and
+  restore drills; this adapter does not claim immutable or off-site custody.
+
+Phase 12 does not publish/deploy a package, create a cloud account, contact a
+provider, rotate a credential, change DNS, or use live SMTP.
 
 ## Residual risks and non-guarantees
 

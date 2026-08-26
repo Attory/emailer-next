@@ -229,7 +229,13 @@ final readonly class BackupEngine implements BackupOperations
     /** @return list<array<string, mixed>> */
     public function recentRecords(): array
     {
-        return $this->connection->fetchAllAssociative('SELECT id, format_version, byte_size, schema_version, source_version, status, created_at, verified_at FROM backup_record ORDER BY created_at DESC LIMIT 20');
+        return $this->connection->fetchAllAssociative('SELECT id, format_version, byte_size, schema_version, source_version, status, created_at, verified_at, restored_at, deleted_at FROM backup_record ORDER BY created_at DESC LIMIT 20');
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function recentTransfers(): array
+    {
+        return $this->connection->fetchAllAssociative('SELECT backup_id, destination_type, byte_size, status, detail_code, attempted_at, completed_at FROM backup_transfer ORDER BY attempted_at DESC LIMIT 20');
     }
 
     private function writeArchive(string $path, string $id): void
@@ -636,6 +642,7 @@ final readonly class BackupEngine implements BackupOperations
             throw new \RuntimeException('Restored backup evidence is invalid.');
         }
         $this->connection->executeStatement("INSERT INTO backup_record (id, format_version, filename, ciphertext_sha256, byte_size, schema_version, source_version, status, created_at, verified_at) VALUES (?, 1, ?, ?, ?, ?, ?, 'verified', ?, ?) ON DUPLICATE KEY UPDATE ciphertext_sha256 = VALUES(ciphertext_sha256), byte_size = VALUES(byte_size), status = 'verified', verified_at = VALUES(verified_at)", [$id, basename($path), $hash, $bytes, $schema, $source, $created, Identity::now()]);
+        $this->connection->update('backup_record', ['restored_at' => Identity::now()], ['id' => $id]);
     }
 
     private function safeArchiveEntry(string $name): bool

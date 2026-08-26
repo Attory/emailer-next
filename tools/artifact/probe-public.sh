@@ -24,7 +24,7 @@ trap cleanup EXIT
 APP_ENV=prod \
 APP_DEBUG=0 \
 APP_SECRET=phase1-probe-only \
-DATABASE_URL='mysql://emailer:local-only@database:3306/emailer_test?serverVersion=10.11.18-MariaDB&charset=utf8mb4' \
+DATABASE_URL='mysql://emailer:local-only@database:3306/emailer_test?serverVersion=10.11.19-MariaDB&charset=utf8mb4' \
 DEFAULT_URI="http://$listen_address" \
 EMAILER_PRIVATE_DIR="$runtime_root" \
 LOCK_DSN=flock \

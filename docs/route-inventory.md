@@ -1,6 +1,6 @@
 # Route and command inventory
 
-**Status:** Phase 11 `0.3.0` inventory.
+**Status:** Phase 12 `0.4.0` inventory.
 
 This inventory is the security review baseline. Every implemented route must be
 added here with method, authentication boundary, authorization rule, CSRF
@@ -144,8 +144,10 @@ URL while storing the bytes outside immutable releases. The route accepts only
 | `POST /doctor/run` | Administrator | On-demand checks only; no automatic repair | 8 |
 | `GET /doctor/export` | Auditor | Redacted report only | 8 |
 | `POST /doctor/findings/*/acknowledge` | Administrator | Cannot turn off a sending gate; audited | 8 |
-| `GET/POST /backups/*` | Owner | Create/verify metadata only; recent auth; no public path | 8 |
-| `GET/POST /retention` | Administrator | Bounded dry-run preview/apply with audit | 8 |
+| `GET/POST /backups/*` | Owner | Create/verify metadata and bounded destination policy; recent auth; no public path | 8/12 |
+| `POST /admin/backups/policy` | Owner | CSRF, recent auth, approved adapter type only; no path/credential | 12 |
+| `GET/POST /retention` | Administrator | Bounded dry-run preview/apply with audit | 8/12 |
+| `POST /admin/retention/policy` | Administrator | CSRF and enforced per-class bounds; scheduling defaults off | 12 |
 | `GET /release` | Owner | Redacted version/compatibility status | 8 |
 
 There is deliberately no HTTP route for a worker, arbitrary send, restore,
@@ -168,6 +170,7 @@ rollback.
 | `emailer:backup:create` / `verify` | Encrypted private backup and verification | 8 |
 | `emailer:backup:restore` | Maintenance-only preflight, staging restore, and rollback | 8 |
 | `emailer:retention:run --dry-run` | Observable idempotent retention preview/apply | 8 |
+| `emailer:operations:run` | Due full Doctor plus explicitly enabled bounded retention/external backup under one non-overlap lock | 12 |
 | `emailer:release:inspect` / `install` / `update` / `check` | Pinned verification, immutable install, explicit maintenance update, and redacted status | 8 |
 
 Exact Symfony route names, rate-limit values, token lifetimes, and fine-grained

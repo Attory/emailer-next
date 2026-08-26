@@ -62,6 +62,9 @@ audit/static analysis/tests, and rejects unsupported versions. The initial
 Phase 1 matrix covers PHP 8.4.23 and 8.5.8. Configuration Doctor will report
 runtime/framework support and patch status when implemented.
 
+Phase 12 revalidation keeps the PHP 8.4.24/8.5.9 and Symfony 7.4 LTS branches
+and advances only MariaDB maintenance patches to 10.11.19/11.8.9.
+
 References:
 
 - https://www.php.net/supported-versions.php

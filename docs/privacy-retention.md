@@ -1,6 +1,6 @@
 # Privacy and retention
 
-**Status:** Phase 11 adds bounded optional-RSVP retention; full policy automation remains Phase 12.
+**Status:** Phase 12 configurable bounded retention and optional scheduling.
 
 Open and click tracking are separate Administrator opt-ins and remain disabled
 by default. Changes affect only campaigns approved afterwards because the
@@ -20,13 +20,22 @@ address, IP, user agent, and raw token. Reports expose aggregates; Administrator
 export requires recent re-authentication, is audited, uses an opaque recipient
 identity, and neutralizes formulas. RSVP has separate 1–365 day retention.
 
-Phase 8 `emailer:retention:run` defaults to dry-run and processes at most 200
-eligible rows per category when `--apply` is explicit: expired import files,
-old revoked sessions, old delivered queue rows, 90-day failed/dead-letter rows,
-and old Doctor runs. Application logs are emitted only to stderr; the supplied
-systemd profile leaves their bounded rotation and retention to journald. It never
-deletes suppression, campaign ledger, audit, backup, or ambiguous delivery
-evidence. Runs are recorded with counts only and are safe to repeat.
+`emailer:retention:run` defaults to dry-run and processes at most 200 eligible
+records per category when `--apply` is explicit. Administrators configure
+enforced bounds for revoked sessions (7–365 days), completed queue rows (1–90),
+dead letters (30–730), completed delivery attempts (30–730), Doctor runs
+(30–730), and an operator log-retention target (1–365). Analytics and RSVP keep
+their independent 1–365 day policy. Expired import files and encrypted backups
+older than the 2–365 day backup policy are included; automatic backup pruning
+always preserves the newest verified backup. Application logs remain stderr,
+so journald/Supervisor enforces the configured target outside PHP.
+
+Scheduling is off by default. When enabled, `emailer:operations:run` applies
+one bounded batch only when due under a cross-process lock. Preview and applied
+runs persist counts without private values. Suppression, contacts, campaign
+snapshots/ledger, ambiguous recipient outcomes, templates, and append-only audit
+events are deliberately excluded from automatic deletion. Legal holds and
+deployment-specific periods remain operator responsibilities.
 
 Emailer Next minimizes data to the approved sending, suppression, response,
 operational, and audit purposes of one organisation. It is not a legal-policy

@@ -86,6 +86,10 @@ same Dockerfile for every matrix entry, runs `composer check`, repeats PHPUnit
 on the internal network, and runs `git diff --check`. Phase results record exact
 tool versions, scan outcomes, migrations, and unavailable external actions.
 
+Phase 12 retains PHP 8.4.24/8.5.9, Composer 2.10.2, Symfony 7.4 LTS, Mailpit
+1.30.5, and Gitleaks 8.30.1 while advancing MariaDB images to
+10.11.19/11.8.9.
+
 References:
 
 - https://www.php.net/supported-versions.php

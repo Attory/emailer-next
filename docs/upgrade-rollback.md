@@ -1,6 +1,13 @@
 # Upgrade and rollback
 
-**Status:** Phase 11 supports clean installation of `0.3.0` and update from supported `0.2.x`.
+**Status:** Phase 12 supports clean installation of `0.4.0` and update from the latest supported `0.3.x`.
+
+The `0.4.0` target schema is `Version20260828000000`. The package declares
+minimum source `0.3.0` and minimum schema `20260827000000`. The new operational
+tables and evidence columns are forward-only, so failed updates restore the
+verified pre-update backup before the previous pointer is reinstated; old code
+must never run against the migrated schema. Follow
+[`CLIENT-UPDATE-0.4.0.md`](CLIENT-UPDATE-0.4.0.md).
 
 The `0.3.0` target schema is `Version20260827000000`. The package declares
 `rollback_schema_compatible=false`: after migration, a failed update restores

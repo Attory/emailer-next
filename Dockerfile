@@ -45,7 +45,7 @@ WORKDIR /app
 ENV APP_ENV=dev \
     APP_DEBUG=0 \
     APP_SECRET=phase1-container-only \
-    DATABASE_URL=mysql://emailer:local-only@database:3306/emailer_test?serverVersion=10.11.18-MariaDB\&charset=utf8mb4 \
+    DATABASE_URL=mysql://emailer:local-only@database:3306/emailer_test?serverVersion=10.11.19-MariaDB\&charset=utf8mb4 \
     DEFAULT_URI=http://127.0.0.1:8080 \
     LOCK_DSN=flock \
     MAILER_DSN=smtp://mailpit:1025 \

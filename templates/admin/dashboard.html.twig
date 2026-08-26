@@ -3,5 +3,14 @@
 {% block admin_body %}
 <h1>Administration dashboard</h1>
 <p>Signed in as an individual {{ user.role.label }} account.</p>
-<p class="muted">MVP 0.1.0 provides private content management, durable campaign delivery, unsubscribe safety, Configuration Doctor, encrypted recovery, and signed updates.</p>
+<p class="muted">Redacted operational status only. Recipient addresses, message content, credentials, filesystem paths, and provider responses are never projected here.</p>
+<div class="dashboard-grid">
+{% for section in app.request.attributes.get('operations_dashboard')|default([]) %}
+    <section>
+        <h2>{{ section.title }}</h2>
+        <p><strong>Status:</strong> {{ section.status }}</p>
+        <dl>{% for metric in section.metrics %}<dt>{{ metric.label }}</dt><dd>{{ metric.value }}</dd>{% endfor %}</dl>
+    </section>
+{% else %}<p>Operational status is unavailable.</p>{% endfor %}
+</div>
 {% endblock %}

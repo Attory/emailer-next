@@ -1,8 +1,8 @@
 # Release
 
-**Status:** Phase 11 `0.3.0` operator-signed update candidate accepted. All
-recorded gates, exact-head independent review, and operator-key build passed;
-nothing is tagged, published, or deployed.
+**Status:** Phase 12 `0.4.0` candidate tooling over the accepted operator-signed
+`0.3.0` base. Phase 12 has not been signed with the operator key, tagged,
+published, or deployed.
 
 Production deployment is an explicit operator action and never a side effect of
 CI, a phase job, or an update check. No release has an unattended auto-update.
@@ -56,6 +56,11 @@ pointer change.
 
 Key custody, fingerprint distribution, rotation, recovery, and the supported
 update window are fixed in [release-signing.md](release-signing.md).
+
+`tools/release/build-0.4.0-candidate.sh` performs two deterministic builds for
+schema `20260828000000`, requires minimum source `0.3.0` and schema
+`20260827000000`, verifies the pinned public key, and bundles
+`CLIENT-UPDATE-0.4.0.md`. Its signing key must remain outside the repository.
 
 The package never contains client configuration, a master/recovery/signing
 private key, SMTP credentials, recipient or campaign data, writable runtime

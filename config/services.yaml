@@ -9,14 +9,16 @@ parameters:
     emailer.import_dir: '%emailer.private_dir%/imports'
     emailer.template_asset_dir: '%emailer.private_dir%/template-assets'
     emailer.backup_dir: '%emailer.private_dir%/backups'
+    emailer.default_backup_destination_dir: ''
+    emailer.backup_destination_dir: '%env(default:emailer.default_backup_destination_dir:EMAILER_BACKUP_DESTINATION_DIR)%'
     emailer.default_recovery_key_file: ''
     emailer.recovery_key_file: '%env(default:emailer.default_recovery_key_file:EMAILER_RECOVERY_KEY_FILE)%'
     emailer.default_release_public_key_file: ''
     emailer.release_public_key_file: '%env(default:emailer.default_release_public_key_file:EMAILER_RELEASE_PUBLIC_KEY_FILE)%'
     emailer.default_releases_dir: ''
     emailer.releases_dir: '%env(default:emailer.default_releases_dir:EMAILER_RELEASES_DIR)%'
-    emailer.app_version: '0.3.0'
-    emailer.schema_version: '20260827000000'
+    emailer.app_version: '0.4.0'
+    emailer.schema_version: '20260828000000'
     emailer.default_uri: '%env(DEFAULT_URI)%'
     emailer.default_master_key_file: ''
     emailer.master_key_file: '%env(default:emailer.default_master_key_file:EMAILER_SECRET_KEY_FILE)%'
@@ -35,6 +37,8 @@ services:
             tags: ['emailer.readiness_probe']
         App\Module\Backup\Application\Contract\BackupContributor:
             tags: ['emailer.backup_contributor']
+        App\Module\Operations\Application\Contract\OperationalStatusProvider:
+            tags: ['emailer.operational_status_provider']
 
     App\:
         resource: '../src/'
@@ -109,6 +113,10 @@ services:
     App\Module\Identity\Application\Contract\OwnerSetup: '@App\Module\Identity\Infrastructure\DoctrineOwnerSetup'
     App\Module\Identity\Application\Contract\RecoveryCodeConsumer: '@App\Module\Identity\Infrastructure\DoctrineRecoveryCodeConsumer'
     App\Module\Health\Application\Contract\SetupDoctor: '@App\Module\Health\Infrastructure\Phase3SetupDoctor'
+    App\Module\Health\Application\Contract\ScheduledHealthOperations: '@App\Module\Health\Application\Doctor'
+    App\Module\Housekeeping\Application\Contract\RetentionOperations: '@App\Module\Housekeeping\Application\Housekeeper'
+    App\Module\Operations\Application\Contract\OperationsPolicyReader: '@App\Module\Operations\Application\OperationsPolicy'
+    App\Module\Operations\Application\Contract\OperationsPolicyWriter: '@App\Module\Operations\Application\OperationsPolicy'
     App\Module\Setup\Application\Contract\InstallationFinalizer: '@App\Module\Setup\Infrastructure\DoctrineInstallationFinalizer'
     App\Module\Audit\Application\Contract\AuditSink: '@App\Module\Audit\Infrastructure\DoctrineAuditSink'
     App\Module\Identity\Application\Contract\AdministrativeAuthorization: '@App\Module\Identity\Application\AuthorizationService'
@@ -139,7 +147,28 @@ services:
             $backupDirectory: '%emailer.backup_dir%'
             $sourceVersion: '%emailer.app_version%'
 
+    App\Module\Operations\Application\OperationsDashboard:
+        arguments:
+            $providers: !tagged_iterator emailer.operational_status_provider
+
+    App\Module\Release\Infrastructure\OperationalReleaseStatus:
+        arguments:
+            $appVersion: '%emailer.app_version%'
+
+    App\Module\Backup\Infrastructure\FilesystemBackupDestination:
+        arguments:
+            $destinationDirectory: '%emailer.backup_destination_dir%'
+            $projectDirectory: '%kernel.project_dir%'
+            $privateDirectory: '%emailer.private_dir%'
+
     App\Module\Backup\Application\Contract\BackupOperations: '@App\Module\Backup\Application\BackupEngine'
+    App\Module\Backup\Application\Contract\ExternalBackupDestination: '@App\Module\Backup\Infrastructure\FilesystemBackupDestination'
+    App\Module\Backup\Application\Contract\AutomatedBackupOperations: '@App\Module\Backup\Application\BackupAutomation'
+    App\Module\Backup\Application\Contract\BackupRetentionOperations: '@App\Module\Backup\Application\BackupAutomation'
+
+    App\Module\Backup\Application\BackupAutomation:
+        arguments:
+            $backupDirectory: '%emailer.backup_dir%'
 
     App\Module\Health\Infrastructure\SystemReadinessProbe:
         arguments:

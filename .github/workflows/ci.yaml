@@ -23,14 +23,14 @@ jobs:
       matrix:
         include:
           - php: 8.4.24
-            mariadb: 10.11.18
-            server_version: 10.11.18-MariaDB
+            mariadb: 10.11.19
+            server_version: 10.11.19-MariaDB
           - php: 8.4.24
-            mariadb: 11.8.8
-            server_version: 11.8.8-MariaDB
+            mariadb: 11.8.9
+            server_version: 11.8.9-MariaDB
           - php: 8.5.9
-            mariadb: 10.11.18
-            server_version: 10.11.18-MariaDB
+            mariadb: 10.11.19
+            server_version: 10.11.19-MariaDB
     env:
       COMPOSE_PROJECT_NAME: emailer_next_ci
       PHP_VERSION: ${{ matrix.php }}

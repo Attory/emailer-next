@@ -2,14 +2,16 @@
 
 Emailer Next is the clean-room successor to Emailer: a self-hosted email
 campaign application for exactly one organisation per installation. The
-repository has completed **Phase 11** and currently identifies as `0.3.0` with
-schema `20260827000000`. It includes the client-installable MVP, optional
-view-in-browser and privacy-minimized tracking, and optional RSVP. Phase 12 has
-not started.
+repository is implementing **Phase 12** and currently identifies its reviewed
+candidate source as `0.4.0` with schema `20260828000000`. It adds persistent
+full/read-only Doctor operations, a redacted operational dashboard,
+configurable bounded retention, and off-by-default verified external backup
+automation to the accepted Phase 11 feature set.
 
-An operator-signed `0.3.0` update candidate was built and independently
-verified outside Git. No package has been tagged, published, deployed, or used
-to contact a production mail service.
+The accepted operator-signed `0.3.0` candidate remains outside Git. Phase 12
+contains deterministic `0.4.0` candidate tooling but no operator-signed Phase
+12 candidate has yet been published or deployed, and no production mail
+service has been contacted.
 
 ## Safe local bootstrap
 
@@ -44,9 +46,9 @@ See [Installation](docs/installation.md) and
 - Legacy source, history, templates, dependencies, credentials, and private
   records remain prohibited.
 
-See the [Phase 11 report](docs/phase-11-report.md) for the current implementation
-boundary, acceptance evidence, candidate identity, limitations, and manual
-actions. Earlier phase reports remain the authoritative incremental record.
+See the [Phase 12 report](docs/phase-12-report.md) for the current implementation
+boundary and evidence. The [Phase 11 report](docs/phase-11-report.md) remains
+the authoritative accepted base record.
 
 ## Documentation map
 

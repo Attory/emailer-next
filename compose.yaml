@@ -10,7 +10,7 @@ services:
       APP_ENV: dev
       APP_DEBUG: "0"
       APP_SECRET: phase1-container-only
-      DATABASE_URL: mysql://emailer:local-only@database:3306/emailer_test?serverVersion=${MARIADB_SERVER_VERSION:-10.11.18-MariaDB}&charset=utf8mb4
+      DATABASE_URL: mysql://emailer:local-only@database:3306/emailer_test?serverVersion=${MARIADB_SERVER_VERSION:-10.11.19-MariaDB}&charset=utf8mb4
       DEFAULT_URI: http://127.0.0.1:8080
       EMAILER_PRIVATE_DIR: /app/var/private
       EMAILER_SECRET_KEY_FILE: /emailer-secrets/master.key
@@ -34,7 +34,7 @@ services:
       - development
 
   database:
-    image: ${MARIADB_IMAGE:-mariadb:10.11.18}
+    image: ${MARIADB_IMAGE:-mariadb:10.11.19}
     environment:
       MARIADB_DATABASE: emailer_test
       MARIADB_USER: emailer

@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Health;
 
+use App\Module\Health\Application\Contract\LightweightReadinessProbe;
 use App\Module\Health\Application\Contract\ReadinessProbe;
+use App\Module\Health\Application\Contract\SendingGateReadinessProbe;
 use App\Module\Health\Application\Doctor;
 use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\TestCase;
@@ -74,5 +76,44 @@ final class DoctorTest extends TestCase
         $result = (new Doctor([$probe], self::createStub(Connection::class)))->run(false);
         self::assertSame('probe_unavailable', $result['findings'][0]['code']);
         self::assertStringNotContainsString('@', json_encode($result, JSON_THROW_ON_ERROR));
+    }
+
+    public function testSendingGateIgnoresCriticalOperationalProbeThatIsNotADeclaredGate(): void
+    {
+        $operational = new class implements LightweightReadinessProbe {
+            public function findings(): array
+            {
+                return [['code' => 'backup_recency', 'severity' => 'critical', 'summary' => 'Backup is overdue.', 'remediation' => 'Create a backup.']];
+            }
+        };
+        $sending = new class implements SendingGateReadinessProbe {
+            public function findings(): array
+            {
+                return [];
+            }
+        };
+
+        (new Doctor([$operational, $sending], self::createStub(Connection::class)))->assertSendingReady();
+        self::addToAssertionCount(1);
+    }
+
+    public function testLightweightRunExcludesFullOnlyProbe(): void
+    {
+        $lightweight = new class implements LightweightReadinessProbe {
+            public function findings(): array
+            {
+                return [['code' => 'lightweight_warning', 'severity' => 'warning', 'summary' => 'A lightweight warning.', 'remediation' => 'Review the warning.']];
+            }
+        };
+        $fullOnly = new class implements ReadinessProbe {
+            public function findings(): array
+            {
+                return [['code' => 'full_only', 'severity' => 'critical', 'summary' => 'A full-only issue.', 'remediation' => 'Run full Doctor.']];
+            }
+        };
+
+        $result = (new Doctor([$lightweight, $fullOnly], self::createStub(Connection::class)))->run(false, false, 'lightweight', 'login');
+        self::assertSame('warning', $result['status']);
+        self::assertSame('lightweight_warning', $result['findings'][0]['code']);
     }
 }
