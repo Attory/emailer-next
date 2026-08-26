@@ -24,7 +24,7 @@ final class DoctorController extends AbstractController
     #[Route('', name: 'admin_doctor', methods: ['GET', 'HEAD'])]
     public function view(): Response
     {
-        return $this->render('admin/doctor.html.twig', ['runs' => $this->doctor->recent()]);
+        return $this->render('admin/doctor.html.twig', ['runs' => $this->doctor->recent(), 'active_findings' => $this->doctor->activeFindings()]);
     }
 
     #[Route('/run', name: 'admin_doctor_run', methods: ['POST'])]
@@ -51,8 +51,10 @@ final class DoctorController extends AbstractController
         if (!$this->isCsrfTokenValid('doctor-acknowledge-'.$code, $request->request->getString('_token'))) {
             return new Response('Request not accepted.', Response::HTTP_BAD_REQUEST);
         }
-        $this->audit->append(new AuditRecord($this->actor()->id(), 'doctor.finding.acknowledged', $code, 'success'));
-        $this->addFlash('success', 'Finding acknowledgement recorded. Sending gates are unchanged.');
+        $actor = $this->actor();
+        $recorded = $this->doctor->acknowledge($code, $actor->id());
+        $this->audit->append(new AuditRecord($actor->id(), 'doctor.finding.acknowledged', $code, $recorded ? 'success' : 'failure'));
+        $this->addFlash($recorded ? 'success' : 'error', $recorded ? 'Finding acknowledgement recorded. Sending gates are unchanged.' : 'The active finding could not be acknowledged.');
 
         return $this->redirectToRoute('admin_doctor', status: Response::HTTP_SEE_OTHER);
     }

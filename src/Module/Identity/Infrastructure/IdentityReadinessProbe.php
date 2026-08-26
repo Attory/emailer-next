@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Module\Identity\Infrastructure;
 
-use App\Module\Health\Application\Contract\ReadinessProbe;
+use App\Module\Health\Application\Contract\LightweightReadinessProbe;
 use Doctrine\DBAL\Connection;
 
-final readonly class IdentityReadinessProbe implements ReadinessProbe
+final readonly class IdentityReadinessProbe implements LightweightReadinessProbe
 {
     public function __construct(private Connection $connection, private string $environment)
     {

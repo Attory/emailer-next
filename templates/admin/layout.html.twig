@@ -30,6 +30,14 @@
     </nav>
 </header>
 <main class="admin-content">
+    {% set doctor_findings = app.request.attributes.get('doctor_active_findings')|default([]) %}
+    {% if doctor_findings|filter(finding => finding.severity == 'critical')|length > 0 %}
+        <aside class="alert" role="alert">
+            <strong>Critical operational finding.</strong>
+            {% for finding in doctor_findings|filter(finding => finding.severity == 'critical') %}{{ finding.summary }}{% if finding.sending_blocked %} Sending is blocked.{% endif %} {% endfor %}
+            <a href="{{ path('admin_doctor') }}">Open Configuration Doctor</a>
+        </aside>
+    {% endif %}
     {% for message in app.flashes('error') %}<p class="alert" role="alert">{{ message }}</p>{% endfor %}
     {% for message in app.flashes('success') %}<p class="alert success" role="status">{{ message }}</p>{% endfor %}
     {% block admin_body %}{% endblock %}

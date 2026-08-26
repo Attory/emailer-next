@@ -1,6 +1,6 @@
 # Release-signing custody and trust
 
-**Status:** Phase 11 policy. The operator-supplied external key and independently
+**Status:** Phase 12 policy. The accepted Phase 11 operator-supplied external key and independently
 verified public key produced the accepted `0.3.0` candidate; no candidate is
 published or deployed by this repository.
 

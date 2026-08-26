@@ -5,10 +5,10 @@ explain why a choice was locked; operational documents explain how that choice
 is implemented and verified. A later phase may refine a document but may not
 silently contradict the master specification or an accepted ADR.
 
-**Current implementation boundary:** Phase 11 optional RSVP and the accepted,
-operator-signed `0.3.0` update candidate. The candidate supports clean install
-and update from supported `0.2.x`, but has not been tagged, published, or
-deployed. Phase 12 remains unstarted.
+**Current implementation boundary:** authorized Phase 12 advanced operations
+and `0.4.0` candidate source over the accepted Phase 11 `0.3.0` base. Phase 12
+is not accepted, published, or deployed until its exact PR head is separately
+reviewed and authorized.
 The approved roadmap targets a client-installable MVP at Phase 9, followed by
 installable feature/operations updates through Version 1 at Phase 13.
 
@@ -37,6 +37,7 @@ installable feature/operations updates through Version 1 at Phase 13.
 | [Phase 9 report](phase-9-report.md) | MVP candidate, reproducibility, installation, accessibility, load, and acceptance evidence |
 | [Phase 10 report](phase-10-report.md) | View-in-browser, optional tracking, privacy, update, and gate evidence |
 | [Phase 11 report](phase-11-report.md) | Optional RSVP, operator-signed `0.3.0` candidate, independent review, CI, and merge evidence |
+| [Phase 12 report](phase-12-report.md) | Full Doctor, operational dashboard, configurable retention, external backup automation, and `0.4.0` evidence |
 
 ## Product and operator documents
 
@@ -45,14 +46,14 @@ installable feature/operations updates through Version 1 at Phase 13.
 | [Installation](installation.md) | Clean-server installation contract plus current candidate boundary |
 | [First-run setup](first-run-setup.md) | Phase 3 secure wizard and permanent lock implemented |
 | [Administrator guide](admin-guide.md) | Implemented administration, tracking, and RSVP workflows through Phase 11 |
-| [Operator runbook](operator-runbook.md) | Phase 11 Doctor/recovery/backup/update operations |
+| [Operator runbook](operator-runbook.md) | Phase 12 Doctor, scheduler, recovery, backup, retention, and update operations |
 | [Worker](worker.md) | Current delivery readiness and maintenance behavior |
-| [Backup and restore](backup-restore.md) | Encrypted local backup/restore including Phase 11 private data |
-| [Upgrade and rollback](upgrade-rollback.md) | Phase 11 clean-install and supported `0.2.x` to `0.3.0` update window |
+| [Backup and restore](backup-restore.md) | Encrypted local and approved external backup/restore operations |
+| [Upgrade and rollback](upgrade-rollback.md) | Phase 12 clean-install and supported `0.3.x` to `0.4.0` update window |
 | [Incident response](incident-response.md) | Baseline, including source/artifact/log exposure |
-| [Privacy and retention](privacy-retention.md) | Phase 11 analytics/RSVP retention; full automation remains Phase 12 |
-| [Development](development.md) | Executable workflow and current Phase 11 boundary |
-| [Testing](testing.md) | Acceptance coverage and isolation policy through Phase 11 |
+| [Privacy and retention](privacy-retention.md) | Phase 12 configurable bounded retention and durable exclusions |
+| [Development](development.md) | Executable workflow and current Phase 12 boundary |
+| [Testing](testing.md) | Acceptance coverage and isolation policy through Phase 12 |
 | [Release](release.md) | Current signed-candidate mechanism and publication boundary |
 | [Release signing](release-signing.md) | Key custody, fingerprinting, rotation, compromise, and support window |
 

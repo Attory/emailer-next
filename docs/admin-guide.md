@@ -1,6 +1,7 @@
 # Administrator guide
 
-**Status:** Phase 11 administration, optional tracking, and optional RSVP
+**Status:** Phase 12 administration, operational dashboard, Doctor, retention,
+backup automation, optional tracking, and optional RSVP
 candidate workflows documented.
 
 Emailer Next has one organisation per installation and individual
@@ -102,3 +103,16 @@ selected, suppressed, and eligible audience counts; sender identity; immutable
 template name/version; scheduled time and organisation time zone; tracking,
 RSVP and one-click state; and test-send status before approval. Any screenshots
 must contain synthetic data only.
+## Phase 12 operations
+
+Every signed-in role sees the redacted operational dashboard and persistent
+critical Doctor banner. Administrator acknowledgement records awareness only;
+it never disables a sending gate. Administrators may set bounded retention
+periods, preview one 200-record-per-category batch, explicitly apply it, and
+enable scheduling. Owners may select the approved filesystem backup adapter,
+set frequency/retention/drill targets, enable scheduling, and create an
+on-demand local or verified external copy after recent re-authentication.
+
+No form accepts a filesystem path, provider credential, restore artifact,
+package, migration, or deployment instruction. Those remain external/CLI
+operator boundaries.

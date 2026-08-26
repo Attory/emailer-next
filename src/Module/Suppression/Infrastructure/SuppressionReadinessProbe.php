@@ -4,10 +4,11 @@ declare(strict_types=1);
 
 namespace App\Module\Suppression\Infrastructure;
 
-use App\Module\Health\Application\Contract\ReadinessProbe;
+use App\Module\Health\Application\Contract\LightweightReadinessProbe;
+use App\Module\Health\Application\Contract\SendingGateReadinessProbe;
 use Doctrine\DBAL\Connection;
 
-final readonly class SuppressionReadinessProbe implements ReadinessProbe
+final readonly class SuppressionReadinessProbe implements LightweightReadinessProbe, SendingGateReadinessProbe
 {
     public function __construct(private Connection $connection)
     {

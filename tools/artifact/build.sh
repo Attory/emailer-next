@@ -68,7 +68,7 @@ run_artifact_console() {
     LOCK_DSN=flock \
     MAILER_DSN='smtp://mailpit:1025' \
     MESSENGER_TRANSPORT_DSN='in-memory://' \
-    DATABASE_URL='mysql://emailer:local-only@database:3306/emailer_test?serverVersion=10.11.18-MariaDB&charset=utf8mb4' \
+    DATABASE_URL='mysql://emailer:local-only@database:3306/emailer_test?serverVersion=10.11.19-MariaDB&charset=utf8mb4' \
     DEFAULT_URI='https://emailer.example.test' \
     EMAILER_PRIVATE_DIR="$runtime_root" \
     php "$artifact_root/bin/console" "$@"

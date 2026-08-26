@@ -1,8 +1,8 @@
 # Installation
 
-**Status:** Phase 11 installation contract. The operator-signed `0.3.0`
-candidate supports clean installation and update from supported `0.2.x`; it is
-not published or deployed.
+**Status:** Phase 12 installation contract. The repository targets clean
+installation of `0.4.0` and update from the accepted `0.3.x` line; the Phase 12
+candidate is not operator-signed, published, or deployed.
 
 The current repository can create a completed installation with an
 external key, initial Owner, exact local Mailpit test evidence, sender identity,
@@ -28,7 +28,7 @@ The Phase 1 CI matrix is:
 | --- | --- |
 | PHP | 8.4.24 and 8.5.9 |
 | Symfony | locked 7.4 LTS packages (current components through 7.4.17) |
-| MariaDB | 10.11.18 and 11.8.8 |
+| MariaDB | 10.11.19 and 11.8.9 |
 | Composer | 2.10.2 |
 | Mailpit | 1.30.5 |
 
@@ -202,7 +202,7 @@ action.
 ## Clean-server `0.1.0` installation
 
 1. Provision a supported Linux host with PHP-FPM 8.4.24 or 8.5.9 and every
-   extension in `composer.json`, MariaDB 10.11.18 or 11.8.8, Nginx or Apache,
+   extension in `composer.json`, MariaDB 10.11.19 or 11.8.9, Nginx or Apache,
    a non-root `emailer` process account, a supervised worker or the bounded cron
    fallback, and a CLI scheduler. Do not install a production Node.js runtime.
 2. Create separate operator-owned paths for immutable releases, external

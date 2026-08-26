@@ -1,6 +1,6 @@
 # Initial data model
 
-**Status:** Phase 11 `0.3.0` candidate schema.
+**Status:** Phase 12 `0.4.0` candidate schema.
 
 `DoctrineMigrations\Version20260723000000` remains the no-schema platform
 smoke check. Phase 3 adds `Version20260815000000`, which creates only the
@@ -39,6 +39,9 @@ campaign/delivery and recipient-token state; Phase 8 adds operational evidence.
 | `housekeeping_run` | Housekeeping | Dry-run/apply flag, bounded per-category counts, result, and timestamps |
 | `analytics_aggregate` | Analytics | Approximate per-recipient event/link counters and first/last UTC timestamps; no request metadata or raw URL |
 | `rsvp_response` | Analytics | One bounded private response per opaque campaign-recipient identity; no address or request metadata |
+| `health_finding_state` | Health | Active redacted finding, risk/evidence/remediation, gate flag, observation and acknowledgement evidence |
+| `operations_policy` / `operations_run` | Operations | Bounded off-by-default automation configuration and stable scheduler result codes |
+| `backup_transfer` | Backup | Adapter type, opaque object name, digest/size, stable result, and timestamps; no path or credential |
 
 `Version20260817000000` expands `app_user` to all four administrative roles and
 adds change/login/disable timestamps while reusing the Phase 3 account and MFA
@@ -67,6 +70,11 @@ plus bounded-retention evidence. It is forward-only.
 fixed bounded form schema, purpose-scoped RSVP tokens, private response rows,
 and separate housekeeping evidence. Concurrent submissions serialize on the
 campaign recipient and unique response key. It is forward-only.
+
+`Version20260828000000` classifies Doctor runs, persists current finding state,
+adds the singleton bounded operations policy and scheduler evidence, records
+verified external backup transfers and restore/deletion times, and expands
+housekeeping evidence for delivery attempts and backups. It is forward-only.
 
 MariaDB foreign keys protect Owner/MFA and encrypted-secret references. Check
 constraints protect singleton keys, initial roles/types, exact Phase 3 Mailpit

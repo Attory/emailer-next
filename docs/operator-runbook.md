@@ -1,6 +1,36 @@
 # Operator runbook
 
-**Status:** Phase 11 `0.3.0` update-candidate runbook.
+**Status:** Phase 12 `0.4.0` update-candidate operations runbook.
+
+## Updating 0.3.x to 0.4.0
+
+Use the separately supplied `CLIENT-UPDATE-0.4.0.md` and signed
+`emailer-next-0.4.0.zip`. The supervised updater quiesces delivery, creates and
+verifies the safety backup, migrates to `Version20260828000000`, switches the
+immutable pointer, and runs Doctor. Retention and external backup automation
+remain disabled until their policies and runtime destination are explicitly
+approved.
+
+## Phase 12 daily operations
+
+Run `php bin/console emailer:operations:run` at least every minute from the
+same non-root service identity as the scheduler. Its cross-process lock runs a
+full Doctor at the configured daily interval and only runs retention or backup
+automation when explicitly enabled and due. Results are stable redacted codes
+in `operations_run`; failure returns a non-zero exit without printing paths,
+credentials, provider responses, or recipient data.
+
+Login performs only cached lightweight read checks. Use
+`emailer:doctor:run --json` or the Doctor page for a current full report.
+Acknowledgement records operator awareness and never disables a sending gate.
+
+To enable external backup automation, first provision an absolute restrictive
+directory outside both the release and `EMAILER_PRIVATE_DIR` trees, expose it
+only as `EMAILER_BACKUP_DESTINATION_DIR`, confirm the Backups page reports the
+filesystem adapter available, then have an Owner save the policy after recent
+re-authentication. Perform and record isolated restore drills at the configured
+cadence. There is no cloud credential, browser restore, or unattended update
+path.
 
 ## Updating 0.2.x to 0.3.0
 

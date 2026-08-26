@@ -1,6 +1,6 @@
 # CI and quality gates
 
-**Status:** Phase 11 aggregate and signed update-candidate gates implemented.
+**Status:** Phase 12 aggregate and signed update-candidate gates implemented.
 
 One aggregate command, `composer check`, runs every executable current quality
 gate. CI invokes the same version-pinned commands rather than maintaining a
@@ -51,9 +51,9 @@ The GitHub Actions workflow builds from the Dockerfile and tests:
 
 | PHP | MariaDB |
 | --- | --- |
-| 8.4.24 | 10.11.18 |
-| 8.4.24 | 11.8.8 |
-| 8.5.9 | 10.11.18 |
+| 8.4.24 | 10.11.19 |
+| 8.4.24 | 11.8.9 |
+| 8.5.9 | 10.11.19 |
 
 It checks out full history without persisting credentials, starts only MariaDB
 and Mailpit, runs the aggregate gate, then repeats PHPUnit on an internal Docker
@@ -82,8 +82,14 @@ byte-for-byte reproducibility, SPDX license metadata, exact source/version and
 pinned-key verification, a real immutable clean install, the signed RC update
 and rollback/restore matrix, static Twig/CSS structural accessibility checks,
 and the bounded 2,000-recipient reference load profile. The CI matrix covers PHP
-8.4.24/8.5.9 and MariaDB 10.11.18/11.8.8. CI still cannot sign with or expose an
+8.4.24/8.5.9 and MariaDB 10.11.19/11.8.9. CI still cannot sign with or expose an
 operator release key and never publishes a package.
+
+Phase 12 adds persistent/cached Doctor classification, redacted dashboard
+projections, operations-policy bounds, scheduler non-overlap, external-backup
+exclusive-copy/digest verification, backup and delivery-evidence retention,
+and `0.3.x` to `0.4.0` clean-install/update coverage. The fake-only transport,
+network-isolation, artifact, secret, and private-data gates are unchanged.
 
 Gitleaks 8.30.1 is checksum-pinned. It scans all reachable commits and the
 current directory, including ignored/untracked dependencies, artifacts, and

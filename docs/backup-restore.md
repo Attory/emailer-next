@@ -1,8 +1,7 @@
 # Backup and restore
 
-**Status:** Phase 11 encrypted backup/recovery/CLI restore contract, including
-analytics and private RSVP response contributors. External destinations and
-automation remain Phase 12.
+**Status:** Phase 12 encrypted backup/recovery/CLI restore contract, including
+off-by-default scheduled transfer to an approved filesystem destination.
 
 ## Backup scope
 
@@ -40,9 +39,9 @@ until a verified recovery package is recorded.
 3. Build from an explicit content allowlist.
 4. Encrypt, write manifest and digest, then verify by reading it back.
 5. Record redacted metadata and retention eligibility.
-6. Transfer externally only through a separately approved adapter/configuration
-   implemented in Phase 12 or by an operator-controlled process outside the
-   application.
+6. When explicitly enabled, transfer through the approved filesystem adapter
+   using exclusive creation, mode `0600`, byte-count and SHA-256 read-back
+   verification, then record only stable redacted evidence.
 
 Create and verify with `emailer:backup:create`; authenticate an existing private
 artifact with `emailer:backup:verify <path>`. Tables and approved assets are
@@ -78,7 +77,11 @@ request and never prints decrypted contents or key material.
 Phase 8 tests corruption, wrong passphrase/key, partial data, incompatible
 version, insufficient space, interrupted restore, rollback, and preservation of
 suppression. It must also create and verify the encrypted pre-update backup used
-by the updater. Phase 12 adds approved external destinations and automated
-scheduling. Operators set RPO/RTO, backup frequency, retention, external
-destination, and drill interval outside Git after reviewing legal and business
-needs.
+by the updater. Phase 12 adds `emailer:operations:run`, a 1–720 hour automated
+backup interval, 2–365 day bounded retention, and 7–365 day restore-drill
+target. Automation and the adapter default off. The only approved adapter is an
+operator-provisioned absolute filesystem mount outside release and private
+state roots, supplied through `EMAILER_BACKUP_DESTINATION_DIR`; no path is
+stored in the database or projected in UI/logs. At least the newest verified
+backup is retained by automatic pruning. Operators still set RPO/RTO and legal
+policy outside Git and must perform supervised isolated restore drills.

@@ -4,11 +4,12 @@ declare(strict_types=1);
 
 namespace App\Module\Health\Infrastructure;
 
-use App\Module\Health\Application\Contract\ReadinessProbe;
+use App\Module\Health\Application\Contract\LightweightReadinessProbe;
+use App\Module\Health\Application\Contract\SendingGateReadinessProbe;
 use App\Module\Secrets\Application\Contract\MasterKey;
 use Doctrine\DBAL\Connection;
 
-final readonly class SystemReadinessProbe implements ReadinessProbe
+final readonly class SystemReadinessProbe implements LightweightReadinessProbe, SendingGateReadinessProbe
 {
     public function __construct(private Connection $connection, private MasterKey $masterKey, private string $privateDirectory, private string $projectDirectory, private string $canonicalUri, private string $environment, private string $trustedProxies, private string $trustedHosts, private string $expectedSchemaVersion, private string $releasesDirectory, private string $releasePublicKeyFile)
     {
@@ -19,7 +20,7 @@ final readonly class SystemReadinessProbe implements ReadinessProbe
         $findings = [];
         try {
             $this->connection->executeQuery('SELECT 1')->fetchOne();
-            if (!$this->connection->createSchemaManager()->tablesExist(['health_check_run', 'backup_record', 'release_operation', 'housekeeping_run'])) {
+            if (!$this->connection->createSchemaManager()->tablesExist(['health_check_run', 'health_finding_state', 'backup_record', 'backup_transfer', 'release_operation', 'housekeeping_run', 'operations_policy', 'operations_run'])) {
                 $findings[] = $this->critical('schema_incompatible', 'The Phase 8 database schema is incomplete.', 'Run reviewed migrations before enabling sending.');
             }
             $schema = $this->connection->fetchOne('SELECT version FROM doctrine_migration_versions ORDER BY executed_at DESC, version DESC LIMIT 1');

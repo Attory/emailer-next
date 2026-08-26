@@ -1,10 +1,16 @@
 # Architecture
 
-**Status:** Phase 11 `0.3.0` candidate architecture over the client-installable MVP.
+**Status:** Phase 12 `0.4.0` candidate architecture over the accepted Phase 11 base.
 
-**Last reviewed:** 2026-08-23
+**Last reviewed:** 2026-08-26
 
 ## System context
+
+Phase 12 adds an `Operations` application-coordination module. It owns only
+bounded scheduler policy/run evidence and consumes published Health,
+Housekeeping, Backup, and redacted status-provider contracts. Data-owning
+modules keep their tables and expose fixed aggregate status projections; the
+dashboard never performs cross-module recipient/content queries.
 
 Phase 11 adds optional RSVP. Installation policy, frozen per-campaign enablement,
 private responses, aggregate reports, export, retention, and backup ownership

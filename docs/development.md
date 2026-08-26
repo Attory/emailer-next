@@ -1,7 +1,7 @@
 # Development
 
-**Status:** Phase 11 `0.3.0` candidate acceptance baseline; Phase 12 is
-unstarted.
+**Status:** Phase 12 `0.4.0` candidate implementation over the accepted Phase
+11 base.
 
 ## Clean-room rule
 

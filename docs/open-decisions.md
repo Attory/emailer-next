@@ -1,7 +1,7 @@
 # Open decisions
 
-**Status:** Decisions through Phase 11 resolved; Phase 12–13 product and
-operations decisions remain bounded to their assigned phases.
+**Status:** Decisions through Phase 12 resolved; Phase 13 acceptance decisions
+remain bounded to that phase.
 
 **Last reviewed:** 2026-08-26
 
@@ -11,7 +11,7 @@ four bounded decisions:
 | ID | Resolution |
 | --- | --- |
 | OD-01 | CI supports PHP 8.4 and 8.5; Phase 9 revalidation pins 8.4.24 and 8.5.9. |
-| OD-02 | CI tests MariaDB 10.11.18 and the newer long-term branch 11.8.8. |
+| OD-02 | Phase 12 revalidation advances CI to MariaDB 10.11.19 and the newer long-term branch 11.8.9. |
 | OD-03 | PHP-CS-Fixer, maximum-level PHPStan, Deptrac, and a project boundary checker are the baseline; no static-analysis baseline or ignored error was added. |
 | OD-04 | Compose uses one internal application/database/Mailpit network, loopback host bindings only, no database host port, a strict test-kernel Mailpit DSN allowlist, and a CI-only internal network with an external-egress negative probe. |
 
@@ -30,8 +30,8 @@ implementation evidence. None authorizes a weaker security outcome.
 | OD-09 | Resolved in Phase 5: maintained Symfony HTML Sanitizer with a strict custom allowlist; exact non-evaluating merge fields; URL fields only as complete approved link targets; context-aware render escaping and immutable content digests | Phase 5 | XSS, unsafe URL, merge-expression, attribute-context, header-injection, and synthetic-preview tests |
 | OD-10 | Resolved in Phase 6: transient delivery retries use 60-second exponential backoff with deterministic 0–30-second jitter, capped at one hour and at the configured retry limit; ambiguous outcomes are terminal and never blindly retried; five consecutive transport failures open the circuit for five minutes; the global per-minute limit is configured and each recipient domain receives at most half that limit per window. | Phase 6 | Fake-provider fault tests; at-least-once wording; bounded operator-approved limits |
 | OD-11 | Resolved in Phase 7: `vN.random-handle.HMAC` bearer token; 365-day expiry and key-verification overlap; revoked/expired fail generically; rows purged 30 days after expiry; forwarding can only suppress the frozen recipient; replay is idempotent | Phase 7 | Wrong-purpose/tamper/version/expiry/replay/rotation tests; no raw address in URL, logs, rate keys, or response |
-| OD-12 | Tracking/RSVP policy defaults beyond “off,” and concrete data-retention periods | Phases 10–12 | Operator legal/privacy decision, minimization, dry-run retention tests |
-| OD-13 | **Resolved Phase 8:** versioned JSON/JSONL ZIP inside sodium secretstream XChaCha20-Poly1305; backup key via HKDF-SHA256 from external master key; separate recovery package uses Argon2id13 (3 ops, 64 MiB) plus XChaCha20-Poly1305. External destination remains Phase 12. | Phase 8 / Phase 12 | Corruption/wrong-passphrase/non-overwrite tests; master key excluded; destination evidence before automation |
+| OD-12 | **Resolved Phase 12:** policy UI enforces bounded per-class periods; analytics/RSVP remain independently 1–365 days, operational classes have narrower safe ranges, durable audit/suppression/campaign evidence is excluded, and each run is dry-run capable and capped at 200 rows per category | Phases 10–12 | Deployment-specific periods and legal holds remain operator decisions |
+| OD-13 | **Resolved Phase 12:** the first approved external adapter is an operator-provisioned absolute filesystem mount outside release/private roots. Automation is off by default; exclusive mode-0600 copy, byte count, SHA-256 read-back, redacted evidence, and bounded deletion are mandatory | Phase 8 / Phase 12 | Cloud/provider adapters require a new reviewed threat model and authorization |
 | OD-14 | License and supported-browser/accessibility matrix | Phase 13 | Dependency/license audit and operator product decision; WCAG-oriented acceptance evidence |
 | OD-15 | **Resolved Phase 9:** operator-controlled offline Ed25519 private key with separate encrypted recovery custody; independently fingerprint-verified external public-key pin; explicit old-key bridge and out-of-band ceremony for rotation; first release is clean-installed while the acceptance-only path rehearses `0.1.0-rc.1` to `0.1.0`; later minors support the immediately preceding release line as documented | Phase 9 | See [release-signing.md](release-signing.md); supported, tampered, wrongly signed, same/downgrade, and unsupported-source rehearsals remain blocking candidate evidence |
 
