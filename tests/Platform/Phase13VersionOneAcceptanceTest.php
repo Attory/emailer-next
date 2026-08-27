@@ -25,7 +25,11 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
 
     public function testClientInstallManualContainsTheCompleteSafeSequence(): void
     {
-        $manual = (string) file_get_contents(\dirname(__DIR__, 2).'/docs/CLIENT-INSTALL-1.0.0.md');
+        $root = \dirname(__DIR__, 2);
+        $manual = $this->repositoryFile($root, 'docs/CLIENT-INSTALL-1.0.0.md');
+        if (null === $manual) {
+            return;
+        }
         foreach ([
             '## 1. Record the installation change',
             '## 2. Check the supported server baseline',
@@ -58,11 +62,6 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
     public function testAccessibilityAcceptanceHasBlockingAutomatedAndHumanEvidence(): void
     {
         $root = \dirname(__DIR__, 2);
-        $policy = (string) file_get_contents($root.'/docs/accessibility-browser-support.md');
-        foreach (['WCAG 2.2 Level AA', 'Chrome desktop', 'Edge desktop', 'Firefox desktop', 'Safari on macOS', 'VoiceOver', 'NVDA', 'keyboard only', 'zoom to 200%'] as $cue) {
-            self::assertStringContainsString($cue, $policy);
-        }
-
         $layout = (string) file_get_contents($root.'/templates/admin/layout.html.twig');
         self::assertStringContainsString('class="skip-link"', $layout);
         self::assertStringContainsString('id="main-content"', $layout);
@@ -72,5 +71,27 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
         self::assertStringContainsString('box-shadow: 0 0 0 5px #17202a', $css);
         self::assertStringContainsString('min-height: 2.75rem', $css);
         self::assertStringContainsString('prefers-reduced-motion: reduce', $css);
+
+        $policy = $this->repositoryFile($root, 'docs/accessibility-browser-support.md');
+        if (null === $policy) {
+            return;
+        }
+        foreach (['WCAG 2.2 Level AA', 'Chrome desktop', 'Edge desktop', 'Firefox desktop', 'Safari on macOS', 'VoiceOver', 'NVDA', 'keyboard only', 'zoom to 200%'] as $cue) {
+            self::assertStringContainsString($cue, $policy);
+        }
+    }
+
+    private function repositoryFile(string $root, string $relativePath): ?string
+    {
+        $path = $root.'/'.$relativePath;
+        if (!is_file($path)) {
+            self::assertFalse(file_exists($root.'/.git'), 'Repository documentation is missing from a source checkout.');
+
+            return null;
+        }
+        $contents = file_get_contents($path);
+        self::assertIsString($contents);
+
+        return $contents;
     }
 }
