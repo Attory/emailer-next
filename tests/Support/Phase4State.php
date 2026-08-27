@@ -84,7 +84,7 @@ SQL);
 
     private function removePhase4Files(): void
     {
-        foreach (['emailer.master_key_file', 'emailer.install_lock_file'] as $parameter) {
+        foreach (['emailer.master_key_file', 'emailer.install_lock_file', 'emailer.recovery_key_file'] as $parameter) {
             $path = self::getContainer()->getParameter($parameter);
             if (\is_string($path) && (file_exists($path) || is_link($path))) {
                 unlink($path);

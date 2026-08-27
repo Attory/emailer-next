@@ -4,7 +4,15 @@ declare(strict_types=1);
 
 use App\Module\Release\Application\PackageInspector;
 
-require dirname(__DIR__, 2).'/vendor/autoload.php';
+$autoload = dirname(__DIR__, 2).'/vendor/autoload.php';
+if (is_file($autoload)) {
+    require $autoload;
+} elseif (is_file(__DIR__.'/PackageInspector.php')) {
+    require __DIR__.'/PackageInspector.php';
+} else {
+    fwrite(STDERR, "Release verifier runtime is incomplete.\n");
+    exit(2);
+}
 
 $options = getopt('', ['archive:', 'public-key:', 'current-version:', 'expected-version:', 'expected-source:']);
 foreach (['archive', 'public-key', 'current-version', 'expected-version', 'expected-source'] as $required) {

@@ -10,19 +10,29 @@ use Symfony\Component\Console\Tester\CommandTester;
 
 final class SecretCommandSkeletonTest extends KernelTestCase
 {
-    public function testReplacementAndRotationSkeletonsFailClosedWithoutSecretInputs(): void
+    public function testReplacementSkeletonFailsClosedWithoutSecretInputs(): void
     {
         self::bootKernel();
         self::assertNotNull(self::$kernel);
         $application = new Application(self::$kernel);
 
-        foreach (['emailer:secrets:replace', 'emailer:secrets:rotate-master-key'] as $name) {
-            $command = $application->find($name);
-            self::assertSame([], $command->getDefinition()->getArguments());
-            self::assertSame([], $command->getDefinition()->getOptions());
-            $tester = new CommandTester($command);
-            self::assertSame(1, $tester->execute([]));
-            self::assertStringContainsString('unavailable', $tester->getDisplay());
-        }
+        $command = $application->find('emailer:secrets:replace');
+        self::assertSame([], $command->getDefinition()->getArguments());
+        self::assertSame([], $command->getDefinition()->getOptions());
+        $tester = new CommandTester($command);
+        self::assertSame(1, $tester->execute([]));
+        self::assertStringContainsString('unavailable', $tester->getDisplay());
+    }
+
+    public function testRotationRequiresInteractiveOwnerReauthentication(): void
+    {
+        self::bootKernel();
+        self::assertNotNull(self::$kernel);
+        $command = (new Application(self::$kernel))->find('emailer:secrets:rotate-master-key');
+        self::assertSame([], $command->getDefinition()->getArguments());
+        self::assertSame([], $command->getDefinition()->getOptions());
+        $tester = new CommandTester($command);
+        self::assertSame(1, $tester->execute([], ['interactive' => false]));
+        self::assertStringContainsString('Interactive Owner re-authentication is required', $tester->getDisplay());
     }
 }

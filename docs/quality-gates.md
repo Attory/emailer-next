@@ -1,7 +1,6 @@
 # CI and quality gates
 
-**Status:** Phase 12 aggregate and operator-signed update-candidate gates
-accepted.
+**Status:** Phase 13 complete Version-1 aggregate gates under acceptance.
 
 One aggregate command, `composer check`, runs every executable current quality
 gate. CI invokes the same version-pinned commands rather than maintaining a
@@ -24,8 +23,8 @@ docker compose run --rm app composer check
 
 It runs, in order:
 
-1. `composer validate --strict` and
-   `composer audit --locked --abandoned=fail`;
+1. `composer validate --strict`, `composer audit --locked --abandoned=fail`,
+   and the production dependency-license policy checker;
 2. PHP-CS-Fixer in check mode;
 3. maximum-level PHPStan, Deptrac, and the project module-boundary check;
 4. shell syntax checks;
@@ -91,6 +90,15 @@ projections, operations-policy bounds, scheduler non-overlap, external-backup
 exclusive-copy/digest verification, backup and delivery-evidence retention,
 and `0.3.x` to `0.4.0` clean-install/update coverage. The fake-only transport,
 network-isolation, artifact, secret, and private-data gates are unchanged.
+
+Phase 13 adds fail-closed production-license allowlisting, SPDX
+`NOASSERTION` rejection, exact `1.0.0` source/platform/schema checks, direct
+supported-update coverage for `0.1.0` through `0.4.0`, full interactive CLI
+installation with plaintext-output assertions, master-key success/quiescence/
+post-publication-compensation tests, browser/accessibility policy checks, the
+client manual contract, and deterministic Version-1 candidate tooling. Manual
+keyboard and assistive-technology acceptance and operator signing remain
+separate recorded gates because CI cannot truthfully perform them.
 
 Gitleaks 8.30.1 is checksum-pinned. It scans all reachable commits and the
 current directory, including ignored/untracked dependencies, artifacts, and

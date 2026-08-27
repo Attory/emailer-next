@@ -1,6 +1,6 @@
 # Development
 
-**Status:** Accepted Phase 12 `0.4.0` candidate implementation.
+**Status:** Authorized Phase 13 `1.0.0` hardening and acceptance implementation.
 
 ## Clean-room rule
 
@@ -17,7 +17,7 @@ CI output, or build artifacts.
 
 ## Current state
 
-Phases 1–11 provide Symfony 7.4, a locked Composer project, Docker Compose services
+Phases 1–12 provide Symfony 7.4, a locked Composer project, Docker Compose services
 for the application/MariaDB/Mailpit, executable quality gates, coarse liveness,
 structured redaction, an inspected production-shaped artifact, and the bounded
 setup ownership/state flow, external-key crypto, individual identity/session
@@ -28,9 +28,11 @@ encrypted local backup/restore, recovery-key handling, bounded housekeeping,
 and signed immutable package/update mechanisms. Phase 9 adds the deterministic
 `0.1.0` candidate workflow, release-key policy, clean-install/update rehearsal,
 accessibility checks, bounded load evidence, and current dependency matrix.
-Phases 10–11 add independently optional view/tracking and RSVP with signed
-`0.2.0` and `0.3.0` update workflows. No candidate is published or deployed by
-development or CI.
+Phases 10–12 add independently optional view/tracking, RSVP, and advanced
+operations with accepted signed `0.2.0`, `0.3.0`, and `0.4.0` candidate
+workflows. Phase 13 closes full CLI setup, master-key rotation, license/browser
+policy, all-source update acceptance, and the `1.0.0` manual/candidate tooling.
+No candidate is published or deployed by development or CI.
 
 ## Phase workflow
 

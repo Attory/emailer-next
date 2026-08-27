@@ -1,5 +1,6 @@
 {% extends 'base.html.twig' %}
 {% block body %}
+<a class="skip-link" href="#main-content">Skip to main content</a>
 <header class="admin-header">
     <strong>Emailer Next</strong>
     <nav aria-label="Administration">
@@ -29,7 +30,7 @@
         </form>
     </nav>
 </header>
-<main class="admin-content">
+<main id="main-content" class="admin-content" tabindex="-1">
     {% set doctor_findings = app.request.attributes.get('doctor_active_findings')|default([]) %}
     {% if doctor_findings|filter(finding => finding.severity == 'critical')|length > 0 %}
         <aside class="alert" role="alert">

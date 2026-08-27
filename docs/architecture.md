@@ -1,10 +1,17 @@
 # Architecture
 
-**Status:** Accepted Phase 12 `0.4.0` candidate architecture.
+**Status:** Phase 13 Version-1 hardening architecture under acceptance.
 
-**Last reviewed:** 2026-08-26
+**Last reviewed:** 2026-08-27
 
 ## System context
+
+Phase 13 preserves the modular-monolith and schema boundaries. It closes two
+previously reserved CLI contracts without adding an HTTP route: the protected
+terminal installer orchestrates existing Setup, Configuration, Identity, and
+Health services, while `Secrets` owns application-layer master-key rotation
+using Backup and Audit contracts plus the shared installation-wide maintenance
+lock. The current schema remains `20260828000000`.
 
 Phase 12 adds an `Operations` application-coordination module. It owns only
 bounded scheduler policy/run evidence and consumes published Health,
@@ -269,6 +276,6 @@ Deployment, publishing, and rollback remain explicit operator actions.
 
 ## Decision records
 
-The design is governed by accepted ADRs `0001` through `0011` in
+The design is governed by accepted ADRs `0001` through `0012` in
 [docs/adr](adr/). A change to an invariant requires a superseding ADR, updated
 threat model, route/data review where relevant, and passing quality gates.

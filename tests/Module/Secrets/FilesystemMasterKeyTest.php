@@ -66,6 +66,34 @@ final class FilesystemMasterKeyTest extends TestCase
         sodium_memzero($key);
     }
 
+    public function testReplacementRequiresExpectedKeyAndPublishesRestrictively(): void
+    {
+        $provider = $this->provider();
+        $provider->create();
+        $old = $provider->load();
+        $replacement = random_bytes(32);
+
+        try {
+            $provider->replace($old, $replacement);
+            $loaded = $provider->load();
+            try {
+                self::assertTrue(hash_equals($replacement, $loaded));
+            } finally {
+                sodium_memzero($loaded);
+            }
+            self::assertSame(0o600, fileperms($this->root.'/external/secrets/master.key') & 0o777);
+            $metadata = stat($this->root.'/external/secrets/master.key');
+            self::assertIsArray($metadata);
+            self::assertSame(1, $metadata['nlink']);
+
+            $this->expectException(\RuntimeException::class);
+            $provider->replace($old, random_bytes(32));
+        } finally {
+            sodium_memzero($old);
+            sodium_memzero($replacement);
+        }
+    }
+
     public function testMissingMalformedUnsafeSymlinkHardlinkAndNestedSymlinkEscapeFailClosed(): void
     {
         $this->expectLoadFailure($this->provider());

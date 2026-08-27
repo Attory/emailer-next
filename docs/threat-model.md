@@ -1,11 +1,11 @@
 # Threat model
 
-**Status:** Accepted Phase 12 `0.4.0` candidate operational controls.
+**Status:** Phase 13 full Version-1 review under acceptance.
 
 **Method:** Asset/trust-boundary review with STRIDE-style misuse cases and
 privacy-abuse review
 
-**Last reviewed:** 2026-08-26
+**Last reviewed:** 2026-08-27
 
 ## Scope and security objectives
 
@@ -320,6 +320,36 @@ Phase 12 Doctor and automation expansion.
 
 Phase 12 does not publish/deploy a package, create a cloud account, contact a
 provider, rotate a credential, change DNS, or use live SMTP.
+
+## Phase 13 control status
+
+- TM-01/TM-02 now include an HTTPS-independent full CLI installation path that
+  accepts secrets only as hidden interactive input, reuses canonical setup
+  services, writes no plaintext setup state, emits no secret values, and
+  permanently locks setup. Immutable client deployments no longer need to
+  grant the web process temporary release-root mutation authority.
+- TM-04/TM-05 now include implemented master-key rotation rather than a
+  skeleton: Owner password/MFA re-authentication, throttle/audit, current
+  recovery-package authentication, delivery quiescence, verified pre-rotation
+  backup, maintenance/row locks, authenticated
+  decrypt/re-encrypt of the complete inventory, restrictive atomic key
+  replacement, database rollback and filesystem compensation tests.
+- TM-21/TM-23 candidate inspection now rejects missing SPDX license decisions,
+  and the aggregate gate audits all production dependency licenses against the
+  documented allowlist.
+- TM-11/Version-1 UI acceptance adds visible skip navigation, two-colour focus,
+  minimum target sizing, reduced-motion handling, an explicit browser matrix,
+  WCAG 2.2 AA target, and a human keyboard/screen-reader checklist that cannot
+  be replaced by automated assertions.
+- The HTTP route set and schema are unchanged. The complete inventory was
+  reviewed for authentication, authorization, method, CSRF, recipient-token,
+  caching, and disclosure boundaries; the only CLI surface expansion is the
+  two bounded commands above.
+
+Phase 13 does not publish, tag, deploy, change DNS/provider state, rotate a live
+credential, use live SMTP, or install on a client server. Operator signing,
+independent review, browser/assistive-technology acceptance, and exact-head
+approval remain release-candidate prerequisites.
 
 ## Residual risks and non-guarantees
 

@@ -202,6 +202,133 @@ final readonly class FilesystemMasterKey implements MasterKey
         }
     }
 
+    public function replace(string $expectedCurrentKey, string $replacementKey): void
+    {
+        if (32 !== \strlen($expectedCurrentKey) || 32 !== \strlen($replacementKey)) {
+            throw new \InvalidArgumentException('Master-key replacement material is malformed.');
+        }
+
+        $current = $this->load();
+        try {
+            if (!hash_equals($expectedCurrentKey, $current)) {
+                throw new \RuntimeException('Master key changed before replacement.');
+            }
+        } finally {
+            sodium_memzero($current);
+        }
+
+        $keyFile = $this->validatedKeyPath();
+        $directory = \dirname($keyFile);
+        $ancestors = $this->validateAncestorChain($directory, true);
+        $before = $this->lstat($keyFile);
+        if (!$this->isSafeKeyMetadata($before)) {
+            throw new \RuntimeException('Master key has unsafe filesystem metadata.');
+        }
+
+        $temporaryFile = $directory.'/.master-key-replacement-'.bin2hex(random_bytes(12)).'.tmp';
+        $encoded = sodium_bin2base64($replacementKey, SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING)."\n";
+        $published = false;
+        try {
+            $handle = @fopen($temporaryFile, 'x+b');
+            if (false === $handle) {
+                throw new \RuntimeException('Replacement master key cannot be staged safely.');
+            }
+            try {
+                if (!@chmod($temporaryFile, 0o600)
+                    || \strlen($encoded) !== fwrite($handle, $encoded)
+                    || !fflush($handle)
+                    || (\function_exists('fsync') && !fsync($handle))
+                ) {
+                    throw new \RuntimeException('Replacement master key cannot be written safely.');
+                }
+                $metadata = fstat($handle);
+                if (false === $metadata || !$this->isSafeKeyMetadata($metadata)) {
+                    throw new \RuntimeException('Replacement master key has unsafe filesystem metadata.');
+                }
+            } finally {
+                fclose($handle);
+            }
+
+            $this->assertSnapshotUnchanged($ancestors);
+            $currentMetadata = $this->lstat($keyFile);
+            if (!$this->sameObject($before, $currentMetadata)
+                || $before['mode'] !== $currentMetadata['mode']
+                || $before['uid'] !== $currentMetadata['uid']
+            ) {
+                throw new \RuntimeException('Master key changed during replacement.');
+            }
+            if (!@rename($temporaryFile, $keyFile)) {
+                throw new \RuntimeException('Replacement master key cannot be published atomically.');
+            }
+            $published = true;
+            $this->assertSnapshotUnchanged($ancestors);
+            $loaded = $this->load();
+            try {
+                if (!hash_equals($replacementKey, $loaded)) {
+                    throw new \RuntimeException('Replacement master-key verification failed.');
+                }
+            } finally {
+                sodium_memzero($loaded);
+            }
+        } catch (\Throwable $exception) {
+            if ($published) {
+                try {
+                    $this->restoreFailedReplacement($keyFile, $expectedCurrentKey, $ancestors);
+                } catch (\Throwable $rollbackFailure) {
+                    throw new \RuntimeException('Master-key replacement failed and automatic filesystem rollback failed.', previous: $rollbackFailure);
+                }
+            }
+            throw $exception;
+        } finally {
+            @unlink($temporaryFile);
+            sodium_memzero($encoded);
+        }
+    }
+
+    /** @param array<string, array<mixed>> $ancestors */
+    private function restoreFailedReplacement(string $keyFile, string $key, array $ancestors): void
+    {
+        $directory = \dirname($keyFile);
+        $temporaryFile = $directory.'/.master-key-rollback-'.bin2hex(random_bytes(12)).'.tmp';
+        $encoded = sodium_bin2base64($key, SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING)."\n";
+        try {
+            $handle = @fopen($temporaryFile, 'x+b');
+            if (false === $handle) {
+                throw new \RuntimeException('Master-key rollback cannot be staged safely.');
+            }
+            try {
+                if (!@chmod($temporaryFile, 0o600)
+                    || \strlen($encoded) !== fwrite($handle, $encoded)
+                    || !fflush($handle)
+                    || (\function_exists('fsync') && !fsync($handle))
+                ) {
+                    throw new \RuntimeException('Master-key rollback cannot be written safely.');
+                }
+                $metadata = fstat($handle);
+                if (false === $metadata || !$this->isSafeKeyMetadata($metadata)) {
+                    throw new \RuntimeException('Master-key rollback has unsafe filesystem metadata.');
+                }
+            } finally {
+                fclose($handle);
+            }
+            $this->assertSnapshotUnchanged($ancestors);
+            if (!@rename($temporaryFile, $keyFile)) {
+                throw new \RuntimeException('Master-key rollback cannot be published atomically.');
+            }
+            $loaded = $this->load();
+            try {
+                if (!hash_equals($key, $loaded)) {
+                    throw new \RuntimeException('Master-key rollback verification failed.');
+                }
+            } finally {
+                sodium_memzero($loaded);
+            }
+        } finally {
+            @unlink($temporaryFile);
+            sodium_memzero($encoded);
+        }
+    }
+
     private function validatedKeyPath(): string
     {
         if ('' === $this->keyFile || !str_starts_with($this->keyFile, '/') || str_contains($this->keyFile, "\0")) {

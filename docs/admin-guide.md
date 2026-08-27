@@ -1,7 +1,7 @@
 # Administrator guide
 
-**Status:** Accepted Phase 12 administration, operational dashboard, Doctor,
-retention, backup automation, optional tracking, and optional RSVP workflows.
+**Status:** Phase 13 Version-1 administration and operations guide under final
+acceptance.
 
 Emailer Next has one organisation per installation and individual
 administrator accounts. There is no self-registration, shared global password,

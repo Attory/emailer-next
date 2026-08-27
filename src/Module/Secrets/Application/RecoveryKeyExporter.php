@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace App\Module\Secrets\Application;
 
 use App\Module\Secrets\Application\Contract\MasterKey;
+use App\Module\Secrets\Application\Contract\RecoveryKeyVerifier;
 
-final readonly class RecoveryKeyExporter
+final readonly class RecoveryKeyExporter implements RecoveryKeyVerifier
 {
     public function __construct(private MasterKey $masterKey, private string $outputFile)
     {
@@ -59,6 +60,33 @@ final readonly class RecoveryKeyExporter
 
     public function recover(string $passphrase): void
     {
+        $master = $this->decryptPackage($passphrase);
+        try {
+            $this->masterKey->recover($master);
+        } finally {
+            sodium_memzero($master);
+        }
+    }
+
+    public function verifiesKey(string $passphrase, string $expectedKey): bool
+    {
+        if (32 !== \strlen($expectedKey)) {
+            return false;
+        }
+        try {
+            $recovered = $this->decryptPackage($passphrase);
+            try {
+                return hash_equals($expectedKey, $recovered);
+            } finally {
+                sodium_memzero($recovered);
+            }
+        } catch (\Throwable) {
+            return false;
+        }
+    }
+
+    private function decryptPackage(string $passphrase): string
+    {
         $stat = @lstat($this->outputFile);
         if (!\is_array($stat) || 0o100000 !== ($stat['mode'] & 0o170000) || 1 !== $stat['nlink'] || 0 !== ($stat['mode'] & 0o077) || $stat['size'] > 4096) {
             throw new \RuntimeException('Recovery-key package is missing or unsafe.');
@@ -88,11 +116,8 @@ final readonly class RecoveryKeyExporter
             if (false === $master || 32 !== \strlen($master)) {
                 throw new \RuntimeException('Recovery-key authentication failed.');
             }
-            try {
-                $this->masterKey->recover($master);
-            } finally {
-                sodium_memzero($master);
-            }
+
+            return $master;
         } finally {
             sodium_memzero($key);
         }

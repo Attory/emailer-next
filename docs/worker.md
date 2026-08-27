@@ -1,7 +1,7 @@
 # Delivery worker
 
-**Status:** Accepted Phase 12 candidate, including readiness gates, maintenance
-quiescence, and bounded analytics/RSVP housekeeping.
+**Status:** Phase 13 Version-1 acceptance, including readiness gates,
+maintenance/key-rotation quiescence, and bounded analytics/RSVP housekeeping.
 
 The worker is a CLI-only Symfony Messenger consumer. No HTTP endpoint can start
 delivery. Campaign state survives browser closure and process restart because

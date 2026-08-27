@@ -1,7 +1,6 @@
 # Testing
 
-**Status:** Accepted Phase 12 coverage over the complete Phase 1–11 behavior
-and optional RSVP update boundary.
+**Status:** Phase 13 complete Version-1 acceptance coverage in progress.
 
 The stable gate order and executable commands are in
 [quality-gates.md](quality-gates.md). Results are recorded in the phase report
@@ -159,6 +158,27 @@ data is accepted.
   first/last timestamps, with bounded dry-run/apply retention.
 - Package gates build `0.2.0` for clean install and rehearse the supported
   `0.1.0` update, failure, restore, and schema-rejection paths.
+
+## Phase 13 coverage
+
+- Full CLI setup drives canonical database, key, organisation, Owner, Mailpit,
+  policy, Doctor/finalization services against MariaDB and local Mailpit, then
+  proves permanent lock and absence of submitted passwords from console output.
+- Master-key replacement verifies expected-key compare, restrictive atomic
+  publication and metadata. Integration tests cover verified pre-rotation
+  backup, delivery-quiescence refusal, complete secret re-encryption, unchanged
+  revealed value, key change, redacted audit, and database/key compensation
+  when failure occurs after filesystem publication.
+- Production dependency licenses are parsed from the lock and candidate SPDX
+  inspection rejects missing license decisions.
+- Package acceptance covers every declared `0.1.0`, `0.2.0`, `0.3.0`, and
+  `0.4.0` source line, unsupported older sources, immutable clean install,
+  deterministic double build, tamper/incompatibility, interrupted update,
+  failed health, and restore behavior.
+- Static acceptance checks bind version/schema/tooling, the complete 18-step
+  client installation manual, skip navigation, visible two-colour focus,
+  target sizing, reduced motion, and the documented browser/human accessibility
+  matrix. Human assistive-technology results are recorded separately.
 
 ## Phase 1 coverage
 

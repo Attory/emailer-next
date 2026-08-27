@@ -1,6 +1,16 @@
 # Operator runbook
 
-**Status:** Accepted Phase 12 `0.4.0` update-candidate operations runbook.
+**Status:** Phase 13 Version-1 acceptance runbook. The accepted `0.4.0`
+candidate remains unpublished; `1.0.0` remains pending final acceptance.
+
+## Installing or updating to 1.0.0
+
+For a new client server, follow
+[CLIENT-INSTALL-1.0.0.md](CLIENT-INSTALL-1.0.0.md) in order. For an existing
+accepted `0.1.x`, `0.2.x`, `0.3.x`, or `0.4.x` installation, follow
+[CLIENT-UPDATE-1.0.0.md](CLIENT-UPDATE-1.0.0.md). Do not substitute an unsigned
+archive, skip the independent public-key fingerprint, unpack before standalone
+verification, or resume delivery before Doctor and restore evidence pass.
 
 ## Updating 0.3.x to 0.4.0
 
@@ -176,7 +186,9 @@ paste secrets, raw recipient lists, message bodies, or tokens into chat/issues.
 ## Phase 2 setup operations
 
 - Inspect setup safely with `bin/console emailer:setup:install`; it performs
-  preflight and stores no credential.
+  preflight and stores no credential. Use `--complete` only in a protected
+  interactive terminal when the CLI route is chosen. The command never accepts
+  secrets as options, never prints them, and uses a local fake Mailpit probe.
 - `bin/console emailer:setup:reset` is intentionally unavailable in Phase 2:
   no supported integrity-authenticated backup artifact exists yet. Do not use a
   marker file or self-declared digest as backup authority. Phase 8 must provide
@@ -230,10 +242,30 @@ key, organisation, Owner/MFA, mail, secret, and policy setup writers fail closed
 Owner resumption requires the original password, and skipping/restarting MFA
 removes pending inactive enrollment material.
 
-`emailer:secrets:replace` and `emailer:secrets:rotate-master-key` deliberately
-return failure and mutate nothing. They are reserved interfaces, not emergency
-recovery tools. Phase 3 contains its setup-schema migration plus the bounded
-mail-evidence integrity migration and no new dependency.
+`emailer:secrets:replace` remains fail closed; use the authenticated Owner mail
+configuration workflow for transport-secret replacement. Master-key rotation
+is now a separately controlled maintenance operation:
+
+1. stop new delivery and wait for active claims to reach zero;
+2. confirm the separately held current recovery package is readable and its
+   passphrase is available to the recovery owner;
+3. run `bin/console emailer:secrets:rotate-master-key` from the service account
+   in a protected terminal and complete Owner password/MFA re-authentication
+   plus the hidden current recovery-package passphrase check;
+4. retain the reported verified pre-rotation backup and old recovery package
+   until the change is accepted;
+5. move the old recovery package to separately controlled historical custody,
+   ensure the configured recovery output path is empty, then run
+   `bin/console emailer:secrets:export-recovery-key` with a new independently
+   stored passphrase;
+6. create and verify a new encrypted backup, run full Doctor, and perform the
+   documented secret-dependent smoke checks before resuming delivery.
+
+Any failure keeps delivery stopped. If automatic compensation reports that
+filesystem-key rollback also failed, do not retry blindly: restore the old key
+from its separately held recovery package, authenticate the reported
+pre-rotation backup, and follow incident response. Rotation never contacts a
+provider and the audit contains counts/opaque IDs only.
 
 ## Phase 4 identity operations
 

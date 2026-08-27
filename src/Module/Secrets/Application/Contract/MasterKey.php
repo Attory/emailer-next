@@ -13,4 +13,6 @@ interface MasterKey
     public function exists(): bool;
 
     public function recover(string $key): void;
+
+    public function replace(string $expectedCurrentKey, string $replacementKey): void;
 }

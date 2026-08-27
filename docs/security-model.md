@@ -1,7 +1,32 @@
 # Security model
 
-**Status:** Accepted Phase 12 `0.4.0` candidate controls, including full Doctor,
-retention scheduling, redacted operations status, and external backup transfer.
+**Status:** Phase 13 complete Version-1 security controls under acceptance.
+
+## Phase 13 closure controls
+
+- Full CLI installation accepts secrets only through hidden interactive
+  questions, exposes no secret-bearing option/argument, calls the same setup
+  application services as HTTPS onboarding, and permanently locks setup after
+  critical validation. It uses fake local Mailpit only and prints no MFA seed
+  or recovery values.
+- Master-key rotation requires an active Owner, consumes password plus MFA or a
+  recovery code through the existing throttled re-authentication service, and
+  authenticates the separately held current recovery package/passphrase against
+  the live key before mutation.
+  The operation requires delivery quiescence, creates a verified encrypted
+  pre-rotation backup, takes the installation-wide maintenance lock and row
+  locks, authenticates every existing envelope, re-encrypts every record with a
+  fresh 32-byte key, atomically publishes a restrictive external key, and
+  commits redacted audit evidence in the database transaction.
+- Any in-process failure rolls back the database and compensates a published
+  filesystem key. Delivery remains stopped until a new recovery package and
+  new verified backup are independently stored and Doctor passes. A reported
+  compensation failure is an incident and requires the separately held old
+  recovery key plus verified pre-rotation backup.
+- Production dependencies must have a declared license in the approved
+  allowlist and candidate inspection rejects `NOASSERTION`. The browser matrix,
+  WCAG 2.2 AA target, automated checks, and mandatory human keyboard/assistive-
+  technology acceptance are explicit.
 
 ## Phase 12 operational controls
 

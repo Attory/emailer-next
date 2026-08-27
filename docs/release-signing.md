@@ -1,9 +1,10 @@
 # Release-signing custody and trust
 
-**Status:** Phase 12 accepted. The existing operator-supplied external key and
-independently verified pinned public key produced the accepted `0.4.0`
-candidate without rotating client trust; no candidate is published or deployed
-by this repository.
+**Status:** Phase 12 signing evidence is accepted for the unpublished `0.4.0`
+candidate. Phase 13 does not reuse that authorization: building an
+operator-signed `1.0.0` candidate requires an exact reviewed PR head, unchanged
+green required CI, an externally held private key, an independently verified
+public key, an empty external output directory, and separate Anton approval.
 
 ## Custody boundary
 

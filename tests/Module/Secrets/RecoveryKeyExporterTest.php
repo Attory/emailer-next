@@ -60,6 +60,29 @@ final class RecoveryKeyExporterTest extends TestCase
         }
     }
 
+    public function testCurrentKeyVerificationAuthenticatesPackageAndPassphrase(): void
+    {
+        $master = new FilesystemMasterKey($this->directory.'/master.key', $this->directory.'/public', '/application', 'prod');
+        $master->create();
+        $recovery = new RecoveryKeyExporter($master, $this->directory.'/recovery.enxkey');
+        $recovery->export('synthetic recovery passphrase');
+
+        $current = $master->load();
+        try {
+            self::assertTrue($recovery->verifiesKey('synthetic recovery passphrase', $current));
+            self::assertFalse($recovery->verifiesKey('wrong synthetic passphrase', $current));
+            self::assertFalse($recovery->verifiesKey('synthetic recovery passphrase', 'malformed'));
+            $replacement = random_bytes(32);
+            $master->replace($current, $replacement);
+            self::assertFalse($recovery->verifiesKey('synthetic recovery passphrase', $replacement));
+        } finally {
+            sodium_memzero($current);
+            if (isset($replacement)) {
+                sodium_memzero($replacement);
+            }
+        }
+    }
+
     public function testExportNeverOverwritesAnExistingRecoveryPackage(): void
     {
         $master = new FilesystemMasterKey($this->directory.'/master.key', $this->directory.'/public', '/application', 'prod');

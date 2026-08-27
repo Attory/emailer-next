@@ -1,8 +1,7 @@
 # Backup and restore
 
-**Status:** Accepted Phase 12 encrypted backup/recovery/CLI restore contract,
-including off-by-default scheduled transfer to an approved filesystem
-destination.
+**Status:** Phase 13 Version-1 encrypted backup/recovery/restore and master-key
+rotation contract under acceptance.
 
 ## Backup scope
 
@@ -55,6 +54,26 @@ Export the separate package interactively with
 `emailer:secrets:export-recovery-key`. Its hidden passphrase uses Argon2id (3
 operations, 64 MiB) and XChaCha20-Poly1305. Recover only a missing key with
 `emailer:secrets:recover-master-key`; an existing key is never replaced.
+
+## Master-key rotation recovery boundary
+
+`emailer:secrets:rotate-master-key` is not a routine update command. It requires
+interactive active-Owner password/MFA re-authentication, authenticates the
+current recovery package/passphrase against the live key, requires quiesced
+delivery, and creates a verified pre-rotation backup before any key change. Under the shared
+maintenance lock and database row locks, every encrypted record is authenticated
+with the old key, re-encrypted with a fresh key, the restrictive external file
+is replaced atomically, and the database/audit transaction commits. Any
+in-process failure restores database envelopes and compensates the external key.
+
+The reported pre-rotation backup remains encrypted under the old key. Keep it
+with the old recovery package in separate historical custody until rotation is
+accepted. Before resuming delivery, move the old recovery package out of the
+configured output path, export a new package with a new separately held
+passphrase, create/verify a new backup encrypted under the new key, run Doctor,
+and perform an isolated restore/secret-dependent smoke check. Never delete the
+old recovery material merely to make the exporter accept its exclusive output
+path.
 
 ## Restore procedure
 

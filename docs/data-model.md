@@ -1,6 +1,7 @@
 # Initial data model
 
-**Status:** Accepted Phase 12 `0.4.0` candidate schema.
+**Status:** Phase 13 `1.0.0` acceptance retains the accepted Phase 12 schema at
+`20260828000000`; no Phase 13 migration or table is added.
 
 `DoctrineMigrations\Version20260723000000` remains the no-schema platform
 smoke check. Phase 3 adds `Version20260815000000`, which creates only the

@@ -1,6 +1,14 @@
 # Upgrade and rollback
 
-**Status:** Phase 12 supports clean installation of `0.4.0` and update from the latest supported `0.3.x`.
+**Status:** Phase 13 `1.0.0` acceptance supports clean installation and direct
+update from the latest accepted `0.1.x`, `0.2.x`, `0.3.x`, or `0.4.x` line.
+
+The `1.0.0` target schema remains `Version20260828000000`. Its package declares
+minimum source `0.1.0`, minimum schema `20260824010000`, and
+`rollback_schema_compatible=false` across the combined train. Every source path
+therefore takes and verifies a pre-update backup; any failed path after schema
+work restores that backup before reinstating the old immutable pointer. Follow
+[CLIENT-UPDATE-1.0.0.md](CLIENT-UPDATE-1.0.0.md).
 
 The `0.4.0` target schema is `Version20260828000000`. The package declares
 minimum source `0.3.0` and minimum schema `20260827000000`. The new operational

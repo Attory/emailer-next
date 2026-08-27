@@ -160,7 +160,7 @@ final readonly class PackageInspector
         }
         $seen = [];
         foreach ($sbom['packages'] as $package) {
-            if (!\is_array($package) || !\is_string($package['SPDXID'] ?? null) || '' === trim($package['SPDXID']) || !\is_string($package['name'] ?? null) || '' === trim($package['name']) || !\is_string($package['versionInfo'] ?? null) || '' === trim($package['versionInfo']) || !\is_string($package['licenseDeclared'] ?? null) || '' === trim($package['licenseDeclared']) || isset($seen[$package['SPDXID']])) {
+            if (!\is_array($package) || !\is_string($package['SPDXID'] ?? null) || '' === trim($package['SPDXID']) || !\is_string($package['name'] ?? null) || '' === trim($package['name']) || !\is_string($package['versionInfo'] ?? null) || '' === trim($package['versionInfo']) || !\is_string($package['licenseDeclared'] ?? null) || '' === trim($package['licenseDeclared']) || 'NOASSERTION' === $package['licenseDeclared'] || isset($seen[$package['SPDXID']])) {
                 throw new \RuntimeException('Release SBOM package metadata is invalid.');
             }
             $seen[$package['SPDXID']] = true;

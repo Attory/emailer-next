@@ -1,8 +1,9 @@
 # Release
 
-**Status:** Accepted operator-signed Phase 12 `0.4.0` candidate over the
-accepted `0.3.0` base. It has not been tagged, published, deployed, or installed
-on a client server.
+**Status:** Phase 13 `1.0.0` candidate tooling under acceptance. The accepted
+operator-signed `0.4.0` candidate remains unpublished and undeployed. No
+operator-signed `1.0.0` candidate exists until an exact reviewed head receives
+separate signing authorization.
 
 Production deployment is an explicit operator action and never a side effect of
 CI, a phase job, or an update check. No release has an unattended auto-update.
@@ -57,10 +58,16 @@ pointer change.
 Key custody, fingerprint distribution, rotation, recovery, and the supported
 update window are fixed in [release-signing.md](release-signing.md).
 
-`tools/release/build-0.4.0-candidate.sh` performs two deterministic builds for
-schema `20260828000000`, requires minimum source `0.3.0` and schema
-`20260827000000`, verifies the pinned public key, and bundles
-`CLIENT-UPDATE-0.4.0.md`. Its signing key must remain outside the repository.
+`tools/release/build-1.0.0-candidate.sh` performs two deterministic builds for
+schema `20260828000000`, declares the supported floor as source `0.1.0` and
+schema `20260824010000`, and exercises inspection/immutable installation from
+each accepted `0.1.0`, `0.2.0`, `0.3.0`, and `0.4.0` release line. It bundles
+the standalone verifier plus [CLIENT-INSTALL-1.0.0.md](CLIENT-INSTALL-1.0.0.md)
+and [CLIENT-UPDATE-1.0.0.md](CLIENT-UPDATE-1.0.0.md). The operator key and
+candidate outputs remain outside the repository.
+
+The Phase 12 `build-0.4.0-candidate.sh` remains available for reproducibility;
+it is not the Version-1 builder.
 
 The package never contains client configuration, a master/recovery/signing
 private key, SMTP credentials, recipient or campaign data, writable runtime

@@ -1,6 +1,8 @@
 # Route and command inventory
 
-**Status:** Accepted Phase 12 `0.4.0` inventory.
+**Status:** Phase 13 full Version-1 route and command review. The HTTP surface
+is unchanged; CLI setup and master-key rotation now close their Version-1
+contracts.
 
 This inventory is the security review baseline. Every implemented route must be
 added here with method, authentication boundary, authorization rule, CSRF
@@ -158,10 +160,10 @@ rollback.
 
 | Command | Purpose and safety boundary | Phase |
 | --- | --- | --- |
-| `emailer:setup:install` | HTTPS-independent interactive install; never echoes secrets | 2/3 |
+| `emailer:setup:install` | Credential-free preflight by default; `--complete` is the HTTPS-independent protected interactive install using the canonical setup services and never echoing secrets | 2/3/13 |
 | `emailer:setup:reset` | Interactive reset; recent backup required; destructive flag when data exists | 2 |
 | `emailer:secrets:replace` | Fail-closed replacement skeleton; no arguments or mutation until re-authenticated secret administration exists | 3 |
-| `emailer:secrets:rotate-master-key` | Fail-closed rotation skeleton; transactional re-encryption remains unavailable pending later recovery/authentication controls | 3 |
+| `emailer:secrets:rotate-master-key` | Owner password/MFA plus current recovery-package authentication; quiescence and verified-backup gate; maintenance lock; transactional full re-encryption; atomic key replacement and failure compensation; redacted audit | 13 |
 | `emailer:secrets:export-recovery-key` | Passphrase-encrypted recovery package; passphrase never stored | 8 |
 | `emailer:secrets:recover-master-key` | Recover only a missing key from the separately stored package; never replace | 8 |
 | `messenger:consume async` | Supervised or bounded/locked cron delivery worker | 6 |
@@ -174,12 +176,23 @@ rollback.
 | `emailer:release:inspect` / `install` / `update` / `check` | Pinned verification, immutable install, explicit maintenance update, and redacted status | 8 |
 
 Exact Symfony route names, rate-limit values, token lifetimes, and fine-grained
-permissions are finalized in their owning phases and then generated into an
-authorization matrix test. Any additional public route requires a threat-model
-update before implementation.
+permissions are finalized in their owning phases and generated into exhaustive
+authorization/method/CSRF tests. Any additional public route requires a
+threat-model update before implementation.
 
-The two Phase 2 setup commands, Phase 6 worker/scheduler commands, and Phase 8
-Doctor, backup/restore, recovery, retention, and release commands are
-implemented. The Phase 3 replace/rotate secret commands remain fail-closed,
-argument-free skeletons. There is no browser worker, restore, recovery,
-migration, package upload, release switch, rollback, or deployment route.
+## Phase 13 full review result
+
+The complete generated HTTP inventory was reconciled against this document and
+the central default-deny administrative policy. Phase 13 adds no HTTP route and
+no public token purpose. Setup, identity/admin, content/import, campaign,
+recipient-action, analytics/RSVP, Doctor/operations, backup/retention, and
+release surfaces retain their authentication, minimum-role, unsafe-method,
+CSRF/re-authentication, cache/cookie, and disclosure boundaries.
+
+All listed CLI commands are implemented at their declared boundary. Generic
+secret replacement remains intentionally unavailable because production SMTP
+secret replacement is the authenticated Owner-only mail workflow. Master-key
+rotation is now implemented as the separately re-authenticated, backup-gated,
+quiesced transactional CLI operation. There is still no browser worker,
+restore, recovery, master-key rotation, migration, package upload, release
+switch, rollback, or deployment route.

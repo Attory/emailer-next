@@ -1,8 +1,9 @@
 # Installation
 
-**Status:** Accepted Phase 12 installation contract. The operator-signed
-`0.4.0` candidate supports clean installation and update from the accepted
-`0.3.x` line; it is not published, deployed, or installed on a client server.
+**Status:** Phase 13 `1.0.0` installation contract under acceptance. Use the
+ordered [client-server installation manual](CLIENT-INSTALL-1.0.0.md) for an
+approved candidate. No candidate is published, deployed, or installed by this
+document.
 
 The current repository can create a completed installation with an
 external key, initial Owner, exact local Mailpit test evidence, sender identity,
@@ -105,9 +106,13 @@ verification form. Delete and recreate any rejected proof as a regular file;
 links, files over 256 bytes, and group/world-writable files are rejected.
 
 After success the browser session rotates and `/setup/preflight` requires
-HTTPS. This phase does not ask for a database password, master key, Owner data,
-or mail settings. The CLI alternative is `bin/console emailer:setup:install`;
-it also stops before credentials and does not create a completed installation.
+HTTPS. `bin/console emailer:setup:install` performs the same credential-free
+preflight. The HTTPS-independent full alternative is
+`bin/console emailer:setup:install --complete` from a protected interactive
+terminal. It accepts secrets only through hidden prompts, never command-line
+options; uses the same database, organisation, Owner, local-Mailpit, policy,
+and finalization services as the web wizard; and never prints MFA enrollment
+material. Enrol Owner MFA from the authenticated HTTPS UI before production.
 
 ## Phase 3 runtime configuration and completion
 
@@ -199,7 +204,18 @@ The Phase 11 operator-held `0.3.0` candidate is accepted but unpublished; use
 update procedure. Installation or deployment remains a separate operator
 action.
 
-## Clean-server `0.1.0` installation
+## Clean-server `1.0.0` installation
+
+The authoritative step-by-step procedure is
+[CLIENT-INSTALL-1.0.0.md](CLIENT-INSTALL-1.0.0.md). It covers change authority,
+supported versions, service accounts and paths, database provisioning, public
+key pinning, standalone pre-extraction verification, immutable extraction,
+protected runtime configuration, PHP-FPM/web-server configuration, setup,
+workers, scheduler, backup/restore drills, Doctor, accessibility acceptance,
+go-live, rollback, and handover.
+
+The historical `0.1.0` outline below remains useful release-train context but
+must not replace the `1.0.0` client manual.
 
 1. Provision a supported Linux host with PHP-FPM 8.4.24 or 8.5.9 and every
    extension in `composer.json`, MariaDB 10.11.19 or 11.8.9, Nginx or Apache,

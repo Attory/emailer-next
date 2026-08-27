@@ -4,19 +4,32 @@ declare(strict_types=1);
 
 namespace App\Module\Setup\Presentation\Cli;
 
+use App\Module\Configuration\Application\Contract\ConfigurationSetup;
+use App\Module\Configuration\Application\Contract\MailInput;
+use App\Module\Configuration\Application\Contract\OrganisationInput;
+use App\Module\Configuration\Application\Contract\PolicyInput;
+use App\Module\Identity\Application\Contract\OwnerSetup;
 use App\Module\Setup\Application\Contract\CliSetupState;
 use App\Module\Setup\Application\Contract\Clock;
+use App\Module\Setup\Application\Contract\InstallationFinalizer;
 use App\Module\Setup\Application\Contract\InstallationLock;
 use App\Module\Setup\Application\Contract\Preflight;
+use App\Module\Setup\Application\Contract\SetupState;
+use App\Module\Setup\Application\DatabaseInput;
+use App\Module\Setup\Application\DatabaseSetup;
 use Symfony\Component\Console\Attribute\AsCommand;
 use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Helper\QuestionHelper;
 use Symfony\Component\Console\Input\InputInterface;
+use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Question\ConfirmationQuestion;
+use Symfony\Component\Console\Question\Question;
 use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'emailer:setup:install',
-    description: 'Verify CLI ownership and run the credential-free setup preflight.',
+    description: 'Run the credential-free preflight or the HTTPS-independent interactive installer.',
 )]
 final class SetupInstallCommand extends Command
 {
@@ -26,8 +39,18 @@ final class SetupInstallCommand extends Command
         private readonly CliSetupState $cliSetupStateStore,
         private readonly Clock $clock,
         private readonly string $publicDirectory,
+        private readonly ?DatabaseSetup $databaseSetup = null,
+        private readonly ?SetupState $setupState = null,
+        private readonly ?ConfigurationSetup $configurationSetup = null,
+        private readonly ?OwnerSetup $ownerSetup = null,
+        private readonly ?InstallationFinalizer $finalizer = null,
     ) {
         parent::__construct();
+    }
+
+    protected function configure(): void
+    {
+        $this->addOption('complete', null, InputOption::VALUE_NONE, 'Continue through the interactive full installation after preflight.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -58,8 +81,175 @@ final class SetupInstallCommand extends Command
         }
 
         $this->cliSetupStateStore->recordOwnershipVerified($this->clock->now());
-        $io->success('CLI ownership and Phase 2 preflight are verified. Credential setup remains unavailable until Phase 3.');
+        if (true !== $input->getOption('complete')) {
+            $io->success('CLI ownership and preflight are verified. Re-run with --complete in a protected interactive terminal to finish installation.');
+
+            return self::SUCCESS;
+        }
+        if (!$input->isInteractive()) {
+            $io->error('Full installation requires protected interactive input; secrets are never accepted as command-line options.');
+
+            return self::FAILURE;
+        }
+        if (null === $this->databaseSetup || null === $this->setupState || null === $this->configurationSetup || null === $this->ownerSetup || null === $this->finalizer) {
+            $io->error('Full installer services are unavailable.');
+
+            return self::FAILURE;
+        }
+
+        try {
+            return $this->completeInstallation($input, $output, $io);
+        } catch (\Throwable) {
+            $io->error('Installation failed safely. Secret values were not retained or printed; correct the cause and resume the installer.');
+
+            return self::FAILURE;
+        }
+    }
+
+    private function completeInstallation(InputInterface $input, OutputInterface $output, SymfonyStyle $io): int
+    {
+        $databaseSetup = $this->databaseSetup;
+        $setupState = $this->setupState;
+        $configurationSetup = $this->configurationSetup;
+        $ownerSetup = $this->ownerSetup;
+        $finalizer = $this->finalizer;
+        if (null === $databaseSetup || null === $setupState || null === $configurationSetup || null === $ownerSetup || null === $finalizer) {
+            throw new \LogicException('Full installer services are unavailable.');
+        }
+        $helper = $this->getHelper('question');
+        if (!$helper instanceof QuestionHelper) {
+            return self::FAILURE;
+        }
+
+        $io->section('Database and installation key');
+        $host = $this->ask($helper, $input, $output, 'MariaDB host: ');
+        $port = $this->askInt($helper, $input, $output, 'MariaDB port [3306]: ', 3306);
+        $database = $this->ask($helper, $input, $output, 'MariaDB database: ');
+        $username = $this->ask($helper, $input, $output, 'MariaDB runtime username: ');
+        $databasePassword = $this->askSecret($helper, $input, $output, 'MariaDB password: ');
+        try {
+            $databaseSetup->configure(new DatabaseInput($host, $port, $database, $username, $databasePassword));
+        } finally {
+            sodium_memzero($databasePassword);
+        }
+        $installationId = $setupState->initializeKey();
+
+        $progress = $setupState->progress();
+        if (!$progress->organisationReady) {
+            $io->section('Organisation');
+            $configurationSetup->saveOrganisation($installationId, new OrganisationInput(
+                $this->ask($helper, $input, $output, 'Organisation display name: '),
+                $this->ask($helper, $input, $output, 'Canonical HTTPS base URL: '),
+                $this->ask($helper, $input, $output, 'Locale [en_AU]: ', 'en_AU'),
+                $this->ask($helper, $input, $output, 'Time zone [Australia/Sydney]: ', 'Australia/Sydney'),
+            ));
+            $setupState->mark('organisation');
+        }
+
+        $progress = $setupState->progress();
+        if (!$progress->ownerReady) {
+            $io->section('Initial Owner');
+            $login = $this->ask($helper, $input, $output, 'Owner email: ');
+            $ownerPassword = $this->askSecret($helper, $input, $output, 'Owner password (minimum 15 characters): ');
+            $confirmation = $this->askSecret($helper, $input, $output, 'Confirm Owner password: ');
+            try {
+                if (!hash_equals($ownerPassword, $confirmation)) {
+                    throw new \InvalidArgumentException('Owner passwords did not match.');
+                }
+                $ownerId = $ownerSetup->create($login, $ownerPassword);
+                $ownerSetup->skipMfa($ownerId);
+            } finally {
+                sodium_memzero($ownerPassword);
+                sodium_memzero($confirmation);
+            }
+            $setupState->mark('owner');
+            $io->note('MFA was not enrolled because the CLI installer never prints enrollment secrets. Enrol TOTP from the authenticated HTTPS administration UI before production use.');
+        }
+
+        $progress = $setupState->progress();
+        if (!$progress->mailReady) {
+            $io->section('Isolated setup mail probe');
+            $configurationSetup->testAndSaveMail($installationId, new MailInput(
+                $this->ask($helper, $input, $output, 'Local Mailpit host [mailpit]: ', 'mailpit'),
+                $this->askInt($helper, $input, $output, 'Local Mailpit SMTP port [1025]: ', 1025),
+                'none',
+                '',
+                '',
+                $this->ask($helper, $input, $output, 'Synthetic sender address: '),
+                $this->ask($helper, $input, $output, 'Synthetic sender name [Emailer Next Test]: ', 'Emailer Next Test'),
+                '',
+            ));
+            $setupState->mark('mail');
+        }
+
+        $progress = $setupState->progress();
+        if (!$progress->policyReady || !$progress->capabilityReady) {
+            $workerMode = $this->ask($helper, $input, $output, 'Worker mode, supervised or cron [supervised]: ', 'supervised');
+            $configurationSetup->savePolicies(new PolicyInput(
+                60,
+                1,
+                5,
+                10_000,
+                10_485_760,
+                100_000,
+                30,
+                365,
+                'You are receiving this message from the configured organisation. An unsubscribe link is included below.',
+                $workerMode,
+            ));
+            $setupState->mark('policy');
+            $setupState->mark('capability');
+        }
+
+        if (true !== $helper->ask($input, $output, new ConfirmationQuestion(
+            'Permanently lock setup and complete this installation? [y/N] ',
+            false,
+        ))) {
+            $io->warning('Finalization was cancelled. Setup remains resumable and is not locked.');
+
+            return self::FAILURE;
+        }
+
+        $completedId = $finalizer->finalize();
+        if (!hash_equals($installationId, $completedId)) {
+            throw new \RuntimeException('Installation identity changed during finalization.');
+        }
+        $io->success('Installation completed and setup is permanently locked. Configure production SMTP only through the authenticated HTTPS administration UI.');
 
         return self::SUCCESS;
+    }
+
+    private function ask(QuestionHelper $helper, InputInterface $input, OutputInterface $output, string $prompt, ?string $default = null): string
+    {
+        $answer = $helper->ask($input, $output, new Question($prompt, $default));
+        if (!\is_string($answer) || '' === trim($answer)) {
+            throw new \InvalidArgumentException('Required installer input was omitted.');
+        }
+
+        return trim($answer);
+    }
+
+    private function askInt(QuestionHelper $helper, InputInterface $input, OutputInterface $output, string $prompt, int $default): int
+    {
+        $answer = $helper->ask($input, $output, new Question($prompt, (string) $default));
+        if (!\is_string($answer) && !\is_int($answer)) {
+            throw new \InvalidArgumentException('Numeric installer input was omitted.');
+        }
+        $value = filter_var($answer, FILTER_VALIDATE_INT);
+        if (false === $value) {
+            throw new \InvalidArgumentException('Numeric installer input is invalid.');
+        }
+
+        return $value;
+    }
+
+    private function askSecret(QuestionHelper $helper, InputInterface $input, OutputInterface $output, string $prompt): string
+    {
+        $answer = $helper->ask($input, $output, (new Question($prompt))->setHidden(true)->setHiddenFallback(false));
+        if (!\is_string($answer) || '' === $answer) {
+            throw new \InvalidArgumentException('Required secret installer input was omitted.');
+        }
+
+        return $answer;
     }
 }
