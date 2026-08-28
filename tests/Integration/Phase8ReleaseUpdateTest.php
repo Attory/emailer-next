@@ -215,11 +215,17 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
     private function publishAcceptedPredecessorRelease(string $version, string $commit): string
     {
         $archive = $this->directory.'/accepted-'.$version.'.zip';
+        $projectRoot = \dirname(__DIR__, 2);
+        $historyDirectory = getenv('EMAILER_ACCEPTED_HISTORY_GIT_DIR');
+        if (false === $historyDirectory || '' === $historyDirectory) {
+            $historyDirectory = $projectRoot.'/.git';
+        }
+        self::assertDirectoryExists($historyDirectory, 'Accepted predecessor Git history is unavailable.');
         $process = proc_open(
-            ['git', 'archive', '--format=zip', '--output='.$archive, $commit],
+            ['git', '--git-dir='.$historyDirectory, 'archive', '--format=zip', '--output='.$archive, $commit],
             [['file', '/dev/null', 'r'], ['file', '/dev/null', 'w'], ['file', '/dev/null', 'w']],
             $pipes,
-            \dirname(__DIR__, 2),
+            $projectRoot,
         );
         self::assertIsResource($process, 'Accepted predecessor archive process could not start.');
         self::assertSame(0, proc_close($process), 'Accepted predecessor commit could not be archived.');

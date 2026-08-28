@@ -166,6 +166,15 @@ candidate, root/service privilege, systemd syntax, formatting, static analysis,
 shell, whitespace, and private-data gates also pass. The final exact committed
 aggregate and new-head CI evidence remain to be recorded.
 
+The first CI run on the second-review repair passed the aggregate and new
+root-privilege gate in all three matrices, then exposed one clean-image harness
+gap: exact predecessor archives require the checkout's Git objects, while the
+production-style image correctly excludes `.git`. The external-egress-disabled
+test container now exposes only the already checked-out Git metadata at a
+dedicated read-only history path; `/app/.git` remains absent, the image continues
+to exclude repository history, and a platform assertion locks both halves of
+that boundary.
+
 All executed mail behavior used only the repository's local Mailpit service and
 reserved synthetic domains. No provider, live SMTP, DNS, client server,
 credential, or external account was contacted or changed.

@@ -51,9 +51,11 @@ docker run --rm \
 
 docker run --rm \
     --network "$network_name" \
+    --volume "$project_root/.git:/accepted-history:ro" \
     --env APP_DEBUG=0 \
     --env APP_ENV=test \
     --env APP_SECRET=phase4-network-isolated-ci-only \
+    --env EMAILER_ACCEPTED_HISTORY_GIT_DIR=/accepted-history \
     --env "DATABASE_URL=${DATABASE_URL}" \
     --env DEFAULT_URI=https://emailer.example.test \
     --env LOCK_DSN=flock \

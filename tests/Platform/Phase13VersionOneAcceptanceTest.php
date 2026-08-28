@@ -26,6 +26,17 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
         self::assertStringContainsString('build/artifact/bin/console" emailer:release:inspect', $tooling);
     }
 
+    public function testNetworkIsolatedSuiteMountsAcceptedHistoryReadOnlyWithoutBakingItIntoTheImage(): void
+    {
+        $root = \dirname(__DIR__, 2);
+        $isolated = (string) file_get_contents($root.'/tools/ci/run-network-isolated-tests.sh');
+        $dockerIgnore = (string) file_get_contents($root.'/.dockerignore');
+
+        self::assertStringContainsString('--volume "$project_root/.git:/accepted-history:ro"', $isolated);
+        self::assertStringContainsString('--env EMAILER_ACCEPTED_HISTORY_GIT_DIR=/accepted-history', $isolated);
+        self::assertMatchesRegularExpression('/^\.git$/m', $dockerIgnore);
+    }
+
     public function testClientInstallManualContainsTheCompleteSafeSequence(): void
     {
         $root = \dirname(__DIR__, 2);
