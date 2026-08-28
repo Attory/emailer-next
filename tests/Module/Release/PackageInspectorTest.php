@@ -80,6 +80,8 @@ final class PackageInspectorTest extends TestCase
             self::assertSame('1.0.0', $manifest['version']);
         }
 
+        self::assertSame('1.0.0', (new PackageInspector($publicKey, '1.0.0'))->inspect($archive)['version']);
+
         foreach (['0.0.9', '0.1.9', '0.3.7', '0.9.0'] as $unsupported) {
             try {
                 (new PackageInspector($publicKey, $unsupported))->inspect($archive);

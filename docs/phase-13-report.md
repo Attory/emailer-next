@@ -125,6 +125,16 @@ and 194 assertions, including crash before commit, crash after commit,
 concurrent-reader refusal, exact accepted-source rejection, and manual/unit
 contracts. The old review authorization does not apply to the changed head.
 
+The first pushed repair head
+`bb9c5516b457d869c87f757d952a65e00cd7c00a` then exposed a fresh-cache CI-only
+candidate-tooling defect: the `1.0.0` console could not inspect its own signed
+package for the clean-install rehearsal because `1.0.0` is correctly absent
+from the predecessor allowlist. The package inspector now permits target-version
+self-inspection/clean installation while `ReleaseManager::update` continues to
+reject same-version updates. A cleared development cache, focused package/update
+suite, and full artifact/candidate gate pass with the explicit predecessor list
+unchanged.
+
 All executed mail behavior used only the repository's local Mailpit service and
 reserved synthetic domains. No provider, live SMTP, DNS, client server,
 credential, or external account was contacted or changed.

@@ -54,7 +54,10 @@ ships with a checksum, SPDX SBOM, and detached Ed25519 signature.
 Signing private material remains outside Git, build output, logs, prompts, CI
 artifacts, and client installations. Installation pins the trusted public key.
 Package verification is fail-closed before any file, migration, or release
-pointer change.
+pointer change. The target version may inspect its own package for a clean
+install rehearsal; `ReleaseManager::update` still rejects every same-version
+update. This self-inspection exception does not add a source version to the
+signed update allowlist.
 
 Key custody, fingerprint distribution, rotation, recovery, and the supported
 update window are fixed in [release-signing.md](release-signing.md).
