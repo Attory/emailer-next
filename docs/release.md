@@ -70,6 +70,16 @@ the standalone verifier plus [CLIENT-INSTALL-1.0.0.md](CLIENT-INSTALL-1.0.0.md)
 and [CLIENT-UPDATE-1.0.0.md](CLIENT-UPDATE-1.0.0.md). The operator key and
 candidate outputs remain outside the repository.
 
+For the combined `1.0.0` train, production update compatibility is enforced by
+the authenticated target-version runtime, not by predecessor binaries whose
+contracts predate the exact allowlist. Before root configuration, the operator
+checks the standalone verifier/inspector hashes against the independently
+approved candidate record and verifies the signed archive with the pinned key.
+The frozen target tree then runs in the root-controlled one-shot updater with a
+root-only source-version record; it refuses to proceed unless that value equals
+the actual current release-pointer basename. Publication is recursively
+root-owned and non-writable.
+
 The Phase 12 `build-0.4.0-candidate.sh` remains available for reproducibility;
 it is not the Version-1 builder.
 
@@ -100,8 +110,9 @@ immutable release directories.
    signature.
 4. Verify the artifact independently against its manifest, digest, signature,
    and pinned trust key.
-5. Rehearse a clean install and, after `0.1.0`, update the latest supported
-   release through the same operator CLI used in production.
+5. Rehearse a clean install and every declared source path using exact accepted
+   predecessor artifacts and the same authenticated target updater used in
+   production.
 6. Exercise incompatibility, tamper, interruption, failed-health-check, and
    rollback-or-restore behavior.
 7. Produce a release-candidate report with versions, migrations, known

@@ -22,6 +22,8 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
         self::assertStringContainsString('--minimum-schema=20260824010000', $tooling);
         self::assertStringContainsString('--schema=20260828000000', $tooling);
         self::assertStringContainsString('for supported_source in 0.1.0 0.2.0 0.3.0 0.4.0', $tooling);
+        self::assertStringContainsString('EMAILER_UPDATE_SOURCE_VERSION="$supported_source"', $tooling);
+        self::assertStringContainsString('build/artifact/bin/console" emailer:release:inspect', $tooling);
     }
 
     public function testClientInstallManualContainsTheCompleteSafeSequence(): void
@@ -57,14 +59,42 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
         foreach (['current/public', 'EMAILER_SECRET_KEY_FILE=/var/lib/emailer/keys/master.key', 'EMAILER_RELEASE_PUBLIC_KEY_FILE', 'emailer-update@.service', 'doctrine:migrations:migrate', 'emailer:setup:install --complete', 'emailer:doctor:run --json', 'emailer:secrets:export-recovery-key', 'emailer:backup:create', 'emailer:operations:run', 'delivery quiesced'] as $safetyCue) {
             self::assertStringContainsString($safetyCue, $manual);
         }
-        self::assertStringContainsString('not add `emailer` to `emailer-release`', $manual);
         $updater = (string) file_get_contents($root.'/deployment/emailer-update@.service.example');
-        self::assertStringContainsString('SupplementaryGroups=emailer-release', $updater);
-        self::assertStringContainsString('User=emailer', $updater);
+        self::assertStringContainsString('User=root', $updater);
+        self::assertStringNotContainsString('SupplementaryGroups=', $updater);
+        self::assertStringContainsString('/var/lib/emailer-candidate/verified-%i/bin/console', $updater);
+        self::assertStringContainsString('EnvironmentFile=/etc/emailer/update.env', $updater);
+        self::assertStringContainsString('RuntimeDirectory=emailer-update-%i', $updater);
+        self::assertStringContainsString('Environment=EMAILER_RUNTIME_DIR=/run/emailer-update-%i', $updater);
+        self::assertStringContainsString('--approved-target=%i', $updater);
+        self::assertStringContainsString("TRUSTED_HOSTS='^emailer\\.client\\.example$'", $manual);
+        self::assertStringContainsString('LOCK_DSN=flock:///var/lib/emailer/private/locks', $manual);
         $readiness = (string) file_get_contents($root.'/src/Module/Health/Infrastructure/SystemReadinessProbe.php');
         self::assertStringContainsString("0 === (\$stat['mode'] & 0o002)", $readiness);
         self::assertStringContainsString('is_readable($path)', $readiness);
         self::assertStringNotContainsString('BEGIN PRIVATE KEY', $manual);
+    }
+
+    public function testUpdateManualAuthenticatesTargetCodeBeforeRootInstallation(): void
+    {
+        $root = \dirname(__DIR__, 2);
+        $manual = $this->repositoryFile($root, 'docs/CLIENT-UPDATE-1.0.0.md');
+        if (null === $manual) {
+            return;
+        }
+
+        $verification = strpos($manual, 'sudo -u emailer php /var/lib/emailer-candidate/verify-package.php');
+        $extraction = strpos($manual, 'verified-1.0.0');
+        $unitInstall = strpos($manual, 'sudo install -o root -g root -m 0644 /var/lib/emailer-candidate/verified-1.0.0/deployment/emailer-update@.service.example');
+        self::assertIsInt($verification);
+        self::assertIsInt($extraction);
+        self::assertIsInt($unitInstall);
+        self::assertLessThan($extraction, $verification);
+        self::assertLessThan($unitInstall, $extraction);
+        self::assertStringContainsString('executes the authenticated `1.0.0` target code', $manual);
+        self::assertStringContainsString('EMAILER_UPDATE_SOURCE_VERSION=0.1.0', $manual);
+        self::assertStringContainsString('sudo chown -R root:root <CURRENT-RELEASE-DIRECTORY>', $manual);
+        self::assertStringContainsString('never operate through `current`', $manual);
     }
 
     public function testCandidateBuilderPreservesAConflictingPreExistingOutputDirectory(): void
@@ -77,6 +107,21 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
         self::assertIsInt($create);
         self::assertIsInt($claim);
         self::assertLessThan($claim, $create);
+    }
+
+    public function testCliInstallerShowsSafeSummaryAndCategorizedRemediationBeforeLock(): void
+    {
+        $root = \dirname(__DIR__, 2);
+        $command = (string) file_get_contents($root.'/src/Module/Setup/Presentation/Cli/SetupInstallCommand.php');
+        $summary = strpos($command, "section('Non-secret installation summary')");
+        $confirmation = strpos($command, 'Permanently lock setup and complete this installation?');
+        self::assertIsInt($summary);
+        self::assertIsInt($confirmation);
+        self::assertLessThan($confirmation, $summary);
+        foreach (['Installer input was rejected.', 'Database setup failed.', 'Installation state validation failed.', 'unexpected safe category'] as $category) {
+            self::assertStringContainsString($category, $command);
+        }
+        self::assertStringContainsString('Secret values are intentionally omitted.', $command);
     }
 
     public function testAccessibilityAcceptanceHasBlockingAutomatedAndHumanEvidence(): void

@@ -326,6 +326,19 @@ rejection protect file operations.
 Delivery and restore are CLI-only. The web process cannot start a worker.
 Workers receive only the permissions needed for their queue, data, key, and mail
 operations. Source and immutable release files are not web-writable.
+Production semantic-version directories are recursively root-owned and have no
+write bits. The root-controlled updater executes only a target-version tree
+whose package signature and file contract were verified before extraction or
+service installation. It validates the root-only recorded predecessor against
+the actual current pointer; ordinary application identities never receive a
+release-write group.
+The production lock DSN names a shared mode-`0700` directory under external
+private storage. Bare temporary-directory flock storage is prohibited because
+systemd `PrivateTmp` would otherwise isolate locks by service.
+An update-created encrypted safety backup remains mode `0600`; after verifying
+it, the root updater transfers that exact inode to the owner/group of the
+mode-`0700` service backup directory so later service-owned verification and
+restore remain possible.
 
 Development and CI use fake SMTP and must be unable to resolve or connect to a
 live SMTP target by default. No Doctor or setup operation modifies DNS,
@@ -346,6 +359,10 @@ operator-pinned public key before any migration or release-pointer change.
 Updates use new immutable directories, an exclusive maintenance lock, worker
 quiescence, a verified encrypted backup, an atomic switch, and fail-closed
 health checks. HTTP upload/update/restore and unattended update are prohibited.
+The externally stored master-key rotation journal and key replacement cross an
+`fsync` barrier on the containing directory after every security-relevant
+link, rename, or unlink, so database audit evidence can reconcile either side
+after process interruption or power loss.
 
 A likely credential, private key, or private-data finding blocks merge and
 release. Suppression of a scanner finding requires review showing it is a safe

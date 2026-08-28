@@ -99,8 +99,20 @@ final class SetupInstallCommand extends Command
 
         try {
             return $this->completeInstallation($input, $output, $io);
+        } catch (\InvalidArgumentException) {
+            $io->error('Installer input was rejected. Review the documented format and retry; submitted secrets were not retained or printed.');
+
+            return self::FAILURE;
+        } catch (\Doctrine\DBAL\Exception) {
+            $io->error('Database setup failed. Verify the protected DSN, server reachability, account grants, and migration status before retrying.');
+
+            return self::FAILURE;
+        } catch (\RuntimeException) {
+            $io->error('Installation state validation failed. Verify key/private-path ownership, Mailpit isolation, setup progress, and Doctor results before retrying.');
+
+            return self::FAILURE;
         } catch (\Throwable) {
-            $io->error('Installation failed safely. Secret values were not retained or printed; correct the cause and resume the installer.');
+            $io->error('Installation failed in an unexpected safe category. Preserve the unlocked state and obtain an operator review before retrying.');
 
             return self::FAILURE;
         }
@@ -120,6 +132,7 @@ final class SetupInstallCommand extends Command
         if (!$helper instanceof QuestionHelper) {
             return self::FAILURE;
         }
+        $summaryRows = [];
 
         $io->section('Database and installation key');
         $host = $this->ask($helper, $input, $output, 'MariaDB host: ');
@@ -132,18 +145,22 @@ final class SetupInstallCommand extends Command
         } finally {
             sodium_memzero($databasePassword);
         }
+        $summaryRows[] = ['Database', $host.':'.$port.'/'.$database.' as '.$username];
         $installationId = $setupState->initializeKey();
+        $summaryRows[] = ['Installation key', 'External service-owned key initialized and validated'];
 
         $progress = $setupState->progress();
         if (!$progress->organisationReady) {
             $io->section('Organisation');
-            $configurationSetup->saveOrganisation($installationId, new OrganisationInput(
-                $this->ask($helper, $input, $output, 'Organisation display name: '),
-                $this->ask($helper, $input, $output, 'Canonical HTTPS base URL: '),
-                $this->ask($helper, $input, $output, 'Locale [en_AU]: ', 'en_AU'),
-                $this->ask($helper, $input, $output, 'Time zone [Australia/Sydney]: ', 'Australia/Sydney'),
-            ));
+            $organisation = $this->ask($helper, $input, $output, 'Organisation display name: ');
+            $baseUrl = $this->ask($helper, $input, $output, 'Canonical HTTPS base URL: ');
+            $locale = $this->ask($helper, $input, $output, 'Locale [en_AU]: ', 'en_AU');
+            $timeZone = $this->ask($helper, $input, $output, 'Time zone [Australia/Sydney]: ', 'Australia/Sydney');
+            $configurationSetup->saveOrganisation($installationId, new OrganisationInput($organisation, $baseUrl, $locale, $timeZone));
             $setupState->mark('organisation');
+            $summaryRows[] = ['Organisation', $organisation.' | '.$baseUrl.' | '.$locale.' | '.$timeZone];
+        } else {
+            $summaryRows[] = ['Organisation', 'Previously completed; verify in the protected administration UI'];
         }
 
         $progress = $setupState->progress();
@@ -163,23 +180,33 @@ final class SetupInstallCommand extends Command
                 sodium_memzero($confirmation);
             }
             $setupState->mark('owner');
+            $summaryRows[] = ['Initial Owner', $login.' | MFA enrollment required after HTTPS sign-in'];
             $io->note('MFA was not enrolled because the CLI installer never prints enrollment secrets. Enrol TOTP from the authenticated HTTPS administration UI before production use.');
+        } else {
+            $summaryRows[] = ['Initial Owner', 'Previously completed; verify identity and MFA state in the protected administration UI'];
         }
 
         $progress = $setupState->progress();
         if (!$progress->mailReady) {
             $io->section('Isolated setup mail probe');
+            $mailHost = $this->ask($helper, $input, $output, 'Local Mailpit host [mailpit]: ', 'mailpit');
+            $mailPort = $this->askInt($helper, $input, $output, 'Local Mailpit SMTP port [1025]: ', 1025);
+            $senderAddress = $this->ask($helper, $input, $output, 'Synthetic sender address: ');
+            $senderName = $this->ask($helper, $input, $output, 'Synthetic sender name [Emailer Next Test]: ', 'Emailer Next Test');
             $configurationSetup->testAndSaveMail($installationId, new MailInput(
-                $this->ask($helper, $input, $output, 'Local Mailpit host [mailpit]: ', 'mailpit'),
-                $this->askInt($helper, $input, $output, 'Local Mailpit SMTP port [1025]: ', 1025),
+                $mailHost,
+                $mailPort,
                 'none',
                 '',
                 '',
-                $this->ask($helper, $input, $output, 'Synthetic sender address: '),
-                $this->ask($helper, $input, $output, 'Synthetic sender name [Emailer Next Test]: ', 'Emailer Next Test'),
+                $senderAddress,
+                $senderName,
                 '',
             ));
             $setupState->mark('mail');
+            $summaryRows[] = ['Setup mail', $mailHost.':'.$mailPort.' | '.$senderAddress.' | '.$senderName.' | no TLS/auth'];
+        } else {
+            $summaryRows[] = ['Setup mail', 'Previously completed; production SMTP remains prohibited until authenticated reconfiguration'];
         }
 
         $progress = $setupState->progress();
@@ -199,7 +226,14 @@ final class SetupInstallCommand extends Command
             ));
             $setupState->mark('policy');
             $setupState->mark('capability');
+            $summaryRows[] = ['Worker policy', $workerMode];
+        } else {
+            $summaryRows[] = ['Worker policy', 'Previously completed; verify supervised/cron ownership in the protected administration UI'];
         }
+
+        $io->section('Non-secret installation summary');
+        $io->table(['Area', 'Recorded value or state'], $summaryRows);
+        $io->note('Confirm the canonical origin, identities, isolated setup mail, worker ownership, and external key boundary. Secret values are intentionally omitted.');
 
         if (true !== $helper->ask($input, $output, new ConfirmationQuestion(
             'Permanently lock setup and complete this installation? [y/N] ',

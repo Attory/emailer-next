@@ -13,7 +13,7 @@ use Symfony\Component\Lock\LockFactory;
 
 final readonly class ReleaseManager
 {
-    public function __construct(private PackageInspector $inspector, private BackupOperations $backups, private Connection $connection, private LockFactory $locks, private MaintenanceOperationLock $maintenance, private InterruptedDeliveryRecovery $recovery, private string $releasesDirectory, private string $currentVersion, private int $rollbackReserveBytes = 536870912)
+    public function __construct(private PackageInspector $inspector, private BackupOperations $backups, private Connection $connection, private LockFactory $locks, private MaintenanceOperationLock $maintenance, private InterruptedDeliveryRecovery $recovery, private string $releasesDirectory, private string $currentVersion, private int $rollbackReserveBytes = 536870912, private string $environment = 'test')
     {
     }
 
@@ -73,6 +73,7 @@ final readonly class ReleaseManager
             if (!rename($staging, $target)) {
                 throw new \RuntimeException('Immutable release publication failed.');
             }
+            $this->assertPublishedOwnership($target);
             if ($switch) {
                 $this->switchPointer($target);
             }
@@ -108,6 +109,11 @@ final readonly class ReleaseManager
         $target = null;
         $manifest = [];
         try {
+            $previous = realpath($this->releasesDirectory.'/current');
+            if (false === $previous || !is_dir($previous) || !hash_equals($this->currentVersion, basename($previous))) {
+                throw new \RuntimeException('Recorded update source does not match the immutable current release.');
+            }
+            $this->assertPublishedOwnership($previous);
             $manifest = $this->inspector->inspect($archive);
             $targetVersion = $manifest['version'] ?? null;
             if (!\is_string($targetVersion) || version_compare($targetVersion, $this->currentVersion, '<=')) {
@@ -115,10 +121,6 @@ final readonly class ReleaseManager
             }
             $this->assertPlatformAndSchemaCompatibility($manifest);
             $this->assertDiskCapacity($archive, $manifest);
-            $previous = realpath($this->releasesDirectory.'/current');
-            if (false === $previous || !is_dir($previous)) {
-                throw new \RuntimeException('Update requires an existing immutable current release; use install for the first release.');
-            }
             $operationId = Identity::uuidV7();
             $this->connection->insert('release_operation', ['id' => $operationId, 'operation' => 'update', 'source_version' => $this->currentVersion, 'target_version' => $manifest['version'], 'package_sha256' => hash_file('sha256', $archive), 'status' => 'started', 'detail_code' => 'verified', 'started_at' => Identity::now(), 'finished_at' => null]);
             $this->connection->executeStatement("UPDATE delivery_runtime SET accepting_work = 0, updated_at = ? WHERE singleton_key = '1'", [Identity::now()]);
@@ -131,6 +133,7 @@ final readonly class ReleaseManager
                 usleep(250000);
             }
             $safety = $this->backups->create();
+            $this->transferSafetyBackupToServiceOwner($safety['path']);
             $target = $this->install($archive, false);
             $this->runConsole($target, ['doctrine:migrations:migrate', '--no-interaction'], [0]);
             $migrationApplied = true;
@@ -258,6 +261,66 @@ final readonly class ReleaseManager
         }
         if (!chmod($directory, 0o555)) {
             throw new \RuntimeException('Immutable release root permissions cannot be applied.');
+        }
+    }
+
+    private function assertPublishedOwnership(string $directory): void
+    {
+        if ('prod' !== $this->environment) {
+            return;
+        }
+        if (!\function_exists('posix_geteuid') || 0 !== posix_geteuid()) {
+            throw new \RuntimeException('Production release publication requires the root-controlled updater identity.');
+        }
+
+        $paths = [$directory];
+        $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS), \RecursiveIteratorIterator::SELF_FIRST);
+        foreach ($iterator as $entry) {
+            if (!$entry instanceof \SplFileInfo || $entry->isLink()) {
+                throw new \RuntimeException('Immutable release ownership validation found an unsafe object.');
+            }
+            $paths[] = $entry->getPathname();
+        }
+        foreach ($paths as $path) {
+            $metadata = @lstat($path);
+            if (!\is_array($metadata) || 0 !== $metadata['uid'] || 0 !== ($metadata['mode'] & 0o222)) {
+                throw new \RuntimeException('Production release is not root-owned and immutable.');
+            }
+        }
+    }
+
+    private function transferSafetyBackupToServiceOwner(string $path): void
+    {
+        if ('prod' !== $this->environment) {
+            return;
+        }
+        $before = @lstat($path);
+        $parent = @lstat(\dirname($path));
+        if (!\is_array($before)
+            || !\is_array($parent)
+            || 0o100000 !== ($before['mode'] & 0o170000)
+            || 0 !== $before['uid']
+            || 0o600 !== ($before['mode'] & 0o777)
+            || 1 !== $before['nlink']
+            || 0o040000 !== ($parent['mode'] & 0o170000)
+            || 0 === $parent['uid']
+            || 0o700 !== ($parent['mode'] & 0o777)
+            || !\function_exists('lchown')
+            || !\function_exists('lchgrp')
+            || !@lchown($path, $parent['uid'])
+            || !@lchgrp($path, $parent['gid'])
+        ) {
+            throw new \RuntimeException('Verified update safety-backup ownership cannot be returned to the service identity.');
+        }
+        $after = @lstat($path);
+        if ($before['ino'] !== $after['ino']
+            || $before['dev'] !== $after['dev']
+            || $parent['uid'] !== $after['uid']
+            || $parent['gid'] !== $after['gid']
+            || 0o600 !== ($after['mode'] & 0o777)
+            || 1 !== $after['nlink']
+        ) {
+            throw new \RuntimeException('Verified update safety-backup ownership changed unsafely.');
         }
     }
 

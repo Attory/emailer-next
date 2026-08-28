@@ -2,19 +2,24 @@
 Description=Emailer Next supervised update for %i
 After=network.target mariadb.service
 ConditionPathIsReadWrite=/srv/emailer/releases
+ConditionPathIsDirectory=/var/lib/emailer-candidate/verified-%i
 
 [Service]
 Type=oneshot
-User=emailer
-Group=emailer
-SupplementaryGroups=emailer-release
-WorkingDirectory=/srv/emailer/releases/current
+User=root
+Group=root
+WorkingDirectory=/var/lib/emailer-candidate/verified-%i
 EnvironmentFile=/etc/emailer/runtime.env
-ExecStart=/usr/bin/php /srv/emailer/releases/current/bin/console emailer:release:update /var/lib/emailer-candidate/%i
+EnvironmentFile=/etc/emailer/update.env
+Environment=EMAILER_RUNTIME_DIR=/run/emailer-update-%i
+RuntimeDirectory=emailer-update-%i
+RuntimeDirectoryMode=0700
+ExecStart=/usr/bin/php /var/lib/emailer-candidate/verified-%i/bin/console emailer:release:update /var/lib/emailer-candidate/emailer-next-%i.zip --no-interaction --approved-target=%i
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-ReadWritePaths=/srv/emailer/releases /var/lib/emailer/private /var/backups/emailer
+ReadWritePaths=/srv/emailer/releases /var/lib/emailer/private /var/backups/emailer /run/emailer-update-%i
+ReadOnlyPaths=/var/lib/emailer-candidate /var/lib/emailer/keys /etc/emailer
 
 [Install]
 WantedBy=multi-user.target

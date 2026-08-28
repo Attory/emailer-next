@@ -130,7 +130,8 @@
             "@php -l tools/quality/check-license-policy.php",
             "@php -l tools/release/build-package.php",
             "@php -l tools/release/verify-package.php",
-            "@php -l tools/release/generate-test-keypair.php"
+            "@php -l tools/release/generate-test-keypair.php",
+            "@php -l tools/security/check-master-key-access.php"
         ],
         "test": "phpunit",
         "check:migrations": "bash tools/quality/check-migrations.sh",

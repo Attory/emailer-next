@@ -18,6 +18,7 @@ parameters:
     emailer.default_releases_dir: ''
     emailer.releases_dir: '%env(default:emailer.default_releases_dir:EMAILER_RELEASES_DIR)%'
     emailer.app_version: '1.0.0'
+    emailer.update_source_version: '%env(default:emailer.app_version:EMAILER_UPDATE_SOURCE_VERSION)%'
     emailer.schema_version: '20260828000000'
     emailer.default_uri: '%env(DEFAULT_URI)%'
     emailer.default_master_key_file: ''
@@ -104,6 +105,8 @@ services:
             $publicDirectory: '%kernel.project_dir%/public'
             $projectDirectory: '%kernel.project_dir%'
             $environment: '%kernel.environment%'
+
+    App\Module\Secrets\Application\Contract\DirectoryDurability: '@App\Module\Secrets\Infrastructure\PosixDirectoryDurability'
 
     App\Module\Secrets\Application\Contract\MasterKey: '@App\Module\Secrets\Infrastructure\CrashRecoveringMasterKey'
     App\Module\Secrets\Application\Contract\TransactionalMasterKey: '@App\Module\Secrets\Infrastructure\CrashRecoveringMasterKey'
@@ -215,12 +218,13 @@ services:
     App\Module\Release\Application\PackageInspector:
         arguments:
             $publicKeyFile: '%emailer.release_public_key_file%'
-            $currentVersion: '%emailer.app_version%'
+            $currentVersion: '%emailer.update_source_version%'
 
     App\Module\Release\Application\ReleaseManager:
         arguments:
             $releasesDirectory: '%emailer.releases_dir%'
-            $currentVersion: '%emailer.app_version%'
+            $currentVersion: '%emailer.update_source_version%'
+            $environment: '%kernel.environment%'
 
     App\Module\Release\Presentation\Cli\CheckReleaseCommand:
         arguments:

@@ -251,6 +251,14 @@ must not replace the `1.0.0` client manual.
    exposure probes, and keep delivery quiesced until every critical finding is
    cleared. A real provider test or DNS change is a separate action.
 
+For Version 1 updates, keep the releases root and every semantic-version tree
+root-owned. Authenticate the target archive with the independently pinned key
+and separately approved verifier hashes before extracting target code or
+installing its systemd unit. The root-controlled target updater reads an exact
+source version from `/etc/emailer/update.env`, verifies it against the current
+pointer, and publishes the new release without granting the `emailer` identity
+any release-write capability.
+
 The Phase 9 rehearsal performs these steps only against disposable synthetic
 services and Mailpit. It does not deploy a client server.
 

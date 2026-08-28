@@ -70,6 +70,12 @@ for supported_source in 0.1.0 0.2.0 0.3.0 0.4.0; do
         --current-version="$supported_source" \
         --expected-version=1.0.0 \
         --expected-source="$source_commit" >/dev/null
+    mkdir "$temporary_root/target-runtime-$supported_source"
+    EMAILER_RUNTIME_DIR="$temporary_root/target-runtime-$supported_source" \
+    EMAILER_RELEASE_PUBLIC_KEY_FILE="$public_key" \
+    EMAILER_UPDATE_SOURCE_VERSION="$supported_source" \
+    php "$project_root/build/artifact/bin/console" emailer:release:inspect \
+        "$temporary_root/first/$candidate" >/dev/null
 done
 
 for suffix in '' .manifest.json .sha256 .spdx.json .sig; do

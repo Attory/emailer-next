@@ -171,12 +171,20 @@ data is accepted.
   when failure occurs after filesystem publication. Durable-journal tests model
   process crash before and after database commit, and prove a concurrent reader
   cannot reconcile while the rotation process owns the maintenance lock.
+  Directory-durability tests require barriers after journal/key namespace
+  changes and prove a failed key-publication barrier restores the old key.
 - Production dependency licenses are parsed from the lock and candidate SPDX
   inspection rejects missing license decisions.
-- Package acceptance covers every declared `0.1.0`, `0.2.0`, `0.3.0`, and
-  `0.4.0` source line, unsupported older sources, immutable clean install,
+- Package acceptance archives the exact accepted `0.1.0`, `0.2.0`, `0.3.0`,
+  and `0.4.0` commits as predecessor fixtures and runs each through the
+  authenticated target updater. It also covers source/current-pointer
+  mismatch, unsupported older sources, immutable clean install,
   deterministic double build, tamper/incompatibility, interrupted update,
   failed health, and restore behavior.
+- A root-run production privilege gate proves root-owned `0555`/`0444`
+  publication, verifies a fresh `emailer` identity cannot make release code
+  writable, and confirms the root updater can read the service-owned key while
+  key mutation remains service-identity-only.
 - Static acceptance checks bind version/schema/tooling, the complete 18-step
   client installation manual, skip navigation, visible two-colour focus,
   target sizing, reduced motion, and the documented browser/human accessibility

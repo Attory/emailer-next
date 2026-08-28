@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Secrets\Infrastructure;
 
+use App\Module\Secrets\Application\Contract\DirectoryDurability;
 use App\Module\Secrets\Application\Contract\MasterKey;
 
 final readonly class FilesystemMasterKey implements MasterKey
@@ -17,6 +18,7 @@ final readonly class FilesystemMasterKey implements MasterKey
         private string $publicDirectory,
         private string $projectDirectory,
         private string $environment,
+        private ?DirectoryDurability $directoryDurability = null,
     ) {
     }
 
@@ -31,6 +33,7 @@ final readonly class FilesystemMasterKey implements MasterKey
 
         $directory = \dirname($keyFile);
         $this->createMissingDirectories($directory);
+        $this->assertWritableKeyDirectory($directory);
         $ancestors = $this->validateAncestorChain($directory, true);
         $temporaryFile = $directory.'/.master-key-'.bin2hex(random_bytes(12)).'.tmp';
         $encoded = sodium_bin2base64(random_bytes(32), SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING)."\n";
@@ -60,6 +63,11 @@ final readonly class FilesystemMasterKey implements MasterKey
             if (!$published && !$this->pathExists($keyFile)) {
                 throw new \RuntimeException('Master key cannot be published safely.');
             }
+            if ($published && !@unlink($temporaryFile)) {
+                @unlink($keyFile);
+                throw new \RuntimeException('Master-key staging cannot be removed safely.');
+            }
+            $this->syncDirectory($directory);
             try {
                 $this->assertSnapshotUnchanged($ancestors);
             } catch (\Throwable $exception) {
@@ -150,6 +158,7 @@ final readonly class FilesystemMasterKey implements MasterKey
         }
         $directory = \dirname($keyFile);
         $this->createMissingDirectories($directory);
+        $this->assertWritableKeyDirectory($directory);
         $ancestors = $this->validateAncestorChain($directory, true);
         $temporaryFile = $directory.'/.master-key-recovery-'.bin2hex(random_bytes(12)).'.tmp';
         $encoded = sodium_bin2base64($key, SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING)."\n";
@@ -179,6 +188,7 @@ final readonly class FilesystemMasterKey implements MasterKey
                 @unlink($keyFile);
                 throw new \RuntimeException('Recovered master key staging cannot be removed safely.');
             }
+            $this->syncDirectory($directory);
             $publishedMetadata = @lstat($keyFile);
             try {
                 $loaded = $this->load();
@@ -219,6 +229,7 @@ final readonly class FilesystemMasterKey implements MasterKey
 
         $keyFile = $this->validatedKeyPath();
         $directory = \dirname($keyFile);
+        $this->assertWritableKeyDirectory($directory);
         $ancestors = $this->validateAncestorChain($directory, true);
         $before = $this->lstat($keyFile);
         if (!$this->isSafeKeyMetadata($before)) {
@@ -261,6 +272,7 @@ final readonly class FilesystemMasterKey implements MasterKey
                 throw new \RuntimeException('Replacement master key cannot be published atomically.');
             }
             $published = true;
+            $this->syncDirectory($directory);
             $this->assertSnapshotUnchanged($ancestors);
             $loaded = $this->load();
             try {
@@ -307,6 +319,7 @@ final readonly class FilesystemMasterKey implements MasterKey
             throw new \RuntimeException('A master-key rotation journal already requires recovery.');
         }
         $directory = \dirname($journal);
+        $this->assertWritableKeyDirectory($directory);
         $ancestors = $this->validateAncestorChain($directory, true);
         $temporary = $directory.'/.master-key-rotation-'.bin2hex(random_bytes(12)).'.tmp';
         $encoded = json_encode([
@@ -343,6 +356,7 @@ final readonly class FilesystemMasterKey implements MasterKey
                 @unlink($journal);
                 throw new \RuntimeException('Master-key rotation journal staging cannot be removed.');
             }
+            $this->syncDirectory($directory);
             $verified = $this->readRotationJournal();
             sodium_memzero($verified['old_key']);
             sodium_memzero($verified['new_key']);
@@ -394,6 +408,7 @@ final readonly class FilesystemMasterKey implements MasterKey
     public function resolveRotation(string $operationId, bool $committed): void
     {
         $journalPath = $this->rotationJournalPath();
+        $this->assertWritableKeyDirectory(\dirname($journalPath));
         $journalMetadata = $this->lstat($journalPath);
         $journal = $this->readRotationJournal();
         try {
@@ -417,6 +432,7 @@ final readonly class FilesystemMasterKey implements MasterKey
             if (!$this->sameObject($journalMetadata, $currentMetadata) || !@unlink($journalPath) || $this->pathExists($journalPath)) {
                 throw new \RuntimeException('Resolved master-key rotation journal cannot be removed safely.');
             }
+            $this->syncDirectory(\dirname($journalPath));
         } finally {
             sodium_memzero($journal['old_key']);
             sodium_memzero($journal['new_key']);
@@ -532,6 +548,7 @@ final readonly class FilesystemMasterKey implements MasterKey
             if (!@rename($temporaryFile, $keyFile)) {
                 throw new \RuntimeException('Master-key rollback cannot be published atomically.');
             }
+            $this->syncDirectory($directory);
             $loaded = $this->load();
             try {
                 if (!hash_equals($key, $loaded)) {
@@ -649,13 +666,13 @@ final readonly class FilesystemMasterKey implements MasterKey
         }
 
         $effectiveUser = $this->effectiveUserId();
-        if (!\in_array($owner, [0, $effectiveUser], true)) {
+        if (!\in_array($owner, [0, $effectiveUser], true) && !(0 === $effectiveUser && $strict)) {
             throw new \RuntimeException('Master-key ancestor ownership is unsafe.');
         }
 
         $permissions = $mode & 0o7777;
         if ($strict) {
-            if ($effectiveUser !== $owner || 0o700 !== ($permissions & 0o777)) {
+            if ((0 !== $effectiveUser && $effectiveUser !== $owner) || 0o700 !== ($permissions & 0o777)) {
                 throw new \RuntimeException('Master-key directory permissions or ownership are unsafe.');
             }
 
@@ -684,12 +701,33 @@ final readonly class FilesystemMasterKey implements MasterKey
     private function isSafeKeyMetadata(array $metadata): bool
     {
         $mode = $metadata['mode'] ?? null;
+        $owner = $metadata['uid'] ?? null;
+        $effectiveUser = $this->effectiveUserId();
+        $parent = @lstat(\dirname($this->validatedKeyPath()));
+        $rootReadingServiceKey = 0 === $effectiveUser
+            && \is_array($parent)
+            && 0o040000 === ($parent['mode'] & self::TYPE_MASK)
+            && 0o700 === ($parent['mode'] & 0o777)
+            && $owner === $parent['uid'];
 
         return \is_int($mode)
             && self::REGULAR_TYPE === ($mode & self::TYPE_MASK)
-            && $this->effectiveUserId() === ($metadata['uid'] ?? null)
+            && ($effectiveUser === $owner || $rootReadingServiceKey)
             && 1 === ($metadata['nlink'] ?? null)
             && 0o600 === ($mode & 0o777);
+    }
+
+    private function assertWritableKeyDirectory(string $directory): void
+    {
+        $metadata = $this->lstat($directory);
+        if (($metadata['uid'] ?? null) !== $this->effectiveUserId()) {
+            throw new \RuntimeException('Master-key mutation requires the service-owned key directory identity.');
+        }
+    }
+
+    private function syncDirectory(string $directory): void
+    {
+        ($this->directoryDurability ?? new PosixDirectoryDurability())->sync($directory);
     }
 
     /**

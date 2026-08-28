@@ -264,9 +264,12 @@ is now a separately controlled maintenance operation:
    documented secret-dependent smoke checks, restart every application process,
    and rerun Doctor before resuming delivery.
 
-The rotation journal remains inside the external mode-`0700` key directory and
-is reconciled automatically against the committed opaque audit marker after a
-process crash or ambiguous commit. A concurrent process is denied key access
+The rotation journal remains inside the external mode-`0700` key directory.
+Every journal/key link, rename, and unlink is followed by an `fsync` of that
+directory before the protocol advances, so namespace ordering survives host
+power loss as well as process interruption. The journal is reconciled
+automatically against the committed opaque audit marker after a process crash
+or ambiguous commit. A concurrent process is denied key access
 while the maintenance lock is held. Any failure keeps delivery stopped. If
 journal reconciliation reports failure, do not retry blindly: preserve the key
 directory, restore from the separately held recovery material only through the
@@ -278,7 +281,9 @@ counts/opaque IDs only.
 
 1. Apply `Version20260817000000` and `Version20260818000000` through the normal
    migration gate. Configure only the actual trusted proxy hops and a strict
-   `TRUSTED_HOSTS` expression for the canonical host. Serve the admin surface
+   `TRUSTED_HOSTS` expression for the canonical host, quoting the entire value
+   in a systemd environment file so literal regex backslashes survive parsing.
+   Serve the admin surface
    over HTTPS; forwarded host values are deliberately ignored. Provision
    the final proxy to replace `X-Forwarded-For` with its directly observed
    client address; never append an inbound value. Provision

@@ -243,6 +243,15 @@ production sending state.
   verified backup, migration, atomic pointer, Doctor, and compatible
   rollback-or-restore behavior.
 
+Phase 13 strengthens TM-23/TM-26 by authenticating target-version code before
+any root service definition is installed, validating the recorded predecessor
+against the actual immutable pointer, and publishing releases recursively as
+root-owned/non-writable. Accepted `0.1.0`–`0.4.0` source fixtures are archived
+from their exact integrated commits and exercised through the target updater.
+Master-key rotation adds containing-directory durability barriers around the
+journal and key namespace transitions so a power loss cannot silently reorder
+the recovery protocol.
+
 ## Phase 9 control status
 
 - TM-21/TM-23 now include current and reachable-history scans, deterministic

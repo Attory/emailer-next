@@ -1,9 +1,10 @@
 # Phase 13 completion report — Version-1 hardening and acceptance
 
-**Status:** Implementation and independent-review repair complete. The first
-exact-head review rejected `0c02725849cafb04d2ed41d78f8ffd8f2778f931`;
-the repaired head requires renewed independent review. Not signed, merged,
-tagged, published, deployed, or installed.
+**Status:** Second independent-review repair in progress. Exact-head reviews
+rejected `0c02725849cafb04d2ed41d78f8ffd8f2778f931` and
+`3fced5dc4ed155314c51eb226b444201a3ed1132`; the bounded repair requires full
+exact-head validation and renewed review. Not signed, merged, tagged,
+published, deployed, or installed.
 
 ## Authority and starting state
 
@@ -51,10 +52,13 @@ Composer, W3C WCAG, and MDN browser-support sources were revalidated on
   verifier plus client install/update manuals.
 - Client deployment uses a service-owned mode-`0700` key/recovery directory and
   a separate root-controlled release plane. Ordinary web/worker/scheduler
-  processes never receive release-write membership; only the root-installed
-  one-shot updater retains effective user `emailer` and receives the bounded
-  `emailer-release` supplementary group. Reviewed worker, scheduler,
-  operations, and update units ship in the signed artifact.
+  processes have no release-write identity. Only independently authenticated,
+  frozen target-version code runs in the root-controlled one-shot updater; it
+  validates the root-only recorded source against the current pointer and
+  publishes recursively root-owned/non-writable releases. Root may read the
+  service-owned key for verified backup, but key mutation remains restricted to
+  the owning service identity. Reviewed worker, scheduler, operations, and
+  update units ship in the signed artifact.
 - UI acceptance adds skip navigation, strong two-colour focus, minimum target
   sizing, and reduced-motion handling. The browser matrix and WCAG 2.2 AA
   target explicitly require human keyboard/assistive-technology acceptance.
@@ -134,6 +138,33 @@ self-inspection/clean installation while `ReleaseManager::update` continues to
 reject same-version updates. A cleared development cache, focused package/update
 suite, and full artifact/candidate gate pass with the explicit predecessor list
 unchanged.
+
+The renewed independent review of exact head
+`3fced5dc4ed155314c51eb226b444201a3ed1132` found four further high issues:
+updater-created releases were still owned by the ordinary application account;
+the supported-source matrix used source strings rather than accepted
+predecessor artifacts and the real `0.1.0` updater rejected the combined
+manifest; journal/key namespace changes lacked containing-directory durability
+barriers; and the update manual installed root configuration from an archive
+before signature verification. It also found systemd parsing weakened the
+documented `TRUSTED_HOSTS` regex and the installer omitted its promised
+pre-lock summary/safe remediation categories.
+
+The current bounded repair makes the target-version runtime—not predecessor
+binaries—the production updater, authenticates it before extraction or root
+installation, requires an exact source/current-pointer match, and runs it under
+the root-controlled unit so releases remain root-owned and immutable. Tests
+archive all four exact accepted predecessor commits. A root-run gate proves a
+fresh `emailer` process cannot chmod published code and proves the constrained
+root read of the service-owned key. Master-key namespace changes now cross
+explicit directory `fsync` barriers with failed-barrier rollback coverage. The
+manual preserves `TRUSTED_HOSTS` backslashes, and the CLI renders a non-secret
+configuration summary plus categorized safe remediation before permanent lock.
+Focused repair evidence passes at 25 tests and 304 assertions. The complete
+working-tree PHPUnit suite passes at 210 tests and 2,775 assertions; artifact,
+candidate, root/service privilege, systemd syntax, formatting, static analysis,
+shell, whitespace, and private-data gates also pass. The final exact committed
+aggregate and new-head CI evidence remain to be recorded.
 
 All executed mail behavior used only the repository's local Mailpit service and
 reserved synthetic domains. No provider, live SMTP, DNS, client server,

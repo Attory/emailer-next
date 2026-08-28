@@ -64,13 +64,13 @@ The examples use a non-login account named `emailer`, group `emailer`, and this
 layout:
 
 ```text
-/srv/emailer/releases/              release-group writable control plane; immutable releases
+/srv/emailer/releases/              root-controlled immutable releases
 /var/lib/emailer/private/           writable application-private state
 /var/lib/emailer/keys/              service-owned mode-0700 key/recovery boundary
 /var/backups/emailer/               encrypted local backups
 /etc/emailer/runtime.env            protected service environment
 /etc/emailer/release-signing.pub     independently pinned release public key
-/var/lib/emailer-candidate/          release-group-readable candidate staging
+/var/lib/emailer-candidate/          root-controlled candidate staging
 ```
 
 Create them with the platform's account-management tools, then enforce the
@@ -78,18 +78,18 @@ equivalent of:
 
 ```sh
 sudo useradd --system --home /var/lib/emailer --shell /usr/sbin/nologin emailer
-sudo groupadd --system emailer-release
-sudo install -d -o root -g emailer-release -m 2775 /srv/emailer /srv/emailer/releases
+sudo install -d -o root -g root -m 0755 /srv/emailer /srv/emailer/releases
 sudo install -d -o emailer -g emailer -m 0700 /var/lib/emailer/private /var/lib/emailer/keys /var/backups/emailer
+sudo install -d -o emailer -g emailer -m 0700 /var/lib/emailer/private/locks
 sudo install -d -o root -g emailer -m 0750 /etc/emailer
-sudo install -d -o root -g emailer-release -m 0750 /var/lib/emailer-candidate
+sudo install -d -o root -g root -m 0755 /var/lib/emailer-candidate
 ```
 
-If the account or group already exists, verify it instead of recreating it. Do
-not add `emailer` to `emailer-release`: normal PHP-FPM, worker, and scheduler
-processes must not receive that supplementary group. A root-owned update unit
-adds it only to the bounded updater process while retaining effective user
-`emailer`, so key ownership checks still hold. The web and worker processes may
+If the account already exists, verify it instead of recreating it. Normal
+PHP-FPM, worker, and scheduler processes run only as `emailer` and receive no
+release-write identity. A root-controlled one-shot updater runs only
+independently authenticated target-version code; it may read the service-owned
+master key but cannot rotate or replace it. The web and worker processes may
 write private/runtime paths, but never source, immutable release files, package
 staging, the pinned public key, or service definitions. The release-signing
 private key must never be copied to this server.
@@ -148,13 +148,12 @@ transfer channel:
 
 Compare the two verifier-script SHA-256 values with the separately approved
 release-candidate record. Then verify the archive checksum and the complete
-signed package contract as effective user `emailer` with only the temporary
-primary group `emailer-release` (do not add a persistent group membership):
+signed package contract as effective user `emailer`:
 
 ```sh
 sudo sha256sum /var/lib/emailer-candidate/verify-package.php /var/lib/emailer-candidate/PackageInspector.php
 sudo sh -c 'cd /var/lib/emailer-candidate && sha256sum -c emailer-next-1.0.0.zip.sha256'
-sudo -u emailer -g emailer-release php /var/lib/emailer-candidate/verify-package.php \
+sudo -u emailer php /var/lib/emailer-candidate/verify-package.php \
   --archive=/var/lib/emailer-candidate/emailer-next-1.0.0.zip \
   --public-key=/etc/emailer/release-signing.pub \
   --current-version=0.1.0 \
@@ -173,9 +172,9 @@ and every file digest before extraction. Stop on any non-zero result.
 Only after Step 6 succeeds:
 
 ```sh
-sudo install -d -o root -g emailer-release -m 0755 /srv/emailer/releases/1.0.0
+sudo install -d -o root -g root -m 0755 /srv/emailer/releases/1.0.0
 sudo unzip -q /var/lib/emailer-candidate/emailer-next-1.0.0.zip -d /srv/emailer/releases/1.0.0
-sudo chown -R root:emailer-release /srv/emailer/releases/1.0.0
+sudo chown -R root:root /srv/emailer/releases/1.0.0
 sudo find /srv/emailer/releases/1.0.0 -type d -exec chmod 0555 {} +
 sudo find /srv/emailer/releases/1.0.0 -type f -exec chmod 0444 {} +
 ```
@@ -205,16 +204,17 @@ APP_SECRET=<AT-LEAST-32-RANDOM-BYTES-ENCODED-SAFELY>
 DEFAULT_URI=https://emailer.client.example
 DATABASE_URL=mysql://emailer:<PERCENT-ENCODED-PASSWORD>@localhost:3306/emailer?serverVersion=10.11.19-MariaDB&charset=utf8mb4
 EMAILER_PRIVATE_DIR=/var/lib/emailer/private
+EMAILER_RUNTIME_DIR=/var/lib/emailer/private
 EMAILER_SECRET_KEY_FILE=/var/lib/emailer/keys/master.key
 EMAILER_RECOVERY_KEY_FILE=/var/lib/emailer/keys/recovery-key.enxkey
 EMAILER_RELEASE_PUBLIC_KEY_FILE=/etc/emailer/release-signing.pub
 EMAILER_RELEASES_DIR=/srv/emailer/releases
 EMAILER_BACKUP_DESTINATION_DIR=
 TRUSTED_PROXIES=127.0.0.1,::1
-TRUSTED_HOSTS=^emailer\.client\.example$
+TRUSTED_HOSTS='^emailer\.client\.example$'
 MAILER_DSN=smtp://127.0.0.1:1025
 MESSENGER_TRANSPORT_DSN=doctrine://default
-LOCK_DSN=flock
+LOCK_DSN=flock:///var/lib/emailer/private/locks
 ```
 
 The setup-only Mailer DSN must point to a private local Mailpit instance. Do not
@@ -222,6 +222,11 @@ put production SMTP credentials in `MAILER_DSN`; production SMTP is stored
 encrypted later through the Owner interface. Replace the host expression and
 trusted-proxy list exactly for the reviewed deployment. Wildcards and broad
 private ranges are prohibited.
+
+The explicit shared lock directory is mandatory. Bare `LOCK_DSN=flock` uses a
+per-service temporary directory when `PrivateTmp=true` and would not coordinate
+maintenance across PHP-FPM, workers, timers, and the updater. The single-quoted
+`TRUSTED_HOSTS` value is also mandatory: systemd removes unquoted backslashes.
 
 Verify metadata without displaying values:
 
@@ -361,8 +366,11 @@ sudo systemctl enable --now emailer-worker.service emailer-scheduler.timer email
 
 Review every copied path and sandbox control before starting it. Run all
 ordinary processes as `emailer`, from `/srv/emailer/releases/current`, with the
-same protected runtime environment. Only the inactive update template grants
-the bounded `emailer-release` supplementary group.
+same protected runtime environment. The inactive update template is root-only,
+loads a separately recorded source version, and executes only a verified,
+root-owned target tree under `/var/lib/emailer-candidate/verified-<version>`.
+Its cache and logs use a dedicated root-only systemd `RuntimeDirectory`; they
+never change ownership of the ordinary service cache.
 
 Required recurring processes are:
 

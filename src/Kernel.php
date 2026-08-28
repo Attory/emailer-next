@@ -40,7 +40,10 @@ final class Kernel extends BaseKernel
 
     private function runtimeRoot(): string
     {
-        $configured = self::environmentValue('EMAILER_PRIVATE_DIR');
+        $configured = self::environmentValue('EMAILER_RUNTIME_DIR');
+        if ('' === $configured) {
+            $configured = self::environmentValue('EMAILER_PRIVATE_DIR');
+        }
 
         return '' !== $configured
             ? rtrim($configured, '/\\')

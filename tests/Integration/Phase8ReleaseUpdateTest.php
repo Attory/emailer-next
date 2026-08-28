@@ -8,10 +8,13 @@ use App\Module\Backup\Application\Contract\BackupOperations;
 use App\Module\Delivery\Application\Contract\InterruptedDeliveryRecovery;
 use App\Module\Release\Application\PackageInspector;
 use App\Module\Release\Application\ReleaseManager;
+use App\Module\Release\Presentation\Cli\UpdateReleaseCommand;
 use App\Shared\MaintenanceOperationLock;
 use App\Tests\Support\Phase4State;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Console\Command\Command;
+use Symfony\Component\Console\Tester\CommandTester;
 use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\Store\FlockStore;
 
@@ -107,8 +110,24 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key = '1'")));
     }
 
+    public function testSupervisedNonInteractiveUpdateRequiresAndBindsExactApprovedTarget(): void
+    {
+        [, $manager, $backups, $archive] = $this->fixture(0);
+        $this->publishPreviousRelease();
+        $missingApproval = new CommandTester(new UpdateReleaseCommand($manager));
+        self::assertSame(Command::FAILURE, $missingApproval->execute(['package' => $archive], ['interactive' => false]));
+        self::assertSame(0, $backups->created);
+
+        $approved = new CommandTester(new UpdateReleaseCommand($manager));
+        self::assertSame(Command::SUCCESS, $approved->execute([
+            'package' => $archive,
+            '--approved-target' => '0.4.0',
+        ], ['interactive' => false]));
+        self::assertSame($this->directory.'/releases/0.4.0', realpath($this->directory.'/releases/current'));
+    }
+
     #[\PHPUnit\Framework\Attributes\DataProvider('supportedVersionOneSources')]
-    public function testVersionOneUpdateSucceedsFromEverySupportedReleaseLine(string $sourceVersion): void
+    public function testVersionOneTargetUpdaterSucceedsFromEveryAcceptedPredecessorArtifact(string $sourceVersion, string $sourceCommit): void
     {
         [$connection, $manager, $backups, $archive] = $this->fixture(
             0,
@@ -118,7 +137,7 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
             minimumSchema: '20260824010000',
             targetSchema: '20260828000000',
         );
-        $this->publishPreviousRelease($sourceVersion);
+        $this->publishAcceptedPredecessorRelease($sourceVersion, $sourceCommit);
 
         $manager->update($archive);
 
@@ -128,13 +147,36 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key = '1'")));
     }
 
-    /** @return iterable<string, array{string}> */
+    public function testRecordedUpdateSourceMustMatchTheActualCurrentPointer(): void
+    {
+        [$connection, $manager, $backups, $archive] = $this->fixture(
+            0,
+            sourceVersion: '0.1.0',
+            targetVersion: '1.0.0',
+            minimumSourceVersion: '0.1.0',
+            minimumSchema: '20260824010000',
+            targetSchema: '20260828000000',
+        );
+        $this->publishPreviousRelease('0.2.0');
+
+        try {
+            $manager->update($archive);
+            self::fail('A recorded source different from the current pointer was accepted.');
+        } catch (\RuntimeException $exception) {
+            self::assertStringContainsString('recorded update source', strtolower($exception->getMessage()));
+        }
+
+        self::assertSame(0, $backups->created);
+        self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key = '1'")));
+    }
+
+    /** @return iterable<string, array{string, string}> */
     public static function supportedVersionOneSources(): iterable
     {
-        yield '0.1 line' => ['0.1.0'];
-        yield '0.2 line' => ['0.2.0'];
-        yield '0.3 line' => ['0.3.0'];
-        yield '0.4 line' => ['0.4.0'];
+        yield 'accepted 0.1.0' => ['0.1.0', '7d08cc6e20042fc448657fd87ea6722d91c60e7c'];
+        yield 'accepted 0.2.0' => ['0.2.0', 'af0d994d32e47d49df6654d6000c42891f8804f2'];
+        yield 'accepted 0.3.0' => ['0.3.0', 'e1756ae25b391ac9c8d4fd1c2b60e7c25cc9e13a'];
+        yield 'accepted 0.4.0' => ['0.4.0', '39c8eeccea9866215ce231a08d0e32df9b341199'];
     }
 
     /** @return array{Connection, ReleaseManager, RecordingBackupOperations, string, PackageInspector, LockFactory} */
@@ -166,6 +208,34 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         }
         @unlink($this->directory.'/releases/current');
         symlink($previous, $this->directory.'/releases/current');
+
+        return $previous;
+    }
+
+    private function publishAcceptedPredecessorRelease(string $version, string $commit): string
+    {
+        $archive = $this->directory.'/accepted-'.$version.'.zip';
+        $process = proc_open(
+            ['git', 'archive', '--format=zip', '--output='.$archive, $commit],
+            [['file', '/dev/null', 'r'], ['file', '/dev/null', 'w'], ['file', '/dev/null', 'w']],
+            $pipes,
+            \dirname(__DIR__, 2),
+        );
+        self::assertIsResource($process, 'Accepted predecessor archive process could not start.');
+        self::assertSame(0, proc_close($process), 'Accepted predecessor commit could not be archived.');
+
+        $previous = $this->directory.'/releases/'.$version;
+        self::assertTrue(mkdir($previous, 0o755, true));
+        $zip = new \ZipArchive();
+        self::assertTrue($zip->open($archive));
+        self::assertTrue($zip->extractTo($previous));
+        $zip->close();
+        $services = file_get_contents($previous.'/config/services.yaml');
+        self::assertIsString($services);
+        self::assertStringContainsString("emailer.app_version: '".$version."'", $services);
+
+        @unlink($this->directory.'/releases/current');
+        self::assertTrue(symlink($previous, $this->directory.'/releases/current'));
 
         return $previous;
     }

@@ -11,6 +11,13 @@ therefore takes and verifies a pre-update backup; any failed path after schema
 work restores that backup before reinstating the old immutable pointer. Follow
 [CLIENT-UPDATE-1.0.0.md](CLIENT-UPDATE-1.0.0.md).
 
+The `1.0.0` update is executed by the independently verified, root-owned target
+tree rather than any predecessor's updater. `/etc/emailer/update.env` records
+the exact source version under root-only ownership, and the target runtime
+requires it to match the basename resolved by the current pointer. This closes
+the contract gap in older binaries while preserving exact signed-source
+allowlisting.
+
 The `0.4.0` target schema is `Version20260828000000`. The package declares
 minimum source `0.3.0` and minimum schema `20260827000000`. The new operational
 tables and evidence columns are forward-only, so failed updates restore the
@@ -64,10 +71,13 @@ this phase.
 1. Announce/enter maintenance mode and stop new campaign queueing.
 2. Gracefully drain workers; interrupted claims are recovered immediately after
    the updater closes new claims, before it waits for a zero active count.
-3. Verify manifest, checksum, signature, version compatibility, ownership,
-   paths, and free space before extracting into the releases area.
+3. Verify the bootstrap-verifier hashes against the independently approved
+   candidate record, then verify manifest, checksum, signature, exact source,
+   ownership, paths, and free space before extracting or installing root
+   configuration.
 4. Create/verify a pre-upgrade backup.
-5. Install into a new immutable release directory.
+5. Use the authenticated target updater to install a recursively root-owned,
+   non-writable release directory.
 6. Run reviewed maintenance-mode migrations.
 7. Switch the release pointer and run the maintenance-aware Doctor while
    delivery remains quiesced.
@@ -85,8 +95,10 @@ metadata.
 Use `emailer:release:inspect <package>` for non-mutating verification and
 `emailer:release:install <package>` to populate a new immutable directory
 without switching. Interactive `emailer:release:update <package>` runs the
-verified backup/migration/switch/maintenance-Doctor flow and intentionally
-leaves delivery quiesced. Restart `emailer-worker.service` and
+verified backup/migration/switch/maintenance-Doctor flow. The production
+one-shot unit runs the same target command non-interactively only with an exact
+`--approved-target`, after the package and target tree have been authenticated,
+and intentionally leaves delivery quiesced. Restart `emailer-worker.service` and
 `emailer-scheduler.service`, then run `emailer:delivery:resume` to perform the
 final fail-closed readiness check. `emailer:release:check` emits only redacted
 version, schema, and pointer-presence evidence. No HTTP route accepts a package

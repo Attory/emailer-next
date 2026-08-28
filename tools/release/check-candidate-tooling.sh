@@ -46,6 +46,12 @@ for supported_source in 0.1.0 0.2.0 0.3.0 0.4.0; do
         --current-version="$supported_source" \
         --expected-version=1.0.0 \
         --expected-source="$source_commit" >/dev/null
+    mkdir "$temporary_root/target-runtime-$supported_source"
+    EMAILER_RUNTIME_DIR="$temporary_root/target-runtime-$supported_source" \
+    EMAILER_RELEASE_PUBLIC_KEY_FILE="$temporary_root/release.pub" \
+    EMAILER_UPDATE_SOURCE_VERSION="$supported_source" \
+    php "$project_root/build/artifact/bin/console" emailer:release:inspect \
+        "$temporary_root/first/emailer-next-1.0.0.zip" >/dev/null
 done
 
 EMAILER_RELEASE_PUBLIC_KEY_FILE="$temporary_root/release.pub" \

@@ -118,6 +118,17 @@ verified restore. Phase 9 turns that mechanism into the reproducible signed
 operator-controlled signing custody, clean-install/update rehearsal, and no
 publication or deployment side effect.
 
+Phase 13's combined release-train update never delegates compatibility policy
+to an older predecessor binary. The operator authenticates the `1.0.0` package
+before extraction or root configuration, freezes a root-owned target-code
+tree, records the exact source version in a root-only environment file, and
+runs that target updater through a root-controlled one-shot unit. The updater
+requires the recorded source to equal the basename of the current immutable
+pointer, then publishes a recursively root-owned, non-writable release.
+All processes use the explicit shared flock path under application-private
+storage; systemd private temporary directories never partition the maintenance
+lock.
+
 Template assets move to persistent private storage outside immutable release
 directories and are exposed only through the exact random-name public asset
 route; updates therefore never make mutable data part of a release tree.
@@ -274,8 +285,10 @@ current-release pointer selects the active code. Client configuration, the
 external master key, private/writable state, and backups remain outside every
 release. A deterministic manifest, checksum, SPDX SBOM, and detached Ed25519
 signature bind package identity and compatibility. Only an explicit operator
-CLI may verify, quiesce, back up, migrate, switch, and health-check an update;
-there is no web or unattended update path. Phase 1 tests the artifact boundary,
+CLI may verify, quiesce, back up, migrate, switch, and health-check an update.
+Production publication uses authenticated target-version code under a
+root-controlled one-shot service; ordinary web/worker identities cannot change
+release ownership or modes. There is no web or unattended update path. Phase 1 tests the artifact boundary,
 Phase 8 implements this topology, and Phase 9 rehearses the first MVP package.
 Deployment, publishing, and rollback remain explicit operator actions.
 
