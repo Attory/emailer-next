@@ -245,12 +245,16 @@ production sending state.
 
 Phase 13 strengthens TM-23/TM-26 by authenticating target-version code before
 any root service definition is installed, validating the recorded predecessor
-against the actual immutable pointer, and publishing releases recursively as
-root-owned/non-writable. Accepted `0.1.0`–`0.4.0` source fixtures are archived
-from their exact integrated commits and exercised through the target updater.
-Master-key rotation adds containing-directory durability barriers around the
-journal and key namespace transitions so a power loss cannot silently reorder
-the recovery protocol.
+against the actual immutable pointer, verifying the retained predecessor package
+under the pinned key, matching the complete installed file tree to its signed
+manifest before mutation, and publishing releases recursively as
+root-owned/non-writable. Accepted `0.1.0`–`0.4.0` integrated source trees are
+built into runtime artifacts, signed with a disposable test key, installed, and
+consumed through the target updater; they are not represented as externally held
+operator outputs. Master-key content writes require file durability before
+publication, and containing-directory durability barriers order every journal
+and key namespace transition so a power loss cannot silently reorder the
+recovery protocol.
 
 ## Phase 9 control status
 

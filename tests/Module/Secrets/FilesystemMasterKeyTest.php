@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Tests\Module\Secrets;
 
 use App\Module\Secrets\Application\Contract\DirectoryDurability;
+use App\Module\Secrets\Application\Contract\FileDurability;
 use App\Module\Secrets\Infrastructure\FilesystemMasterKey;
 use PHPUnit\Framework\TestCase;
 
@@ -39,6 +40,54 @@ final class FilesystemMasterKeyTest extends TestCase
         $metadata = stat($this->root.'/external/secrets/master.key');
         self::assertIsArray($metadata);
         self::assertSame(1, $metadata['nlink']);
+    }
+
+    public function testCreateAndRecoveryCrossFileDurabilityBarriersBeforePublication(): void
+    {
+        $durability = new RecordingFileDurability();
+        $provider = $this->provider(fileDurability: $durability);
+        $provider->create();
+        self::assertSame(1, $durability->calls);
+
+        self::assertTrue(unlink($this->root.'/external/secrets/master.key'));
+        $recovered = random_bytes(32);
+        try {
+            $provider->recover($recovered);
+        } finally {
+            sodium_memzero($recovered);
+        }
+        self::assertSame(2, $durability->calls);
+    }
+
+    public function testFailedCreateFileBarrierPublishesNoKey(): void
+    {
+        $provider = $this->provider(fileDurability: new RecordingFileDurability(1));
+        try {
+            $provider->create();
+            self::fail('A failed master-key file durability barrier was accepted.');
+        } catch (\RuntimeException $exception) {
+            self::assertStringContainsString('durability', strtolower($exception->getMessage()));
+        }
+        self::assertFileDoesNotExist($this->root.'/external/secrets/master.key');
+        self::assertSame([], glob($this->root.'/external/secrets/.master-key-*.tmp'));
+    }
+
+    public function testFailedRecoveryFileBarrierPublishesNoKey(): void
+    {
+        $provider = $this->provider(fileDurability: new RecordingFileDurability(1));
+        $recovered = random_bytes(32);
+        try {
+            try {
+                $provider->recover($recovered);
+                self::fail('A failed recovered-key file durability barrier was accepted.');
+            } catch (\RuntimeException $exception) {
+                self::assertStringContainsString('durability', strtolower($exception->getMessage()));
+            }
+        } finally {
+            sodium_memzero($recovered);
+        }
+        self::assertFileDoesNotExist($this->root.'/external/secrets/master.key');
+        self::assertSame([], glob($this->root.'/external/secrets/.master-key-recovery-*.tmp'));
     }
 
     public function testOmittedRelativeReleaseAndPublicConfigurationFailClosed(): void
@@ -195,7 +244,7 @@ final class FilesystemMasterKeyTest extends TestCase
         self::assertSame(3, $durability->calls);
     }
 
-    private function provider(?DirectoryDurability $durability = null): FilesystemMasterKey
+    private function provider(?DirectoryDurability $durability = null, ?FileDurability $fileDurability = null): FilesystemMasterKey
     {
         return new FilesystemMasterKey(
             $this->root.'/external/secrets/master.key',
@@ -203,6 +252,7 @@ final class FilesystemMasterKeyTest extends TestCase
             $this->root.'/release',
             'prod',
             $durability,
+            $fileDurability,
         );
     }
 
@@ -265,6 +315,23 @@ final class RecordingDirectoryDurability implements DirectoryDurability
         $this->directories[] = $directory;
         if ($this->failOnCall === $this->calls) {
             throw new \RuntimeException('Synthetic directory durability barrier failed.');
+        }
+    }
+}
+
+final class RecordingFileDurability implements FileDurability
+{
+    public int $calls = 0;
+
+    public function __construct(private readonly ?int $failOnCall = null)
+    {
+    }
+
+    public function sync(mixed $handle): void
+    {
+        ++$this->calls;
+        if ($this->failOnCall === $this->calls) {
+            throw new \RuntimeException('Synthetic file durability barrier failed.');
         }
     }
 }

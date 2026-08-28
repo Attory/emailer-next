@@ -25,6 +25,7 @@ final class UpdateReleaseCommand extends Command
     protected function configure(): void
     {
         $this->addArgument('package', InputArgument::REQUIRED);
+        $this->addOption('source-package', null, InputOption::VALUE_REQUIRED, 'Signed package for the exact installed predecessor release.');
         $this->addOption('approved-target', null, InputOption::VALUE_REQUIRED, 'Exact separately approved target version for a non-interactive supervised update.');
     }
 
@@ -33,6 +34,12 @@ final class UpdateReleaseCommand extends Command
         $package = $input->getArgument('package');
         if (!\is_string($package)) {
             return Command::INVALID;
+        }
+        $sourcePackage = $input->getOption('source-package');
+        if (!\is_string($sourcePackage) || '' === trim($sourcePackage)) {
+            $output->writeln('<error>Update requires the signed package for the installed predecessor.</error>');
+
+            return Command::FAILURE;
         }
         $approvedTarget = $input->getOption('approved-target');
         if ($input->isInteractive()) {
@@ -53,7 +60,7 @@ final class UpdateReleaseCommand extends Command
                 return Command::FAILURE;
             }
         }
-        $this->releases->update($package);
+        $this->releases->update($package, $sourcePackage);
         $output->writeln('<info>Update completed and passed maintenance Doctor. Delivery remains quiesced; restart supervised worker/scheduler services, then run emailer:delivery:resume.</info>');
 
         return Command::SUCCESS;

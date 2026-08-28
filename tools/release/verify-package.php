@@ -14,7 +14,7 @@ if (is_file($autoload)) {
     exit(2);
 }
 
-$options = getopt('', ['archive:', 'public-key:', 'current-version:', 'expected-version:', 'expected-source:']);
+$options = getopt('', ['archive:', 'public-key:', 'current-version:', 'expected-version:', 'expected-source:', 'installed-source']);
 foreach (['archive', 'public-key', 'current-version', 'expected-version', 'expected-source'] as $required) {
     if (!is_string($options[$required] ?? null) || '' === $options[$required]) {
         fwrite(STDERR, "Missing required verification option.\n");
@@ -23,7 +23,10 @@ foreach (['archive', 'public-key', 'current-version', 'expected-version', 'expec
 }
 
 try {
-    $manifest = (new PackageInspector($options['public-key'], $options['current-version']))->inspect($options['archive']);
+    $inspector = new PackageInspector($options['public-key'], $options['current-version']);
+    $manifest = array_key_exists('installed-source', $options)
+        ? $inspector->inspectInstalledSource($options['archive'])
+        : $inspector->inspect($options['archive']);
     if ($options['expected-version'] !== ($manifest['version'] ?? null) || $options['expected-source'] !== ($manifest['source_commit'] ?? null)) {
         throw new RuntimeException('Verified package identity differs from the expected release.');
     }

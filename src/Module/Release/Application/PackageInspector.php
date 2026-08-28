@@ -13,6 +13,18 @@ final readonly class PackageInspector
     /** @return array<string, mixed> */
     public function inspect(string $archive): array
     {
+        return $this->inspectPackage($archive, false);
+    }
+
+    /** @return array<string, mixed> */
+    public function inspectInstalledSource(string $archive): array
+    {
+        return $this->inspectPackage($archive, true);
+    }
+
+    /** @return array<string, mixed> */
+    private function inspectPackage(string $archive, bool $installedSource): array
+    {
         $this->assertRegularFile($archive);
         $manifestFile = $archive.'.manifest.json';
         $checksumFile = $archive.'.sha256';
@@ -44,18 +56,32 @@ final readonly class PackageInspector
         $identifier = '(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)';
         $semanticVersion = '/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-'.$identifier.'(?:\.'.$identifier.')*)?$/D';
         $supportedSources = $manifest['supported_source_versions'] ?? null;
-        if (!\is_array($supportedSources) || [] === $supportedSources || false === array_is_list($supportedSources)) {
+        $legacyInstalledSource = $installedSource && null === $supportedSources;
+        if ((!$installedSource && (!\is_array($supportedSources) || [] === $supportedSources || false === array_is_list($supportedSources)))
+            || ($installedSource && null !== $supportedSources && (!\is_array($supportedSources) || [] === $supportedSources || false === array_is_list($supportedSources)))
+        ) {
             throw new \RuntimeException('Release source compatibility check failed.');
         }
         $supportedSourceVersions = [];
-        foreach ($supportedSources as $supportedSource) {
+        foreach (\is_array($supportedSources) ? $supportedSources : [] as $supportedSource) {
             if (!\is_string($supportedSource) || 1 !== preg_match($semanticVersion, $supportedSource)) {
                 throw new \RuntimeException('Release source compatibility check failed.');
             }
             $supportedSourceVersions[] = $supportedSource;
         }
         $selfInspection = hash_equals($manifest['version'], $this->currentVersion);
-        if (1 !== preg_match($semanticVersion, $manifest['version']) || 1 !== preg_match($semanticVersion, $manifest['minimum_source_version']) || 1 !== preg_match($semanticVersion, $this->currentVersion) || \count($supportedSourceVersions) !== \count(array_unique($supportedSourceVersions, SORT_STRING)) || !\in_array($manifest['minimum_source_version'], $supportedSourceVersions, true) || (!$selfInspection && !\in_array($this->currentVersion, $supportedSourceVersions, true)) || 1 !== preg_match('/^[a-f0-9]{40}$/', $manifest['source_commit']) || version_compare($manifest['minimum_source_version'], $this->currentVersion, '>') || basename($archive) !== 'emailer-next-'.$manifest['version'].'.zip') {
+        if (1 !== preg_match($semanticVersion, $manifest['version'])
+            || 1 !== preg_match($semanticVersion, $manifest['minimum_source_version'])
+            || 1 !== preg_match($semanticVersion, $this->currentVersion)
+            || \count($supportedSourceVersions) !== \count(array_unique($supportedSourceVersions, SORT_STRING))
+            || (!$installedSource && !\in_array($manifest['minimum_source_version'], $supportedSourceVersions, true))
+            || ($installedSource && !$legacyInstalledSource && !\in_array($manifest['minimum_source_version'], $supportedSourceVersions, true))
+            || (!$installedSource && !$selfInspection && !\in_array($this->currentVersion, $supportedSourceVersions, true))
+            || ($installedSource && !$selfInspection)
+            || 1 !== preg_match('/^[a-f0-9]{40}$/', $manifest['source_commit'])
+            || version_compare($manifest['minimum_source_version'], $this->currentVersion, '>')
+            || basename($archive) !== 'emailer-next-'.$manifest['version'].'.zip'
+        ) {
             throw new \RuntimeException('Release source compatibility check failed.');
         }
         if (1 !== preg_match('/^[0-9]{14}$/', $manifest['minimum_schema_version']) || 1 !== preg_match('/^[0-9]{14}$/', $manifest['schema_version']) || $manifest['schema_version'] < $manifest['minimum_schema_version']) {
@@ -74,14 +100,18 @@ final readonly class PackageInspector
         if (!\is_array($platform) || !\is_string($platform['php_min'] ?? null) || !\is_string($platform['php_max_exclusive'] ?? null) || !\is_array($mariaDb) || ['10.11', '11.8'] !== array_values($mariaDb) || version_compare(PHP_VERSION, $platform['php_min'], '<') || !version_compare(PHP_VERSION, $platform['php_max_exclusive'], '<')) {
             throw new \RuntimeException('Release PHP compatibility check failed.');
         }
-        $this->assertSbom($sbom, $manifest);
+        $this->assertSbom($sbom, $manifest, $legacyInstalledSource);
         $archiveHash = hash_file('sha256', $archive);
         $expectedLine = $archiveHash.'  '.basename($archive)."\n";
         if (false === $archiveHash || !hash_equals($expectedLine, $checksumBytes)) {
             throw new \RuntimeException('Release checksum verification failed.');
         }
-        $signature = sodium_base642bin($signatureBytes, SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING, '');
-        $publicKey = sodium_base642bin($publicKeyBytes, SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING, '');
+        try {
+            $signature = sodium_base642bin($signatureBytes, SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING, '');
+            $publicKey = sodium_base642bin($publicKeyBytes, SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING, '');
+        } catch (\SodiumException $exception) {
+            throw new \RuntimeException('Release signature encoding is invalid.', previous: $exception);
+        }
         $signed = $manifestBytes.$checksumBytes.hash('sha256', $sbomBytes);
         if (SODIUM_CRYPTO_SIGN_PUBLICKEYBYTES !== \strlen($publicKey) || SODIUM_CRYPTO_SIGN_BYTES !== \strlen($signature) || !sodium_crypto_sign_verify_detached($signature, $signed, $publicKey)) {
             throw new \RuntimeException('Release signature verification failed.');
@@ -163,7 +193,7 @@ final readonly class PackageInspector
     /** @param array<mixed> $sbom
      * @param array<string, mixed> $manifest
      */
-    private function assertSbom(array $sbom, array $manifest): void
+    private function assertSbom(array $sbom, array $manifest, bool $allowLegacyLicenseDecision): void
     {
         $version = $manifest['version'] ?? null;
         $source = $manifest['source_commit'] ?? null;
@@ -172,7 +202,7 @@ final readonly class PackageInspector
         }
         $seen = [];
         foreach ($sbom['packages'] as $package) {
-            if (!\is_array($package) || !\is_string($package['SPDXID'] ?? null) || '' === trim($package['SPDXID']) || !\is_string($package['name'] ?? null) || '' === trim($package['name']) || !\is_string($package['versionInfo'] ?? null) || '' === trim($package['versionInfo']) || !\is_string($package['licenseDeclared'] ?? null) || '' === trim($package['licenseDeclared']) || 'NOASSERTION' === $package['licenseDeclared'] || isset($seen[$package['SPDXID']])) {
+            if (!\is_array($package) || !\is_string($package['SPDXID'] ?? null) || '' === trim($package['SPDXID']) || !\is_string($package['name'] ?? null) || '' === trim($package['name']) || !\is_string($package['versionInfo'] ?? null) || '' === trim($package['versionInfo']) || !\is_string($package['licenseDeclared'] ?? null) || '' === trim($package['licenseDeclared']) || (!$allowLegacyLicenseDecision && 'NOASSERTION' === $package['licenseDeclared']) || isset($seen[$package['SPDXID']])) {
                 throw new \RuntimeException('Release SBOM package metadata is invalid.');
             }
             $seen[$package['SPDXID']] = true;

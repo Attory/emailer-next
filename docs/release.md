@@ -65,7 +65,10 @@ update window are fixed in [release-signing.md](release-signing.md).
 `tools/release/build-1.0.0-candidate.sh` performs two deterministic builds for
 schema `20260828000000`, declares the supported floor as source `0.1.0` and
 schema `20260824010000`, explicitly accepts only `0.1.0`, `0.2.0`, `0.3.0`,
-and `0.4.0`, and exercises inspection/immutable installation from each. It bundles
+and `0.4.0`, and exercises target-package inspection under each declared source
+identity. The integration gate separately builds, signs with a disposable key,
+installs, and consumes manifest-bound runtime artifacts from each exact accepted
+predecessor source tree. It bundles
 the standalone verifier plus [CLIENT-INSTALL-1.0.0.md](CLIENT-INSTALL-1.0.0.md)
 and [CLIENT-UPDATE-1.0.0.md](CLIENT-UPDATE-1.0.0.md). The operator key and
 candidate outputs remain outside the repository.
@@ -77,8 +80,10 @@ checks the standalone verifier/inspector hashes against the independently
 approved candidate record and verifies the signed archive with the pinned key.
 The frozen target tree then runs in the root-controlled one-shot updater with a
 root-only source-version record; it refuses to proceed unless that value equals
-the actual current release-pointer basename. Publication is recursively
-root-owned and non-writable.
+the actual current release-pointer basename. It also verifies the retained
+predecessor package and sidecars under the pinned key and requires the installed
+tree to match that signed manifest. Publication is recursively root-owned and
+non-writable.
 
 The Phase 12 `build-0.4.0-candidate.sh` remains available for reproducibility;
 it is not the Version-1 builder.
@@ -110,9 +115,10 @@ immutable release directories.
    signature.
 4. Verify the artifact independently against its manifest, digest, signature,
    and pinned trust key.
-5. Rehearse a clean install and every declared source path using exact accepted
-   predecessor artifacts and the same authenticated target updater used in
-   production.
+5. Rehearse a clean install and every declared source path using retained signed
+   predecessor packages. CI builds equivalent manifest-bound fixtures from the
+   exact accepted integrated trees with a disposable key; candidate acceptance
+   must not mislabel those fixtures as historical operator-signed outputs.
 6. Exercise incompatibility, tamper, interruption, failed-health-check, and
    rollback-or-restore behavior.
 7. Produce a release-candidate report with versions, migrations, known

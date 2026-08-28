@@ -93,10 +93,13 @@ network-isolation, artifact, secret, and private-data gates are unchanged.
 
 Phase 13 adds fail-closed production-license allowlisting, SPDX
 `NOASSERTION` rejection, exact `1.0.0` source/platform/schema checks, direct
-supported-update coverage for `0.1.0` through `0.4.0`, full interactive CLI
+supported-update coverage for `0.1.0` through `0.4.0` using disposable-key
+signed runtime artifacts built from the exact accepted integrated trees,
+mandatory predecessor-package/installed-manifest matching, full interactive CLI
 installation with plaintext-output assertions, master-key success/quiescence/
 post-publication compensation, concurrent-reader refusal, and pre/post-commit
-crash-reconciliation tests, browser/accessibility policy checks, the
+crash-reconciliation plus file/directory durability tests,
+browser/accessibility policy checks, the
 client manual contract, and deterministic Version-1 candidate tooling. Manual
 keyboard and assistive-technology acceptance and operator signing remain
 separate recorded gates because CI cannot truthfully perform them.

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Module\Secrets\Infrastructure;
 
 use App\Module\Secrets\Application\Contract\DirectoryDurability;
+use App\Module\Secrets\Application\Contract\FileDurability;
 use App\Module\Secrets\Application\Contract\MasterKey;
 
 final readonly class FilesystemMasterKey implements MasterKey
@@ -19,6 +20,7 @@ final readonly class FilesystemMasterKey implements MasterKey
         private string $projectDirectory,
         private string $environment,
         private ?DirectoryDurability $directoryDurability = null,
+        private ?FileDurability $fileDurability = null,
     ) {
     }
 
@@ -49,6 +51,7 @@ final readonly class FilesystemMasterKey implements MasterKey
                 if (!@chmod($temporaryFile, 0o600) || \strlen($encoded) !== fwrite($handle, $encoded) || !fflush($handle)) {
                     throw new \RuntimeException('Master key cannot be written safely.');
                 }
+                $this->syncFile($handle);
                 $metadata = fstat($handle);
                 if (false === $metadata || !$this->isSafeKeyMetadata($metadata)) {
                     throw new \RuntimeException('Master key has unsafe filesystem metadata.');
@@ -171,6 +174,7 @@ final readonly class FilesystemMasterKey implements MasterKey
                 if (!@chmod($temporaryFile, 0o600) || \strlen($encoded) !== fwrite($handle, $encoded) || !fflush($handle)) {
                     throw new \RuntimeException('Recovered master key cannot be written safely.');
                 }
+                $this->syncFile($handle);
             } finally {
                 fclose($handle);
             }
@@ -248,10 +252,10 @@ final readonly class FilesystemMasterKey implements MasterKey
                 if (!@chmod($temporaryFile, 0o600)
                     || \strlen($encoded) !== fwrite($handle, $encoded)
                     || !fflush($handle)
-                    || (\function_exists('fsync') && !fsync($handle))
                 ) {
                     throw new \RuntimeException('Replacement master key cannot be written safely.');
                 }
+                $this->syncFile($handle);
                 $metadata = fstat($handle);
                 if (false === $metadata || !$this->isSafeKeyMetadata($metadata)) {
                     throw new \RuntimeException('Replacement master key has unsafe filesystem metadata.');
@@ -337,10 +341,10 @@ final readonly class FilesystemMasterKey implements MasterKey
                 if (!@chmod($temporary, 0o600)
                     || \strlen($encoded) !== fwrite($handle, $encoded)
                     || !fflush($handle)
-                    || (\function_exists('fsync') && !fsync($handle))
                 ) {
                     throw new \RuntimeException('Master-key rotation journal cannot be persisted.');
                 }
+                $this->syncFile($handle);
                 $metadata = fstat($handle);
                 if (false === $metadata || !$this->isSafeKeyMetadata($metadata)) {
                     throw new \RuntimeException('Master-key rotation journal metadata is unsafe.');
@@ -533,10 +537,10 @@ final readonly class FilesystemMasterKey implements MasterKey
                 if (!@chmod($temporaryFile, 0o600)
                     || \strlen($encoded) !== fwrite($handle, $encoded)
                     || !fflush($handle)
-                    || (\function_exists('fsync') && !fsync($handle))
                 ) {
                     throw new \RuntimeException('Master-key rollback cannot be written safely.');
                 }
+                $this->syncFile($handle);
                 $metadata = fstat($handle);
                 if (false === $metadata || !$this->isSafeKeyMetadata($metadata)) {
                     throw new \RuntimeException('Master-key rollback has unsafe filesystem metadata.');
@@ -728,6 +732,12 @@ final readonly class FilesystemMasterKey implements MasterKey
     private function syncDirectory(string $directory): void
     {
         ($this->directoryDurability ?? new PosixDirectoryDurability())->sync($directory);
+    }
+
+    /** @param resource $handle */
+    private function syncFile(mixed $handle): void
+    {
+        ($this->fileDurability ?? new PosixFileDurability())->sync($handle);
     }
 
     /**

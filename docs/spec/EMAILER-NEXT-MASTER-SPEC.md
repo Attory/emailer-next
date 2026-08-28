@@ -1129,6 +1129,9 @@ For hosting without process supervision:
   maintenance lock, worker quiescence, encrypted verified backup, package
   verification, forward migration, atomic current-release switch, and health
   checks.
+- Authenticate the exact retained predecessor package and require the installed
+  immutable file set to match its signed manifest before any update mutation;
+  a version record or release-directory name alone is insufficient evidence.
 - Permit a code-pointer rollback only when the package manifest proves schema
   compatibility; otherwise restore the verified backup or apply a reviewed
   forward fix.

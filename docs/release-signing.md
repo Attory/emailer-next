@@ -18,6 +18,13 @@ Before installing a package, the client operator obtains the Ed25519 public key 
 
 The candidate output includes a convenience copy of the already verified public key for transfer, but trust still comes from the independent fingerprint comparison. Package inspection must succeed before extraction, migration, or pointer switching.
 
+For a `1.0.0` update, the operator also retains the exact predecessor archive,
+manifest, checksum, SPDX SBOM, detached signature, and accepted candidate record.
+The authenticated target runtime verifies that evidence under the pinned key and
+matches the installed file tree before mutation. A source checkout, package
+filename, version record, or reconstructed sidecar cannot replace the original
+signed evidence.
+
 ## Rotation and loss
 
 Version 0.1 pins one public key at a time and has no unattended rotation protocol. Planned rotation requires:

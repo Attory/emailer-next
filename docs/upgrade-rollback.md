@@ -14,9 +14,11 @@ work restores that backup before reinstating the old immutable pointer. Follow
 The `1.0.0` update is executed by the independently verified, root-owned target
 tree rather than any predecessor's updater. `/etc/emailer/update.env` records
 the exact source version under root-only ownership, and the target runtime
-requires it to match the basename resolved by the current pointer. This closes
-the contract gap in older binaries while preserving exact signed-source
-allowlisting.
+requires it to match the basename resolved by the current pointer. The retained
+signed predecessor package and all sidecars are a second mandatory input; the
+target verifies their historical signed contract and rejects any installed file
+that is missing, extra, linked, or different from the manifest. This closes the
+contract gap in older binaries while preserving exact signed-source allowlisting.
 
 The `0.4.0` target schema is `Version20260828000000`. The package declares
 minimum source `0.3.0` and minimum schema `20260827000000`. The new operational
@@ -72,8 +74,9 @@ this phase.
 2. Gracefully drain workers; interrupted claims are recovered immediately after
    the updater closes new claims, before it waits for a zero active count.
 3. Verify the bootstrap-verifier hashes against the independently approved
-   candidate record, then verify manifest, checksum, signature, exact source,
-   ownership, paths, and free space before extracting or installing root
+   candidate record, then verify both predecessor and target manifests,
+   checksums, signatures, exact source identities, ownership, installed-tree
+   contents, paths, and free space before extracting or installing root
    configuration.
 4. Create/verify a pre-upgrade backup.
 5. Use the authenticated target updater to install a recursively root-owned,

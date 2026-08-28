@@ -27,7 +27,7 @@ candidate, signing, and merge approval for the earlier SHA.
 | Production secret replacement remains authenticated and Owner-gated | PASS | Existing HTTPS mail configuration workflow; generic CLI replacement stays fail closed |
 | Master-key rotation requires Owner password/MFA and current recovery-package authentication | PASS | Existing throttled re-authentication service, recovery-package verifier, and CLI command tests |
 | Rotation requires quiescence, verified backup, maintenance/row locks | PASS | Application service and MariaDB integration tests |
-| Complete re-encryption, restrictive key swap, redacted audit, crash/power-loss-safe resolution | PASS LOCAL | Success, expected-key, active-delivery refusal, concurrent-reader refusal, pre/post-commit crash, directory-barrier, and failed-barrier rollback tests |
+| Complete re-encryption, restrictive key swap, redacted audit, crash/power-loss-safe resolution | PASS LOCAL | Success, expected-key, active-delivery refusal, concurrent-reader refusal, pre/post-commit crash, file/directory barriers, and failed-barrier rollback tests |
 
 ## 3. Security, privacy, licensing, and accessibility
 
@@ -37,7 +37,7 @@ candidate, signing, and merge approval for the earlier SHA.
 | Candidate SPDX rejects missing license decisions | PASS | `PackageInspectorTest` rejects `NOASSERTION` |
 | Secret/private-data current-tree and reachable-history scans | PASS LOCAL | Aggregate scans pass; exact committed head and CI remain required |
 | Fake-mail isolation and external SMTP negative probe | PENDING CI | Local Mailpit-only policy/tests pass; CI must prove external port 25 is unreachable on its internal network |
-| Retention/suppression/recipient privacy regression | PASS LOCAL | Complete 210-test PHPUnit aggregate passes with 2,775 assertions |
+| Retention/suppression/recipient privacy regression | PASS LOCAL | Complete 219-test PHPUnit aggregate passes with 3,034 assertions |
 | Browser support and WCAG 2.2 AA target documented | PASS | [accessibility-browser-support.md](accessibility-browser-support.md) |
 | Static accessibility acceptance | PASS LOCAL | Twig/CSS structural acceptance passes in the complete PHPUnit aggregate |
 | Human keyboard, zoom, contrast, screen-reader and supported-browser acceptance | PENDING MANUAL | Must be recorded by the acceptance owner; automation cannot substitute |
@@ -48,7 +48,8 @@ candidate, signing, and merge approval for the earlier SHA.
 | Check | Status | Evidence |
 | --- | --- | --- |
 | Version `1.0.0`, target schema `20260828000000` | PASS | Container parameters and Phase 13 platform test |
-| Direct accepted sources exactly `0.1.0`, `0.2.0`, `0.3.0`, `0.4.0` | PASS LOCAL | Signed manifest list plus target-updater tests using archives of all four exact integrated predecessor commits |
+| Direct accepted sources exactly `0.1.0`, `0.2.0`, `0.3.0`, `0.4.0` | PASS LOCAL | Exact integrated source trees become disposable-key signed runtime packages; target updater consumes and matches each installed manifest |
+| Signed predecessor evidence is mandatory before operational mutation | PASS LOCAL | Missing/tampered evidence, installed drift, legacy-as-target, and source/pointer mismatch tests fail before quiescence or backup; [ADR 0013](adr/0013-authenticated-predecessor-and-durable-publication.md) |
 | Unsupported source, downgrade, same-version, tamper and wrong signature fail closed | PASS LOCAL | Release/update matrix and deterministic candidate-tooling gate pass |
 | Clean immutable install | PASS LOCAL | Production-only install, standalone verification, and root-run ownership gate; fresh `emailer` identity cannot chmod published code |
 | Interrupted update, failed health, rollback/restore | PASS LOCAL | Complete release-update/candidate gates pass |

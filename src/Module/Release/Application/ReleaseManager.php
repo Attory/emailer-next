@@ -45,6 +45,7 @@ final readonly class ReleaseManager
             throw new \RuntimeException('The immutable release directory already exists.');
         }
         $staging = $this->releasesDirectory.'/.staging-'.Identity::uuidV7();
+        $published = false;
         if (!mkdir($staging, 0o755)) {
             throw new \RuntimeException('Release staging cannot be created.');
         }
@@ -73,6 +74,7 @@ final readonly class ReleaseManager
             if (!rename($staging, $target)) {
                 throw new \RuntimeException('Immutable release publication failed.');
             }
+            $published = true;
             $this->assertPublishedOwnership($target);
             if ($switch) {
                 $this->switchPointer($target);
@@ -81,21 +83,24 @@ final readonly class ReleaseManager
             return $target;
         } catch (\Throwable $exception) {
             $this->removeStaging($staging);
+            if ($published) {
+                $this->removeFailedRelease($target);
+            }
             throw $exception;
         }
     }
 
-    public function update(string $archive): void
+    public function update(string $archive, string $sourceArchive): void
     {
         $this->maintenance->acquire();
         try {
-            $this->updateWithLock($archive);
+            $this->updateWithLock($archive, $sourceArchive);
         } finally {
             $this->maintenance->release();
         }
     }
 
-    private function updateWithLock(string $archive): void
+    private function updateWithLock(string $archive, string $sourceArchive): void
     {
         $lock = $this->locks->createLock('emailer-release-update', 900.0);
         if (!$lock->acquire()) {
@@ -114,6 +119,8 @@ final readonly class ReleaseManager
                 throw new \RuntimeException('Recorded update source does not match the immutable current release.');
             }
             $this->assertPublishedOwnership($previous);
+            $sourceManifest = $this->inspector->inspectInstalledSource($sourceArchive);
+            $this->assertInstalledReleaseMatchesManifest($previous, $sourceManifest);
             $manifest = $this->inspector->inspect($archive);
             $targetVersion = $manifest['version'] ?? null;
             if (!\is_string($targetVersion) || version_compare($targetVersion, $this->currentVersion, '<=')) {
@@ -209,6 +216,44 @@ final readonly class ReleaseManager
             if (!\is_array($stat) || 0o100000 !== ($stat['mode'] & 0o170000) || !hash_equals($digest, (string) hash_file('sha256', $path))) {
                 throw new \RuntimeException('Extracted release verification failed.');
             }
+        }
+    }
+
+    /** @param array<string, mixed> $manifest */
+    private function assertInstalledReleaseMatchesManifest(string $release, array $manifest): void
+    {
+        $version = $manifest['version'] ?? null;
+        $files = $manifest['files'] ?? null;
+        if (!\is_string($version) || !hash_equals($this->currentVersion, $version) || !\is_array($files)) {
+            throw new \RuntimeException('Signed predecessor package identity does not match the recorded update source.');
+        }
+        $expected = $this->stringMap($files);
+        $seen = [];
+        $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($release, \FilesystemIterator::SKIP_DOTS), \RecursiveIteratorIterator::SELF_FIRST);
+        foreach ($iterator as $entry) {
+            if (!$entry instanceof \SplFileInfo || $entry->isLink()) {
+                throw new \RuntimeException('Installed predecessor differs from its signed package.');
+            }
+            if ($entry->isDir()) {
+                continue;
+            }
+            $path = $entry->getPathname();
+            $relative = substr($path, \strlen(rtrim($release, '/')) + 1);
+            $metadata = @lstat($path);
+            $digest = hash_file('sha256', $path);
+            if (!\is_array($metadata)
+                || 0o100000 !== ($metadata['mode'] & 0o170000)
+                || 1 !== $metadata['nlink']
+                || !\is_string($digest)
+                || !\is_string($expected[$relative] ?? null)
+                || !hash_equals($expected[$relative], $digest)
+            ) {
+                throw new \RuntimeException('Installed predecessor differs from its signed package.');
+            }
+            $seen[$relative] = true;
+        }
+        if (\count($seen) !== \count($expected) || [] !== array_diff_key($expected, $seen)) {
+            throw new \RuntimeException('Installed predecessor differs from its signed package.');
         }
     }
 

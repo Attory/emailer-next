@@ -23,15 +23,30 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
     use Phase4State;
 
     private string $directory;
+    private string $publicKey;
+    private string $signingKeyFile;
+    /** @var non-empty-string */
+    private string $signingSecret;
+    private string $sourceArchive;
 
     protected function setUp(): void
     {
         $this->directory = sys_get_temp_dir().'/emailer-phase8-update-'.bin2hex(random_bytes(8));
         mkdir($this->directory, 0o700);
+        $pair = sodium_crypto_sign_keypair();
+        $this->signingSecret = sodium_crypto_sign_secretkey($pair);
+        $public = sodium_crypto_sign_publickey($pair);
+        $this->signingKeyFile = $this->directory.'/signing.key';
+        file_put_contents($this->signingKeyFile, sodium_bin2base64($this->signingSecret, SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING)."\n");
+        chmod($this->signingKeyFile, 0o600);
+        $this->publicKey = $this->directory.'/release.pub';
+        file_put_contents($this->publicKey, sodium_bin2base64($public, SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING)."\n");
     }
 
     protected function tearDown(): void
     {
+        $signingSecret = $this->signingSecret;
+        sodium_memzero($signingSecret);
         $this->removeTree($this->directory);
         if (null !== self::$kernel) {
             $this->removePhase4Files();
@@ -48,11 +63,27 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         self::assertSame(0o444, fileperms($installed.'/bin/console') & 0o777);
 
         $this->publishPreviousRelease();
-        $manager->update($archive);
+        $manager->update($archive, $this->sourceArchive);
         self::assertSame($this->directory.'/releases/0.4.0', realpath($this->directory.'/releases/current'));
         self::assertSame(1, $backups->created);
         self::assertSame(0, $backups->restored);
         self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key = '1'")));
+    }
+
+    public function testFailedProductionOwnershipAssertionRemovesPublishedTarget(): void
+    {
+        [$connection, , $backups, $archive, $inspector, $locks] = $this->fixture(0);
+        $releases = $this->directory.'/ownership-failure';
+        $installer = new ReleaseManager($inspector, $backups, $connection, $locks, new MaintenanceOperationLock($locks), self::createStub(InterruptedDeliveryRecovery::class), $releases, '0.3.0', 0, 'prod');
+
+        try {
+            $installer->install($archive);
+            self::fail('Non-root production release ownership was accepted.');
+        } catch (\RuntimeException $exception) {
+            self::assertStringContainsString('root-controlled updater', strtolower($exception->getMessage()));
+        }
+
+        self::assertDirectoryDoesNotExist($releases.'/0.4.0');
     }
 
     public function testFailedHealthRestoresBackupAndPreviousPointerAndLeavesSendingQuiesced(): void
@@ -60,7 +91,7 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         [$connection, $manager, $backups, $archive] = $this->fixture(2);
         $previous = $this->publishPreviousRelease();
         try {
-            $manager->update($archive);
+            $manager->update($archive, $this->sourceArchive);
             self::fail('Failed post-switch Doctor was accepted.');
         } catch (\RuntimeException) {
         }
@@ -75,7 +106,7 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         $this->publishPreviousRelease();
         $manager = new ReleaseManager($inspector, $backups, $connection, $locks, new MaintenanceOperationLock($locks), self::createStub(InterruptedDeliveryRecovery::class), $this->directory.'/releases', '0.3.0', PHP_INT_MAX - 1);
         try {
-            $manager->update($archive);
+            $manager->update($archive, $this->sourceArchive);
             self::fail('Impossible rollback reserve was accepted.');
         } catch (\RuntimeException) {
         }
@@ -88,7 +119,7 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         [$connection, $manager, $backups, $archive] = $this->fixture(0, 2);
         $previous = $this->publishPreviousRelease();
         try {
-            $manager->update($archive);
+            $manager->update($archive, $this->sourceArchive);
             self::fail('Interrupted migration was accepted.');
         } catch (\RuntimeException) {
         }
@@ -102,7 +133,7 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         [$connection, $manager, $backups, $archive] = $this->fixture(0, 0, '20260825000000', '20260825000000');
         $this->publishPreviousRelease();
         try {
-            $manager->update($archive);
+            $manager->update($archive, $this->sourceArchive);
             self::fail('Incompatible source schema was accepted.');
         } catch (\RuntimeException) {
         }
@@ -115,12 +146,24 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         [, $manager, $backups, $archive] = $this->fixture(0);
         $this->publishPreviousRelease();
         $missingApproval = new CommandTester(new UpdateReleaseCommand($manager));
-        self::assertSame(Command::FAILURE, $missingApproval->execute(['package' => $archive], ['interactive' => false]));
+        self::assertSame(Command::FAILURE, $missingApproval->execute([
+            'package' => $archive,
+            '--source-package' => $this->sourceArchive,
+        ], ['interactive' => false]));
+        self::assertSame(0, $backups->created);
+
+        $mismatchedApproval = new CommandTester(new UpdateReleaseCommand($manager));
+        self::assertSame(Command::FAILURE, $mismatchedApproval->execute([
+            'package' => $archive,
+            '--source-package' => $this->sourceArchive,
+            '--approved-target' => '0.3.0',
+        ], ['interactive' => false]));
         self::assertSame(0, $backups->created);
 
         $approved = new CommandTester(new UpdateReleaseCommand($manager));
         self::assertSame(Command::SUCCESS, $approved->execute([
             'package' => $archive,
+            '--source-package' => $this->sourceArchive,
             '--approved-target' => '0.4.0',
         ], ['interactive' => false]));
         self::assertSame($this->directory.'/releases/0.4.0', realpath($this->directory.'/releases/current'));
@@ -139,12 +182,45 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         );
         $this->publishAcceptedPredecessorRelease($sourceVersion, $sourceCommit);
 
-        $manager->update($archive);
+        $manager->update($archive, $this->sourceArchive);
 
         self::assertSame($this->directory.'/releases/1.0.0', realpath($this->directory.'/releases/current'));
         self::assertSame(1, $backups->created);
         self::assertSame(0, $backups->restored);
         self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key = '1'")));
+    }
+
+    public function testSignedPredecessorPackageMustExactlyMatchTheInstalledCurrentRelease(): void
+    {
+        [$connection, $manager, $backups, $archive] = $this->fixture(0);
+        $previous = $this->publishPreviousRelease();
+        self::assertNotFalse(file_put_contents($previous.'/composer.lock', "\n", FILE_APPEND));
+
+        try {
+            $manager->update($archive, $this->sourceArchive);
+            self::fail('Installed predecessor drift from its signed package was accepted.');
+        } catch (\RuntimeException $exception) {
+            self::assertStringContainsString('signed package', strtolower($exception->getMessage()));
+        }
+
+        self::assertSame(0, $backups->created);
+        self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key = '1'")));
+    }
+
+    public function testTamperedPredecessorPackageFailsBeforeDeliveryQuiescence(): void
+    {
+        [$connection, $manager, $backups, $archive] = $this->fixture(0);
+        $this->publishPreviousRelease();
+        self::assertNotFalse(file_put_contents($this->sourceArchive.'.sig', 'tamper', FILE_APPEND));
+
+        try {
+            $manager->update($archive, $this->sourceArchive);
+            self::fail('Tampered signed predecessor evidence was accepted.');
+        } catch (\RuntimeException) {
+        }
+
+        self::assertSame(0, $backups->created);
+        self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key = '1'")));
     }
 
     public function testRecordedUpdateSourceMustMatchTheActualCurrentPointer(): void
@@ -160,7 +236,7 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         $this->publishPreviousRelease('0.2.0');
 
         try {
-            $manager->update($archive);
+            $manager->update($archive, $this->sourceArchive);
             self::fail('A recorded source different from the current pointer was accepted.');
         } catch (\RuntimeException $exception) {
             self::assertStringContainsString('recorded update source', strtolower($exception->getMessage()));
@@ -175,8 +251,8 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
     {
         yield 'accepted 0.1.0' => ['0.1.0', '7d08cc6e20042fc448657fd87ea6722d91c60e7c'];
         yield 'accepted 0.2.0' => ['0.2.0', 'af0d994d32e47d49df6654d6000c42891f8804f2'];
-        yield 'accepted 0.3.0' => ['0.3.0', 'e1756ae25b391ac9c8d4fd1c2b60e7c25cc9e13a'];
-        yield 'accepted 0.4.0' => ['0.4.0', '39c8eeccea9866215ce231a08d0e32df9b341199'];
+        yield 'accepted 0.3.0' => ['0.3.0', '765a7d1e1a3565b65b186c683bc39a28b3d61466'];
+        yield 'accepted 0.4.0' => ['0.4.0', 'c3c5d0ba5373e46f42183c3fc31264316f512afd'];
     }
 
     /** @return array{Connection, ReleaseManager, RecordingBackupOperations, string, PackageInspector, LockFactory} */
@@ -190,6 +266,7 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         $locks = new LockFactory(new FlockStore($this->directory.'/locks'));
         $backups = new RecordingBackupOperations($this->directory.'/safety.enxbackup');
         [$archive, $publicKey] = $this->package($doctorExit, $migrationExit, $minimumSchema, $targetSchema, $targetVersion, $minimumSourceVersion);
+        [$this->sourceArchive] = $this->package(0, 0, $this->sourceSchema($sourceVersion), $this->sourceSchema($sourceVersion), $sourceVersion, $sourceVersion);
         $inspector = new PackageInspector($publicKey, $sourceVersion);
         $recovery = self::createStub(InterruptedDeliveryRecovery::class);
         $recovery->method('recover')->willReturnCallback(static function () use ($connection): void {
@@ -203,9 +280,12 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
     private function publishPreviousRelease(string $version = '0.3.0'): string
     {
         $previous = $this->directory.'/releases/'.$version;
-        if (!is_dir($previous)) {
-            mkdir($previous, 0o755, true);
-        }
+        self::assertFalse(is_dir($previous));
+        self::assertTrue(mkdir($previous, 0o755, true));
+        $zip = new \ZipArchive();
+        self::assertTrue($zip->open($this->sourceArchive));
+        self::assertTrue($zip->extractTo($previous));
+        $zip->close();
         @unlink($this->directory.'/releases/current');
         symlink($previous, $this->directory.'/releases/current');
 
@@ -214,21 +294,63 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
 
     private function publishAcceptedPredecessorRelease(string $version, string $commit): string
     {
-        $archive = $this->directory.'/accepted-'.$version.'.zip';
         $projectRoot = \dirname(__DIR__, 2);
         $historyDirectory = getenv('EMAILER_ACCEPTED_HISTORY_GIT_DIR');
         if (false === $historyDirectory || '' === $historyDirectory) {
             $historyDirectory = $projectRoot.'/.git';
         }
         self::assertDirectoryExists($historyDirectory, 'Accepted predecessor Git history is unavailable.');
-        $process = proc_open(
-            ['git', '--git-dir='.$historyDirectory, 'archive', '--format=zip', '--output='.$archive, $commit],
-            [['file', '/dev/null', 'r'], ['file', '/dev/null', 'w'], ['file', '/dev/null', 'w']],
-            $pipes,
+        $sourceArchive = $this->directory.'/accepted-source-'.$version.'.zip';
+        $source = $this->directory.'/accepted-source-'.$version;
+        $output = $this->directory.'/accepted-package-'.$version;
+        self::assertTrue(mkdir($source, 0o700));
+        self::assertTrue(mkdir($output, 0o700));
+        $this->runProcess(['git', '--git-dir='.$historyDirectory, 'archive', '--format=zip', '--output='.$sourceArchive, $commit], $projectRoot, 'Accepted predecessor commit could not be archived.');
+        $zip = new \ZipArchive();
+        self::assertTrue($zip->open($sourceArchive));
+        self::assertTrue($zip->extractTo($source));
+        $zip->close();
+        $this->runProcess(['cp', '-a', $projectRoot.'/vendor', $source.'/vendor'], $projectRoot, 'Locked predecessor dependencies could not be staged.');
+        $this->runProcess(['cp', '-a', $projectRoot.'/assets/vendor', $source.'/assets/vendor'], $projectRoot, 'Locked predecessor import-map dependencies could not be staged.');
+        $this->runProcess(['bash', $source.'/tools/artifact/build.sh'], $source, 'Accepted predecessor runtime artifact could not be built.');
+        $minimumSource = match ($version) {
+            '0.1.0' => '0.1.0-rc.1',
+            '0.2.0' => '0.1.0',
+            '0.3.0' => '0.2.0',
+            '0.4.0' => '0.3.0',
+            default => throw new \InvalidArgumentException('Unsupported accepted predecessor version.'),
+        };
+        $rollbackCompatible = '0.1.0' === $version ? 'true' : 'false';
+        $epochProcess = proc_open(
+            ['git', '--git-dir='.$historyDirectory, 'show', '-s', '--format=%ct', $commit],
+            [['file', '/dev/null', 'r'], ['pipe', 'w'], ['file', '/dev/null', 'w']],
+            $epochPipes,
             $projectRoot,
         );
-        self::assertIsResource($process, 'Accepted predecessor archive process could not start.');
-        self::assertSame(0, proc_close($process), 'Accepted predecessor commit could not be archived.');
+        self::assertIsResource($epochProcess, 'Accepted predecessor source epoch could not be read.');
+        $sourceEpoch = trim((string) stream_get_contents($epochPipes[1]));
+        fclose($epochPipes[1]);
+        self::assertSame(0, proc_close($epochProcess), 'Accepted predecessor source epoch could not be read.');
+        self::assertMatchesRegularExpression('/^[0-9]+$/D', $sourceEpoch);
+        $this->runProcess([
+            'php',
+            $source.'/tools/release/build-package.php',
+            '--artifact='.$source.'/build/artifact',
+            '--output='.$output,
+            '--version='.$version,
+            '--source='.$commit,
+            '--minimum-source='.$minimumSource,
+            '--minimum-schema='.$this->sourceSchema($version),
+            '--schema='.$this->sourceSchema($version),
+            '--rollback-schema-compatible='.$rollbackCompatible,
+            '--signing-key='.$this->signingKeyFile,
+            '--source-date-epoch='.$sourceEpoch,
+        ], $source, 'Accepted predecessor signed package could not be built.');
+        $archive = $output.'/emailer-next-'.$version.'.zip';
+        self::assertFileExists($archive);
+        foreach (['.manifest.json', '.sha256', '.spdx.json', '.sig'] as $suffix) {
+            self::assertFileExists($archive.$suffix);
+        }
 
         $previous = $this->directory.'/releases/'.$version;
         self::assertTrue(mkdir($previous, 0o755, true));
@@ -239,11 +361,25 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         $services = file_get_contents($previous.'/config/services.yaml');
         self::assertIsString($services);
         self::assertStringContainsString("emailer.app_version: '".$version."'", $services);
+        $this->sourceArchive = $archive;
 
         @unlink($this->directory.'/releases/current');
         self::assertTrue(symlink($previous, $this->directory.'/releases/current'));
 
         return $previous;
+    }
+
+    /** @param list<string> $command */
+    private function runProcess(array $command, string $workingDirectory, string $failure): void
+    {
+        $process = proc_open(
+            $command,
+            [['file', '/dev/null', 'r'], ['file', '/dev/null', 'w'], ['file', '/dev/null', 'w']],
+            $pipes,
+            $workingDirectory,
+        );
+        self::assertIsResource($process, $failure);
+        self::assertSame(0, proc_close($process), $failure);
     }
 
     /** @return array{string, string} */
@@ -267,18 +403,23 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         $manifestBytes = json_encode($manifest, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n";
         $checksumBytes = hash_file('sha256', $archive).'  '.basename($archive)."\n";
         $sbomBytes = json_encode(['spdxVersion' => 'SPDX-2.3', 'dataLicense' => 'CC0-1.0', 'SPDXID' => 'SPDXRef-DOCUMENT', 'name' => 'Emailer Next '.$targetVersion, 'documentNamespace' => 'https://attory.example.test/spdx/emailer-next/'.str_repeat('b', 40).'/'.$targetVersion, 'packages' => [['SPDXID' => 'SPDXRef-Package-synthetic', 'name' => 'synthetic/runtime', 'versionInfo' => '1.0.0', 'licenseDeclared' => 'MIT']]], JSON_THROW_ON_ERROR)."\n";
-        $pair = sodium_crypto_sign_keypair();
-        $secret = sodium_crypto_sign_secretkey($pair);
-        $public = sodium_crypto_sign_publickey($pair);
         file_put_contents($archive.'.manifest.json', $manifestBytes);
         file_put_contents($archive.'.sha256', $checksumBytes);
         file_put_contents($archive.'.spdx.json', $sbomBytes);
-        file_put_contents($archive.'.sig', sodium_bin2base64(sodium_crypto_sign_detached($manifestBytes.$checksumBytes.hash('sha256', $sbomBytes), $secret), SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING)."\n");
-        $publicKey = $this->directory.'/release.pub';
-        file_put_contents($publicKey, sodium_bin2base64($public, SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING)."\n");
-        sodium_memzero($secret);
+        file_put_contents($archive.'.sig', sodium_bin2base64(sodium_crypto_sign_detached($manifestBytes.$checksumBytes.hash('sha256', $sbomBytes), $this->signingSecret), SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING)."\n");
 
-        return [$archive, $publicKey];
+        return [$archive, $this->publicKey];
+    }
+
+    private function sourceSchema(string $version): string
+    {
+        return match ($version) {
+            '0.1.0' => '20260824010000',
+            '0.2.0' => '20260826000000',
+            '0.3.0' => '20260827000000',
+            '0.4.0' => '20260828000000',
+            default => throw new \InvalidArgumentException('Unsupported synthetic source version.'),
+        };
     }
 
     private function removeTree(string $directory): void

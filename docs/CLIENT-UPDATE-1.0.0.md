@@ -12,8 +12,11 @@ The target schema is `20260828000000`; the minimum source schema is
    finding, and no campaign is actively sending.
 2. Create and verify an encrypted backup. Confirm the separately protected
    recovery package/passphrase and pinned release public key are available.
-3. Record the current version/schema/pointer, active-claim count, approved
-   `1.0.0` source commit, archive SHA-256, and rollback owner.
+3. Record the current version/schema/pointer, active-claim count, the exact
+   predecessor package source commit and archive SHA-256, the approved `1.0.0`
+   source commit and archive SHA-256, and the rollback owner. The predecessor
+   values come from its retained accepted candidate record, not from the
+   directory name.
 4. Normalize the recorded releases root to `root:root` mode `0755`, keep every
    existing semantic-version directory root-owned and frozen, and create
    candidate staging as `root:root` mode `0755`. Do not recursively cross the `current`
@@ -35,15 +38,26 @@ The target schema is `20260828000000`; the minimum source schema is
    in the releases root. Repeat the three ownership/mode commands with an exact,
    separately recorded path for every retained semantic-version rollback
    directory; never use a wildcard and never operate through `current`.
-5. Stage the archive, all four sidecars, `verify-package.php`,
-   `PackageInspector.php`, and the release-candidate record outside the web
+5. Stage the exact predecessor archive and all four of its original sidecars,
+   the `1.0.0` archive and all four of its sidecars, `verify-package.php`,
+   `PackageInspector.php`, and both release-candidate records outside the web
    root. Install them as `root:root` mode `0644` under
-   `/var/lib/emailer-candidate/`. Compare both verifier hashes with the
-   separately approved candidate record, verify the checksum, and then verify
-   the complete signed package contract against the independently pinned key:
+   `/var/lib/emailer-candidate/`. Do not reconstruct a predecessor manifest or
+   accept only its source checkout. Compare both verifier hashes with the
+   separately approved `1.0.0` candidate record, verify both checksums, and then
+   verify both complete signed package contracts against the independently
+   pinned key:
 
    ```sh
    sudo sha256sum /var/lib/emailer-candidate/verify-package.php /var/lib/emailer-candidate/PackageInspector.php
+   sudo sh -c 'cd /var/lib/emailer-candidate && sha256sum -c emailer-next-<EXACT-RECORDED-SOURCE-VERSION>.zip.sha256'
+   sudo -u emailer php /var/lib/emailer-candidate/verify-package.php \
+     --archive=/var/lib/emailer-candidate/emailer-next-<EXACT-RECORDED-SOURCE-VERSION>.zip \
+     --public-key=/etc/emailer/release-signing.pub \
+     --current-version=<EXACT-RECORDED-SOURCE-VERSION> \
+     --expected-version=<EXACT-RECORDED-SOURCE-VERSION> \
+     --expected-source=<EXACT-RECORDED-SOURCE-COMMIT> \
+     --installed-source
    sudo sh -c 'cd /var/lib/emailer-candidate && sha256sum -c emailer-next-1.0.0.zip.sha256'
    sudo -u emailer php /var/lib/emailer-candidate/verify-package.php \
      --archive=/var/lib/emailer-candidate/emailer-next-1.0.0.zip \
@@ -53,9 +67,10 @@ The target schema is `20260828000000`; the minimum source schema is
      --expected-source=<APPROVED-40-CHARACTER-SOURCE-COMMIT>
    ```
 
-   The two script digests must match the independently approved record and the
-   verifier must exit zero. A co-delivered checksum without the pinned
-   signature is not authentication.
+   The two script digests must match the independently approved record and both
+   verifier runs must exit zero. A co-delivered checksum without the pinned
+   signature is not authentication. Stop if the predecessor package or any
+   original sidecar is unavailable; a matching version string is insufficient.
 6. Only after Step 5 succeeds, extract the already authenticated archive into
    a root-owned, non-writable target-code directory and recheck the archive
    checksum before installing anything from it:
@@ -108,9 +123,10 @@ sudo systemctl status 'emailer-update@''1.0.0.service' --no-pager
 The root-controlled service executes the authenticated `1.0.0` target code,
 not the predecessor updater. This is required because accepted predecessor
 binaries predate the combined release-train contract. The target updater
-re-verifies the pinned signature, manifest, checksum, SBOM, exact recorded
-source/current-pointer identity, schema compatibility, paths, and disk reserve
-before mutation. It then locks
+re-verifies the target and predecessor pinned signatures, manifests, checksums,
+SBOMs, exact recorded source/current-pointer identity, and every installed
+predecessor file before mutation. It then verifies schema compatibility, paths,
+and disk reserve, and locks
 maintenance, quiesces/reconciles delivery, creates and verifies a safety backup,
 returns that mode-`0600` encrypted file to the owner/group of its service-owned
 backup directory, installs recursively root-owned immutable `1.0.0`, runs every

@@ -107,6 +107,7 @@ services:
             $environment: '%kernel.environment%'
 
     App\Module\Secrets\Application\Contract\DirectoryDurability: '@App\Module\Secrets\Infrastructure\PosixDirectoryDurability'
+    App\Module\Secrets\Application\Contract\FileDurability: '@App\Module\Secrets\Infrastructure\PosixFileDurability'
 
     App\Module\Secrets\Application\Contract\MasterKey: '@App\Module\Secrets\Infrastructure\CrashRecoveringMasterKey'
     App\Module\Secrets\Application\Contract\TransactionalMasterKey: '@App\Module\Secrets\Infrastructure\CrashRecoveringMasterKey'

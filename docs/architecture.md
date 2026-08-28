@@ -124,7 +124,9 @@ before extraction or root configuration, freezes a root-owned target-code
 tree, records the exact source version in a root-only environment file, and
 runs that target updater through a root-controlled one-shot unit. The updater
 requires the recorded source to equal the basename of the current immutable
-pointer, then publishes a recursively root-owned, non-writable release.
+pointer, verifies the retained signed predecessor package under the pinned key,
+and requires every installed predecessor file to match that signed manifest
+before mutation. It then publishes a recursively root-owned, non-writable release.
 All processes use the explicit shared flock path under application-private
 storage; systemd private temporary directories never partition the maintenance
 lock.
@@ -294,6 +296,6 @@ Deployment, publishing, and rollback remain explicit operator actions.
 
 ## Decision records
 
-The design is governed by accepted ADRs `0001` through `0012` in
+The design is governed by accepted ADRs `0001` through `0013` in
 [docs/adr](adr/). A change to an invariant requires a superseding ADR, updated
 threat model, route/data review where relevant, and passing quality gates.

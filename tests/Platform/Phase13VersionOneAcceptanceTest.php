@@ -78,6 +78,7 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
         self::assertStringContainsString('RuntimeDirectory=emailer-update-%i', $updater);
         self::assertStringContainsString('Environment=EMAILER_RUNTIME_DIR=/run/emailer-update-%i', $updater);
         self::assertStringContainsString('--approved-target=%i', $updater);
+        self::assertStringContainsString('--source-package=/var/lib/emailer-candidate/emailer-next-${EMAILER_UPDATE_SOURCE_VERSION}.zip', $updater);
         self::assertStringContainsString("TRUSTED_HOSTS='^emailer\\.client\\.example$'", $manual);
         self::assertStringContainsString('LOCK_DSN=flock:///var/lib/emailer/private/locks', $manual);
         $readiness = (string) file_get_contents($root.'/src/Module/Health/Infrastructure/SystemReadinessProbe.php');
@@ -104,6 +105,8 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
         self::assertLessThan($unitInstall, $extraction);
         self::assertStringContainsString('executes the authenticated `1.0.0` target code', $manual);
         self::assertStringContainsString('EMAILER_UPDATE_SOURCE_VERSION=0.1.0', $manual);
+        self::assertStringContainsString('--installed-source', $manual);
+        self::assertStringContainsString('exact predecessor archive and all four of its original sidecars', $manual);
         self::assertStringContainsString('sudo chown -R root:root <CURRENT-RELEASE-DIRECTORY>', $manual);
         self::assertStringContainsString('never operate through `current`', $manual);
     }

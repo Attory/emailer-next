@@ -265,9 +265,11 @@ is now a separately controlled maintenance operation:
    and rerun Doctor before resuming delivery.
 
 The rotation journal remains inside the external mode-`0700` key directory.
-Every journal/key link, rename, and unlink is followed by an `fsync` of that
-directory before the protocol advances, so namespace ordering survives host
-power loss as well as process interruption. The journal is reconciled
+Every key/journal content write is flushed and file-`fsync`ed before publication;
+every journal/key link, rename, and unlink is followed by an `fsync` of that
+directory before the protocol advances, so contents and namespace ordering
+survive host power loss as well as process interruption. Initial key creation
+and recovery use the same file-before-directory barrier order. The journal is reconciled
 automatically against the committed opaque audit marker after a process crash
 or ambiguous commit. A concurrent process is denied key access
 while the maintenance lock is held. Any failure keeps delivery stopped. If
@@ -371,8 +373,11 @@ creates a public recipient endpoint.
    explicitly resume. Restore never resumes delivery itself.
 5. Run `emailer:retention:run` for dry-run and add `--apply` only after review.
    Each category is capped at 200 rows; rerun for further bounded batches.
-6. Inspect packages before change. The updater verifies pinned signature,
-   checksum, manifest, SBOM, compatibility and disk space before mutation. It
+6. Inspect packages before change. For a `1.0.0` update, retain the exact signed
+   predecessor archive and its four sidecars beside the target and pass it with
+   `--source-package`; a source version string alone is not evidence. The target
+   updater verifies both pinned signatures, checksums, manifests, SBOMs, the
+   installed predecessor file set, compatibility, and disk space before mutation. It
    quiesces, performs an interrupted-claim recovery pass, creates a verified
    backup, installs immutably, migrates, switches atomically, and runs Doctor.
    Failure remains in maintenance and uses only compatible pointer rollback or

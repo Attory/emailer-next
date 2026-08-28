@@ -330,8 +330,11 @@ Production semantic-version directories are recursively root-owned and have no
 write bits. The root-controlled updater executes only a target-version tree
 whose package signature and file contract were verified before extraction or
 service installation. It validates the root-only recorded predecessor against
-the actual current pointer; ordinary application identities never receive a
-release-write group.
+the actual current pointer, authenticates the exact retained predecessor package,
+and compares the complete installed predecessor tree to its signed file manifest
+before quiescence or backup; ordinary application identities never receive a
+release-write group. Legacy predecessor manifest rules are accepted only for
+that same-version evidence input and can never authorize a target package.
 The production lock DSN names a shared mode-`0700` directory under external
 private storage. Bare temporary-directory flock storage is prohibited because
 systemd `PrivateTmp` would otherwise isolate locks by service.
@@ -359,10 +362,12 @@ operator-pinned public key before any migration or release-pointer change.
 Updates use new immutable directories, an exclusive maintenance lock, worker
 quiescence, a verified encrypted backup, an atomic switch, and fail-closed
 health checks. HTTP upload/update/restore and unattended update are prohibited.
-The externally stored master-key rotation journal and key replacement cross an
-`fsync` barrier on the containing directory after every security-relevant
-link, rename, or unlink, so database audit evidence can reconcile either side
-after process interruption or power loss.
+Initial master-key creation, recovery, replacement, rotation staging, journal
+publication, and rollback require a file `fsync` after flushing contents and
+before publication. The externally stored master-key rotation journal and key
+replacement also cross an `fsync` barrier on the containing directory after
+every security-relevant link, rename, or unlink, so database audit evidence can
+reconcile either side after process interruption or power loss.
 
 A likely credential, private key, or private-data finding blocks merge and
 release. Suppression of a scanner finding requires review showing it is a safe

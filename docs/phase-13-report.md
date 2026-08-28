@@ -1,8 +1,10 @@
 # Phase 13 completion report — Version-1 hardening and acceptance
 
-**Status:** Second independent-review repair in progress. Exact-head reviews
+**Status:** Third independent-review repair in progress. Exact-head reviews
 rejected `0c02725849cafb04d2ed41d78f8ffd8f2778f931` and
-`3fced5dc4ed155314c51eb226b444201a3ed1132`; the bounded repair requires full
+`3fced5dc4ed155314c51eb226b444201a3ed1132`; Claude Code review of
+`de6b559df71980190be5873e195f5237f4bde879` found the predecessor-proof and
+key-file durability gaps now under repair. The bounded repair requires full
 exact-head validation and renewed review. Not signed, merged, tagged,
 published, deployed, or installed.
 
@@ -23,7 +25,7 @@ The phase re-read the complete master specification, phase jobs, clean-room
 checklist, Phase 12 report, architecture/module/data/route documents, complete
 threat/security/quality models, release/signing/install/setup/admin/operator/
 worker/backup/upgrade/rollback/incident/privacy/development/testing documents,
-roadmap/open decisions, and ADRs 0001–0012. Official PHP, Symfony, MariaDB,
+roadmap/open decisions, and ADRs 0001–0013. Official PHP, Symfony, MariaDB,
 Composer, W3C WCAG, and MDN browser-support sources were revalidated on
 2026-08-27.
 
@@ -150,7 +152,7 @@ before signature verification. It also found systemd parsing weakened the
 documented `TRUSTED_HOSTS` regex and the installer omitted its promised
 pre-lock summary/safe remediation categories.
 
-The current bounded repair makes the target-version runtime—not predecessor
+The second-review bounded repair makes the target-version runtime—not predecessor
 binaries—the production updater, authenticates it before extraction or root
 installation, requires an exact source/current-pointer match, and runs it under
 the root-controlled unit so releases remain root-owned and immutable. Tests
@@ -175,14 +177,50 @@ dedicated read-only history path; `/app/.git` remains absent, the image continue
 to exclude repository history, and a platform assertion locks both halves of
 that boundary.
 
+The subsequent Claude Code review of exact head
+`de6b559df71980190be5873e195f5237f4bde879` correctly found that those source
+archives were not security inputs to the updater: the runtime trusted the
+root-recorded version and pointer basename without authenticating installed
+predecessor bytes. It also found that initial master-key creation and recovery
+flushed but did not file-`fsync` their staged contents, unlike replacement and
+rotation writes.
+
+This bounded repair requires the complete signed predecessor package and four
+original sidecars as a distinct updater input. The target runtime verifies the
+historical package contract under the pinned key, restricts legacy manifest
+handling to exact same-version source evidence, and compares every installed
+file and digest before quiescing delivery or creating a backup. The integration
+matrix now builds actual runtime artifacts from each exact accepted integrated
+source tree, packages and signs them with a disposable key, installs their
+manifest-bound contents, and consumes those packages through the production
+target-updater path. Tampered evidence, installed drift, source/pointer mismatch,
+and approved-target mismatch fail before operational mutation. These fixtures
+are deliberately not represented as externally held historical operator-signed
+outputs.
+
+All initial, recovered, replacement, rotation-journal, and rollback key-file
+writes now share a fail-closed file-durability abstraction after `fflush` and
+before publication; directory barriers remain after namespace mutation. Tests
+prove creation and recovery invoke the barrier and a failed barrier leaves no
+published key or staging residue. [ADR 0013](adr/0013-authenticated-predecessor-and-durable-publication.md)
+records the provenance, privilege, legacy-contract, and durability decisions.
+The repaired working tree passes the complete aggregate at 219 tests and 3,034
+assertions, the same 219 tests on the external-egress-disabled network, the
+maximum-level static/architecture gates, deterministic candidate tooling,
+artifact/secret/private-data inspection, root/service privilege gate, and
+systemd/shell checks. The isolated predecessor builders use only the identical
+locked Composer tree and already-installed import-map dependencies from the
+production-style image; they perform no network fetch. Exact committed-head CI
+and renewed Claude Code review results remain to be recorded.
+
 All executed mail behavior used only the repository's local Mailpit service and
 reserved synthetic domains. No provider, live SMTP, DNS, client server,
 credential, or external account was contacted or changed.
 
 ## Unresolved release prerequisites
 
-- repeat the complete aggregate on the exact committed repair head and obtain
-  the CI isolated-network negative-egress result;
+- obtain the required GitHub CI matrix, including its isolated-network
+  negative-egress repeat, on the exact pushed repair head;
 - obtain renewed authorization and independent review of the new exact head,
   with no unresolved critical/high finding;
 - human supported-browser, keyboard, zoom/contrast, VoiceOver and NVDA

@@ -175,10 +175,14 @@ data is accepted.
   changes and prove a failed key-publication barrier restores the old key.
 - Production dependency licenses are parsed from the lock and candidate SPDX
   inspection rejects missing license decisions.
-- Package acceptance archives the exact accepted `0.1.0`, `0.2.0`, `0.3.0`,
-  and `0.4.0` commits as predecessor fixtures and runs each through the
-  authenticated target updater. It also covers source/current-pointer
-  mismatch, unsupported older sources, immutable clean install,
+- Package acceptance checks out each exact accepted integrated `0.1.0`, `0.2.0`,
+  `0.3.0`, and `0.4.0` runtime tree, runs its artifact builder, packages and
+  signs it with one disposable test key, installs those manifest-bound contents,
+  and requires the authenticated target updater to verify the source package and
+  match every installed file. These are real source-derived test packages, not
+  claims that externally held historical operator outputs are present in Git.
+  It also covers signature tamper, installed drift, source/current-pointer
+  mismatch, approved-target mismatch, unsupported older sources, immutable clean install,
   deterministic double build, tamper/incompatibility, interrupted update,
   failed health, and restore behavior.
 - A root-run production privilege gate proves root-owned `0555`/`0444`

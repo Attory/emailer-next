@@ -369,6 +369,9 @@ ordinary processes as `emailer`, from `/srv/emailer/releases/current`, with the
 same protected runtime environment. The inactive update template is root-only,
 loads a separately recorded source version, and executes only a verified,
 root-owned target tree under `/var/lib/emailer-candidate/verified-<version>`.
+It also requires the exact retained signed predecessor package and original
+sidecars described in [CLIENT-UPDATE-1.0.0.md](CLIENT-UPDATE-1.0.0.md); the
+source-version record alone cannot start a valid update.
 Its cache and logs use a dedicated root-only systemd `RuntimeDirectory`; they
 never change ownership of the ordinary service cache.
 
