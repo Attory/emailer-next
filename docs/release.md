@@ -47,7 +47,8 @@ not a release candidate and must not be published or deployed.
 A candidate is a reproducible semantic-versioned archive built from a clean
 committed tree. It contains runtime files only. A deterministic manifest binds
 the application version, source commit, supported platform, schema version,
-migration set, file digests, and minimum supported source release. The archive
+migration set, file digests, minimum source release, and explicit supported
+source-version allowlist. The archive
 ships with a checksum, SPDX SBOM, and detached Ed25519 signature.
 
 Signing private material remains outside Git, build output, logs, prompts, CI
@@ -60,8 +61,8 @@ update window are fixed in [release-signing.md](release-signing.md).
 
 `tools/release/build-1.0.0-candidate.sh` performs two deterministic builds for
 schema `20260828000000`, declares the supported floor as source `0.1.0` and
-schema `20260824010000`, and exercises inspection/immutable installation from
-each accepted `0.1.0`, `0.2.0`, `0.3.0`, and `0.4.0` release line. It bundles
+schema `20260824010000`, explicitly accepts only `0.1.0`, `0.2.0`, `0.3.0`,
+and `0.4.0`, and exercises inspection/immutable installation from each. It bundles
 the standalone verifier plus [CLIENT-INSTALL-1.0.0.md](CLIENT-INSTALL-1.0.0.md)
 and [CLIENT-UPDATE-1.0.0.md](CLIENT-UPDATE-1.0.0.md). The operator key and
 candidate outputs remain outside the repository.

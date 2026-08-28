@@ -89,6 +89,9 @@ SQL);
             if (\is_string($path) && (file_exists($path) || is_link($path))) {
                 unlink($path);
             }
+            if ('emailer.master_key_file' === $parameter && \is_string($path) && (file_exists($path.'.rotation-journal') || is_link($path.'.rotation-journal'))) {
+                unlink($path.'.rotation-journal');
+            }
         }
 
         foreach (['emailer.import_dir', 'emailer.template_asset_dir', 'emailer.backup_dir'] as $parameter) {

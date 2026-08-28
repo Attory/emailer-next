@@ -1,7 +1,9 @@
 # Phase 13 completion report — Version-1 hardening and acceptance
 
-**Status:** Implementation and working-tree acceptance complete. Not yet
-committed, reviewed, signed, merged, tagged, published, deployed, or installed.
+**Status:** Implementation and independent-review repair complete. The first
+exact-head review rejected `0c02725849cafb04d2ed41d78f8ffd8f2778f931`;
+the repaired head requires renewed independent review. Not signed, merged,
+tagged, published, deployed, or installed.
 
 ## Authority and starting state
 
@@ -37,15 +39,22 @@ Composer, W3C WCAG, and MDN browser-support sources were revalidated on
   re-authentication, authentication of the current recovery package/passphrase
   against the live key, delivery quiescence, a verified pre-rotation backup, the
   shared maintenance lock, installation/secret row locks, authenticated full
-  re-encryption, atomic restrictive external-key replacement, transactional
-  redacted audit, and database/filesystem compensation on failure.
+  re-encryption, restrictive durable old/new-key journaling, atomic external-key
+  replacement, transactional redacted audit, maintenance-lock concurrency
+  refusal, and automatic pre-/post-commit crash reconciliation.
 - The production license gate parses `composer.lock`, requires the root
   proprietary declaration, and permits only the documented production-license
   allowlist. Candidate SBOM inspection rejects `NOASSERTION`.
-- The `1.0.0` package contract directly accepts the latest declared `0.1.x`,
-  `0.2.x`, `0.3.x`, and `0.4.x` lines, targets the existing Phase 12 schema,
+- The `1.0.0` package contract directly accepts exactly `0.1.0`, `0.2.0`,
+  `0.3.0`, and `0.4.0`, targets the existing Phase 12 schema,
   declares conservative restore-based rollback, and includes a standalone
   verifier plus client install/update manuals.
+- Client deployment uses a service-owned mode-`0700` key/recovery directory and
+  a separate root-controlled release plane. Ordinary web/worker/scheduler
+  processes never receive release-write membership; only the root-installed
+  one-shot updater retains effective user `emailer` and receives the bounded
+  `emailer-release` supplementary group. Reviewed worker, scheduler,
+  operations, and update units ship in the signed artifact.
 - UI acceptance adds skip navigation, strong two-colour focus, minimum target
   sizing, and reduced-motion handling. The browser matrix and WCAG 2.2 AA
   target explicitly require human keyboard/assistive-technology acceptance.
@@ -92,12 +101,29 @@ no client secret and grants no deployment/provider/DNS/live-SMTP authority.
 - Symfony service-container lint: pass.
 - Maximum PHPStan, Deptrac, and project module-boundary gate: pass with zero
   errors/violations.
-- Complete working-tree aggregate `composer check`: pass — 200 tests, 2,652
+- Complete repaired working-tree aggregate: pass — 204 tests, 2,681
   assertions; Composer validation/audit/license policy, formatter, PHPStan,
   Deptrac, module/shell/migration checks, Doctrine mapping, production artifact,
   public-path/deployment probes, current/reachable-history secret and private-
-  data scans, production-only install, and deterministic `1.0.0` candidate
-  tooling all pass. The aggregate will be repeated on the exact committed head.
+  data scans, production-only install, systemd unit syntax, and deterministic
+  `1.0.0` candidate tooling all pass. The artifact/security/candidate segment
+  was repeated after its reviewed deployment allowlist changed and passed.
+
+## Independent-review findings and repair
+
+The authorized review of exact head
+`0c02725849cafb04d2ed41d78f8ffd8f2778f931` found three high issues: the
+documented key parent could not pass effective-user ownership/mode checks, the
+service user could not publish an immutable update without an unsafe privilege
+choice, and a process crash between filesystem publication and database commit
+could leave key/envelope state ambiguous. It also found overly broad source-line
+compatibility, inconsistent runtime paths, and unsafe cleanup ownership for a
+pre-existing candidate directory.
+
+All are repaired in the same Phase 13 PR. Focused repair evidence is 21 tests
+and 194 assertions, including crash before commit, crash after commit,
+concurrent-reader refusal, exact accepted-source rejection, and manual/unit
+contracts. The old review authorization does not apply to the changed head.
 
 All executed mail behavior used only the repository's local Mailpit service and
 reserved synthetic domains. No provider, live SMTP, DNS, client server,
@@ -105,11 +131,10 @@ credential, or external account was contacted or changed.
 
 ## Unresolved release prerequisites
 
-- repeat formatter, aggregate, migrations, full PHPUnit, artifact, public-path,
-  candidate-tooling, secret, private-data, and reachable-history gates on the
-  exact committed head, plus the CI isolated-network negative-egress gate;
-- complete self-review and an independent exact-head review with no unresolved
-  critical/high finding;
+- repeat the complete aggregate on the exact committed repair head and obtain
+  the CI isolated-network negative-egress result;
+- obtain renewed authorization and independent review of the new exact head,
+  with no unresolved critical/high finding;
 - human supported-browser, keyboard, zoom/contrast, VoiceOver and NVDA
   acceptance recorded by the acceptance owner;
 - draft PR, unchanged green required GitHub CI, and exact head SHA;

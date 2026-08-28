@@ -1,10 +1,11 @@
 # Upgrade and rollback
 
 **Status:** Phase 13 `1.0.0` acceptance supports clean installation and direct
-update from the latest accepted `0.1.x`, `0.2.x`, `0.3.x`, or `0.4.x` line.
+update from exactly `0.1.0`, `0.2.0`, `0.3.0`, or `0.4.0`.
 
 The `1.0.0` target schema remains `Version20260828000000`. Its package declares
-minimum source `0.1.0`, minimum schema `20260824010000`, and
+minimum source `0.1.0`, an explicit supported-source list containing only
+`0.1.0`, `0.2.0`, `0.3.0`, and `0.4.0`, minimum schema `20260824010000`, and
 `rollback_schema_compatible=false` across the combined train. Every source path
 therefore takes and verifies a pre-update backup; any failed path after schema
 work restores that backup before reinstating the old immutable pointer. Follow
@@ -127,7 +128,7 @@ latest supported release:
 | `0.2.0` | latest supported `0.1.x` |
 | `0.3.0` | latest supported `0.2.x` |
 | `0.4.0` | latest supported `0.3.x` |
-| `1.0.0` | every release line still declared supported |
+| `1.0.0` | exactly `0.1.0`, `0.2.0`, `0.3.0`, and `0.4.0` |
 
 Every rehearsal covers tampered and incompatible packages, interrupted update,
 failed post-switch health, and the documented compatible rollback or verified

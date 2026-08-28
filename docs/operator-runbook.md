@@ -7,7 +7,7 @@ candidate remains unpublished; `1.0.0` remains pending final acceptance.
 
 For a new client server, follow
 [CLIENT-INSTALL-1.0.0.md](CLIENT-INSTALL-1.0.0.md) in order. For an existing
-accepted `0.1.x`, `0.2.x`, `0.3.x`, or `0.4.x` installation, follow
+accepted exact `0.1.0`, `0.2.0`, `0.3.0`, or `0.4.0` installation, follow
 [CLIENT-UPDATE-1.0.0.md](CLIENT-UPDATE-1.0.0.md). Do not substitute an unsigned
 archive, skip the independent public-key fingerprint, unpack before standalone
 verification, or resume delivery before Doctor and restore evidence pass.
@@ -246,7 +246,9 @@ removes pending inactive enrollment material.
 configuration workflow for transport-secret replacement. Master-key rotation
 is now a separately controlled maintenance operation:
 
-1. stop new delivery and wait for active claims to reach zero;
+1. stop new delivery and wait for active claims to reach zero, then stop
+   PHP-FPM, worker, scheduler, and operations processes so only the protected
+   rotation CLI can access secrets during the transaction;
 2. confirm the separately held current recovery package is readable and its
    passphrase is available to the recovery owner;
 3. run `bin/console emailer:secrets:rotate-master-key` from the service account
@@ -259,13 +261,18 @@ is now a separately controlled maintenance operation:
    `bin/console emailer:secrets:export-recovery-key` with a new independently
    stored passphrase;
 6. create and verify a new encrypted backup, run full Doctor, and perform the
-   documented secret-dependent smoke checks before resuming delivery.
+   documented secret-dependent smoke checks, restart every application process,
+   and rerun Doctor before resuming delivery.
 
-Any failure keeps delivery stopped. If automatic compensation reports that
-filesystem-key rollback also failed, do not retry blindly: restore the old key
-from its separately held recovery package, authenticate the reported
-pre-rotation backup, and follow incident response. Rotation never contacts a
-provider and the audit contains counts/opaque IDs only.
+The rotation journal remains inside the external mode-`0700` key directory and
+is reconciled automatically against the committed opaque audit marker after a
+process crash or ambiguous commit. A concurrent process is denied key access
+while the maintenance lock is held. Any failure keeps delivery stopped. If
+journal reconciliation reports failure, do not retry blindly: preserve the key
+directory, restore from the separately held recovery material only through the
+incident procedure, authenticate the reported pre-rotation backup, and follow
+incident response. Rotation never contacts a provider and the audit contains
+counts/opaque IDs only.
 
 ## Phase 4 identity operations
 

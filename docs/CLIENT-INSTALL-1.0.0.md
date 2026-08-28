@@ -64,14 +64,13 @@ The examples use a non-login account named `emailer`, group `emailer`, and this
 layout:
 
 ```text
-/srv/emailer/releases/              root-owned immutable releases and current link
+/srv/emailer/releases/              release-group writable control plane; immutable releases
 /var/lib/emailer/private/           writable application-private state
+/var/lib/emailer/keys/              service-owned mode-0700 key/recovery boundary
 /var/backups/emailer/               encrypted local backups
 /etc/emailer/runtime.env            protected service environment
-/etc/emailer/master.key             external application master key
-/etc/emailer/recovery-key.enxkey     separately protected encrypted recovery package
 /etc/emailer/release-signing.pub     independently pinned release public key
-/var/lib/emailer-candidate/          temporary private candidate staging
+/var/lib/emailer-candidate/          release-group-readable candidate staging
 ```
 
 Create them with the platform's account-management tools, then enforce the
@@ -79,16 +78,21 @@ equivalent of:
 
 ```sh
 sudo useradd --system --home /var/lib/emailer --shell /usr/sbin/nologin emailer
-sudo install -d -o root -g emailer -m 0755 /srv/emailer /srv/emailer/releases
-sudo install -d -o emailer -g emailer -m 0700 /var/lib/emailer/private /var/backups/emailer
+sudo groupadd --system emailer-release
+sudo install -d -o root -g emailer-release -m 2775 /srv/emailer /srv/emailer/releases
+sudo install -d -o emailer -g emailer -m 0700 /var/lib/emailer/private /var/lib/emailer/keys /var/backups/emailer
 sudo install -d -o root -g emailer -m 0750 /etc/emailer
-sudo install -d -o root -g root -m 0700 /var/lib/emailer-candidate
+sudo install -d -o root -g emailer-release -m 0750 /var/lib/emailer-candidate
 ```
 
-If the account already exists, verify it instead of recreating it. The web and
-worker processes may write private/runtime paths, but never source, immutable
-release files, package staging, the pinned public key, or service definitions.
-The release-signing private key must never be copied to this server.
+If the account or group already exists, verify it instead of recreating it. Do
+not add `emailer` to `emailer-release`: normal PHP-FPM, worker, and scheduler
+processes must not receive that supplementary group. A root-owned update unit
+adds it only to the bounded updater process while retaining effective user
+`emailer`, so key ownership checks still hold. The web and worker processes may
+write private/runtime paths, but never source, immutable release files, package
+staging, the pinned public key, or service definitions. The release-signing
+private key must never be copied to this server.
 
 ## 4. Create the MariaDB database and restricted account
 
@@ -124,7 +128,7 @@ Copy the independently verified key to the final path, then check it without
 printing its contents:
 
 ```sh
-sudo install -o root -g emailer -m 0640 /private/incoming/release-signing.pub /etc/emailer/release-signing.pub
+sudo install -o root -g root -m 0644 /private/incoming/release-signing.pub /etc/emailer/release-signing.pub
 sudo sha256sum /etc/emailer/release-signing.pub
 sudo stat -c '%F %a %U:%G %h' /etc/emailer/release-signing.pub
 ```
@@ -144,14 +148,14 @@ transfer channel:
 
 Compare the two verifier-script SHA-256 values with the separately approved
 release-candidate record. Then verify the archive checksum and the complete
-signed package contract:
+signed package contract as effective user `emailer` with only the temporary
+primary group `emailer-release` (do not add a persistent group membership):
 
 ```sh
-cd /var/lib/emailer-candidate
-sha256sum verify-package.php PackageInspector.php
-sha256sum -c emailer-next-1.0.0.zip.sha256
-php verify-package.php \
-  --archive=emailer-next-1.0.0.zip \
+sudo sha256sum /var/lib/emailer-candidate/verify-package.php /var/lib/emailer-candidate/PackageInspector.php
+sudo sh -c 'cd /var/lib/emailer-candidate && sha256sum -c emailer-next-1.0.0.zip.sha256'
+sudo -u emailer -g emailer-release php /var/lib/emailer-candidate/verify-package.php \
+  --archive=/var/lib/emailer-candidate/emailer-next-1.0.0.zip \
   --public-key=/etc/emailer/release-signing.pub \
   --current-version=0.1.0 \
   --expected-version=1.0.0 \
@@ -169,9 +173,9 @@ and every file digest before extraction. Stop on any non-zero result.
 Only after Step 6 succeeds:
 
 ```sh
-sudo install -d -o root -g emailer -m 0755 /srv/emailer/releases/1.0.0
+sudo install -d -o root -g emailer-release -m 0755 /srv/emailer/releases/1.0.0
 sudo unzip -q /var/lib/emailer-candidate/emailer-next-1.0.0.zip -d /srv/emailer/releases/1.0.0
-sudo chown -R root:emailer /srv/emailer/releases/1.0.0
+sudo chown -R root:emailer-release /srv/emailer/releases/1.0.0
 sudo find /srv/emailer/releases/1.0.0 -type d -exec chmod 0555 {} +
 sudo find /srv/emailer/releases/1.0.0 -type f -exec chmod 0444 {} +
 ```
@@ -201,8 +205,8 @@ APP_SECRET=<AT-LEAST-32-RANDOM-BYTES-ENCODED-SAFELY>
 DEFAULT_URI=https://emailer.client.example
 DATABASE_URL=mysql://emailer:<PERCENT-ENCODED-PASSWORD>@localhost:3306/emailer?serverVersion=10.11.19-MariaDB&charset=utf8mb4
 EMAILER_PRIVATE_DIR=/var/lib/emailer/private
-EMAILER_SECRET_KEY_FILE=/etc/emailer/master.key
-EMAILER_RECOVERY_KEY_FILE=/etc/emailer/recovery-key.enxkey
+EMAILER_SECRET_KEY_FILE=/var/lib/emailer/keys/master.key
+EMAILER_RECOVERY_KEY_FILE=/var/lib/emailer/keys/recovery-key.enxkey
 EMAILER_RELEASE_PUBLIC_KEY_FILE=/etc/emailer/release-signing.pub
 EMAILER_RELEASES_DIR=/srv/emailer/releases
 EMAILER_BACKUP_DESTINATION_DIR=
@@ -226,6 +230,31 @@ sudo chown root:emailer /etc/emailer/runtime.env
 sudo chmod 0640 /etc/emailer/runtime.env
 sudo stat -c '%F %a %U:%G %h' /etc/emailer/runtime.env
 ```
+
+For the remaining supervised CLI steps, keep one protected root terminal open
+and define this launcher. It runs PHP as `emailer`, loads the protected file
+through systemd (never through shell expansion), uses the immutable current
+working directory, and removes the transient unit after each command:
+
+```sh
+emailer_cli() {
+  sudo systemd-run --quiet --wait --collect --pty \
+    --property=User=emailer \
+    --property=Group=emailer \
+    --property=WorkingDirectory=/srv/emailer/releases/current \
+    --property=EnvironmentFile=/etc/emailer/runtime.env \
+    --property=NoNewPrivileges=yes \
+    --property=PrivateTmp=yes \
+    --property=ProtectSystem=strict \
+    --property='ReadWritePaths=/var/lib/emailer/private /var/lib/emailer/keys /var/backups/emailer' \
+    /usr/bin/php /srv/emailer/releases/current/bin/console "$@"
+}
+```
+
+Do not replace this with `source /etc/emailer/runtime.env`, `sudo -E`, or values
+copied into command arguments. Stop if the host's systemd does not accept these
+properties; define an equivalent reviewed service-account launcher before
+continuing.
 
 ## 9. Configure PHP-FPM and the web server
 
@@ -255,9 +284,9 @@ Load the runtime environment through the service manager; do not `source` it in
 a shared or logged shell. As the `emailer` account, run:
 
 ```sh
-php /srv/emailer/releases/current/bin/console doctrine:migrations:migrate --no-interaction
-php /srv/emailer/releases/current/bin/console doctrine:migrations:status
-php /srv/emailer/releases/current/bin/console emailer:setup:install
+emailer_cli doctrine:migrations:migrate --no-interaction
+emailer_cli doctrine:migrations:status
+emailer_cli emailer:setup:install
 ```
 
 The target schema is `20260828000000`. Stop on a migration/preflight failure;
@@ -271,7 +300,7 @@ needs write permission to a release directory. From a protected interactive
 terminal as `emailer`, with the service manager supplying `runtime.env`, run:
 
 ```sh
-php /srv/emailer/releases/current/bin/console emailer:setup:install --complete
+emailer_cli emailer:setup:install --complete
 ```
 
 Do not add values as command-line options or redirect the session to a log. The
@@ -315,9 +344,25 @@ change, sender verification, or DNS change requires its own approved action.
 
 ## 13. Install worker, scheduler, and operations services
 
-Use `docs/worker.md` and the reviewed systemd/Supervisor examples. Run all
-processes as `emailer`, from `/srv/emailer/releases/current`, with the same
-protected runtime environment.
+The signed archive includes the reviewed worker, scheduler, operations, and
+update units in `deployment/`. Install fixed root-owned copies; never run a
+service definition from the writable pointer itself:
+
+```sh
+sudo install -o root -g root -m 0644 /srv/emailer/releases/current/deployment/emailer-worker.service.example /etc/systemd/system/emailer-worker.service
+sudo install -o root -g root -m 0644 /srv/emailer/releases/current/deployment/emailer-scheduler.service.example /etc/systemd/system/emailer-scheduler.service
+sudo install -o root -g root -m 0644 /srv/emailer/releases/current/deployment/emailer-scheduler.timer.example /etc/systemd/system/emailer-scheduler.timer
+sudo install -o root -g root -m 0644 /srv/emailer/releases/current/deployment/emailer-operations.service.example /etc/systemd/system/emailer-operations.service
+sudo install -o root -g root -m 0644 /srv/emailer/releases/current/deployment/emailer-operations.timer.example /etc/systemd/system/emailer-operations.timer
+sudo install -o root -g root -m 0644 /srv/emailer/releases/current/deployment/emailer-update@.service.example /etc/systemd/system/emailer-update@.service
+sudo systemctl daemon-reload
+sudo systemctl enable --now emailer-worker.service emailer-scheduler.timer emailer-operations.timer
+```
+
+Review every copied path and sandbox control before starting it. Run all
+ordinary processes as `emailer`, from `/srv/emailer/releases/current`, with the
+same protected runtime environment. Only the inactive update template grants
+the bounded `emailer-release` supplementary group.
 
 Required recurring processes are:
 
@@ -327,10 +372,10 @@ php bin/console emailer:scheduler:run
 php bin/console emailer:operations:run
 ```
 
-Invoke the scheduler and operations command at least once per minute. If a
-supervisor is impossible, use the bounded, non-overlapping CLI cron fallback in
-`docs/worker.md`; HTTP/URL cron is prohibited. Start the services, inspect
-redacted status only, and confirm fresh heartbeats.
+The timers invoke scheduler and operations at least once per minute. If systemd
+is unavailable, translate these exact commands into bounded, non-overlapping
+Supervisor/cron jobs; HTTP/URL cron is prohibited. Inspect redacted status only
+and confirm fresh heartbeats.
 
 ## 14. Create recovery material and the first verified backup
 
@@ -338,15 +383,15 @@ Before any production campaign, export the master-key recovery package
 interactively:
 
 ```sh
-php /srv/emailer/releases/current/bin/console emailer:secrets:export-recovery-key
+emailer_cli emailer:secrets:export-recovery-key
 ```
 
 Store its passphrase separately from the package, master key, database, and
 ordinary backup. Then create and verify an encrypted backup:
 
 ```sh
-php /srv/emailer/releases/current/bin/console emailer:backup:create
-php /srv/emailer/releases/current/bin/console emailer:backup:verify /private/path/to/generated-backup.enxbackup
+emailer_cli emailer:backup:create
+emailer_cli emailer:backup:verify /private/path/to/generated-backup.enxbackup
 ```
 
 The command reports a private artifact reference; do not copy that path into a
@@ -359,8 +404,8 @@ approves a separately provisioned restrictive mount and policy.
 Run:
 
 ```sh
-php /srv/emailer/releases/current/bin/console emailer:release:check
-php /srv/emailer/releases/current/bin/console emailer:doctor:run --json
+emailer_cli emailer:release:check
+emailer_cli emailer:doctor:run --json
 curl --fail --silent https://emailer.client.example/health/live
 ```
 

@@ -18,6 +18,7 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
         $tooling = (string) file_get_contents($root.'/tools/release/check-candidate-tooling.sh');
         self::assertStringContainsString('--version=1.0.0', $tooling);
         self::assertStringContainsString('--minimum-source=0.1.0', $tooling);
+        self::assertStringContainsString('--supported-sources=0.1.0,0.2.0,0.3.0,0.4.0', $tooling);
         self::assertStringContainsString('--minimum-schema=20260824010000', $tooling);
         self::assertStringContainsString('--schema=20260828000000', $tooling);
         self::assertStringContainsString('for supported_source in 0.1.0 0.2.0 0.3.0 0.4.0', $tooling);
@@ -53,10 +54,29 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
             self::assertStringContainsString($heading, $manual);
         }
 
-        foreach (['current/public', 'EMAILER_SECRET_KEY_FILE', 'EMAILER_RELEASE_PUBLIC_KEY_FILE', 'doctrine:migrations:migrate', 'emailer:setup:install --complete', 'emailer:doctor:run --json', 'emailer:secrets:export-recovery-key', 'emailer:backup:create', 'emailer:operations:run', 'delivery quiesced'] as $safetyCue) {
+        foreach (['current/public', 'EMAILER_SECRET_KEY_FILE=/var/lib/emailer/keys/master.key', 'EMAILER_RELEASE_PUBLIC_KEY_FILE', 'emailer-update@.service', 'doctrine:migrations:migrate', 'emailer:setup:install --complete', 'emailer:doctor:run --json', 'emailer:secrets:export-recovery-key', 'emailer:backup:create', 'emailer:operations:run', 'delivery quiesced'] as $safetyCue) {
             self::assertStringContainsString($safetyCue, $manual);
         }
+        self::assertStringContainsString('not add `emailer` to `emailer-release`', $manual);
+        $updater = (string) file_get_contents($root.'/deployment/emailer-update@.service.example');
+        self::assertStringContainsString('SupplementaryGroups=emailer-release', $updater);
+        self::assertStringContainsString('User=emailer', $updater);
+        $readiness = (string) file_get_contents($root.'/src/Module/Health/Infrastructure/SystemReadinessProbe.php');
+        self::assertStringContainsString("0 === (\$stat['mode'] & 0o002)", $readiness);
+        self::assertStringContainsString('is_readable($path)', $readiness);
         self::assertStringNotContainsString('BEGIN PRIVATE KEY', $manual);
+    }
+
+    public function testCandidateBuilderPreservesAConflictingPreExistingOutputDirectory(): void
+    {
+        $root = \dirname(__DIR__, 2);
+        $builder = (string) file_get_contents($root.'/tools/release/build-1.0.0-candidate.sh');
+        self::assertStringContainsString('[ "$candidate_directory_created" = true ]', $builder);
+        $create = strpos($builder, 'mkdir -m 0755 "$candidate_directory"');
+        $claim = strpos($builder, 'candidate_directory_created=true');
+        self::assertIsInt($create);
+        self::assertIsInt($claim);
+        self::assertLessThan($claim, $create);
     }
 
     public function testAccessibilityAcceptanceHasBlockingAutomatedAndHumanEvidence(): void

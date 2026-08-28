@@ -12,4 +12,4 @@ ExecStart=/usr/bin/php /srv/emailer/releases/current/bin/console emailer:schedul
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
-ReadWritePaths=/srv/emailer-private
+ReadWritePaths=/var/lib/emailer/private /var/backups/emailer

@@ -8,9 +8,14 @@ use App\Module\Secrets\Application\Contract\MasterKey;
 use App\Module\Secrets\Application\Contract\SecretVault;
 use App\Module\Secrets\Application\MasterKeyRotator;
 use App\Module\Secrets\Application\RecoveryKeyExporter;
+use App\Module\Secrets\Infrastructure\CrashRecoveringMasterKey;
+use App\Module\Secrets\Infrastructure\FilesystemMasterKey;
+use App\Shared\Identity;
+use App\Shared\MaintenanceOperationLock;
 use App\Tests\Support\Phase4State;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
+use Symfony\Component\Lock\LockFactory;
 
 final class Phase13MasterKeyRotationTest extends KernelTestCase
 {
@@ -147,6 +152,100 @@ final class Phase13MasterKeyRotationTest extends KernelTestCase
             self::assertSame($backupCount, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM backup_record')));
         } finally {
             sodium_memzero($before);
+        }
+    }
+
+    public function testCrashBeforeDatabaseCommitRestoresOldKeyFromDurableJournal(): void
+    {
+        self::bootKernel();
+        $connection = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($connection);
+        $filesystem = $this->phase4Service(FilesystemMasterKey::class);
+        $old = $filesystem->load();
+        $new = random_bytes(32);
+        $operationId = Identity::uuidV7();
+        try {
+            $filesystem->prepareRotation($old, $new, $operationId);
+            $filesystem->publishRotation($operationId);
+
+            $restarted = new CrashRecoveringMasterKey($filesystem, $connection, $this->phase4Service(MaintenanceOperationLock::class));
+            $recovered = $restarted->load();
+            try {
+                self::assertTrue(hash_equals($old, $recovered));
+                self::assertNull($filesystem->pendingRotationId());
+            } finally {
+                sodium_memzero($recovered);
+            }
+        } finally {
+            sodium_memzero($old);
+            sodium_memzero($new);
+        }
+    }
+
+    public function testCrashAfterDatabaseCommitKeepsNewKeyFromDurableJournal(): void
+    {
+        self::bootKernel();
+        $connection = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($connection);
+        $filesystem = $this->phase4Service(FilesystemMasterKey::class);
+        $old = $filesystem->load();
+        $new = random_bytes(32);
+        $operationId = Identity::uuidV7();
+        try {
+            $filesystem->prepareRotation($old, $new, $operationId);
+            $filesystem->publishRotation($operationId);
+            $connection->insert('audit_event', [
+                'id' => Identity::uuidV7(),
+                'actor_user_id' => null,
+                'action' => 'secrets.master_key.rotated',
+                'target_id' => $operationId,
+                'occurred_at' => Identity::now(),
+                'source_hash' => null,
+                'result' => 'success',
+                'summary_json' => '{}',
+            ]);
+
+            $restarted = new CrashRecoveringMasterKey($filesystem, $connection, $this->phase4Service(MaintenanceOperationLock::class));
+            $recovered = $restarted->load();
+            try {
+                self::assertTrue(hash_equals($new, $recovered));
+                self::assertNull($filesystem->pendingRotationId());
+            } finally {
+                sodium_memzero($recovered);
+            }
+        } finally {
+            sodium_memzero($old);
+            sodium_memzero($new);
+        }
+    }
+
+    public function testConcurrentReaderCannotReconcileAnActiveRotation(): void
+    {
+        self::bootKernel();
+        $connection = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($connection);
+        $filesystem = $this->phase4Service(FilesystemMasterKey::class);
+        $old = $filesystem->load();
+        $new = random_bytes(32);
+        $operationId = Identity::uuidV7();
+        $held = $this->phase4Service(MaintenanceOperationLock::class);
+        $held->acquire();
+        try {
+            $filesystem->prepareRotation($old, $new, $operationId);
+            $filesystem->publishRotation($operationId);
+            $contender = new MaintenanceOperationLock($this->phase4Service(LockFactory::class));
+            $reader = new CrashRecoveringMasterKey($filesystem, $connection, $contender);
+            try {
+                $reader->load();
+                self::fail('A concurrent reader reconciled a rotation still protected by the maintenance lock.');
+            } catch (\RuntimeException $exception) {
+                self::assertStringContainsString('rotation is active', $exception->getMessage());
+                self::assertSame($operationId, $filesystem->pendingRotationId());
+            }
+        } finally {
+            $held->release();
+            sodium_memzero($old);
+            sodium_memzero($new);
         }
     }
 }

@@ -28,8 +28,9 @@ source_epoch="$(git -C "$project_root" show -s --format=%ct HEAD)"
 temporary_root="$(mktemp -d)"
 candidate_directory="$output_directory/emailer-next-1.0.0-candidate"
 published=false
+candidate_directory_created=false
 cleanup() {
-    if [ "$published" = false ] && [ -d "$candidate_directory" ]; then
+    if [ "$published" = false ] && [ "$candidate_directory_created" = true ] && [ -d "$candidate_directory" ]; then
         find "$candidate_directory" -mindepth 1 -depth -delete
         rmdir "$candidate_directory"
     fi
@@ -39,6 +40,7 @@ cleanup() {
 trap cleanup EXIT
 mkdir "$temporary_root/first" "$temporary_root/second"
 mkdir -m 0755 "$candidate_directory"
+candidate_directory_created=true
 
 bash "$project_root/tools/artifact/build.sh"
 for output in "$temporary_root/first" "$temporary_root/second"; do
@@ -48,6 +50,7 @@ for output in "$temporary_root/first" "$temporary_root/second"; do
         --version=1.0.0 \
         --source="$source_commit" \
         --minimum-source=0.1.0 \
+        --supported-sources=0.1.0,0.2.0,0.3.0,0.4.0 \
         --minimum-schema=20260824010000 \
         --schema=20260828000000 \
         --rollback-schema-compatible=false \

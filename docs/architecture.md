@@ -11,7 +11,10 @@ previously reserved CLI contracts without adding an HTTP route: the protected
 terminal installer orchestrates existing Setup, Configuration, Identity, and
 Health services, while `Secrets` owns application-layer master-key rotation
 using Backup and Audit contracts plus the shared installation-wide maintenance
-lock. The current schema remains `20260828000000`.
+lock. A restrictive external journal bridges the filesystem publication and
+database commit: first key access after a crash selects old or new key from the
+committed opaque audit marker, while the maintenance lock blocks premature
+reconciliation by another process. The current schema remains `20260828000000`.
 
 Phase 12 adds an `Operations` application-coordination module. It owns only
 bounded scheduler policy/run evidence and consumes published Health,
@@ -162,7 +165,9 @@ flowchart LR
    never define campaign progress.
 4. Dynamic secrets are authenticated-encrypted in the database. The 32-byte
    master key is stored in a restrictive external file and never in the
-   database, queue, logs, session, or Git.
+   database, queue, logs, session, or Git. Rotation journals both key sides only
+   in the same external mode-`0700` custody boundary until committed audit
+   evidence resolves the crash window.
 5. Delivery is at-least-once processing with best-effort duplicate
    minimisation. The product never claims exactly-once SMTP delivery.
 6. Every production message is constructed for one recipient. There is no

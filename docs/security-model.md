@@ -18,8 +18,13 @@
   locks, authenticates every existing envelope, re-encrypts every record with a
   fresh 32-byte key, atomically publishes a restrictive external key, and
   commits redacted audit evidence in the database transaction.
-- Any in-process failure rolls back the database and compensates a published
-  filesystem key. Delivery remains stopped until a new recovery package and
+- A restrictive durable journal binds old/new key material to the opaque audit
+  operation ID before publication. The maintenance lock prevents a concurrent
+  reader from deciding an in-flight rotation. After a process crash or
+  ambiguous commit, first key access reconciles the filesystem to committed
+  audit evidence; no committed marker restores the old key and a committed
+  marker retains the new key. Any ordinary failure follows the same path.
+  Delivery remains stopped until a new recovery package and
   new verified backup are independently stored and Doctor passes. A reported
   compensation failure is an incident and requires the separately held old
   recovery key plus verified pre-rotation backup.
@@ -251,8 +256,9 @@ external 32-byte master key
 - Each encrypted record uses a fresh nonce and a versioned envelope.
 - Authentication failure is handled uniformly and fails closed.
 - Passwords and recovery codes are one-way hashed, never encrypted.
-- Rotation is transactional; any failure rolls back. Audit records contain
-  lifecycle metadata but no secret value.
+- Rotation uses database transaction plus a restrictive crash-recovery journal;
+  any failure or restart converges to the side selected by committed redacted
+  audit evidence. Audit records contain lifecycle metadata but no secret value.
 - The ordinary backup excludes the plaintext master key. A separate
   passphrase-encrypted recovery package is generated and verified explicitly.
 

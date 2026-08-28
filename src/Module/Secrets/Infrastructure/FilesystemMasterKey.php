@@ -285,6 +285,223 @@ final readonly class FilesystemMasterKey implements MasterKey
         }
     }
 
+    public function prepareRotation(string $expectedCurrentKey, string $replacementKey, string $operationId): void
+    {
+        if (32 !== \strlen($expectedCurrentKey)
+            || 32 !== \strlen($replacementKey)
+            || 1 !== preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/', $operationId)
+        ) {
+            throw new \InvalidArgumentException('Master-key rotation journal material is malformed.');
+        }
+        $current = $this->load();
+        try {
+            if (!hash_equals($expectedCurrentKey, $current)) {
+                throw new \RuntimeException('Master key changed before rotation journaling.');
+            }
+        } finally {
+            sodium_memzero($current);
+        }
+
+        $journal = $this->rotationJournalPath();
+        if ($this->pathExists($journal)) {
+            throw new \RuntimeException('A master-key rotation journal already requires recovery.');
+        }
+        $directory = \dirname($journal);
+        $ancestors = $this->validateAncestorChain($directory, true);
+        $temporary = $directory.'/.master-key-rotation-'.bin2hex(random_bytes(12)).'.tmp';
+        $encoded = json_encode([
+            'format' => 'emailer-next-master-key-rotation-v1',
+            'operation_id' => $operationId,
+            'old_key' => sodium_bin2base64($expectedCurrentKey, SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING),
+            'new_key' => sodium_bin2base64($replacementKey, SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING),
+        ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES)."\n";
+        try {
+            $handle = @fopen($temporary, 'x+b');
+            if (false === $handle) {
+                throw new \RuntimeException('Master-key rotation journal cannot be staged.');
+            }
+            try {
+                if (!@chmod($temporary, 0o600)
+                    || \strlen($encoded) !== fwrite($handle, $encoded)
+                    || !fflush($handle)
+                    || (\function_exists('fsync') && !fsync($handle))
+                ) {
+                    throw new \RuntimeException('Master-key rotation journal cannot be persisted.');
+                }
+                $metadata = fstat($handle);
+                if (false === $metadata || !$this->isSafeKeyMetadata($metadata)) {
+                    throw new \RuntimeException('Master-key rotation journal metadata is unsafe.');
+                }
+            } finally {
+                fclose($handle);
+            }
+            $this->assertSnapshotUnchanged($ancestors);
+            if (!@link($temporary, $journal)) {
+                throw new \RuntimeException('Master-key rotation journal cannot be published exclusively.');
+            }
+            if (!@unlink($temporary)) {
+                @unlink($journal);
+                throw new \RuntimeException('Master-key rotation journal staging cannot be removed.');
+            }
+            $verified = $this->readRotationJournal();
+            sodium_memzero($verified['old_key']);
+            sodium_memzero($verified['new_key']);
+        } finally {
+            @unlink($temporary);
+            sodium_memzero($encoded);
+        }
+    }
+
+    public function pendingRotationId(): ?string
+    {
+        if (!$this->pathExists($this->rotationJournalPath())) {
+            return null;
+        }
+        $journal = $this->readRotationJournal();
+        try {
+            return $journal['operation_id'];
+        } finally {
+            sodium_memzero($journal['old_key']);
+            sodium_memzero($journal['new_key']);
+        }
+    }
+
+    public function publishRotation(string $operationId): void
+    {
+        $journal = $this->readRotationJournal();
+        try {
+            if (!hash_equals($journal['operation_id'], $operationId)) {
+                throw new \RuntimeException('Master-key rotation journal identity changed.');
+            }
+            $current = $this->load();
+            try {
+                if (hash_equals($journal['new_key'], $current)) {
+                    return;
+                }
+                if (!hash_equals($journal['old_key'], $current)) {
+                    throw new \RuntimeException('Master key matches neither side of the rotation journal.');
+                }
+            } finally {
+                sodium_memzero($current);
+            }
+            $this->replace($journal['old_key'], $journal['new_key']);
+        } finally {
+            sodium_memzero($journal['old_key']);
+            sodium_memzero($journal['new_key']);
+        }
+    }
+
+    public function resolveRotation(string $operationId, bool $committed): void
+    {
+        $journalPath = $this->rotationJournalPath();
+        $journalMetadata = $this->lstat($journalPath);
+        $journal = $this->readRotationJournal();
+        try {
+            if (!hash_equals($journal['operation_id'], $operationId)) {
+                throw new \RuntimeException('Master-key rotation journal identity changed.');
+            }
+            $desired = $committed ? $journal['new_key'] : $journal['old_key'];
+            $alternate = $committed ? $journal['old_key'] : $journal['new_key'];
+            $current = $this->load();
+            try {
+                if (!hash_equals($desired, $current)) {
+                    if (!hash_equals($alternate, $current)) {
+                        throw new \RuntimeException('Master key matches neither side of the rotation journal.');
+                    }
+                    $this->replace($current, $desired);
+                }
+            } finally {
+                sodium_memzero($current);
+            }
+            $currentMetadata = $this->lstat($journalPath);
+            if (!$this->sameObject($journalMetadata, $currentMetadata) || !@unlink($journalPath) || $this->pathExists($journalPath)) {
+                throw new \RuntimeException('Resolved master-key rotation journal cannot be removed safely.');
+            }
+        } finally {
+            sodium_memzero($journal['old_key']);
+            sodium_memzero($journal['new_key']);
+        }
+    }
+
+    /** @return array{operation_id: string, old_key: string, new_key: string} */
+    private function readRotationJournal(): array
+    {
+        $journal = $this->rotationJournalPath();
+        $ancestors = $this->validateAncestorChain(\dirname($journal), true);
+        $before = $this->lstat($journal);
+        if (!$this->isSafeKeyMetadata($before) || $before['size'] > 1024) {
+            throw new \RuntimeException('Master-key rotation journal metadata is unsafe.');
+        }
+        $handle = @fopen($journal, 'rb');
+        if (false === $handle) {
+            throw new \RuntimeException('Master-key rotation journal cannot be opened.');
+        }
+        try {
+            $opened = fstat($handle);
+            $contents = stream_get_contents($handle, 1025);
+            $after = $this->lstat($journal);
+            if (false === $opened
+                || false === $contents
+                || !$this->sameObject($before, $opened)
+                || !$this->sameObject($opened, $after)
+                || \strlen($contents) > 1024
+            ) {
+                throw new \RuntimeException('Master-key rotation journal changed while being read.');
+            }
+            $this->assertSnapshotUnchanged($ancestors);
+        } finally {
+            fclose($handle);
+        }
+        try {
+            $decoded = json_decode($contents, true, 8, JSON_THROW_ON_ERROR);
+        } finally {
+            sodium_memzero($contents);
+        }
+        if (!\is_array($decoded)
+            || 'emailer-next-master-key-rotation-v1' !== ($decoded['format'] ?? null)
+            || !\is_string($decoded['operation_id'] ?? null)
+            || 1 !== preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/', $decoded['operation_id'])
+            || !\is_string($decoded['old_key'] ?? null)
+            || !\is_string($decoded['new_key'] ?? null)
+        ) {
+            if (\is_array($decoded)) {
+                if (\is_string($decoded['old_key'] ?? null)) {
+                    sodium_memzero($decoded['old_key']);
+                }
+                if (\is_string($decoded['new_key'] ?? null)) {
+                    sodium_memzero($decoded['new_key']);
+                }
+            }
+            throw new \RuntimeException('Master-key rotation journal is malformed.');
+        }
+        $oldKey = null;
+        $newKey = null;
+        try {
+            $oldKey = sodium_base642bin($decoded['old_key'], SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING, '');
+            $newKey = sodium_base642bin($decoded['new_key'], SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING, '');
+        } catch (\SodiumException $exception) {
+            if (\is_string($oldKey)) {
+                sodium_memzero($oldKey);
+            }
+            throw new \RuntimeException('Master-key rotation journal is malformed.', previous: $exception);
+        } finally {
+            sodium_memzero($decoded['old_key']);
+            sodium_memzero($decoded['new_key']);
+        }
+        if (32 !== \strlen($oldKey) || 32 !== \strlen($newKey)) {
+            sodium_memzero($oldKey);
+            sodium_memzero($newKey);
+            throw new \RuntimeException('Master-key rotation journal is malformed.');
+        }
+
+        return ['operation_id' => $decoded['operation_id'], 'old_key' => $oldKey, 'new_key' => $newKey];
+    }
+
+    private function rotationJournalPath(): string
+    {
+        return $this->validatedKeyPath().'.rotation-journal';
+    }
+
     /** @param array<string, array<mixed>> $ancestors */
     private function restoreFailedReplacement(string $keyFile, string $key, array $ancestors): void
     {

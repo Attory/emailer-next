@@ -115,8 +115,9 @@ After=network-online.target mariadb.service
 [Service]
 Type=simple
 User=emailer
-WorkingDirectory=/opt/emailer-next/current
-ExecStart=/usr/bin/php bin/console messenger:consume async --keepalive=5 --time-limit=3600 --memory-limit=256M --failure-limit=10
+WorkingDirectory=/srv/emailer/releases/current
+EnvironmentFile=/etc/emailer/runtime.env
+ExecStart=/usr/bin/php /srv/emailer/releases/current/bin/console messenger:consume async --keepalive=5 --time-limit=3600 --memory-limit=256M --failure-limit=10
 Restart=always
 RestartSec=5
 KillSignal=SIGTERM
@@ -132,7 +133,7 @@ WantedBy=multi-user.target
 
 ```ini
 [program:emailer-next-worker]
-directory=/opt/emailer-next/current
+directory=/srv/emailer/releases/current
 command=/usr/bin/php bin/console messenger:consume async --keepalive=5 --time-limit=3600 --memory-limit=256M --failure-limit=10
 user=emailer
 numprocs=1
@@ -150,9 +151,9 @@ Cron fallback is intended for installations that cannot supervise a process.
 The lock-protected scheduler and consumer must both be bounded:
 
 ```cron
-* * * * * emailer cd /opt/emailer-next/current && /usr/bin/php bin/console emailer:scheduler:run
-* * * * * emailer cd /opt/emailer-next/current && /usr/bin/php bin/console emailer:operations:run
-* * * * * emailer cd /opt/emailer-next/current && /usr/bin/php bin/console messenger:consume async --keepalive=5 --time-limit=50 --limit=100 --memory-limit=256M --failure-limit=10
+* * * * * emailer cd /srv/emailer/releases/current && /usr/bin/php bin/console emailer:scheduler:run
+* * * * * emailer cd /srv/emailer/releases/current && /usr/bin/php bin/console emailer:operations:run
+* * * * * emailer cd /srv/emailer/releases/current && /usr/bin/php bin/console messenger:consume async --keepalive=5 --time-limit=50 --limit=100 --memory-limit=256M --failure-limit=10
 ```
 
 Use an OS process supervisor where available. Do not invoke delivery from HTTP,

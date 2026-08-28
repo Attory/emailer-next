@@ -6,7 +6,7 @@
 - Bootstrap verifier SHA-256: `@VERIFIER_SHA256@`
 - Package inspector SHA-256: `@INSPECTOR_SHA256@`
 - Schema: `20260828000000`
-- Supported sources: latest accepted `0.1.x`, `0.2.x`, `0.3.x`, and `0.4.x` releases
+- Supported sources: exactly `0.1.0`, `0.2.0`, `0.3.0`, and `0.4.0`
 - Minimum source: `0.1.0`
 - Minimum source schema: `20260824010000`
 - Rollback: schema-compatible pointer rollback is not declared for the combined release-train package; restore the verified pre-update backup

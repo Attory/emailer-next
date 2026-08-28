@@ -3,6 +3,7 @@ bin
 composer.json
 composer.lock
 config
+deployment
 importmap.php
 migrations
 public

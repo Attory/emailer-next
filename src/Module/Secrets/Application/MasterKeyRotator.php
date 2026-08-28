@@ -7,8 +7,8 @@ namespace App\Module\Secrets\Application;
 use App\Module\Audit\Application\Contract\AuditRecord;
 use App\Module\Audit\Application\Contract\AuditSink;
 use App\Module\Backup\Application\Contract\BackupOperations;
-use App\Module\Secrets\Application\Contract\MasterKey;
 use App\Module\Secrets\Application\Contract\RecoveryKeyVerifier;
+use App\Module\Secrets\Application\Contract\TransactionalMasterKey;
 use App\Shared\Identity;
 use App\Shared\MaintenanceOperationLock;
 use Doctrine\DBAL\Connection;
@@ -17,7 +17,7 @@ final readonly class MasterKeyRotator
 {
     public function __construct(
         private Connection $connection,
-        private MasterKey $masterKey,
+        private TransactionalMasterKey $masterKey,
         private RecoveryKeyVerifier $recoveryKeyVerifier,
         private SecretCipher $cipher,
         private BackupOperations $backups,
@@ -39,7 +39,8 @@ final readonly class MasterKeyRotator
                 }
                 $backup = $this->backups->create();
                 $newKey = random_bytes(SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_KEYBYTES);
-                $keyReplaced = false;
+                $operationId = Identity::uuidV7();
+                $rotationPrepared = false;
                 $transactionStarted = false;
 
                 try {
@@ -85,28 +86,30 @@ final readonly class MasterKeyRotator
                         }
                     }
 
-                    $this->masterKey->replace($oldKey, $newKey);
-                    $keyReplaced = true;
+                    $this->masterKey->beginRotation($oldKey, $newKey, $operationId);
+                    $rotationPrepared = true;
+                    $this->masterKey->publishRotation($operationId);
                     $this->audit->append(new AuditRecord(
                         $actorUserId,
                         'secrets.master_key.rotated',
-                        null,
+                        $operationId,
                         'success',
                         ['encrypted_record_count' => \count($records), 'backup_id' => $backup['id']],
                     ));
                     $this->connection->commit();
                     $transactionStarted = false;
+                    $this->masterKey->resolveRotation($operationId);
 
                     return ['backup_id' => $backup['id'], 'rotated_secret_count' => \count($records)];
                 } catch (\Throwable $exception) {
                     if ($transactionStarted && $this->connection->isTransactionActive()) {
                         $this->connection->rollBack();
                     }
-                    if ($keyReplaced) {
+                    if ($rotationPrepared) {
                         try {
-                            $this->masterKey->replace($newKey, $oldKey);
-                        } catch (\Throwable $rollbackFailure) {
-                            throw new \RuntimeException('Master-key rotation failed and filesystem-key rollback also failed. Keep delivery stopped and restore the verified pre-rotation backup with the separately held old recovery key.', previous: $rollbackFailure);
+                            $this->masterKey->resolveRotation($operationId);
+                        } catch (\Throwable $recoveryFailure) {
+                            throw new \RuntimeException('Master-key rotation failed and its durable journal could not be reconciled. Keep delivery stopped; the next application start must reconcile the journal before secrets are used.', previous: $recoveryFailure);
                         }
                     }
                     throw $exception;

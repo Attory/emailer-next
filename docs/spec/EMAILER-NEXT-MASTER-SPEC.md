@@ -249,7 +249,7 @@ Production may point private and secret directories to paths outside the release
 
 ```text
 EMAILER_PRIVATE_DIR=/srv/emailer-data
-EMAILER_SECRET_KEY_FILE=/etc/emailer/master.key
+EMAILER_SECRET_KEY_FILE=/var/lib/emailer/keys/master.key
 ```
 
 The application must refuse production operation when:

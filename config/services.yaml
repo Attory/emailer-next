@@ -105,7 +105,8 @@ services:
             $projectDirectory: '%kernel.project_dir%'
             $environment: '%kernel.environment%'
 
-    App\Module\Secrets\Application\Contract\MasterKey: '@App\Module\Secrets\Infrastructure\FilesystemMasterKey'
+    App\Module\Secrets\Application\Contract\MasterKey: '@App\Module\Secrets\Infrastructure\CrashRecoveringMasterKey'
+    App\Module\Secrets\Application\Contract\TransactionalMasterKey: '@App\Module\Secrets\Infrastructure\CrashRecoveringMasterKey'
     App\Module\Setup\Application\Contract\SetupLifecycle: '@App\Module\Setup\Infrastructure\LockedSetupLifecycle'
     App\Module\Secrets\Application\Contract\SecretVault: '@App\Module\Secrets\Infrastructure\DoctrineSecretVault'
     App\Module\Secrets\Application\Contract\RecoveryKeyVerifier: '@App\Module\Secrets\Application\RecoveryKeyExporter'

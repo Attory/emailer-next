@@ -168,7 +168,9 @@ data is accepted.
   publication and metadata. Integration tests cover verified pre-rotation
   backup, delivery-quiescence refusal, complete secret re-encryption, unchanged
   revealed value, key change, redacted audit, and database/key compensation
-  when failure occurs after filesystem publication.
+  when failure occurs after filesystem publication. Durable-journal tests model
+  process crash before and after database commit, and prove a concurrent reader
+  cannot reconcile while the rotation process owns the maintenance lock.
 - Production dependency licenses are parsed from the lock and candidate SPDX
   inspection rejects missing license decisions.
 - Package acceptance covers every declared `0.1.0`, `0.2.0`, `0.3.0`, and

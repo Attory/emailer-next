@@ -88,7 +88,7 @@ message does not prove inbox delivery.
 | TM-02 | Setup proof leaks through log, error, session, or race | Store hash only; generic response; redacted logging; state/proof deletion; session rotation; concurrent verification test | 2 |
 | TM-03 | Web server exposes `.git`, `.env`, source, logs, backups, private data, or key | `public/` document root; artifact allowlist; server probes; safe permissions; Doctor sending gate | 1/8/9 |
 | TM-04 | Stolen database reveals SMTP secret or TOTP seed | XChaCha20-Poly1305; external key; purpose HKDF; fresh nonce; record-bound AAD; fail closed | 3 |
-| TM-05 | Key substitution, permission weakness, or ciphertext swapping | Explicit absolute external path; complete ancestor ownership/mode/link and replacement checks; strict key length/mode/link count; installation/record/type/version in AAD; constant-time failure; transactional rotation | 3 |
+| TM-05 | Key substitution, permission weakness, ciphertext swapping, or crash between database/key commits | Explicit absolute external path; complete ancestor ownership/mode/link and replacement checks; strict key length/mode/link count; installation/record/type/version in AAD; constant-time failure; maintenance lock; restrictive old/new journal reconciled to committed opaque audit marker | 3/13 |
 | TM-06 | Password/session/account takeover | Argon2id; throttling; optional TOTP with Owner policy; hashed recovery codes; secure server sessions; rotation/revocation; generic recovery | 3–4 |
 | TM-07 | Operator exceeds role or removes last Owner | Default-deny route and service authorization; recent auth; generated role matrix; database/application invariant; audit | 4 |
 | TM-08 | CSRF or unsafe GET changes state | Unsafe methods for mutations; framework CSRF negative matrix; SameSite cookie; public-token routes isolated | 4/7 |
@@ -333,7 +333,8 @@ provider, rotate a credential, change DNS, or use live SMTP.
   recovery-package authentication, delivery quiescence, verified pre-rotation
   backup, maintenance/row locks, authenticated
   decrypt/re-encrypt of the complete inventory, restrictive atomic key
-  replacement, database rollback and filesystem compensation tests.
+  replacement, maintenance-lock concurrency refusal, and crash reconciliation
+  tests on both sides of the database commit.
 - TM-21/TM-23 candidate inspection now rejects missing SPDX license decisions,
   and the aggregate gate audits all production dependency licenses against the
   documented allowlist.

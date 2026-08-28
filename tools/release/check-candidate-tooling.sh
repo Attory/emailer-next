@@ -23,6 +23,7 @@ for output in "$temporary_root/first" "$temporary_root/second"; do
         --version=1.0.0 \
         --source="$source_commit" \
         --minimum-source=0.1.0 \
+        --supported-sources=0.1.0,0.2.0,0.3.0,0.4.0 \
         --minimum-schema=20260824010000 \
         --schema=20260828000000 \
         --rollback-schema-compatible=false \

@@ -62,9 +62,14 @@ interactive active-Owner password/MFA re-authentication, authenticates the
 current recovery package/passphrase against the live key, requires quiesced
 delivery, and creates a verified pre-rotation backup before any key change. Under the shared
 maintenance lock and database row locks, every encrypted record is authenticated
-with the old key, re-encrypted with a fresh key, the restrictive external file
-is replaced atomically, and the database/audit transaction commits. Any
-in-process failure restores database envelopes and compensates the external key.
+with the old key and re-encrypted with a fresh key. Before publishing the new
+external file, the service durably journals both key sides and an opaque
+operation ID in the same mode-`0700` directory. The redacted audit marker uses
+that ID inside the database transaction. A reader cannot reconcile while the
+maintenance lock proves the rotation process is active. After a process crash,
+the next key access restores the old key when no committed marker exists or
+keeps the new key when the marker committed, then removes the journal. Ordinary
+in-process failures use the same reconciliation path.
 
 The reported pre-rotation backup remains encrypted under the old key. Keep it
 with the old recovery package in separate historical custody until rotation is

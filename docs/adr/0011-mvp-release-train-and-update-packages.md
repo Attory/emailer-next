@@ -30,7 +30,8 @@ Every distributable release is an immutable, reproducible archive named for an
 exact semantic version. It has an allowlisted runtime tree plus a deterministic
 manifest containing the application version, source commit, supported
 PHP/MariaDB range, schema compatibility, required migrations, file digests, and
-minimum supported source version. A checksum, SPDX SBOM, and detached Ed25519
+minimum supported source version and an explicit supported-source allowlist. A
+checksum, SPDX SBOM, and detached Ed25519
 signature accompany the archive. Release signing private material is external
 to Git and the application; installations pin the approved public verification
 key through operator-controlled configuration.

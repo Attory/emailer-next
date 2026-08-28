@@ -27,7 +27,7 @@ candidate, signing, and merge approval for the earlier SHA.
 | Production secret replacement remains authenticated and Owner-gated | PASS | Existing HTTPS mail configuration workflow; generic CLI replacement stays fail closed |
 | Master-key rotation requires Owner password/MFA and current recovery-package authentication | PASS | Existing throttled re-authentication service, recovery-package verifier, and CLI command tests |
 | Rotation requires quiescence, verified backup, maintenance/row locks | PASS | Application service and MariaDB integration tests |
-| Complete re-encryption, restrictive key swap, redacted audit, rollback on failure | PASS | Success, expected-key, active-delivery refusal, and post-publication compensation tests |
+| Complete re-encryption, restrictive key swap, redacted audit, crash-safe resolution | PASS | Success, expected-key, active-delivery refusal, concurrent-reader refusal, and pre/post-commit crash tests |
 
 ## 3. Security, privacy, licensing, and accessibility
 
@@ -48,7 +48,7 @@ candidate, signing, and merge approval for the earlier SHA.
 | Check | Status | Evidence |
 | --- | --- | --- |
 | Version `1.0.0`, target schema `20260828000000` | PASS | Container parameters and Phase 13 platform test |
-| Direct accepted sources `0.1.x`, `0.2.x`, `0.3.x`, `0.4.x` | PASS | Package inspector and update-manager matrix tests |
+| Direct accepted sources exactly `0.1.0`, `0.2.0`, `0.3.0`, `0.4.0` | PASS | Signed manifest list, package inspector, and update-manager matrix tests |
 | Unsupported source, downgrade, same-version, tamper and wrong signature fail closed | PASS LOCAL | Release/update matrix and deterministic candidate-tooling gate pass |
 | Clean immutable install | PASS LOCAL | Production-only install and standalone verification pass |
 | Interrupted update, failed health, rollback/restore | PASS LOCAL | Complete release-update/candidate gates pass |
@@ -62,7 +62,7 @@ candidate, signing, and merge approval for the earlier SHA.
 | --- | --- | --- |
 | Complete `composer check` on exact committed head | PENDING | Record command and totals in Phase 13 report |
 | Required GitHub CI matrix green on exact PR head | PENDING | PR checks |
-| Independent review complete with no unresolved critical/high finding | PENDING | Exact-head review record |
+| Independent review complete with no unresolved critical/high finding | RE-REVIEW REQUIRED | Review of `0c02725849cafb04d2ed41d78f8ffd8f2778f931` found three high blockers; repaired head needs renewed exact-head review |
 | Operator-signed deterministic `1.0.0` candidate independently verified | PENDING AUTHORIZATION | Requires exact-head authorization and external key/public/output paths |
 | Candidate archive/manifest/checksum/signature/SBOM and verifier hashes recorded | PENDING AUTHORIZATION | External candidate record; outputs stay outside Git |
 | Exact PR head approved and merged | PENDING AUTHORIZATION | Anton must name repository, Phase 13, PR, and full head SHA |

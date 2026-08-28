@@ -43,7 +43,18 @@ final readonly class PackageInspector
         }
         $identifier = '(?:0|[1-9][0-9]*|[0-9]*[A-Za-z-][0-9A-Za-z-]*)';
         $semanticVersion = '/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)(?:-'.$identifier.'(?:\.'.$identifier.')*)?$/D';
-        if (1 !== preg_match($semanticVersion, $manifest['version']) || 1 !== preg_match($semanticVersion, $manifest['minimum_source_version']) || 1 !== preg_match($semanticVersion, $this->currentVersion) || 1 !== preg_match('/^[a-f0-9]{40}$/', $manifest['source_commit']) || version_compare($manifest['minimum_source_version'], $this->currentVersion, '>') || basename($archive) !== 'emailer-next-'.$manifest['version'].'.zip') {
+        $supportedSources = $manifest['supported_source_versions'] ?? null;
+        if (!\is_array($supportedSources) || [] === $supportedSources || false === array_is_list($supportedSources)) {
+            throw new \RuntimeException('Release source compatibility check failed.');
+        }
+        $supportedSourceVersions = [];
+        foreach ($supportedSources as $supportedSource) {
+            if (!\is_string($supportedSource) || 1 !== preg_match($semanticVersion, $supportedSource)) {
+                throw new \RuntimeException('Release source compatibility check failed.');
+            }
+            $supportedSourceVersions[] = $supportedSource;
+        }
+        if (1 !== preg_match($semanticVersion, $manifest['version']) || 1 !== preg_match($semanticVersion, $manifest['minimum_source_version']) || 1 !== preg_match($semanticVersion, $this->currentVersion) || \count($supportedSourceVersions) !== \count(array_unique($supportedSourceVersions, SORT_STRING)) || !\in_array($manifest['minimum_source_version'], $supportedSourceVersions, true) || !\in_array($this->currentVersion, $supportedSourceVersions, true) || 1 !== preg_match('/^[a-f0-9]{40}$/', $manifest['source_commit']) || version_compare($manifest['minimum_source_version'], $this->currentVersion, '>') || basename($archive) !== 'emailer-next-'.$manifest['version'].'.zip') {
             throw new \RuntimeException('Release source compatibility check failed.');
         }
         if (1 !== preg_match('/^[0-9]{14}$/', $manifest['minimum_schema_version']) || 1 !== preg_match('/^[0-9]{14}$/', $manifest['schema_version']) || $manifest['schema_version'] < $manifest['minimum_schema_version']) {

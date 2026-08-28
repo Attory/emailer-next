@@ -119,8 +119,11 @@ material. Enrol Owner MFA from the authenticated HTTPS UI before production.
 Before web setup, operators supply `DATABASE_URL`, `EMAILER_PRIVATE_DIR`, and
 `EMAILER_SECRET_KEY_FILE` through external runtime configuration. Production
 refuses an omitted, relative, application/release/public, symlink-directed, or
-unsafe-ancestor key path. The complete existing chain is checked; setup creates
-the immediate parent as mode `0700` and key as mode `0600`. Development Compose
+unsafe-ancestor key path. The complete existing chain is checked; the immediate
+parent must be owned by the effective service user with exact mode `0700`, and
+the key is mode `0600`. For the client layout use
+`/var/lib/emailer/keys/master.key`; do not combine its parent with root-owned
+runtime configuration. Development Compose
 uses a separate `/emailer-secrets` volume. Never pre-create the key with
 content, put it in Git, pass it on a command line, or include it in an ordinary
 backup.

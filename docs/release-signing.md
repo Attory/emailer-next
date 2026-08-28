@@ -36,6 +36,8 @@ If the private key is lost or suspected compromised, stop signing, publishing, a
 - `0.2.x` accepts the latest supported `0.1.x` release.
 - `0.3.x` accepts the latest supported `0.2.x` release.
 - `0.4.x` accepts the latest supported `0.3.x` release.
-- `1.0.x` accepts every release line explicitly declared supported in its release notes.
+- `1.0.0` accepts exactly `0.1.0`, `0.2.0`, `0.3.0`, and `0.4.0`; the signed
+  manifest carries that explicit allowlist rather than accepting arbitrary
+  patch releases within those lines.
 
 An update from an older or unlisted line is rejected until the operator applies each supported intermediate release or follows a separately reviewed migration plan. Downgrades and same-version updates remain prohibited.

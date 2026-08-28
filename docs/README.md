@@ -53,7 +53,7 @@ installable feature/operations updates through Version 1 at Phase 13.
 | [Operator runbook](operator-runbook.md) | Version-1 Doctor, scheduler, recovery, key rotation, backup, retention, and update operations |
 | [Worker](worker.md) | Current delivery readiness and maintenance behavior |
 | [Backup and restore](backup-restore.md) | Encrypted local and approved external backup/restore operations |
-| [Upgrade and rollback](upgrade-rollback.md) | `1.0.0` clean install and supported `0.1.x`–`0.4.x` update window |
+| [Upgrade and rollback](upgrade-rollback.md) | `1.0.0` clean install and exact supported `0.1.0`–`0.4.0` sources |
 | [Incident response](incident-response.md) | Baseline, including source/artifact/log exposure |
 | [Privacy and retention](privacy-retention.md) | Phase 12 configurable bounded retention and durable exclusions |
 | [Development](development.md) | Executable workflow and current Phase 13 boundary |
