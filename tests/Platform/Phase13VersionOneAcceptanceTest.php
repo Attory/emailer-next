@@ -167,7 +167,7 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
         $installer = (string) file_get_contents($root.'/tools/release/install-0.9.0.sh');
         $manual = (string) file_get_contents($root.'/docs/CLIENT-INSTALL-0.9.0.md');
 
-        foreach (['--version=0.9.0', 'cmp "$temporary_root/first/$candidate$suffix"', 'install-emailer-next-0.9.0.sh', 'RELEASE-CANDIDATE-RECORD.md'] as $cue) {
+        foreach (['--version=0.9.0', 'cmp "$temporary_root/first/$candidate$suffix"', 'install-emailer-next-0.9.0.sh', 'RELEASE-CANDIDATE-RECORD.md', 'accessibility-browser-support.md'] as $cue) {
             self::assertStringContainsString($cue, $builder);
         }
         foreach (['[ "$(id -u)" -eq 0 ]', 'sha256sum -c', '--expected-version="$version"', 'runuser -u "$sudo_user"', 'EMAILER_SECRET_KEY_FILE=/var/lib/emailer/keys/master.key', 'fastcgi_pass unix:/run/php/emailer.sock', 'emailer-setup-proof', 'systemctl enable --now emailer-worker.service'] as $cue) {
