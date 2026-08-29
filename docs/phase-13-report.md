@@ -222,6 +222,14 @@ credential, or external account was contacted or changed.
 
 ## Unresolved release prerequisites
 
+At Anton's explicit request, a non-public `0.9.0` human-acceptance candidate is
+produced before the final Version-1 release decision. It contains the complete
+Phase 13 application plus a signed-package-verifying root installer so the
+manual browser and assistive-technology checks can run against an installed
+system. This acceptance build does not replace or weaken the `1.0.0` release
+contract. Its added builder, installer, documentation, and platform contract
+pass the complete local aggregate at 220 tests and 3,053 assertions.
+
 - obtain the required GitHub CI matrix, including its isolated-network
   negative-egress repeat, on the exact pushed repair head;
 - obtain renewed authorization and independent review of the new exact head,
