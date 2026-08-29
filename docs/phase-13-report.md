@@ -204,13 +204,16 @@ before publication; directory barriers remain after namespace mutation. Tests
 prove creation and recovery invoke the barrier and a failed barrier leaves no
 published key or staging residue. [ADR 0013](adr/0013-authenticated-predecessor-and-durable-publication.md)
 records the provenance, privilege, legacy-contract, and durability decisions.
-The repaired working tree passes the complete aggregate at 219 tests and 3,034
-assertions, the same 219 tests on the external-egress-disabled network, the
+The repaired working tree passes the complete aggregate at 219 tests and 3,038
+assertions, and the same 219 tests with 8,025 assertions on the
+external-egress-disabled network, the
 maximum-level static/architecture gates, deterministic candidate tooling,
 artifact/secret/private-data inspection, root/service privilege gate, and
 systemd/shell checks. The isolated predecessor builders use only the identical
-locked Composer tree and already-installed import-map dependencies from the
-production-style image; they perform no network fetch. Exact committed-head CI
+locked Composer tree and an image-retained copy of the already-installed,
+lock-selected import-map dependencies. This also exercises clean checkouts where
+the ignored development cache is absent; the predecessor builds perform no
+network fetch. Exact committed-head CI
 and renewed Claude Code review results remain to be recorded.
 
 All executed mail behavior used only the repository's local Mailpit service and

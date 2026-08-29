@@ -311,7 +311,11 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         self::assertTrue($zip->extractTo($source));
         $zip->close();
         $this->runProcess(['cp', '-a', $projectRoot.'/vendor', $source.'/vendor'], $projectRoot, 'Locked predecessor dependencies could not be staged.');
-        $this->runProcess(['cp', '-a', $projectRoot.'/assets/vendor', $source.'/assets/vendor'], $projectRoot, 'Locked predecessor import-map dependencies could not be staged.');
+        $importMapVendor = is_dir('/opt/emailer-assets-vendor')
+            ? '/opt/emailer-assets-vendor'
+            : $projectRoot.'/assets/vendor';
+        self::assertDirectoryExists($importMapVendor, 'Locked predecessor import-map dependencies are unavailable.');
+        $this->runProcess(['cp', '-a', $importMapVendor, $source.'/assets/vendor'], $projectRoot, 'Locked predecessor import-map dependencies could not be staged.');
         $this->runProcess(['bash', $source.'/tools/artifact/build.sh'], $source, 'Accepted predecessor runtime artifact could not be built.');
         $minimumSource = match ($version) {
             '0.1.0' => '0.1.0-rc.1',

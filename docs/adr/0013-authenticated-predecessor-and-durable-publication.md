@@ -85,7 +85,9 @@ material.
 - Integration tests build runtime artifacts from each exact accepted integrated
   `0.1.0`–`0.4.0` source tree, package and sign them with a disposable key, install
   their real manifest-bound contents, and update through the authenticated
-  target runtime.
+  target runtime. Clean-image tests seed the historical builders from the
+  image-retained, lock-selected import-map cache, so an ignored working-tree
+  cache is neither a prerequisite nor a reason to permit external egress.
 - Negative tests cover signature tamper, installed-file drift, recorded-source
   mismatch, unsupported source, and approved-target mismatch before backup or
   delivery quiescence.
