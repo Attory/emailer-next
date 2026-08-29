@@ -21,6 +21,7 @@ temporary_mariadb_repo_setup=''
 temporary_mailpit_directory=''
 temporary_php_keyring=''
 temporary_runtime=''
+temporary_verification_directory=''
 
 fail() {
     printf 'Installation failed: %s\n' "$1" >&2
@@ -65,6 +66,7 @@ cleanup() {
     [ -z "$temporary_mailpit_directory" ] || rm -rf "$temporary_mailpit_directory"
     [ -z "$temporary_php_keyring" ] || rm -f "$temporary_php_keyring"
     [ -z "$temporary_runtime" ] || rm -f "$temporary_runtime"
+    [ -z "$temporary_verification_directory" ] || rm -rf "$temporary_verification_directory"
 }
 
 apt_install() {
@@ -531,13 +533,29 @@ sudo_user=emailer
 if ! command -v runuser >/dev/null 2>&1; then
     fail 'runuser is required for least-privilege package verification'
 fi
-runuser -u "$sudo_user" -- "$php_command" "$verifier" \
-    --archive="$archive" \
+temporary_verification_directory="$(mktemp -d /var/tmp/emailer-package-verification.XXXXXX)"
+chmod 0755 "$temporary_verification_directory"
+for verification_file in \
+    "$archive" \
+    "$archive.manifest.json" \
+    "$archive.sha256" \
+    "$archive.spdx.json" \
+    "$archive.sig" \
+    "$verifier" \
+    "$inspector"; do
+    install -o root -g root -m 0644 "$verification_file" "$temporary_verification_directory/"
+done
+staged_archive="$temporary_verification_directory/$(basename "$archive")"
+staged_verifier="$temporary_verification_directory/$(basename "$verifier")"
+runuser -u "$sudo_user" -- "$php_command" "$staged_verifier" \
+    --archive="$staged_archive" \
     --public-key=/etc/emailer/release-signing.pub \
     --current-version=0.1.0 \
     --expected-version="$version" \
     --expected-source="$expected_source" >/dev/null \
     || fail 'signed package verification failed'
+rm -rf "$temporary_verification_directory"
+temporary_verification_directory=''
 
 [ ! -e "$release_directory" ] || fail "$release_directory already exists"
 install -d -o root -g root -m 0755 "$release_directory"
