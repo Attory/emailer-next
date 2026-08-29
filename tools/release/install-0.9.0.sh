@@ -14,7 +14,9 @@ runtime_file=/etc/emailer/runtime.env
 mailpit_version=1.30.5
 mailpit_service_installed=false
 generated_database_credentials=false
+web_server=''
 database_admin_command=()
+database_upgrade_command=()
 temporary_database_admin_client=''
 temporary_database_client=''
 temporary_mariadb_repo_setup=''
@@ -74,7 +76,11 @@ apt_install() {
         apt-get update
         apt_updated=true
     fi
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+    DEBIAN_FRONTEND=noninteractive \
+    NEEDRESTART_MODE=a \
+    APT_LISTCHANGES_FRONTEND=none \
+    UCF_FORCE_CONFFOLD=1 \
+        apt-get install -y --no-install-recommends \
         -o Dpkg::Options::=--force-confdef \
         -o Dpkg::Options::=--force-confold \
         "$@"
@@ -114,6 +120,12 @@ mariadb_candidate_is_supported() {
         | grep -Eq '(^|:)10\.11\.|(^|:)11\.8\.'
 }
 
+installed_mariadb_is_supported() {
+    dpkg-query -W -f='${db:Status-Status}' mariadb-server 2>/dev/null | grep -qx installed \
+        && command -v mariadb >/dev/null 2>&1 \
+        && mariadb --version 2>/dev/null | grep -Eq 'Distrib (10\.11|11\.8)\.'
+}
+
 add_mariadb_repository() {
     temporary_mariadb_repo_setup="$(mktemp /tmp/mariadb_repo_setup.XXXXXX)"
     curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' --tlsv1.2 \
@@ -134,6 +146,10 @@ add_mariadb_repository() {
 }
 
 ensure_mariadb_packages() {
+    if installed_mariadb_is_supported; then
+        printf 'Using the existing supported MariaDB installation without upgrading it.\n'
+        return
+    fi
     if [ "${apt_updated:-false}" = false ]; then
         apt-get update
         apt_updated=true
@@ -151,7 +167,6 @@ install_base_packages() {
 
     [ -f /etc/ssl/certs/ca-certificates.crt ] || packages+=(ca-certificates)
     command -v curl >/dev/null 2>&1 || packages+=(curl)
-    command -v nginx >/dev/null 2>&1 || packages+=(nginx)
     command -v openssl >/dev/null 2>&1 || packages+=(openssl)
     command -v runuser >/dev/null 2>&1 || packages+=(util-linux)
     command -v ss >/dev/null 2>&1 || packages+=(iproute2)
@@ -162,6 +177,24 @@ install_base_packages() {
         printf 'Installing required server packages: %s\n' "${packages[*]}"
         apt_install "${packages[@]}"
     fi
+}
+
+select_web_server() {
+    if systemctl is-active --quiet nginx.service 2>/dev/null; then
+        web_server=nginx
+    elif systemctl is-active --quiet apache2.service 2>/dev/null; then
+        web_server=apache
+    elif command -v apache2ctl >/dev/null 2>&1 && ! command -v nginx >/dev/null 2>&1; then
+        web_server=apache
+    else
+        if ! command -v nginx >/dev/null 2>&1; then
+            printf 'Installing Nginx because no supported active web server was found.\n'
+            apt_install nginx
+        fi
+        web_server=nginx
+    fi
+
+    printf 'Using the existing or provisioned %s web server.\n' "$web_server"
 }
 
 select_or_install_php() {
@@ -245,12 +278,14 @@ configure_database_administrator() {
     if mariadb --protocol=socket --user=root --batch --skip-column-names \
         -e 'SELECT 1' >/dev/null 2>&1; then
         database_admin_command=(mariadb --protocol=socket --user=root)
+        database_upgrade_command=(mariadb-upgrade --protocol=socket --user=root)
         return
     fi
     if [ -r /etc/mysql/debian.cnf ] \
         && mariadb --defaults-file=/etc/mysql/debian.cnf --protocol=socket \
             --batch --skip-column-names -e 'SELECT 1' >/dev/null 2>&1; then
         database_admin_command=(mariadb --defaults-file=/etc/mysql/debian.cnf --protocol=socket)
+        database_upgrade_command=(mariadb-upgrade --defaults-file=/etc/mysql/debian.cnf --protocol=socket)
         return
     fi
 
@@ -277,6 +312,7 @@ configure_database_administrator() {
         || fail 'MariaDB administrator credentials contain unsupported characters'
     unset EMAILER_DATABASE_ADMIN_PASSWORD
     database_admin_command=(mariadb --defaults-extra-file="$temporary_database_admin_client" --protocol=socket)
+    database_upgrade_command=(mariadb-upgrade --defaults-extra-file="$temporary_database_admin_client" --protocol=socket)
     "${database_admin_command[@]}" --batch --skip-column-names \
         -e 'SELECT 1' >/dev/null 2>&1 \
         || fail 'MariaDB administrator authentication failed'
@@ -289,6 +325,10 @@ create_local_database() {
     local database_user_suffix
 
     configure_database_administrator
+    if command -v mariadb-upgrade >/dev/null 2>&1; then
+        "${database_upgrade_command[@]}" --force >/dev/null \
+            || fail 'MariaDB server system-table upgrade failed; complete MariaDB maintenance before creating the application database'
+    fi
     database_exists="$("${database_admin_command[@]}" --batch --skip-column-names \
         -e "SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name='emailer_next'" 2>/dev/null)" \
         || fail 'cannot administer local MariaDB through its root socket; supply EMAILER_DATABASE_URL instead'
@@ -430,6 +470,79 @@ EOF
     temporary_mailpit_directory=''
 }
 
+configure_web_server() {
+    if [ "$web_server" = apache ]; then
+        command -v a2enmod >/dev/null 2>&1 || fail 'Apache module manager is unavailable'
+        a2enmod proxy proxy_fcgi setenvif ssl rewrite headers >/dev/null
+        cat >/etc/apache2/sites-available/emailer-next.conf <<EOF
+<VirtualHost *:80>
+    ServerName $EMAILER_HOSTNAME
+    Redirect permanent / https://$EMAILER_HOSTNAME/
+</VirtualHost>
+
+<VirtualHost *:443>
+    ServerName $EMAILER_HOSTNAME
+    DocumentRoot /srv/emailer/releases/current/public
+    SSLEngine on
+    SSLCertificateFile $EMAILER_TLS_CERT
+    SSLCertificateKeyFile $EMAILER_TLS_KEY
+
+    <Directory /srv/emailer/releases/current/public>
+        Options -Indexes -MultiViews
+        AllowOverride None
+        Require all granted
+        FallbackResource /index.php
+    </Directory>
+
+    <Files "index.php">
+        SetHandler "proxy:unix:/run/php/emailer.sock|fcgi://localhost/"
+    </Files>
+    <FilesMatch "^(?!index\.php$).*\.php$">
+        Require all denied
+    </FilesMatch>
+    <LocationMatch "(^|/)\.">
+        Require all denied
+    </LocationMatch>
+</VirtualHost>
+EOF
+        chmod 0644 /etc/apache2/sites-available/emailer-next.conf
+        a2ensite emailer-next.conf >/dev/null
+        return
+    fi
+
+    cat >/etc/nginx/sites-available/emailer-next.conf <<EOF
+server {
+    listen 80;
+    server_name $EMAILER_HOSTNAME;
+    return 301 https://\$host\$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    server_name $EMAILER_HOSTNAME;
+    root /srv/emailer/releases/current/public;
+    index index.php;
+    ssl_certificate $EMAILER_TLS_CERT;
+    ssl_certificate_key $EMAILER_TLS_KEY;
+
+    location = /index.php {
+        include fastcgi_params;
+        fastcgi_param SCRIPT_FILENAME \$document_root/index.php;
+        fastcgi_param HTTP_PROXY "";
+        fastcgi_param HTTPS on;
+        fastcgi_param REQUEST_SCHEME https;
+        fastcgi_pass unix:/run/php/emailer.sock;
+    }
+    location / { try_files \$uri /index.php\$is_args\$args; }
+    location ~ \.php\$ { return 404; }
+    location ~ (^|/)\. { return 404; }
+    location ~* \.(?:env|log|sql|dump|backup|bak|key|pem|p12|pfx)\$ { return 404; }
+}
+EOF
+    chmod 0644 /etc/nginx/sites-available/emailer-next.conf
+    ln -sfn /etc/nginx/sites-available/emailer-next.conf /etc/nginx/sites-enabled/emailer-next.conf
+}
+
 [ "$(id -u)" -eq 0 ] || fail 'run this script as root'
 trap cleanup EXIT
 [ -f "$archive" ] || fail "missing $archive"
@@ -454,13 +567,19 @@ esac
 
 apt_updated=false
 install_base_packages
+select_web_server
 ensure_mariadb_packages
 select_or_install_php
 verify_php_runtime
 
-for command in curl mariadb nginx openssl runuser ss systemctl tar unzip; do
+for command in curl mariadb openssl runuser ss systemctl tar unzip; do
     command -v "$command" >/dev/null 2>&1 || fail "required command is unavailable after package provisioning: $command"
 done
+if [ "$web_server" = apache ]; then
+    command -v apache2ctl >/dev/null 2>&1 || fail 'Apache was selected but apache2ctl is unavailable'
+else
+    command -v nginx >/dev/null 2>&1 || fail 'Nginx was selected but nginx is unavailable'
+fi
 
 fpm_service="php$php_minor-fpm.service"
 fpm_pool_directory="/etc/php/$php_minor/fpm/pool.d"
@@ -479,11 +598,15 @@ if [ "$mailpit_service_installed" = true ]; then
 fi
 mailpit_is_local || fail 'Mailpit did not become healthy on loopback port 1025'
 
-prompt EMAILER_HOSTNAME 'HTTPS hostname'
+printf '\nEnter only the public hostname, without https:// or /setup.\n'
+printf 'Remote browser access also requires its DNS A/AAAA record to point to this server.\n'
+prompt EMAILER_HOSTNAME 'HTTPS hostname (example: mailer.example.com)'
 case "$EMAILER_HOSTNAME" in
     ''|*[!A-Za-z0-9.-]*) fail 'hostname contains unsupported characters' ;;
 esac
-prompt_secret EMAILER_DATABASE_URL 'Existing MariaDB DATABASE_URL, or press Enter to create a local empty database'
+printf '\nDatabase choice: press Enter to create an empty local database and restricted application user.\n'
+printf 'Otherwise paste a complete application DATABASE_URL; this is not a MariaDB root password.\n'
+prompt_secret EMAILER_DATABASE_URL 'Existing application DATABASE_URL, or press Enter to create one'
 if [ -z "$EMAILER_DATABASE_URL" ]; then
     create_local_database
 fi
@@ -505,6 +628,9 @@ if [ -z "${EMAILER_TLS_CERT:-}" ] && [ -z "${EMAILER_TLS_KEY:-}" ]; then
     openssl req -x509 -newkey rsa:3072 -nodes -days 30 \
         -subj "/CN=$EMAILER_HOSTNAME" \
         -addext "subjectAltName=DNS:$EMAILER_HOSTNAME" \
+        -addext "basicConstraints=critical,CA:FALSE" \
+        -addext "keyUsage=critical,digitalSignature,keyEncipherment" \
+        -addext "extendedKeyUsage=serverAuth" \
         -keyout "$EMAILER_TLS_KEY" -out "$EMAILER_TLS_CERT" >/dev/null 2>&1
     chmod 0600 "$EMAILER_TLS_KEY"
     chmod 0644 "$EMAILER_TLS_CERT"
@@ -523,7 +649,7 @@ fi
 
 install -d -o root -g root -m 0755 /srv/emailer /srv/emailer/releases
 install -d -o emailer -g emailer -m 0700 /var/lib/emailer/private /var/lib/emailer/keys /var/backups/emailer
-install -d -o emailer -g emailer -m 0700 /var/lib/emailer/private/locks
+install -d -o emailer -g emailer -m 0700 /var/lib/emailer/private/locks /var/lib/emailer/private/setup
 install -d -o root -g emailer -m 0750 /etc/emailer
 install -o root -g root -m 0644 "$public_key" /etc/emailer/release-signing.pub
 
@@ -582,6 +708,7 @@ chown root:emailer "$temporary_runtime"
     printf "DATABASE_URL='%s'\n" "$EMAILER_DATABASE_URL"
     printf 'EMAILER_PRIVATE_DIR=/var/lib/emailer/private\n'
     printf 'EMAILER_RUNTIME_DIR=/var/lib/emailer/private\n'
+    printf 'EMAILER_INSTALL_PROOF_FILE=/var/lib/emailer/private/setup/.emailer-install-proof\n'
     printf 'EMAILER_SECRET_KEY_FILE=/var/lib/emailer/keys/master.key\n'
     printf 'EMAILER_RECOVERY_KEY_FILE=/var/lib/emailer/keys/recovery-key.enxkey\n'
     printf 'EMAILER_RELEASE_PUBLIC_KEY_FILE=/etc/emailer/release-signing.pub\n'
@@ -622,31 +749,7 @@ catch_workers_output = yes
 EOF
 chmod 0644 "$fpm_pool_directory/emailer.conf"
 
-cat >/etc/nginx/sites-available/emailer-next.conf <<EOF
-server {
-    listen 443 ssl;
-    server_name $EMAILER_HOSTNAME;
-    root /srv/emailer/releases/current/public;
-    index index.php;
-    ssl_certificate $EMAILER_TLS_CERT;
-    ssl_certificate_key $EMAILER_TLS_KEY;
-
-    location = /index.php {
-        include fastcgi_params;
-        fastcgi_param SCRIPT_FILENAME \$document_root/index.php;
-        fastcgi_param HTTP_PROXY "";
-        fastcgi_param HTTPS on;
-        fastcgi_param REQUEST_SCHEME https;
-        fastcgi_pass unix:/run/php/emailer.sock;
-    }
-    location / { try_files \$uri /index.php\$is_args\$args; }
-    location ~ \.php\$ { return 404; }
-    location ~ (^|/)\. { return 404; }
-    location ~* \.(?:env|log|sql|dump|backup|bak|key|pem|p12|pfx)\$ { return 404; }
-}
-EOF
-chmod 0644 /etc/nginx/sites-available/emailer-next.conf
-ln -sfn /etc/nginx/sites-available/emailer-next.conf /etc/nginx/sites-enabled/emailer-next.conf
+configure_web_server
 
 for unit in emailer-worker.service emailer-scheduler.service emailer-scheduler.timer emailer-operations.service emailer-operations.timer; do
     sed "s#/usr/bin/php#$php_command#g" "$release_directory/deployment/$unit.example" >"/etc/systemd/system/$unit"
@@ -659,36 +762,49 @@ cat >/usr/local/sbin/emailer-setup-proof <<'EOF'
 set -euo pipefail
 [ "$(id -u)" -eq 0 ] || { printf 'Run as root.\n' >&2; exit 1; }
 read -r -p 'Paste the ownership code displayed at /setup: ' code
-temporary="$(mktemp /srv/emailer/releases/current/.emailer-install-proof.XXXXXX)"
+proof_directory=/var/lib/emailer/private/setup
+proof_file="$proof_directory/.emailer-install-proof"
+install -d -o emailer -g emailer -m 0700 "$proof_directory"
+temporary="$(mktemp "$proof_directory/.emailer-install-proof.XXXXXX")"
 trap 'rm -f "$temporary"' EXIT
-chmod 0400 "$temporary"
 printf '%s\n' "$code" >"$temporary"
-mv -f "$temporary" /srv/emailer/releases/current/.emailer-install-proof
+chown emailer:emailer "$temporary"
+chmod 0600 "$temporary"
+mv -f "$temporary" "$proof_file"
 trap - EXIT
-printf 'Proof installed. Continue in the same browser session.\n'
+printf 'Proof installed for Emailer Next. Continue in the same browser session.\n'
 EOF
 chmod 0755 /usr/local/sbin/emailer-setup-proof
 
 systemctl daemon-reload
-systemctl enable --now "$fpm_service" nginx.service
+systemctl enable --now "$fpm_service"
 systemctl restart "$fpm_service"
-nginx -t
-systemctl reload nginx
+if [ "$web_server" = apache ]; then
+    apache2ctl configtest
+    systemctl enable --now apache2.service
+    systemctl reload apache2.service
+else
+    nginx -t
+    systemctl enable --now nginx.service
+    systemctl reload nginx.service
+fi
 systemctl enable --now emailer-worker.service emailer-scheduler.timer emailer-operations.timer
 
 printf '\nEmailer Next %s is installed.\n' "$version"
-printf 'Nginx, PHP-FPM %s, MariaDB, and loopback-only Mailpit passed their checks.\n' "$php_minor"
+printf '%s, PHP-FPM %s, MariaDB, and loopback-only Mailpit passed their checks.\n' "$web_server" "$php_minor"
 if [ "$generated_database_credentials" = true ]; then
     printf '\nEnter these generated database values in the browser setup page:\n'
     printf '  Host: 127.0.0.1\n'
     printf '  Port: 3306\n'
     printf '  Database: emailer_next\n'
     printf '  Username: %s\n' "$EMAILER_DATABASE_USER"
-    printf '  Password: %s\n' "$EMAILER_DATABASE_PASSWORD"
+    printf '  Application database password: %s\n' "$EMAILER_DATABASE_PASSWORD"
+    printf '  This is not the MariaDB administrator/root password or the future Owner password.\n'
     printf 'Keep this protected terminal private; the password is also stored in %s.\n' "$runtime_file"
 fi
 printf '1. Open https://%s/setup in a browser.\n' "$EMAILER_HOSTNAME"
 printf '2. In this root terminal run: emailer-setup-proof\n'
 printf '3. Paste the browser ownership code, then finish setup in that browser.\n'
+printf 'If the hostname does not resolve publicly yet, add its DNS A/AAAA record before opening it remotely.\n'
 printf 'The temporary self-signed certificate, when selected, is for acceptance testing only.\n'
 trap - EXIT

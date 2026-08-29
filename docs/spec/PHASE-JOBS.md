@@ -100,7 +100,8 @@ Implement the first-run ownership challenge and secure setup-mode lifecycle, exc
 
 - Setup-mode middleware.
 - 160-bit Crockford Base32 challenge.
-- Fixed `.emailer-install-proof` path.
+- Fixed configured `.emailer-install-proof` path, service-readable/deletable and
+  outside immutable production release code.
 - Hashed, expiring, rate-limited setup state.
 - Symlink and unsafe-permission rejection.
 - HTTPS gate after proof.

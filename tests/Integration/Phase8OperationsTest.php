@@ -7,6 +7,7 @@ namespace App\Tests\Integration;
 use App\Module\Backup\Application\BackupEngine;
 use App\Module\Health\Application\Doctor;
 use App\Module\Housekeeping\Application\Housekeeper;
+use App\Module\Operations\Application\OperationsRunner;
 use App\Shared\Identity;
 use App\Tests\Support\Phase4State;
 use Doctrine\DBAL\Connection;
@@ -79,5 +80,28 @@ final class Phase8OperationsTest extends KernelTestCase
         $housekeeper = $this->phase4Service(Housekeeper::class);
         self::assertSame(['imports' => 0, 'sessions' => 0, 'queue' => 0, 'dead_letter' => 0, 'delivery_attempts' => 0, 'health' => 0, 'analytics' => 0, 'rsvp' => 0, 'backups' => 0], $housekeeper->run(true));
         self::assertSame(1, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM housekeeping_run')));
+    }
+
+    public function testScheduledDoctorRefreshesEvidenceRecordedBeforeInstallationCompleted(): void
+    {
+        self::bootKernel();
+        $connection = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($connection);
+        $connection->executeStatement('DELETE FROM operations_run');
+        $completed = $this->phase4String($connection->fetchOne("SELECT completed_at FROM installation_state WHERE singleton_key = '1'"));
+        $beforeCompletion = (new \DateTimeImmutable($completed, new \DateTimeZone('UTC')))->modify('-1 second')->format('Y-m-d H:i:s.u');
+        $connection->insert('operations_run', [
+            'id' => Identity::uuidV7(),
+            'operation' => 'doctor',
+            'status' => 'succeeded',
+            'detail_code' => 'doctor_critical',
+            'started_at' => $beforeCompletion,
+            'finished_at' => $beforeCompletion,
+        ]);
+
+        $result = $this->phase4Service(OperationsRunner::class)->runDue();
+        self::assertArrayHasKey('doctor', $result);
+        self::assertStringStartsWith('succeeded:doctor_', $result['doctor']);
+        self::assertSame(['scheduler' => 'nothing_due'], $this->phase4Service(OperationsRunner::class)->runDue());
     }
 }

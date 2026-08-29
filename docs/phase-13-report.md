@@ -1,12 +1,11 @@
 # Phase 13 completion report — Version-1 hardening and acceptance
 
-**Status:** Third independent-review repair in progress. Exact-head reviews
-rejected `0c02725849cafb04d2ed41d78f8ffd8f2778f931` and
-`3fced5dc4ed155314c51eb226b444201a3ed1132`; Claude Code review of
-`de6b559df71980190be5873e195f5237f4bde879` found the predecessor-proof and
-key-file durability gaps now under repair. The bounded repair requires full
-exact-head validation and renewed review. Not signed, merged, tagged,
-published, deployed, or installed.
+**Status:** Human-acceptance walkthrough repair in progress on the existing
+Phase 13 pull request. Earlier independent-review findings are repaired; the
+first real `0.9.0` client-server rehearsal exposed installer compatibility and
+operator-guidance defects that are now covered by code, tests, manuals, and a
+redacted question/answer record. Not merged, tagged, publicly released, or
+deployed as `1.0.0`.
 
 ## Authority and starting state
 
@@ -219,6 +218,49 @@ and renewed Claude Code review results remain to be recorded.
 All executed mail behavior used only the repository's local Mailpit service and
 reserved synthetic domains. No provider, live SMTP, DNS, client server,
 credential, or external account was contacted or changed.
+
+## 0.9.0 human-acceptance walkthrough repair
+
+The first client-server rehearsal is recorded, with all secrets removed, in
+[0.9.0-INSTALLATION-WALKTHROUGH.md](0.9.0-INSTALLATION-WALKTHROUGH.md). Every
+question and failure from candidate location and sidecars through DNS, web
+server routing, MariaDB credential roles, setup proof, canonical origin, MFA,
+Mailpit, policy, Doctor, backups, and re-authentication is answered there and
+cross-linked from the rewritten [CLIENT-INSTALL-0.9.0.md](CLIENT-INSTALL-0.9.0.md).
+
+The repaired installer now:
+
+- provisions required packages noninteractively and preserves existing package
+  configuration;
+- detects and configures either Apache or Nginx, with HTTP-to-HTTPS redirect,
+  the exact `public/` document root, and PHP-FPM routing;
+- preserves an already supported MariaDB installation and runs
+  `mariadb-upgrade` through the authenticated administrator channel only when
+  an older installation required upgrade;
+- stages signed-package verification outside a root-only home directory;
+- places the one-time setup proof in an external service-owned private path
+  rather than the immutable release;
+- generates an acceptance-only hostname certificate with `CA:FALSE`; and
+- labels every database credential role and the external DNS prerequisite.
+
+Setup and administration pages now explain the restricted application database
+credential, canonical HTTPS origin, authenticator-generated TOTP code, Mailpit
+acceptance boundary, policy fields, irreversible completion, Doctor refresh,
+backup destination/schedule, and same-browser backup re-authentication. The
+ambiguous phrase “fresh password” is removed: the form requests the current
+Owner password and current MFA proof, states that it does not create or change
+a password, records the purpose for five minutes in the same browser session,
+and returns directly to Backups. Missing or expired backup re-authentication
+redirects to that form with guidance instead of an unexplained generic 403.
+
+Doctor scheduling also invalidates successful evidence older than installation
+completion, so pre-setup findings do not persist for a full operational
+interval. Focused repair evidence passes at 30 tests and 954 assertions. The
+complete local aggregate passes at 222 tests and 3,100 assertions, together
+with Composer validation/audit/license policy, formatting, maximum static and
+architecture analysis, shell and migration checks, Doctrine mapping,
+production artifact build, secret/private-data and public-path scans,
+deployment probes, and deterministic signed-candidate tooling.
 
 ## Unresolved release prerequisites
 

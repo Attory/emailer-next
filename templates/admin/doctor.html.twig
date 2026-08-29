@@ -3,9 +3,10 @@
 {% block admin_body %}
     <h1>Configuration Doctor</h1>
     <p>Critical findings block queueing and scheduled materialisation. Acknowledgement never disables a gate.</p>
+    <p>Login performs only a lightweight cached check. Run the full Doctor here after setup or a repair to clear resolved findings and record current evidence.</p>
     <form method="post" action="{{ path('admin_doctor_run') }}">
         <input type="hidden" name="_token" value="{{ csrf_token('doctor-run') }}">
-        <button type="submit">Run Doctor</button>
+        <button type="submit">Run full Doctor now</button>
     </form>
     <p><a href="{{ path('admin_doctor_export') }}">Export redacted JSON report</a></p>
     <h2>Active findings</h2>

@@ -113,7 +113,9 @@ public recipient routes, and production mail remain absent.
 
 Phase 2 additionally implements a 160-bit Crockford Base32 ownership challenge,
 SHA-256-only private state, expiry and attempt limits, source throttles, locking,
-and a fixed proof path. Proof reads reject symlinks, non-regular or oversized
+and one fixed configured proof path. Immutable deployments place that transient
+path in service-owned setup storage outside root-owned release code. Proof reads
+reject symlinks, non-regular or oversized
 objects, unsafe permissions, and file replacement detected across the bounded
 read. Successful proof deletes transient files and rotates the setup session.
 Public failures are generic, and structured proof logs contain only the opaque

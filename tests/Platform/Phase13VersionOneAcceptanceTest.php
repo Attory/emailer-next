@@ -167,18 +167,47 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
         $installer = (string) file_get_contents($root.'/tools/release/install-0.9.0.sh');
         $manual = $this->repositoryFile($root, 'docs/CLIENT-INSTALL-0.9.0.md');
 
-        foreach (['--version=0.9.0', 'cmp "$temporary_root/first/$candidate$suffix"', 'install-emailer-next-0.9.0.sh', 'RELEASE-CANDIDATE-RECORD.md', 'accessibility-browser-support.md'] as $cue) {
+        foreach (['--version=0.9.0', 'cmp "$temporary_root/first/$candidate$suffix"', 'install-emailer-next-0.9.0.sh', 'RELEASE-CANDIDATE-RECORD.md', '0.9.0-INSTALLATION-WALKTHROUGH.md', 'accessibility-browser-support.md'] as $cue) {
             self::assertStringContainsString($cue, $builder);
         }
-        foreach (['[ "$(id -u)" -eq 0 ]', 'sha256sum -c', '--expected-version="$version"', 'runuser -u "$sudo_user"', 'EMAILER_SECRET_KEY_FILE=/var/lib/emailer/keys/master.key', 'fastcgi_pass unix:/run/php/emailer.sock', 'emailer-setup-proof', 'systemctl enable --now emailer-worker.service'] as $cue) {
+        foreach (['[ "$(id -u)" -eq 0 ]', 'sha256sum -c', '--expected-version="$version"', 'runuser -u "$sudo_user"', 'EMAILER_SECRET_KEY_FILE=/var/lib/emailer/keys/master.key', 'EMAILER_INSTALL_PROOF_FILE=/var/lib/emailer/private/setup/.emailer-install-proof', 'fastcgi_pass unix:/run/php/emailer.sock', 'a2ensite emailer-next.conf', 'NEEDRESTART_MODE=a', 'installed_mariadb_is_supported', 'mariadb-upgrade', 'basicConstraints=critical,CA:FALSE', 'emailer-setup-proof', 'systemctl enable --now emailer-worker.service'] as $cue) {
             self::assertStringContainsString($cue, $installer);
         }
         self::assertStringNotContainsString('apt install', $installer);
         if (null === $manual) {
             return;
         }
-        self::assertStringContainsString('complete Phase 13 application', $manual);
-        self::assertStringContainsString('one terminal hand-off', $manual);
+        foreach (['complete pre-public application', 'four files ending in', 'MariaDB administrator password', 'current Owner account password', 'Run full Doctor now', 'Create and verify local backup'] as $cue) {
+            self::assertStringContainsString($cue, $manual);
+        }
+    }
+
+    public function testAcceptanceWalkthroughQuestionsAreReflectedInUserFacingGuidance(): void
+    {
+        $root = \dirname(__DIR__, 2);
+        $walkthrough = $this->repositoryFile($root, 'docs/0.9.0-INSTALLATION-WALKTHROUGH.md');
+        if (null === $walkthrough) {
+            return;
+        }
+        foreach (['Where is `emailer-next-0.9.0.zip`?', 'What are the four sidecars', 'Why did package installation ask', 'Why did `/setup` return Not Found', 'Where does the browser database password come from?', 'Where does the current six-digit TOTP code come from?', 'Why did Create and verify backup return an unexplained 403?'] as $question) {
+            self::assertStringContainsString($question, $walkthrough);
+        }
+
+        $reauthentication = (string) file_get_contents($root.'/templates/admin/reauthenticate.html.twig');
+        self::assertStringContainsString('This does not create or change a password.', $reauthentication);
+        self::assertStringContainsString('Current account password', $reauthentication);
+        self::assertStringNotContainsString('fresh password', $reauthentication);
+
+        $backups = (string) file_get_contents($root.'/templates/admin/backups.html.twig');
+        self::assertStringContainsString("purpose: 'backup_management'", $backups);
+        self::assertStringContainsString('on-demand local encrypted backup', $backups);
+
+        $database = (string) file_get_contents($root.'/templates/setup/database.html.twig');
+        self::assertStringContainsString('not the MariaDB', $database);
+        $mfa = (string) file_get_contents($root.'/templates/setup/mfa-enrollment.html.twig');
+        self::assertStringContainsString('authenticator app', $mfa);
+        $mail = (string) file_get_contents($root.'/templates/setup/mail.html.twig');
+        self::assertStringContainsString('value="127.0.0.1"', $mail);
     }
 
     private function repositoryFile(string $root, string $relativePath): ?string

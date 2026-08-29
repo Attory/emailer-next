@@ -156,9 +156,14 @@ final class SetupController extends AbstractController
                 $request->request->getString('username'),
                 $request->request->getString('password'),
             ));
+        } catch (\Throwable) {
+            return $this->wizardFailure('Application database verification or schema installation failed. Re-enter the restricted application credentials printed by the root installer; do not use the MariaDB root password.');
+        }
+
+        try {
             $this->setupState->initializeKey();
         } catch (\Throwable) {
-            return $this->wizardFailure('Database or installation-key setup failed safely. Re-enter the values after correcting the external runtime configuration.');
+            return $this->wizardFailure('The database schema was installed, but the external master key could not be initialized. An operator must correct the configured key-directory ownership and permissions, then submit this step again.');
         }
 
         return $this->redirectToRoute('setup_organisation', status: Response::HTTP_SEE_OTHER);
@@ -346,7 +351,7 @@ final class SetupController extends AbstractController
         $request->getSession()->migrate(true);
         $this->logger->notice('Emailer Next installation completed.', ['installation_id' => $installationId]);
 
-        return $this->noStore(new Response('Installation completed. Setup is permanently locked.', Response::HTTP_OK));
+        return $this->noStore(new Response('Installation completed. Setup is permanently locked. Continue at /login.', Response::HTTP_OK));
     }
 
     private function authorizeWizard(Request $request): ?Response

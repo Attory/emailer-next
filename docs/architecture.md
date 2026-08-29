@@ -139,8 +139,12 @@ route; updates therefore never make mutable data part of a release tree.
 
 An absent private installation lock keeps ordinary application routes at a
 generic setup-required response. `GET /setup` issues a rate-limited challenge;
-`POST /setup/proof/verify` verifies only `.emailer-install-proof`, deletes proof
-and private state on success, and rotates the session. Preflight then requires
+`POST /setup/proof/verify` verifies only the fixed configured
+`.emailer-install-proof`, deletes proof and private state on success, and
+rotates the session. Development defaults that path to the application root;
+immutable client releases set `EMAILER_INSTALL_PROOF_FILE` to a service-owned
+setup directory outside release code so the service can delete the transient
+proof without release-write authority. Preflight then requires
 the verified session and HTTPS. A present lock makes every setup route return
 404. Phase 3 publishes the lock only after all setup rows, explicit external-key
 validation, exact Mailpit evidence, safe defaults, and CLI capability checks

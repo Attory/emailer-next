@@ -100,10 +100,14 @@ when migrations run. No manual production migration is authorized in Phase 1.
 ## Phase 2 setup entry
 
 An unlocked deployment exposes `/setup` and coarse liveness only. Follow the
-displayed instruction to create `<APPLICATION_ROOT>/.emailer-install-proof`
-with mode `0600` and the displayed code only, then submit the CSRF-protected
-verification form. Delete and recreate any rejected proof as a regular file;
-links, files over 256 bytes, and group/world-writable files are rejected.
+displayed instruction to create its one fixed `.emailer-install-proof` with
+mode `0600` and the displayed code only, then submit the CSRF-protected
+verification form. Development defaults to the application root. Immutable
+client releases configure `EMAILER_INSTALL_PROOF_FILE` in a service-owned setup
+directory outside the release; the supplied root helper creates the file with
+the correct identity and mode. Delete and recreate any rejected proof as a
+regular file; links, files over 256 bytes, and group/world-writable files are
+rejected.
 
 After success the browser session rotates and `/setup/preflight` requires
 HTTPS. `bin/console emailer:setup:install` performs the same credential-free

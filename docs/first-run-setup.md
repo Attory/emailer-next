@@ -17,11 +17,17 @@ Base32 and a separate random challenge identifier. Only the identifier, SHA-256
 hash of normalized code, timestamps, failed-attempt count, and requesting-IP
 hash are stored in a mode-`0600` private state file.
 
-The page displays the fixed path:
+The page displays the single configured fixed path. Development defaults to:
 
 ```text
 <APPLICATION_ROOT>/.emailer-install-proof
 ```
+
+An immutable client release instead sets `EMAILER_INSTALL_PROOF_FILE` to a
+mode-`0700`, service-owned setup directory outside release code. The supplied
+root helper writes a mode-`0600` service-owned file there. This lets setup read
+and delete only its transient proof without granting the web process write
+access to the root-owned release.
 
 The operator creates that file with only the displayed code. Verification:
 

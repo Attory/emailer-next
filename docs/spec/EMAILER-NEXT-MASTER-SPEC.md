@@ -250,6 +250,7 @@ Production may point private and secret directories to paths outside the release
 ```text
 EMAILER_PRIVATE_DIR=/srv/emailer-data
 EMAILER_SECRET_KEY_FILE=/var/lib/emailer/keys/master.key
+EMAILER_INSTALL_PROOF_FILE=/var/lib/emailer/private/setup/.emailer-install-proof
 ```
 
 The application must refuse production operation when:
@@ -292,13 +293,17 @@ On the first setup request:
    - requesting IP hash;
    in `var/private/setup/challenge.json`.
 5. Store the state file with mode `0600`.
-6. Display the exact fixed proof path:
+6. Display the exact fixed proof path. Development defaults to the application
+   root; an immutable production release must configure one absolute
+   service-owned path outside the release tree:
 
 ```text
-<APPLICATION_ROOT>/.emailer-install-proof
+EMAILER_INSTALL_PROOF_FILE
 ```
 
-7. Tell the administrator to create that file and put only the displayed code inside it.
+7. Tell the administrator to create that file and put only the displayed code
+   inside it. The service identity must be able to read and delete this
+   transient file without receiving write access to release code.
 
 The challenge:
 
@@ -308,7 +313,7 @@ The challenge:
 - is rate-limited;
 - is rotated after expiry or excessive failures;
 - is never accepted from a query string or request body as proof;
-- must be read only from the fixed filesystem path.
+- must be read only from the single configured fixed filesystem path.
 
 ### 7.3 Proof-file validation
 

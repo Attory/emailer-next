@@ -57,7 +57,7 @@ final class SetupFlowTest extends WebTestCase
         self::assertNotEmpty($cookies);
         $sessionBefore = $cookies[0]->getValue();
 
-        $form = $crawler->selectButton('Verify proof file')->form();
+        $form = $crawler->selectButton('I installed the proof; verify it')->form();
         self::assertArrayNotHasKey('code', $form->getPhpValues());
         $client->submit($form, [], $this->httpsServer());
 
@@ -92,7 +92,7 @@ final class SetupFlowTest extends WebTestCase
         self::assertNotFalse(file_put_contents($this->proofFile, $code));
         self::assertTrue(chmod($this->proofFile, 0o600));
 
-        $client->submit($crawler->selectButton('Verify proof file')->form(), [], $this->httpServer());
+        $client->submit($crawler->selectButton('I installed the proof; verify it')->form(), [], $this->httpServer());
         self::assertResponseRedirects('/setup/preflight', 303);
         $client->request('GET', 'http://emailer.example.test/setup/preflight', server: $this->httpServer());
 
@@ -134,7 +134,7 @@ final class SetupFlowTest extends WebTestCase
         $originalCrawler = $originalClient->request('GET', '/setup', server: $this->httpsServer());
         self::assertResponseIsSuccessful();
         $originalCode = $this->extractCode((string) $originalClient->getResponse()->getContent());
-        $originalForm = $originalCrawler->selectButton('Verify proof file')->form();
+        $originalForm = $originalCrawler->selectButton('I installed the proof; verify it')->form();
         $this->trackSetupFiles();
 
         $secondClient = new KernelBrowser($originalClient->getKernel());

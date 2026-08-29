@@ -93,6 +93,7 @@ inspector_sha256="$(sha256sum "$candidate_directory/PackageInspector.php" | cut 
 sed -e "s/@SOURCE_COMMIT@/$source_commit/g" -e "s/@SOURCE_EPOCH@/$source_epoch/g" -e "s/@ARCHIVE_SHA256@/$archive_sha256/g" -e "s/@INSTALLER_SHA256@/$installer_sha256/g" -e "s/@VERIFIER_SHA256@/$verifier_sha256/g" -e "s/@INSPECTOR_SHA256@/$inspector_sha256/g" \
     "$project_root/tools/release/RELEASE-CANDIDATE-0.9.0.md.in" >"$candidate_directory/RELEASE-CANDIDATE-RECORD.md"
 install -m 0644 "$project_root/docs/CLIENT-INSTALL-0.9.0.md" "$candidate_directory/CLIENT-INSTALL-0.9.0.md"
+install -m 0644 "$project_root/docs/0.9.0-INSTALLATION-WALKTHROUGH.md" "$candidate_directory/0.9.0-INSTALLATION-WALKTHROUGH.md"
 install -m 0644 "$project_root/docs/accessibility-browser-support.md" "$candidate_directory/accessibility-browser-support.md"
 published=true
 

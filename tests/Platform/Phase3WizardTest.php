@@ -47,7 +47,7 @@ final class Phase3WizardTest extends WebTestCase
         $this->proofFile = $proofFile;
         self::assertNotFalse(file_put_contents($proofFile, $proofCode));
         self::assertTrue(chmod($proofFile, 0o600));
-        $client->submit($crawler->selectButton('Verify proof file')->form(), [], $server);
+        $client->submit($crawler->selectButton('I installed the proof; verify it')->form(), [], $server);
         self::assertResponseRedirects('/setup/preflight', 303);
 
         $client->request('GET', '/setup/database', server: $server);
@@ -62,7 +62,7 @@ final class Phase3WizardTest extends WebTestCase
         self::assertIsString($databaseName);
         self::assertIsString($databaseUser);
         self::assertIsString($databasePassword);
-        $databaseForm = $client->getCrawler()->selectButton('Verify database and install schema')->form([
+        $databaseForm = $client->getCrawler()->selectButton('Verify application credentials and install schema')->form([
             'host' => $databaseHost,
             'port' => (string) $databasePort,
             'database' => $databaseName,
@@ -95,7 +95,7 @@ final class Phase3WizardTest extends WebTestCase
         self::assertResponseRedirects('/setup/mail', 303);
 
         $client->request('GET', '/setup/mail', server: $server);
-        $client->submit($client->getCrawler()->selectButton('Send synthetic Mailpit test and save')->form([
+        $client->submit($client->getCrawler()->selectButton('Send one synthetic message to local Mailpit and save')->form([
             'host' => 'mailpit',
             'port' => '1025',
             'encryption' => 'none',
@@ -106,13 +106,13 @@ final class Phase3WizardTest extends WebTestCase
         self::assertResponseRedirects('/setup/policy', 303);
 
         $client->request('GET', '/setup/policy', server: $server);
-        $client->submit($client->getCrawler()->selectButton('Save safe defaults')->form(), [], $server);
+        $client->submit($client->getCrawler()->selectButton('Save these non-sending safety defaults')->form(), [], $server);
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('h1', 'Final critical preflight');
 
-        $client->submit($client->getCrawler()->selectButton('Complete and permanently lock setup')->form(), [], $server);
+        $client->submit($client->getCrawler()->selectButton('Complete installation and permanently close setup')->form(), [], $server);
         self::assertResponseIsSuccessful();
-        self::assertSame('Installation completed. Setup is permanently locked.', $client->getResponse()->getContent());
+        self::assertSame('Installation completed. Setup is permanently locked. Continue at /login.', $client->getResponse()->getContent());
         self::assertTrue($this->service(InstallationLock::class)->exists());
         self::assertSame([], $client->getRequest()->getSession()->all());
 
