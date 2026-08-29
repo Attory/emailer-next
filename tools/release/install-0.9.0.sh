@@ -15,7 +15,9 @@ mailpit_version=1.30.5
 mailpit_service_installed=false
 generated_database_credentials=false
 temporary_database_client=''
+temporary_mariadb_repo_setup=''
 temporary_mailpit_directory=''
+temporary_php_keyring=''
 temporary_runtime=''
 
 fail() {
@@ -56,7 +58,9 @@ prompt_secret() {
 
 cleanup() {
     [ -z "$temporary_database_client" ] || rm -f "$temporary_database_client"
+    [ -z "$temporary_mariadb_repo_setup" ] || rm -f "$temporary_mariadb_repo_setup"
     [ -z "$temporary_mailpit_directory" ] || rm -rf "$temporary_mailpit_directory"
+    [ -z "$temporary_php_keyring" ] || rm -f "$temporary_php_keyring"
     [ -z "$temporary_runtime" ] || rm -f "$temporary_runtime"
 }
 
@@ -72,12 +76,73 @@ apt_has_candidate() {
     apt-cache policy "$1" 2>/dev/null | awk '/Candidate:/ { found = ($2 != "(none)") } END { exit !found }'
 }
 
+add_php_repository() {
+    case "${ID:-}" in
+        ubuntu)
+            apt_install ca-certificates software-properties-common
+            add-apt-repository --yes ppa:ondrej/php >/dev/null
+            ;;
+        debian)
+            apt_install ca-certificates curl lsb-release
+            temporary_php_keyring="$(mktemp /tmp/debsuryorg-archive-keyring.XXXXXX.deb)"
+            curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' --tlsv1.2 \
+                --output "$temporary_php_keyring" \
+                https://packages.sury.org/debsuryorg-archive-keyring.deb
+            dpkg -i "$temporary_php_keyring"
+            rm -f "$temporary_php_keyring"
+            temporary_php_keyring=''
+            printf 'deb [signed-by=/usr/share/keyrings/debsuryorg-archive-keyring.gpg] https://packages.sury.org/php/ %s main\n' \
+                "$(lsb_release -sc)" >/etc/apt/sources.list.d/emailer-next-php.list
+            ;;
+        *) fail 'automatic PHP repository setup supports Debian and Ubuntu only' ;;
+    esac
+    apt-get update
+    apt_updated=true
+}
+
+mariadb_candidate_is_supported() {
+    apt-cache policy mariadb-server 2>/dev/null \
+        | awk '/Candidate:/ { print $2 }' \
+        | grep -Eq '(^|:)10\.11\.|(^|:)11\.8\.'
+}
+
+add_mariadb_repository() {
+    temporary_mariadb_repo_setup="$(mktemp /tmp/mariadb_repo_setup.XXXXXX)"
+    curl --fail --silent --show-error --location --proto '=https' --proto-redir '=https' --tlsv1.2 \
+        --output "$temporary_mariadb_repo_setup" \
+        https://r.mariadb.com/downloads/mariadb_repo_setup
+    printf '%s  %s\n' \
+        7325ac7755809ca3312b446bd832542421699298f25b701f9a111bb42df0c7c1 \
+        "$temporary_mariadb_repo_setup" | sha256sum -c - >/dev/null \
+        || fail 'MariaDB repository setup download verification failed'
+    chmod 0700 "$temporary_mariadb_repo_setup"
+    "$temporary_mariadb_repo_setup" \
+        --mariadb-server-version=mariadb-11.8 \
+        --skip-maxscale \
+        --skip-tools >/dev/null
+    rm -f "$temporary_mariadb_repo_setup"
+    temporary_mariadb_repo_setup=''
+    apt_updated=true
+}
+
+ensure_mariadb_packages() {
+    if [ "${apt_updated:-false}" = false ]; then
+        apt-get update
+        apt_updated=true
+    fi
+    if ! mariadb_candidate_is_supported; then
+        add_mariadb_repository
+    fi
+    mariadb_candidate_is_supported \
+        || fail 'MariaDB 10.11 or 11.8 remained unavailable after automatic repository setup'
+    apt_install mariadb-client mariadb-server
+}
+
 install_base_packages() {
     local packages=()
 
     [ -f /etc/ssl/certs/ca-certificates.crt ] || packages+=(ca-certificates)
     command -v curl >/dev/null 2>&1 || packages+=(curl)
-    command -v mariadb >/dev/null 2>&1 || packages+=(mariadb-client mariadb-server)
     command -v nginx >/dev/null 2>&1 || packages+=(nginx)
     command -v openssl >/dev/null 2>&1 || packages+=(openssl)
     command -v runuser >/dev/null 2>&1 || packages+=(util-linux)
@@ -96,6 +161,7 @@ select_or_install_php() {
     local packages
     local missing
     local package
+    local repository_needed
 
     for minor in 8.5 8.4; do
         if command -v "php$minor" >/dev/null 2>&1; then
@@ -112,6 +178,13 @@ select_or_install_php() {
                     || missing+=("$package")
             done
             if [ "${#missing[@]}" -gt 0 ]; then
+                repository_needed=false
+                for package in "${missing[@]}"; do
+                    apt_has_candidate "$package" || repository_needed=true
+                done
+                if [ "$repository_needed" = true ]; then
+                    add_php_repository
+                fi
                 printf 'Installing missing PHP %s FPM components and extensions.\n' "$minor"
                 apt_install "${missing[@]}"
             fi
@@ -122,6 +195,9 @@ select_or_install_php() {
     if [ "${apt_updated:-false}" = false ]; then
         apt-get update
         apt_updated=true
+    fi
+    if ! apt_has_candidate php8.5-cli && ! apt_has_candidate php8.4-cli; then
+        add_php_repository
     fi
     for minor in 8.5 8.4; do
         if apt_has_candidate "php$minor-cli" && apt_has_candidate "php$minor-fpm"; then
@@ -136,7 +212,7 @@ select_or_install_php() {
         fi
     done
 
-    fail 'PHP-FPM 8.4 or 8.5 is unavailable from the configured APT repositories'
+    fail 'PHP-FPM 8.4 or 8.5 remained unavailable after automatic repository setup'
 }
 
 verify_php_runtime() {
@@ -324,6 +400,7 @@ esac
 
 apt_updated=false
 install_base_packages
+ensure_mariadb_packages
 select_or_install_php
 verify_php_runtime
 
