@@ -69,7 +69,10 @@ apt_install() {
         apt-get update
         apt_updated=true
     fi
-    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends "$@"
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        -o Dpkg::Options::=--force-confdef \
+        -o Dpkg::Options::=--force-confold \
+        "$@"
 }
 
 apt_has_candidate() {
