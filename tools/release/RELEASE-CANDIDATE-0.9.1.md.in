@@ -1,4 +1,4 @@
-# Emailer Next 0.9.0 human-acceptance candidate
+# Emailer Next 0.9.1 human-acceptance candidate
 
 - Source commit: `@SOURCE_COMMIT@`
 - Source date epoch: `@SOURCE_EPOCH@`
@@ -11,4 +11,3 @@
 - Reproducibility: two builds and all five package outputs were byte-identical
 - Signature: detached Ed25519 signature verified against the retained release public key
 - Publication/deployment: not performed by the candidate build
-

@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-version=0.9.0
+version=0.9.1
 expected_source='@SOURCE_COMMIT@'
 bundle_directory="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 archive="$bundle_directory/emailer-next-$version.zip"

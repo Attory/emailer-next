@@ -264,8 +264,9 @@ deployment probes, and deterministic signed-candidate tooling.
 
 ## Unresolved release prerequisites
 
-At Anton's explicit request, a non-public `0.9.0` human-acceptance candidate is
-produced before the final Version-1 release decision. It contains the complete
+At Anton's explicit request, a non-public `0.9.1` human-acceptance candidate
+supersedes the first `0.9.0` walkthrough build before the final Version-1
+release decision. It contains the complete
 Phase 13 application plus a signed-package-verifying root installer so the
 manual browser and assistive-technology checks can run against an installed
 system. This acceptance build does not replace or weaken the `1.0.0` release

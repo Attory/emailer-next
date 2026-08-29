@@ -5,10 +5,12 @@ operator-signed `0.4.0` candidate remains unpublished and undeployed. No
 operator-signed `1.0.0` candidate exists until an exact reviewed head receives
 separate signing authorization.
 
-The explicitly requested `0.9.0` package is a non-public human-acceptance build
-of the complete Phase 13 application. It exists to exercise the real root
-installation, browser workflow, and accessibility checklist before `1.0.0` is
-finalized; it is not an additional supported production update line.
+The explicitly requested `0.9.x` packages are non-public human-acceptance
+builds of the complete Phase 13 application. `0.9.1` supersedes the first
+`0.9.0` walkthrough build with the resulting installer and interface repairs.
+They exist to exercise the real root installation, browser workflow, and
+accessibility checklist before `1.0.0` is finalized; they are not an additional
+supported production update line.
 
 Production deployment is an explicit operator action and never a side effect of
 CI, a phase job, or an update check. No release has an unattended auto-update.

@@ -46,7 +46,7 @@ installable feature/operations updates through Version 1 at Phase 13.
 
 | Document | Current implementation status |
 | --- | --- |
-| [`0.9.0` acceptance installation](CLIENT-INSTALL-0.9.0.md) | Runnable root-installer and browser-setup manual for the pre-public human-acceptance candidate |
+| [`0.9.1` acceptance installation](CLIENT-INSTALL-0.9.1.md) | Runnable root-installer and browser-setup manual for the repaired pre-public human-acceptance candidate |
 | [`0.9.0` walkthrough findings](0.9.0-INSTALLATION-WALKTHROUGH.md) | Redacted first-install question, failure, answer, and repair record |
 | [Client `1.0.0` installation](CLIENT-INSTALL-1.0.0.md) | Ordered client-server provisioning, verification, setup, acceptance, rollback, and handover manual |
 | [Installation](installation.md) | Platform installation contract and first-run alternatives |

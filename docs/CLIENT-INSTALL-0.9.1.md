@@ -1,7 +1,8 @@
-# Install Emailer Next 0.9.0 for human acceptance
+# Install Emailer Next 0.9.1 for human acceptance
 
-`0.9.0` is the complete pre-public application for hands-on installation,
-browser, accessibility, and operational testing. It is not the final public
+`0.9.1` supersedes the first `0.9.0` walkthrough build and includes the fixes
+recorded during that installation. It is the complete pre-public application
+for hands-on installation, browser, accessibility, and operational testing. It is not the final public
 `1.0.0` release. Use a disposable or recoverable Debian/Ubuntu server with
 systemd; do not use live SMTP or production recipient data.
 
@@ -29,18 +30,18 @@ configuration by default, and permits automatic required service restarts.
 The output directory contains:
 
 ```text
-emailer-next-0.9.0-candidate/
-├── emailer-next-0.9.0.zip
-├── emailer-next-0.9.0.zip.manifest.json
-├── emailer-next-0.9.0.zip.sha256
-├── emailer-next-0.9.0.zip.spdx.json
-├── emailer-next-0.9.0.zip.sig
-├── emailer-next-0.9.0-release.pub
-├── install-emailer-next-0.9.0.sh
+emailer-next-0.9.1-candidate/
+├── emailer-next-0.9.1.zip
+├── emailer-next-0.9.1.zip.manifest.json
+├── emailer-next-0.9.1.zip.sha256
+├── emailer-next-0.9.1.zip.spdx.json
+├── emailer-next-0.9.1.zip.sig
+├── emailer-next-0.9.1-release.pub
+├── install-emailer-next-0.9.1.sh
 ├── verify-package.php
 ├── PackageInspector.php
 ├── RELEASE-CANDIDATE-RECORD.md
-├── CLIENT-INSTALL-0.9.0.md
+├── CLIENT-INSTALL-0.9.1.md
 ├── 0.9.0-INSTALLATION-WALKTHROUGH.md
 └── accessibility-browser-support.md
 ```
@@ -52,15 +53,15 @@ installer uses all four automatically; keep the complete directory together.
 From the workstation, substitute the actual server address:
 
 ```sh
-scp -r /path/to/emailer-next-0.9.0-candidate \
+scp -r /path/to/emailer-next-0.9.1-candidate \
   root@SERVER_ADDRESS:/root/
 ```
 
 Or use resumable transfer:
 
 ```sh
-rsync -av --progress /path/to/emailer-next-0.9.0-candidate/ \
-  root@SERVER_ADDRESS:/root/emailer-next-0.9.0-candidate/
+rsync -av --progress /path/to/emailer-next-0.9.1-candidate/ \
+  root@SERVER_ADDRESS:/root/emailer-next-0.9.1-candidate/
 ```
 
 ## 3. Run the root installer
@@ -68,10 +69,10 @@ rsync -av --progress /path/to/emailer-next-0.9.0-candidate/ \
 On the server:
 
 ```sh
-cd /root/emailer-next-0.9.0-candidate
+cd /root/emailer-next-0.9.1-candidate
 find . -maxdepth 1 -type f -printf '%f\n' | sort
-chmod 0755 install-emailer-next-0.9.0.sh
-./install-emailer-next-0.9.0.sh
+chmod 0755 install-emailer-next-0.9.1.sh
+./install-emailer-next-0.9.1.sh
 ```
 
 The installer prompts for:
@@ -234,5 +235,6 @@ backup/recovery custody, and the final go-live decision are separately ready.
 - **Backup action requests confirmation:** use the Backups re-authentication
   link and complete the action in the same browser within five minutes.
 
-The detailed redacted history behind these entries is in
-`0.9.0-INSTALLATION-WALKTHROUGH.md`.
+The detailed redacted history behind these entries is in the bundled
+`0.9.0-INSTALLATION-WALKTHROUGH.md`; it records the first walkthrough that
+produced the `0.9.1` repairs.

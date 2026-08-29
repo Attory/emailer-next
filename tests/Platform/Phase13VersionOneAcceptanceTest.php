@@ -163,11 +163,11 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
     public function testHumanAcceptanceCandidateHasDeterministicBuilderAndRootInstaller(): void
     {
         $root = \dirname(__DIR__, 2);
-        $builder = (string) file_get_contents($root.'/tools/release/build-0.9.0-candidate.sh');
-        $installer = (string) file_get_contents($root.'/tools/release/install-0.9.0.sh');
-        $manual = $this->repositoryFile($root, 'docs/CLIENT-INSTALL-0.9.0.md');
+        $builder = (string) file_get_contents($root.'/tools/release/build-0.9.1-candidate.sh');
+        $installer = (string) file_get_contents($root.'/tools/release/install-0.9.1.sh');
+        $manual = $this->repositoryFile($root, 'docs/CLIENT-INSTALL-0.9.1.md');
 
-        foreach (['--version=0.9.0', 'cmp "$temporary_root/first/$candidate$suffix"', 'install-emailer-next-0.9.0.sh', 'RELEASE-CANDIDATE-RECORD.md', '0.9.0-INSTALLATION-WALKTHROUGH.md', 'accessibility-browser-support.md'] as $cue) {
+        foreach (['--version=0.9.1', 'cmp "$temporary_root/first/$candidate$suffix"', 'install-emailer-next-0.9.1.sh', 'RELEASE-CANDIDATE-RECORD.md', '0.9.0-INSTALLATION-WALKTHROUGH.md', 'accessibility-browser-support.md'] as $cue) {
             self::assertStringContainsString($cue, $builder);
         }
         foreach (['[ "$(id -u)" -eq 0 ]', 'sha256sum -c', '--expected-version="$version"', 'runuser -u "$sudo_user"', 'EMAILER_SECRET_KEY_FILE=/var/lib/emailer/keys/master.key', 'EMAILER_INSTALL_PROOF_FILE=/var/lib/emailer/private/setup/.emailer-install-proof', 'fastcgi_pass unix:/run/php/emailer.sock', 'a2ensite emailer-next.conf', 'NEEDRESTART_MODE=a', 'installed_mariadb_is_supported', 'mariadb-upgrade', 'basicConstraints=critical,CA:FALSE', 'emailer-setup-proof', 'systemctl enable --now emailer-worker.service'] as $cue) {
