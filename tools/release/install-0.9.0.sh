@@ -14,6 +14,8 @@ runtime_file=/etc/emailer/runtime.env
 mailpit_version=1.30.5
 mailpit_service_installed=false
 generated_database_credentials=false
+database_admin_command=()
+temporary_database_admin_client=''
 temporary_database_client=''
 temporary_mariadb_repo_setup=''
 temporary_mailpit_directory=''
@@ -57,6 +59,7 @@ prompt_secret() {
 }
 
 cleanup() {
+    [ -z "$temporary_database_admin_client" ] || rm -f "$temporary_database_admin_client"
     [ -z "$temporary_database_client" ] || rm -f "$temporary_database_client"
     [ -z "$temporary_mariadb_repo_setup" ] || rm -f "$temporary_mariadb_repo_setup"
     [ -z "$temporary_mailpit_directory" ] || rm -rf "$temporary_mailpit_directory"
@@ -236,17 +239,59 @@ verify_php_runtime() {
     ' || fail 'PHP runtime preflight failed'
 }
 
+configure_database_administrator() {
+    if mariadb --protocol=socket --user=root --batch --skip-column-names \
+        -e 'SELECT 1' >/dev/null 2>&1; then
+        database_admin_command=(mariadb --protocol=socket --user=root)
+        return
+    fi
+    if [ -r /etc/mysql/debian.cnf ] \
+        && mariadb --defaults-file=/etc/mysql/debian.cnf --protocol=socket \
+            --batch --skip-column-names -e 'SELECT 1' >/dev/null 2>&1; then
+        database_admin_command=(mariadb --defaults-file=/etc/mysql/debian.cnf --protocol=socket)
+        return
+    fi
+
+    prompt EMAILER_DATABASE_ADMIN_USER 'Existing MariaDB administrator username' root
+    prompt_secret EMAILER_DATABASE_ADMIN_PASSWORD 'Existing MariaDB administrator password'
+    [ -n "$EMAILER_DATABASE_ADMIN_PASSWORD" ] \
+        || fail 'MariaDB administrator password is required on this existing secured server'
+    temporary_database_admin_client="$(mktemp /tmp/emailer-mariadb-admin.XXXXXX)"
+    chmod 0600 "$temporary_database_admin_client"
+    # The embedded program is PHP, not shell.
+    # shellcheck disable=SC2016
+    EMAILER_DATABASE_ADMIN_USER="$EMAILER_DATABASE_ADMIN_USER" \
+    EMAILER_DATABASE_ADMIN_PASSWORD="$EMAILER_DATABASE_ADMIN_PASSWORD" \
+        "$php_command" -r '
+            $user = (string) getenv("EMAILER_DATABASE_ADMIN_USER");
+            $password = (string) getenv("EMAILER_DATABASE_ADMIN_PASSWORD");
+            foreach ([$user, $password] as $value) {
+                if ($value === "" || preg_match("/[\\x00-\\x1f\\x7f]/", $value)) { exit(1); }
+            }
+            $quote = static fn (string $value): string => chr(34).addcslashes($value, "\\\\\\\"").chr(34);
+            $config = "[client]\nuser=".$quote($user)."\npassword=".$quote($password)."\n";
+            if (false === file_put_contents($argv[1], $config)) { exit(1); }
+        ' "$temporary_database_admin_client" \
+        || fail 'MariaDB administrator credentials contain unsupported characters'
+    unset EMAILER_DATABASE_ADMIN_PASSWORD
+    database_admin_command=(mariadb --defaults-extra-file="$temporary_database_admin_client" --protocol=socket)
+    "${database_admin_command[@]}" --batch --skip-column-names \
+        -e 'SELECT 1' >/dev/null 2>&1 \
+        || fail 'MariaDB administrator authentication failed'
+}
+
 create_local_database() {
     local database_exists
     local database_tables
     local database_password
     local database_user_suffix
 
-    database_exists="$(mariadb --protocol=socket --batch --skip-column-names \
+    configure_database_administrator
+    database_exists="$("${database_admin_command[@]}" --batch --skip-column-names \
         -e "SELECT COUNT(*) FROM information_schema.schemata WHERE schema_name='emailer_next'" 2>/dev/null)" \
         || fail 'cannot administer local MariaDB through its root socket; supply EMAILER_DATABASE_URL instead'
     if [ "$database_exists" = 1 ]; then
-        database_tables="$(mariadb --protocol=socket --batch --skip-column-names \
+        database_tables="$("${database_admin_command[@]}" --batch --skip-column-names \
             -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema='emailer_next'")"
         [ "$database_tables" = 0 ] || fail 'local database emailer_next already contains tables'
     fi
@@ -255,12 +300,16 @@ create_local_database() {
     database_user_suffix="$("$php_command" -r 'echo bin2hex(random_bytes(6));')"
     EMAILER_DATABASE_USER="emailer_$database_user_suffix"
     EMAILER_DATABASE_PASSWORD="$database_password"
-    mariadb --protocol=socket <<SQL
+    "${database_admin_command[@]}" <<SQL
 CREATE DATABASE IF NOT EXISTS \`emailer_next\` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 CREATE USER '$EMAILER_DATABASE_USER'@'127.0.0.1' IDENTIFIED BY '$EMAILER_DATABASE_PASSWORD';
 GRANT ALL PRIVILEGES ON \`emailer_next\`.* TO '$EMAILER_DATABASE_USER'@'127.0.0.1';
 FLUSH PRIVILEGES;
 SQL
+    if [ -n "$temporary_database_admin_client" ]; then
+        rm -f "$temporary_database_admin_client"
+        temporary_database_admin_client=''
+    fi
     EMAILER_DATABASE_URL="mysql://$EMAILER_DATABASE_USER:$EMAILER_DATABASE_PASSWORD@127.0.0.1:3306/emailer_next"
     generated_database_credentials=true
 }
