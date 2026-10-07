@@ -292,6 +292,9 @@ select_apache_vhost_groups() {
     apache_vhost_defaults_before="$(printf '%s\n' "$dump" | apache_vhost_defaults)"
     for port in 80 443; do
         groups="$(printf '%s\n' "$dump" | awk -v port="$port" '$1 ~ ":" port "$" {print $1}' | sort -u)"
+        if [ -z "$groups" ] && printf '%s\n' "$listeners" | awk -v port="$port" '$4 ~ ":" port "$" {found=1} END {exit !found}'; then
+            fail 'Apache owns a listener without a virtual-host group; configure an explicit existing default host before installation'
+        fi
         addresses=''
         specific=false
         wildcard=false

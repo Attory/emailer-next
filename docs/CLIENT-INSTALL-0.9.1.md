@@ -266,3 +266,10 @@ that enabled link before moving the available file. Validation refuses changed
 existing default hosts and removes its own new site on failure. Mixed wildcard
 and IP groups, wildcard-port groups, scoped or unmatched bindings require
 operator review before installation.
+
+An owned Apache port without any virtual-host group is refused: establish an
+explicit existing default host first so main-server content cannot be replaced.
+Failure cleanup removes only the installer's new site files and link. Enabled
+Apache modules remain enabled. If activation succeeded before a later reload
+failed, the process can retain its loaded configuration; inspect service state
+and reload the restored configuration before retrying.

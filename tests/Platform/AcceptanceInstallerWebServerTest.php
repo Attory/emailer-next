@@ -70,6 +70,21 @@ final class AcceptanceInstallerWebServerTest extends TestCase
         }
     }
 
+    public function testMainServerListenerWithoutVirtualHostsIsNotTakenOver(): void
+    {
+        $process = $this->selection('LISTEN 0 511 0.0.0.0:80 0.0.0.0:* users:(("apache2",pid=1,fd=4))', '', '');
+        self::assertSame(1, $process->getExitCode());
+        self::assertStringContainsString('without a virtual-host group', $process->getErrorOutput());
+        self::assertStringNotContainsString('provisioning', $process->getOutput());
+    }
+
+    public function testNginxWildcardIpv6ListenerRetainsItsAddressFamily(): void
+    {
+        $process = $this->selection('LISTEN 0 511 *:443 *:* users:(("nginx",pid=2,fd=4))');
+        self::assertSame(0, $process->getExitCode());
+        self::assertStringContainsString('listen [::]:443 ssl;', $process->getOutput());
+    }
+
     public function testRenderedSitePreservesDefaultsAndFailedValidationRemovesOnlyItsOwnFiles(): void
     {
         $installer = (string) file_get_contents(\dirname(__DIR__, 2).'/tools/release/install-0.9.1.sh');
@@ -136,8 +151,18 @@ final class AcceptanceInstallerWebServerTest extends TestCase
         }
     }
 
-    private function selection(string $listeners, string $override = '', string $vhosts = ''): Process
+    private function selection(string $listeners, string $override = '', ?string $vhosts = null): Process
     {
+        if (null === $vhosts) {
+            $vhosts = '';
+            if (str_contains($listeners, '"apache2"')) {
+                foreach ([80, 443] as $port) {
+                    if (str_contains($listeners, ':'.$port.' ')) {
+                        $vhosts .= '*:'.$port." legacy.example.test (legacy.conf:1)\n";
+                    }
+                }
+            }
+        }
         $installer = (string) file_get_contents(\dirname(__DIR__, 2).'/tools/release/install-0.9.1.sh');
         self::assertSame(1, preg_match('/^select_web_server\(\) \{.*?^\}/ms', $installer, $match));
         $function = $match[0] ?? null;

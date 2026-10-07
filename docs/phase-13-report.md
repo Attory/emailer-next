@@ -416,3 +416,23 @@ No `1.0.0` release archive is committed. This source repair performs no tag,
 publication, deployment, client installation, provider contact, DNS change,
 live SMTP, or production credential rotation. The previously authorized
 `0.9.1` acceptance installation does not authorize those actions for a new SHA.
+
+### Final Apache edge-case follow-up
+
+Claude approved bounded source `be48a8aa3dd43db33df0d013f596c11bd3537bf8`
+for signing/rehearsal with no critical/high blockers. A remaining low finding
+identified existing Apache main-server content on a listener without any
+virtual-host groups. This bounded follow-up refuses that layout before
+provisioning and preserves the fallback only for ports with no owned listener.
+It adds direct regression coverage, plus the Nginx wildcard IPv6 selection
+mapping. Manuals precisely scope failed-config cleanup to site files/link,
+document retained Apache modules, and explain service inspection after an
+activation/reload failure. Renewed exact-head checks and source review are
+required; the earlier SHA's approval does not transfer to the follow-up.
+
+The follow-up's complete local aggregate passes with 237 tests / 3,325
+assertions, including the maximum static, shell, migration/mapping, scan,
+production-artifact, deployment and deterministic package gates. The final
+committed-head repeat, isolation/privilege proofs, newest matrix and renewed
+read-only review are recorded on PR #17. No operator key was loaded or signed,
+no installed application was changed, and no later phase was implemented.
