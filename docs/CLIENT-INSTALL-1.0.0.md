@@ -421,6 +421,15 @@ ticket. Perform an isolated restore drill before go-live and record only the
 redacted result. External backup automation remains off until the Owner
 approves a separately provisioned restrictive mount and policy.
 
+Use `emailer:backup:restore <backup> --drill-receipt` only in the isolated drill
+runtime. Transfer its mode-`0600` authenticated receipt into the originating
+installation's private backup directory, then run interactive
+`emailer:backup:record-restore-drill <receipt>` and a full Doctor. The recorder
+checks the same key and exact retained backup; it records the drill's original
+time without restoring live data. Follow [backup-restore.md](backup-restore.md)
+for isolation, comparison, transfer, and cleanup boundaries. An old unsigned
+operator diagnostic cannot clear this warning.
+
 ## 15. Run acceptance and exposure checks
 
 Run:

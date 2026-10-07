@@ -6,6 +6,13 @@
 
 ## System context
 
+The Phase 13 walkthrough repair keeps the schema and HTTP surface unchanged.
+`Backup` now issues private authenticated evidence after an isolated real
+restore and complete bounded snapshot comparison. A separate interactive CLI
+records that evidence against the originating retained backup and Audit
+contract. Health remains read-only and derives cadence from the recorded actual
+restore time; there is no acknowledgement, manual timestamp, or SMTP bypass.
+
 Phase 13 preserves the modular-monolith and schema boundaries. It closes two
 previously reserved CLI contracts without adding an HTTP route: the protected
 terminal installer orchestrates existing Setup, Configuration, Identity, and

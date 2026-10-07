@@ -336,6 +336,15 @@ provider, rotate a credential, change DNS, or use live SMTP.
 
 ## Phase 13 control status
 
+- TM-20/TM-25 walkthrough repair adds authenticated isolated-drill evidence
+  issued only after real restore, full bounded row/asset comparison, and
+  quiescence. CLI import binds the exact retained artifact and same master key,
+  verifies it again, rejects tampered/unsafe/future/mismatched input, preserves
+  the actual drill time on replay, and records audit evidence without restoring
+  live data. Receipts contain only opaque IDs, digests, sizes, versions, counts,
+  and UTC time. They do not prove host isolation or human approval, and cannot
+  protect against the operator/root/key-compromise boundary.
+
 - TM-01/TM-02 now include an HTTPS-independent full CLI installation path that
   accepts secrets only as hidden interactive input, reuses canonical setup
   services, writes no plaintext setup state, emits no secret values, and
@@ -358,7 +367,8 @@ provider, rotate a credential, change DNS, or use live SMTP.
 - The HTTP route set and schema are unchanged. The complete inventory was
   reviewed for authentication, authorization, method, CSRF, recipient-token,
   caching, and disclosure boundaries; the only CLI surface expansion is the
-  two bounded commands above.
+  bounded setup/rotation commands above and the isolated-drill receipt option
+  and interactive recorder documented in the CLI inventory.
 
 Phase 13 does not publish, tag, deploy, change DNS/provider state, rotate a live
 credential, use live SMTP, or install on a client server. Operator signing,

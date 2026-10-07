@@ -13,7 +13,7 @@ candidate, signing, and merge approval for the earlier SHA.
 | --- | --- | --- |
 | Exact clean Phase 12 closeout base and synchronized `origin/main` | PASS | Base `39c8eeccea9866215ce231a08d0e32df9b341199`; PR #16 closeout |
 | Phase 13 branch contains only Version-1 closure/acceptance work | PASS | Diff review and unchanged schema `20260828000000` |
-| No live SMTP, provider, DNS, deployment, client-server, tag, or publication mutation | PASS | Fake Mailpit tests and repository-only work |
+| Walkthrough source repair introduces no live SMTP, provider, DNS, deployment, tag, or publication mutation | PASS | Fake Mailpit tests; existing separately authorized acceptance installation is unchanged |
 | Complete route inventory reconciled; no new HTTP route | PASS | [route-inventory.md](route-inventory.md) and exhaustive policy tests |
 | Full threat/security/architecture review updated | PASS | [threat-model.md](threat-model.md), [security-model.md](security-model.md), [architecture.md](architecture.md) |
 
@@ -36,8 +36,8 @@ candidate, signing, and merge approval for the earlier SHA.
 | Production dependency license allowlist passes | PASS | `tools/quality/check-license-policy.php` over all locked production packages |
 | Candidate SPDX rejects missing license decisions | PASS | `PackageInspectorTest` rejects `NOASSERTION` |
 | Secret/private-data current-tree and reachable-history scans | PASS LOCAL | Aggregate scans pass; exact committed head and CI remain required |
-| Fake-mail isolation and external SMTP negative probe | PENDING CI | Local Mailpit-only policy/tests pass; CI must prove external port 25 is unreachable on its internal network |
-| Retention/suppression/recipient privacy regression | PASS LOCAL | Complete 219-test PHPUnit aggregate passes with 3,034 assertions |
+| Fake-mail isolation and external SMTP negative probe | PASS LOCAL; PENDING CI | Fresh source image on an internal Docker network rejects external port 25; all 232 tests pass with 8,098 assertions; current-head CI must repeat it |
+| Retention/suppression/recipient privacy regression | PASS LOCAL | Complete walkthrough-repair aggregate passes at 232 tests and 3,101 assertions |
 | Browser support and WCAG 2.2 AA target documented | PASS | [accessibility-browser-support.md](accessibility-browser-support.md) |
 | Static accessibility acceptance | PASS LOCAL | Twig/CSS structural acceptance passes in the complete PHPUnit aggregate |
 | Human keyboard, zoom, contrast, screen-reader and supported-browser acceptance | PENDING MANUAL | Must be recorded by the acceptance owner; automation cannot substitute |
@@ -55,6 +55,9 @@ candidate, signing, and merge approval for the earlier SHA.
 | Interrupted update, failed health, rollback/restore | PASS LOCAL | Complete release-update/candidate gates pass |
 | Reference load profile within documented bounds | PASS LOCAL | Bounded 2,000-recipient profile passes in the complete aggregate |
 | Backup create/verify/restore and recovery regression | PASS LOCAL | Complete backup, recovery and rotation regression passes |
+| Fresh restricted database initializes migration metadata after credential verification | PASS LOCAL | Empty-schema regression applies all 13 migrations, rejects wrong input and permanent setup lock, and remains idempotent |
+| Isolated restore evidence authenticates actual comparison and imports without restoring live data | PASS LOCAL | Every contributed row/asset compared; tamper, unsafe files, damaged artifact, future/mismatched receipt, active delivery, failed comparison/rollback, and replay covered |
+| Installer selects the public-port owner and preserves existing address bindings | PASS LOCAL | Mixed Apache/Nginx listener fixtures; unknown, ambiguous, and conflicting choices fail before provisioning; real repaired-server rehearsal remains pending |
 | Client install/update/rollback/handover documentation complete | PASS | [CLIENT-INSTALL-1.0.0.md](CLIENT-INSTALL-1.0.0.md), [CLIENT-UPDATE-1.0.0.md](CLIENT-UPDATE-1.0.0.md) |
 
 ## 5. Candidate, review, and approval

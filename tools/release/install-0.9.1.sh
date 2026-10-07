@@ -15,6 +15,10 @@ mailpit_version=1.30.5
 mailpit_service_installed=false
 generated_database_credentials=false
 web_server=''
+apache_http_addresses='*:80'
+apache_https_addresses='*:443'
+nginx_http_listen='    listen 80;'
+nginx_https_listen='    listen 443 ssl;'
 database_admin_command=()
 database_upgrade_command=()
 temporary_database_admin_client=''
@@ -180,18 +184,70 @@ install_base_packages() {
 }
 
 select_web_server() {
-    if systemctl is-active --quiet nginx.service 2>/dev/null; then
-        web_server=nginx
-    elif systemctl is-active --quiet apache2.service 2>/dev/null; then
-        web_server=apache
-    elif command -v apache2ctl >/dev/null 2>&1 && ! command -v nginx >/dev/null 2>&1; then
-        web_server=apache
-    else
-        if ! command -v nginx >/dev/null 2>&1; then
-            printf 'Installing Nginx because no supported active web server was found.\n'
-            apt_install nginx
+    local listeners public_listeners apache_listeners nginx_listeners other_listeners address
+    listeners="$(ss -H -ltnp)" || fail 'cannot inspect TCP listener ownership'
+    public_listeners="$(printf '%s\n' "$listeners" | awk '$4 ~ /:(80|443)$/')"
+    apache_listeners="$(printf '%s\n' "$public_listeners" | awk '/"apache2"|"httpd"/')"
+    nginx_listeners="$(printf '%s\n' "$public_listeners" | awk '/"nginx"/')"
+    other_listeners="$(printf '%s\n' "$public_listeners" | awk 'NF && !/"apache2"|"httpd"|"nginx"/')"
+    [ -z "$other_listeners" ] || fail 'ports 80/443 have an unsupported or unidentified owner; inspect the host before installation'
+
+    case "${EMAILER_WEB_SERVER:-}" in
+        apache|nginx) web_server="$EMAILER_WEB_SERVER" ;;
+        '')
+            if [ -n "$apache_listeners" ] && [ -n "$nginx_listeners" ]; then
+                fail 'Apache and Nginx both own listeners on ports 80/443; set EMAILER_WEB_SERVER=apache or nginx for the approved hostname'
+            elif [ -n "$apache_listeners" ]; then
+                web_server=apache
+            elif [ -n "$nginx_listeners" ]; then
+                web_server=nginx
+            elif systemctl is-active --quiet apache2.service 2>/dev/null && systemctl is-active --quiet nginx.service 2>/dev/null; then
+                fail 'both web servers are active without an identified port 80/443 owner; set EMAILER_WEB_SERVER explicitly'
+            elif systemctl is-active --quiet apache2.service 2>/dev/null; then
+                web_server=apache
+            elif systemctl is-active --quiet nginx.service 2>/dev/null; then
+                web_server=nginx
+            elif command -v apache2ctl >/dev/null 2>&1 && ! command -v nginx >/dev/null 2>&1; then
+                web_server=apache
+            else
+                web_server=nginx
+            fi
+            ;;
+        *) fail 'EMAILER_WEB_SERVER must be apache or nginx' ;;
+    esac
+    if [ "$web_server" = apache ] && [ -n "$nginx_listeners" ] && [ -z "$apache_listeners" ]; then
+        fail 'Nginx owns ports 80/443 but Apache was requested'
+    fi
+    if [ "$web_server" = nginx ] && [ -n "$apache_listeners" ] && [ -z "$nginx_listeners" ]; then
+        fail 'Apache owns ports 80/443 but Nginx was requested'
+    fi
+    if [ -n "$apache_listeners" ] && [ -n "$nginx_listeners" ]; then
+        if [ "$web_server" = apache ]; then
+            public_listeners="$apache_listeners"
+        else
+            public_listeners="$nginx_listeners"
         fi
-        web_server=nginx
+        printf '%s\n' "$public_listeners" | awk '$4 ~ /:80$/ {found=1} END {exit !found}' || fail 'the selected server has no port 80 listener; review address bindings before installation'
+        printf '%s\n' "$public_listeners" | awk '$4 ~ /:443$/ {found=1} END {exit !found}' || fail 'the selected server has no port 443 listener; review address bindings before installation'
+    fi
+
+    # Match existing address-specific virtual-host groups instead of creating a
+    # wildcard host that Apache can silently shadow with an IP-specific group.
+    if [ -n "$apache_listeners" ]; then
+        address="$(printf '%s\n' "$apache_listeners" | awk '$4 ~ /:80$/ {print $4}' | sort -u | paste -sd ' ' -)"
+        [ -z "$address" ] || apache_http_addresses="$address"
+        address="$(printf '%s\n' "$apache_listeners" | awk '$4 ~ /:443$/ {print $4}' | sort -u | paste -sd ' ' -)"
+        [ -z "$address" ] || apache_https_addresses="$address"
+    fi
+    if [ -n "$nginx_listeners" ]; then
+        address="$(printf '%s\n' "$nginx_listeners" | awk '$4 ~ /:80$/ {print $4}' | sort -u | sed 's/^\*:80$/80/; s/^/    listen /; s/$/;/')"
+        [ -z "$address" ] || nginx_http_listen="$address"
+        address="$(printf '%s\n' "$nginx_listeners" | awk '$4 ~ /:443$/ {print $4}' | sort -u | sed 's/^\*:443$/443/; s/^/    listen /; s/$/ ssl;/')"
+        [ -z "$address" ] || nginx_https_listen="$address"
+    fi
+    if [ "$web_server" = nginx ] && ! command -v nginx >/dev/null 2>&1; then
+        printf 'Installing Nginx because no supported installed web server was found.\n'
+        apt_install nginx
     fi
 
     printf 'Using the existing or provisioned %s web server.\n' "$web_server"
@@ -475,12 +531,12 @@ configure_web_server() {
         command -v a2enmod >/dev/null 2>&1 || fail 'Apache module manager is unavailable'
         a2enmod proxy proxy_fcgi setenvif ssl rewrite headers >/dev/null
         cat >/etc/apache2/sites-available/emailer-next.conf <<EOF
-<VirtualHost *:80>
+<VirtualHost $apache_http_addresses>
     ServerName $EMAILER_HOSTNAME
     Redirect permanent / https://$EMAILER_HOSTNAME/
 </VirtualHost>
 
-<VirtualHost *:443>
+<VirtualHost $apache_https_addresses>
     ServerName $EMAILER_HOSTNAME
     DocumentRoot /srv/emailer/releases/current/public
     SSLEngine on
@@ -512,13 +568,13 @@ EOF
 
     cat >/etc/nginx/sites-available/emailer-next.conf <<EOF
 server {
-    listen 80;
+$nginx_http_listen
     server_name $EMAILER_HOSTNAME;
     return 301 https://\$host\$request_uri;
 }
 
 server {
-    listen 443 ssl;
+$nginx_https_listen
     server_name $EMAILER_HOSTNAME;
     root /srv/emailer/releases/current/public;
     index index.php;

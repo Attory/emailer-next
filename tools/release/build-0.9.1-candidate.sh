@@ -94,6 +94,8 @@ sed -e "s/@SOURCE_COMMIT@/$source_commit/g" -e "s/@SOURCE_EPOCH@/$source_epoch/g
     "$project_root/tools/release/RELEASE-CANDIDATE-0.9.1.md.in" >"$candidate_directory/RELEASE-CANDIDATE-RECORD.md"
 install -m 0644 "$project_root/docs/CLIENT-INSTALL-0.9.1.md" "$candidate_directory/CLIENT-INSTALL-0.9.1.md"
 install -m 0644 "$project_root/docs/0.9.0-INSTALLATION-WALKTHROUGH.md" "$candidate_directory/0.9.0-INSTALLATION-WALKTHROUGH.md"
+install -m 0644 "$project_root/docs/0.9.1-INSTALLATION-WALKTHROUGH.md" "$candidate_directory/0.9.1-INSTALLATION-WALKTHROUGH.md"
+install -m 0644 "$project_root/docs/backup-restore.md" "$candidate_directory/backup-restore.md"
 install -m 0644 "$project_root/docs/accessibility-browser-support.md" "$candidate_directory/accessibility-browser-support.md"
 published=true
 

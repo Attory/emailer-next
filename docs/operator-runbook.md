@@ -367,6 +367,13 @@ creates a public recipient endpoint.
 3. Export the recovery package with `emailer:secrets:export-recovery-key`; do
    not record its passphrase. Create and verify backups with
    `emailer:backup:create` and `emailer:backup:verify`.
+   For an isolated drill, add `--drill-receipt` to the real restore command in
+   the disposable runtime. Securely transfer the authenticated receipt into
+   the originating private backup directory and run interactive
+   `emailer:backup:record-restore-drill <receipt>`. This checks the exact retained
+   backup and records its actual restore time without restoring live state.
+   Follow [backup-restore.md](backup-restore.md); never edit restore timestamps
+   manually or convert an unsigned diagnostic into authenticated evidence.
 4. For restore, quiesce delivery and allow the scheduler to recover interrupted
    claims until the reported count reaches zero. Then stop worker/scheduler,
    run interactive `emailer:backup:restore`, verify suppression and Doctor, and

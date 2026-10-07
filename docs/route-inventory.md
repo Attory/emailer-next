@@ -171,6 +171,8 @@ rollback.
 | `emailer:doctor:run` | Full redacted Doctor, with machine-safe exit status | 8 |
 | `emailer:backup:create` / `verify` | Encrypted private backup and verification | 8 |
 | `emailer:backup:restore` | Maintenance-only preflight, staging restore, and rollback | 8 |
+| `emailer:backup:restore --drill-receipt` | Isolated real restore, full bounded snapshot comparison, authenticated private receipt | 13 repair |
+| `emailer:backup:record-restore-drill` | Interactive authentication of exact retained-backup evidence; no live restore | 13 repair |
 | `emailer:retention:run --dry-run` | Observable idempotent retention preview/apply | 8 |
 | `emailer:operations:run` | Due full Doctor plus explicitly enabled bounded retention/external backup under one non-overlap lock | 12 |
 | `emailer:release:inspect` / `install` / `update` / `check` | Pinned verification, immutable install, explicit maintenance update, and redacted status | 8 |

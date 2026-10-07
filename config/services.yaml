@@ -154,6 +154,8 @@ services:
             $contributors: !tagged_iterator emailer.backup_contributor
             $backupDirectory: '%emailer.backup_dir%'
             $sourceVersion: '%emailer.app_version%'
+            $drillEvidence: '@App\Module\Backup\Application\RestoreDrillEvidence'
+            $audit: '@App\Module\Audit\Application\Contract\AuditSink'
 
     App\Module\Operations\Application\OperationsDashboard:
         arguments:

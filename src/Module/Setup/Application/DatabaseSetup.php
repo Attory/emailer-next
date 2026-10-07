@@ -63,6 +63,7 @@ final readonly class DatabaseSetup
             }
 
             try {
+                $this->migrations->getMetadataStorage()->ensureInitialized();
                 $target = $this->migrations->getVersionAliasResolver()->resolveVersionAlias('latest');
                 $plan = $this->migrations->getMigrationPlanCalculator()->getPlanUntilVersion($target);
                 $configuration = (new MigratorConfiguration())->setAllOrNothing(true);

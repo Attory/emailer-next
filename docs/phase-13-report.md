@@ -1,7 +1,8 @@
 # Phase 13 completion report — Version-1 hardening and acceptance
 
-**Status:** Human-acceptance walkthrough repair in progress on the existing
-Phase 13 pull request. Earlier independent-review findings are repaired; the
+**Status:** The four authorized `0.9.1` walkthrough source repairs pass local
+gates on the existing Phase 13 pull request. Current-head CI, renewed independent
+review, signing, and human acceptance remain separate gates. Earlier independent-review findings are repaired; the
 first real `0.9.0` client-server rehearsal exposed installer compatibility and
 operator-guidance defects that are now covered by code, tests, manuals, and a
 redacted question/answer record. Not merged, tagged, publicly released, or
@@ -264,6 +265,80 @@ deployment probes, and deterministic signed-candidate tooling.
 
 ## Unresolved release prerequisites
 
+### 0.9.1 walkthrough repair
+
+The authorized repair starts from exact existing PR #17 head
+`36dee3ea456e4fccbc25a98902ad4c8df7287ad4`, with a clean working tree,
+`origin/main` still at `39c8eeccea9866215ce231a08d0e32df9b341199`, and clean
+secret/private-data entry scans. It addresses only the four observed issues:
+public-port Apache/Nginx selection/address bindings; fresh-database migration
+metadata initialization; authenticated isolated-restore evidence recording;
+and obsolete browser footer wording. See
+[0.9.1-INSTALLATION-WALKTHROUGH.md](0.9.1-INSTALLATION-WALKTHROUGH.md).
+
+The real restore option compares every contributed row and approved asset in
+bounded batches, preserves safety-backup/rollback and quiescence, and issues a
+mode-`0600` purpose-authenticated receipt. The interactive CLI recorder verifies
+the exact retained artifact, original restore time, and inventory; records
+monotonic/idempotent evidence and redacted audit; and never restores live data.
+The dashboard uses the latest restore timestamp across backups. No migration,
+dependency, HTTP route, sending-gate exception, provider action, or later-phase
+behavior is introduced. Earlier unsigned diagnostics cannot clear the warning.
+
+Local repair verification uses PHP 8.4.24/MariaDB 10.11.19 in a newly created,
+disposable Compose project, preserving the existing development database:
+
+- Focused regressions: 10 tests, 94 assertions, including the actual
+  49-table/asset restore comparison, row-mismatch rollback without a receipt,
+  unsafe/tampered/damaged evidence refusal, replay, and an empty restricted
+  schema. Maximum PHPStan and all architectural boundaries pass.
+- Complete `composer check`: 232 tests, 3,101 assertions; Composer validation,
+  audit and 85-package license policy; formatting; static/module/shell checks;
+  idempotent migrations and Doctrine mapping; production artifact, secret and
+  private-data scans; public/deployment probes; deterministic disposable-key
+  `1.0.0` package, supported-source verification, and immutable clean install.
+- Separate root-run privilege gate passes: root-owned immutable publication,
+  service-key read boundary, and refusal of service-identity code mutation.
+- Fresh repaired image on an internal Docker network: external port 25 probe
+  fails as required; all 232 tests pass with 8,098 assertions. Assertion totals
+  vary with retained synthetic append-only audit rows; test count is stable.
+- Compose configuration and `git diff --check` pass. Dependencies, migrations,
+  public routes, and production integration settings are unchanged.
+
+The exact committed-head repeat, new SHA, GitHub matrix conclusions, and
+disposable acceptance-bundle verification are recorded on PR #17 after push.
+No previous SHA's CI or approval is reused. The existing installed acceptance
+candidate remains at its previously signed source; this source repair does not
+silently change it. Human keyboard/supported-browser/assistive-technology
+acceptance, an independently reviewed and operator-signed repaired candidate,
+actual clean/mixed-server installation, and a repeated isolated restore using
+the authenticated receipt remain required before final acceptance. Mailpit
+continues to block production sending; no SMTP/DNS/provider commissioning is
+performed.
+
+Repair changed-file inventory:
+
+- Wiring and setup: `config/services.yaml`,
+  `src/Module/Setup/Application/DatabaseSetup.php`,
+  `templates/setup/policy.html.twig`.
+- Backup: `src/Module/Backup/Application/BackupEngine.php`,
+  `src/Module/Backup/Application/RestoreDrillEvidence.php`,
+  `src/Module/Backup/Infrastructure/OperationalBackupStatus.php`,
+  `src/Module/Backup/Presentation/Cli/RestoreBackupCommand.php`,
+  `src/Module/Backup/Presentation/Cli/RecordRestoreDrillCommand.php`.
+- Candidate tooling: `tools/release/install-0.9.1.sh`,
+  `tools/release/build-0.9.1-candidate.sh`.
+- Tests: `tests/Integration/Phase13FreshDatabaseSetupTest.php`,
+  `tests/Integration/Phase13RestoreDrillTest.php`,
+  `tests/Module/Backup/RestoreDrillEvidenceTest.php`,
+  `tests/Platform/AcceptanceInstallerWebServerTest.php`.
+- Documentation: `docs/0.9.1-INSTALLATION-WALKTHROUGH.md`,
+  `docs/CLIENT-INSTALL-0.9.1.md`, `docs/CLIENT-INSTALL-1.0.0.md`,
+  `docs/README.md`, `docs/architecture.md`, `docs/backup-restore.md`,
+  `docs/data-model.md`, `docs/operator-runbook.md`, `docs/phase-13-report.md`,
+  `docs/route-inventory.md`, `docs/security-model.md`, `docs/threat-model.md`,
+  `docs/VERSION-1-ACCEPTANCE-CHECKLIST.md`.
+
 At Anton's explicit request, a non-public `0.9.1` human-acceptance candidate
 supersedes the first `0.9.0` walkthrough build before the final Version-1
 release decision. It contains the complete
@@ -286,6 +361,7 @@ pass the complete local aggregate at 220 tests and 3,053 assertions.
   and full unchanged head SHA before merge;
 - post-merge clean synchronization of local `main` and `origin/main`.
 
-No `1.0.0` release archive is committed. No tag, publication, deployment,
-client installation, provider contact, DNS change, live SMTP, or production
-credential rotation is authorized or performed.
+No `1.0.0` release archive is committed. This source repair performs no tag,
+publication, deployment, client installation, provider contact, DNS change,
+live SMTP, or production credential rotation. The previously authorized
+`0.9.1` acceptance installation does not authorize those actions for a new SHA.

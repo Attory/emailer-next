@@ -4,6 +4,14 @@
 
 ## Phase 13 closure controls
 
+- Isolated restore evidence is issued only after actual restore, bounded full
+  row/asset comparison, and quiescence. A purpose-separated master-key HMAC
+  binds the receipt to the exact retained backup and original restore time.
+  Interactive CLI-only recording re-verifies that artifact, rejects unsafe or
+  future/mismatched evidence, records a redacted audit event, and never restores
+  live data or advances a replay to the import time. Host isolation and approval
+  remain operator responsibilities; root/key compromise can forge this evidence.
+
 - Full CLI installation accepts secrets only through hidden interactive
   questions, exposes no secret-bearing option/argument, calls the same setup
   application services as HTTPS onboarding, and permanently locks setup after

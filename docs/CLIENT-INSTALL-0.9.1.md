@@ -15,7 +15,8 @@ installer.
 
 Have root SSH access. The installer automatically checks and, where missing:
 
-- installs Nginx or uses an already active Apache installation;
+- identifies the Apache/Nginx process that owns ports 80/443 and preserves its
+  address-specific listeners; unrelated services on other ports do not win;
 - installs PHP-FPM 8.4 or 8.5 plus required extensions;
 - installs MariaDB 10.11 or 11.8;
 - installs and verifies loopback-only Mailpit on port 1025; and
@@ -199,6 +200,22 @@ systemd-run --quiet --wait --collect --pty \
 ```
 
 ## 9. Continue human acceptance
+
+On a host where Apache and Nginx both own ports 80/443, the installer stops
+instead of guessing. Review which server serves the approved hostname and set
+`EMAILER_WEB_SERVER=apache` or `EMAILER_WEB_SERVER=nginx` before rerunning. The
+selected server must own both ports when both servers are public. Unidentified
+or unsupported port owners also stop provisioning; inspect the host first.
+
+The Database wizard initializes migration metadata after verifying the submitted
+restricted credentials. A fresh database needs no manual metadata-sync command.
+Incorrect credentials and permanently locked setup cannot initialize or migrate.
+
+After a real isolated restore, use the authenticated receipt procedure in
+[backup-restore.md](backup-restore.md) to record its evidence on the originating
+installation. A successful archive verification alone does not count as a drill,
+and acknowledgement never changes readiness. Plaintext local Mailpit remains an
+expected SMTP-critical acceptance configuration and cannot authorize sending.
 
 Work through `accessibility-browser-support.md` in the candidate directory.
 Use only synthetic contacts and local Mailpit until production SMTP, DNS,

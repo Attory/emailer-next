@@ -48,6 +48,7 @@ installable feature/operations updates through Version 1 at Phase 13.
 | --- | --- |
 | [`0.9.1` acceptance installation](CLIENT-INSTALL-0.9.1.md) | Runnable root-installer and browser-setup manual for the repaired pre-public human-acceptance candidate |
 | [`0.9.0` walkthrough findings](0.9.0-INSTALLATION-WALKTHROUGH.md) | Redacted first-install question, failure, answer, and repair record |
+| [`0.9.1` walkthrough findings](0.9.1-INSTALLATION-WALKTHROUGH.md) | Redacted database, web-server selection, restore-evidence, and footer repair record |
 | [Client `1.0.0` installation](CLIENT-INSTALL-1.0.0.md) | Ordered client-server provisioning, verification, setup, acceptance, rollback, and handover manual |
 | [Installation](installation.md) | Platform installation contract and first-run alternatives |
 | [First-run setup](first-run-setup.md) | Phase 3 secure wizard and permanent lock implemented |
