@@ -89,6 +89,15 @@ final readonly class BackupEngine implements BackupOperations
     /** @return array<string, mixed> */
     public function verify(string $path): array
     {
+        $manifest = $this->inspect($path);
+        $this->connection->executeStatement("UPDATE backup_record SET status = 'verified', verified_at = ? WHERE filename = ? AND ciphertext_sha256 = ?", [Identity::now(), basename($path), hash_file('sha256', $path)]);
+
+        return $manifest;
+    }
+
+    /** @return array<string, mixed> */
+    private function inspect(string $path): array
+    {
         $this->assertSafePath($path);
         $plain = tempnam($this->backupDirectory, '.backup-verify-');
         if (false === $plain) {
@@ -161,8 +170,6 @@ final readonly class BackupEngine implements BackupOperations
             } finally {
                 $zip->close();
             }
-            $filename = basename($path);
-            $this->connection->executeStatement("UPDATE backup_record SET status = 'verified', verified_at = ? WHERE filename = ? AND ciphertext_sha256 = ?", [Identity::now(), $filename, hash_file('sha256', $path)]);
 
             return $manifest;
         } finally {
@@ -228,7 +235,7 @@ final readonly class BackupEngine implements BackupOperations
                 throw new \RuntimeException('Restore-drill evidence does not match a retained verified backup.');
             }
             $backup = $this->backupDirectory.'/'.$record['filename'];
-            $manifest = $this->verify($backup);
+            $manifest = $this->inspect($backup);
             $entries = $manifest['entries'];
             if (!\is_array($entries)) {
                 throw new \RuntimeException('Restore-drill evidence backup entries are invalid.');
@@ -296,7 +303,7 @@ final readonly class BackupEngine implements BackupOperations
                     try {
                         $safetyManifest = $this->verify($safety['path']);
                         $this->apply($safety['path']);
-                        $this->recordVerified($safety['path'], $safetyManifest);
+                        $this->recordVerified($safety['path'], $safetyManifest, false);
                     } catch (\Throwable $rollback) {
                         throw new \RuntimeException('Restore failed and automatic rollback also failed; keep delivery quiesced.', previous: $rollback);
                     }
@@ -914,7 +921,7 @@ final readonly class BackupEngine implements BackupOperations
     }
 
     /** @param array<string, mixed> $manifest */
-    private function recordVerified(string $path, array $manifest): void
+    private function recordVerified(string $path, array $manifest, bool $restored = true): void
     {
         $id = $manifest['backup_id'] ?? null;
         $schema = $manifest['schema_version'] ?? null;
@@ -926,7 +933,9 @@ final readonly class BackupEngine implements BackupOperations
             throw new \RuntimeException('Restored backup evidence is invalid.');
         }
         $this->connection->executeStatement("INSERT INTO backup_record (id, format_version, filename, ciphertext_sha256, byte_size, schema_version, source_version, status, created_at, verified_at) VALUES (?, 1, ?, ?, ?, ?, ?, 'verified', ?, ?) ON DUPLICATE KEY UPDATE ciphertext_sha256 = VALUES(ciphertext_sha256), byte_size = VALUES(byte_size), status = 'verified', verified_at = VALUES(verified_at)", [$id, basename($path), $hash, $bytes, $schema, $source, $created, Identity::now()]);
-        $this->connection->update('backup_record', ['restored_at' => Identity::now()], ['id' => $id]);
+        if ($restored) {
+            $this->connection->update('backup_record', ['restored_at' => Identity::now()], ['id' => $id]);
+        }
     }
 
     private function safeArchiveEntry(string $name): bool

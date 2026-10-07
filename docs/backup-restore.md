@@ -121,7 +121,10 @@ the drill runtime at the live database or run its workers/scheduler.
    directory. The protected CLI reports its path; no path or private content is
    included in the receipt itself.
 3. Transfer the receipt into the originating installation's private backup
-   directory using mode `0600`. Retain the exact verified encrypted backup there.
+   directory using mode `0600` and ownership `emailer:emailer`. Retain the exact
+   verified encrypted backup there. Run the commands as the `emailer` service
+   user with the protected runtime environment, as described in
+   [CLIENT-INSTALL-0.9.1.md](CLIENT-INSTALL-0.9.1.md#8-create-the-first-local-encrypted-backup).
    On the originating installation, run interactively:
 
    ```sh
@@ -136,7 +139,11 @@ and appends redacted audit evidence; it does not restore business data or change
 delivery state. Future/pre-backup timestamps, tampered receipts, a different
 key/backup, unsafe files, and missing/deleted/damaged artifacts fail closed.
 Replaying older evidence never advances the restore time to the import time;
-cadence uses the time the actual drill ran.
+cadence uses the time the actual drill ran. Importing a receipt does not refresh
+`verified_at` or clear the independent backup-recency gate. A failed restore
+followed by safety rollback records no successful restore timestamp. Existing
+successful normal restores remain part of the historical restore-cadence metric;
+that metric alone does not certify an isolated comparison or human acceptance.
 
 The receipt proves authenticated restore/comparison, not independent key
 custody, recovery-passphrase correctness, host/network isolation, or human

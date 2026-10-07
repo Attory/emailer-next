@@ -15,6 +15,10 @@ mailpit_version=1.30.5
 mailpit_service_installed=false
 generated_database_credentials=false
 web_server=''
+web_configuration_pending=false
+web_site_file=''
+web_site_link=''
+apache_vhost_defaults_before=''
 apache_http_addresses='*:80'
 apache_https_addresses='*:443'
 nginx_http_listen='    listen 80;'
@@ -65,7 +69,15 @@ prompt_secret() {
     printf -v "$variable_name" '%s' "$value"
 }
 
+cleanup_web_configuration() {
+    if [ "$web_configuration_pending" = true ]; then
+        [ -z "$web_site_link" ] || rm -f "$web_site_link"
+        [ -z "$web_site_file" ] || rm -f "$web_site_file"
+    fi
+}
+
 cleanup() {
+    cleanup_web_configuration
     [ -z "$temporary_database_admin_client" ] || rm -f "$temporary_database_admin_client"
     [ -z "$temporary_database_client" ] || rm -f "$temporary_database_client"
     [ -z "$temporary_mariadb_repo_setup" ] || rm -f "$temporary_mariadb_repo_setup"
@@ -191,6 +203,11 @@ select_web_server() {
     nginx_listeners="$(printf '%s\n' "$public_listeners" | awk '/"nginx"/')"
     other_listeners="$(printf '%s\n' "$public_listeners" | awk 'NF && !/"apache2"|"httpd"|"nginx"/')"
     [ -z "$other_listeners" ] || fail 'ports 80/443 have an unsupported or unidentified owner; inspect the host before installation'
+    while IFS= read -r address; do
+        [ -z "$address" ] && continue
+        [[ "$address" =~ ^(\*|[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+|\[[0-9a-fA-F:]+\]):(80|443)$ ]] \
+            || fail 'unsupported or scoped port 80/443 listener; review host bindings before installation'
+    done < <(printf '%s\n' "$public_listeners" | awk 'NF {print $4}')
 
     case "${EMAILER_WEB_SERVER:-}" in
         apache|nginx) web_server="$EMAILER_WEB_SERVER" ;;
@@ -231,18 +248,13 @@ select_web_server() {
         printf '%s\n' "$public_listeners" | awk '$4 ~ /:443$/ {found=1} END {exit !found}' || fail 'the selected server has no port 443 listener; review address bindings before installation'
     fi
 
-    # Match existing address-specific virtual-host groups instead of creating a
-    # wildcard host that Apache can silently shadow with an IP-specific group.
-    if [ -n "$apache_listeners" ]; then
-        address="$(printf '%s\n' "$apache_listeners" | awk '$4 ~ /:80$/ {print $4}' | sort -u | paste -sd ' ' -)"
-        [ -z "$address" ] || apache_http_addresses="$address"
-        address="$(printf '%s\n' "$apache_listeners" | awk '$4 ~ /:443$/ {print $4}' | sort -u | paste -sd ' ' -)"
-        [ -z "$address" ] || apache_https_addresses="$address"
+    if [ "$web_server" = apache ]; then
+        select_apache_vhost_groups "$apache_listeners"
     fi
     if [ -n "$nginx_listeners" ]; then
-        address="$(printf '%s\n' "$nginx_listeners" | awk '$4 ~ /:80$/ {print $4}' | sort -u | sed 's/^\*:80$/80/; s/^/    listen /; s/$/;/')"
+        address="$(printf '%s\n' "$nginx_listeners" | awk '$4 ~ /:80$/ {print $4}' | sort -u | sed 's/^\*:80$/[::]:80/; s/^/    listen /; s/$/;/')"
         [ -z "$address" ] || nginx_http_listen="$address"
-        address="$(printf '%s\n' "$nginx_listeners" | awk '$4 ~ /:443$/ {print $4}' | sort -u | sed 's/^\*:443$/443/; s/^/    listen /; s/$/ ssl;/')"
+        address="$(printf '%s\n' "$nginx_listeners" | awk '$4 ~ /:443$/ {print $4}' | sort -u | sed 's/^\*:443$/[::]:443/; s/^/    listen /; s/$/ ssl;/')"
         [ -z "$address" ] || nginx_https_listen="$address"
     fi
     if [ "$web_server" = nginx ] && ! command -v nginx >/dev/null 2>&1; then
@@ -251,6 +263,86 @@ select_web_server() {
     fi
 
     printf 'Using the existing or provisioned %s web server.\n' "$web_server"
+}
+
+apache_vhost_defaults() {
+    awk '
+        $1 ~ /:(80|443)$/ {
+            group=$1
+            if ($2 != "is") {
+                sub(/^[[:space:]]*[^[:space:]]+[[:space:]]+/, "")
+                print group "\t" $0
+            }
+            next
+        }
+        $1 ~ /:[0-9*]+$/ {group=""; next}
+        group != "" && $1 == "default" && $2 == "server" {
+            sub(/^[[:space:]]*default server[[:space:]]+/, "")
+            print group "\t" $0
+        }
+    '
+}
+
+select_apache_vhost_groups() {
+    local listeners="$1" dump groups group host port addresses specific wildcard matched address
+    dump="$(apache2ctl -t -D DUMP_VHOSTS 2>&1)" || fail 'Apache virtual-host inspection failed; repair existing configuration first'
+    if printf '%s\n' "$dump" | awk '$1 ~ /:\*$/ {found=1} END {exit !found}'; then
+        fail 'Apache uses wildcard-port virtual hosts; operator review is required before installation'
+    fi
+    apache_vhost_defaults_before="$(printf '%s\n' "$dump" | apache_vhost_defaults)"
+    for port in 80 443; do
+        groups="$(printf '%s\n' "$dump" | awk -v port="$port" '$1 ~ ":" port "$" {print $1}' | sort -u)"
+        addresses=''
+        specific=false
+        wildcard=false
+        while IFS= read -r group; do
+            [ -z "$group" ] && continue
+            [[ "$group" =~ ^(\*|[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+|\[[0-9a-fA-F:]+\]):(80|443)$ ]] \
+                || fail 'unsupported Apache virtual-host group; review address bindings before installation'
+            host="${group%:*}"
+            matched=false
+            while IFS= read -r address; do
+                [ -z "$address" ] && continue
+                if [ "$host" = '*' ] || [ "$address" = "$group" ] || [ "$address" = "*:$port" ] \
+                    || { [[ "$host" != \[* ]] && [ "$address" = "0.0.0.0:$port" ]; } \
+                    || { [[ "$host" = \[* ]] && [ "$address" = "[::]:$port" ]; }; then
+                    matched=true
+                fi
+            done < <(printf '%s\n' "$listeners" | awk -v port="$port" '$4 ~ ":" port "$" {print $4}')
+            [ "$matched" = true ] || fail 'Apache virtual-host group has no matching owned listener; review host bindings before installation'
+            if [ "$host" = '*' ]; then wildcard=true; else specific=true; fi
+            addresses="${addresses:+$addresses }$group"
+        done <<<"$groups"
+        if [ "$specific" = true ] && [ "$wildcard" = true ]; then
+            fail 'Apache mixes wildcard and IP-specific virtual-host groups; operator review is required before installation'
+        fi
+        if [ "$port" = 80 ]; then
+            apache_http_addresses="${addresses:-*:80}"
+        else
+            apache_https_addresses="${addresses:-*:443}"
+        fi
+    done
+}
+
+validate_and_reload_web_server() {
+    local dump defaults existing
+    if [ "$web_server" = apache ]; then
+        apache2ctl configtest || fail 'Apache configuration validation failed; the new Emailer site will be removed'
+        dump="$(apache2ctl -t -D DUMP_VHOSTS 2>&1)" || fail 'Apache virtual-host validation failed; the new Emailer site will be removed'
+        defaults="$(printf '%s\n' "$dump" | apache_vhost_defaults)"
+        while IFS= read -r existing; do
+            [ -z "$existing" ] && continue
+            printf '%s\n' "$defaults" | grep -Fx -- "$existing" >/dev/null \
+                || fail 'Emailer would replace an existing Apache default host; the new site will be removed for operator review'
+        done <<<"$apache_vhost_defaults_before"
+        systemctl enable --now apache2.service || fail 'Apache activation failed; the new Emailer site will be removed'
+        systemctl reload apache2.service || fail 'Apache reload failed; the new Emailer site will be removed'
+    else
+        nginx -t || fail 'Nginx configuration validation failed; the new Emailer site will be removed'
+        systemctl enable --now nginx.service || fail 'Nginx activation failed; the new Emailer site will be removed'
+        systemctl reload nginx.service || fail 'Nginx reload failed; the new Emailer site will be removed'
+    fi
+    web_configuration_pending=false
 }
 
 select_or_install_php() {
@@ -527,6 +619,15 @@ EOF
 }
 
 configure_web_server() {
+    web_site_file="/etc/$([ "$web_server" = apache ] && printf apache2 || printf nginx)/sites-available/emailer-next.conf"
+    if [ "$web_server" = apache ]; then
+        web_site_link=/etc/apache2/sites-enabled/zzzz-emailer-next.conf
+    else
+        web_site_link=/etc/nginx/sites-enabled/emailer-next.conf
+    fi
+    [ ! -e "$web_site_file" ] && [ ! -L "$web_site_file" ] || fail 'Emailer web configuration already exists; review the previous installation before retrying'
+    [ ! -e "$web_site_link" ] && [ ! -L "$web_site_link" ] || fail 'Emailer enabled-site entry already exists; review the previous installation before retrying'
+    web_configuration_pending=true
     if [ "$web_server" = apache ]; then
         command -v a2enmod >/dev/null 2>&1 || fail 'Apache module manager is unavailable'
         a2enmod proxy proxy_fcgi setenvif ssl rewrite headers >/dev/null
@@ -562,7 +663,7 @@ configure_web_server() {
 </VirtualHost>
 EOF
         chmod 0644 /etc/apache2/sites-available/emailer-next.conf
-        a2ensite emailer-next.conf >/dev/null
+        ln -s "$web_site_file" "$web_site_link"
         return
     fi
 
@@ -596,7 +697,7 @@ $nginx_https_listen
 }
 EOF
     chmod 0644 /etc/nginx/sites-available/emailer-next.conf
-    ln -sfn /etc/nginx/sites-available/emailer-next.conf /etc/nginx/sites-enabled/emailer-next.conf
+    ln -s "$web_site_file" "$web_site_link"
 }
 
 [ "$(id -u)" -eq 0 ] || fail 'run this script as root'
@@ -835,15 +936,7 @@ chmod 0755 /usr/local/sbin/emailer-setup-proof
 systemctl daemon-reload
 systemctl enable --now "$fpm_service"
 systemctl restart "$fpm_service"
-if [ "$web_server" = apache ]; then
-    apache2ctl configtest
-    systemctl enable --now apache2.service
-    systemctl reload apache2.service
-else
-    nginx -t
-    systemctl enable --now nginx.service
-    systemctl reload nginx.service
-fi
+validate_and_reload_web_server
 systemctl enable --now emailer-worker.service emailer-scheduler.timer emailer-operations.timer
 
 printf '\nEmailer Next %s is installed.\n' "$version"

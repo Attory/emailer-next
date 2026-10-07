@@ -339,6 +339,57 @@ Repair changed-file inventory:
   `docs/route-inventory.md`, `docs/security-model.md`, `docs/threat-model.md`,
   `docs/VERSION-1-ACCEPTANCE-CHECKLIST.md`.
 
+
+### Independent review repair of the walkthrough candidate
+
+After Anton authorized sharing necessary source with Claude, a read-only review
+of `2acc17ab92829251c08c9698731b75f4261320fb` requested changes. Its high
+finding identified that Apache listener addresses and virtual-host groups are
+separate: deriving hosts from listeners can shadow unrelated sites. This repair
+starts from that exact unchanged PR head and remains on PR #17.
+
+The installer now reads `DUMP_VHOSTS`, joins existing groups, refuses mixed
+wildcard/IP groups, wildcard ports, scoped listeners, or groups with no owned
+listener, and verifies unchanged existing default hosts before reload. It
+refuses existing Emailer site files and cleans up only its own new site/link
+on validation failure. Nginx wildcard IPv6 listeners retain their address family.
+The new Apache enabled link sorts after ordinary existing site entries.
+
+Receipt import authenticates and inspects the retained archive without
+refreshing `verified_at`. Safety rollback after a failed restore no longer sets
+successful restore evidence. Historical successful normal restores retain their
+existing cadence semantics; that metric alone does not certify isolation,
+comparison, or human approval. Transfer guidance now requires service ownership
+and the protected runtime environment.
+
+Verification before commit:
+
+- Complete local aggregate: 235 tests, 3,272 assertions; Composer audit/license,
+  formatting, maximum PHPStan, architectural/module checks, shell checks,
+  idempotent migrations and mapping, secret/private-data scans, production
+  artifact/public/deployment probes, and deterministic signed test tooling pass.
+- Root-owned immutable publication and service-key access boundary pass.
+- Fresh source-image internal-network suite: all 235 tests pass with 8,269
+  assertions; the external port-25 egress probe fails as required.
+- Disposable Debian 13 VM with Apache 2.4.68 and Nginx 1.26.3: actual selection,
+  rendering, config validation, and reload pass for IP-specific listeners with
+  wildcard virtual hosts, wildcard listeners with IP-specific virtual hosts,
+  and IPv6-specific groups. The approved synthetic Emailer hostname routes to
+  its own document root; legacy host, unknown-host fallback, and unrelated
+  loopback Nginx remain unchanged. This exercises web functions with synthetic
+  static roots, not the complete signed application installer or human setup.
+- Targeted regressions cover unsafe mixed/unreachable/scoped/wildcard-port
+  layouts, rendered configuration, default preservation, failed-config cleanup,
+  receipt-import freshness, deleted/missing backup refusal, and no success
+  timestamp after failed comparison and rollback.
+
+Exact committed-head aggregate, isolated-network negative egress, GitHub matrix,
+and renewed Claude conclusions are recorded on PR #17 after push. No earlier
+SHA's approval is reused. Operator signing, full clean/mixed installation,
+browser/assistive-technology acceptance, and final human acceptance remain
+pending. No dependency, schema, public route, production service setting,
+provider integration, or later phase is added.
+
 At Anton's explicit request, a non-public `0.9.1` human-acceptance candidate
 supersedes the first `0.9.0` walkthrough build before the final Version-1
 release decision. It contains the complete

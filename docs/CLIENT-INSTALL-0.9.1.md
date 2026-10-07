@@ -255,3 +255,14 @@ backup/recovery custody, and the final go-live decision are separately ready.
 The detailed redacted history behind these entries is in the bundled
 `0.9.0-INSTALLATION-WALKTHROUGH.md`; it records the first walkthrough that
 produced the `0.9.1` repairs.
+
+### Apache site safety
+
+The acceptance installer joins existing virtual-host groups rather than deriving
+hosts from socket addresses. The enabled Apache link is
+`/etc/apache2/sites-enabled/zzzz-emailer-next.conf`; the available configuration
+remains `/etc/apache2/sites-available/emailer-next.conf`. Retirement must remove
+that enabled link before moving the available file. Validation refuses changed
+existing default hosts and removes its own new site on failure. Mixed wildcard
+and IP groups, wildcard-port groups, scoped or unmatched bindings require
+operator review before installation.

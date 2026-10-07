@@ -501,3 +501,14 @@ Give the client operator these records without secret values:
 Remove candidate staging only after the approved archive/sidecars and handover
 record exist in protected release custody. Never remove the active immutable
 release or its external state as cleanup.
+
+### Apache site safety
+
+The acceptance installer joins existing virtual-host groups rather than deriving
+hosts from socket addresses. The enabled Apache link is
+`/etc/apache2/sites-enabled/zzzz-emailer-next.conf`; the available configuration
+remains `/etc/apache2/sites-available/emailer-next.conf`. Retirement must remove
+that enabled link before moving the available file. Validation refuses changed
+existing default hosts and removes its own new site on failure. Mixed wildcard
+and IP groups, wildcard-port groups, scoped or unmatched bindings require
+operator review before installation.

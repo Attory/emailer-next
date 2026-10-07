@@ -170,7 +170,7 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
         foreach (['--version=0.9.1', 'cmp "$temporary_root/first/$candidate$suffix"', 'install-emailer-next-0.9.1.sh', 'RELEASE-CANDIDATE-RECORD.md', '0.9.0-INSTALLATION-WALKTHROUGH.md', 'accessibility-browser-support.md'] as $cue) {
             self::assertStringContainsString($cue, $builder);
         }
-        foreach (['[ "$(id -u)" -eq 0 ]', 'sha256sum -c', '--expected-version="$version"', 'runuser -u "$sudo_user"', 'EMAILER_SECRET_KEY_FILE=/var/lib/emailer/keys/master.key', 'EMAILER_INSTALL_PROOF_FILE=/var/lib/emailer/private/setup/.emailer-install-proof', 'fastcgi_pass unix:/run/php/emailer.sock', 'a2ensite emailer-next.conf', 'NEEDRESTART_MODE=a', 'installed_mariadb_is_supported', 'mariadb-upgrade', 'basicConstraints=critical,CA:FALSE', 'emailer-setup-proof', 'systemctl enable --now emailer-worker.service'] as $cue) {
+        foreach (['[ "$(id -u)" -eq 0 ]', 'sha256sum -c', '--expected-version="$version"', 'runuser -u "$sudo_user"', 'EMAILER_SECRET_KEY_FILE=/var/lib/emailer/keys/master.key', 'EMAILER_INSTALL_PROOF_FILE=/var/lib/emailer/private/setup/.emailer-install-proof', 'fastcgi_pass unix:/run/php/emailer.sock', 'zzzz-emailer-next.conf', 'NEEDRESTART_MODE=a', 'installed_mariadb_is_supported', 'mariadb-upgrade', 'basicConstraints=critical,CA:FALSE', 'emailer-setup-proof', 'systemctl enable --now emailer-worker.service'] as $cue) {
             self::assertStringContainsString($cue, $installer);
         }
         self::assertStringNotContainsString('apt install', $installer);

@@ -56,7 +56,8 @@ final class Phase13RestoreDrillTest extends KernelTestCase
         self::assertSame(1, $payload['checked_assets']);
 
         // Model the originating database's state, which was never restored.
-        $connection->update('backup_record', ['restored_at' => null], ['id' => $backup['id']]);
+        $verificationTime = '2020-01-01 00:00:00.000000';
+        $connection->update('backup_record', ['restored_at' => null, 'verified_at' => $verificationTime], ['id' => $backup['id']]);
         $connection->executeStatement("UPDATE organisation_settings SET display_name = 'Live changes after backup' WHERE singleton_key = '1'");
         $connection->executeStatement("UPDATE delivery_runtime SET accepting_work = 1 WHERE singleton_key = '1'");
         self::assertNotNull(self::$kernel);
@@ -69,6 +70,7 @@ final class Phase13RestoreDrillTest extends KernelTestCase
         self::assertSame('Live changes after backup', $connection->fetchOne("SELECT display_name FROM organisation_settings WHERE singleton_key = '1'"));
         self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key = '1'")));
         $engine->recordRestoreDrill($receiptPath);
+        self::assertSame($verificationTime, $connection->fetchOne('SELECT verified_at FROM backup_record WHERE id = ?', [$backup['id']]));
         self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'backup.restore_drill_recorded' AND target_id = ?", [$backup['id']])));
 
         $newer = $engine->create();
@@ -109,6 +111,12 @@ final class Phase13RestoreDrillTest extends KernelTestCase
         chmod($receiptPath, 0o644);
         $this->assertRecordingRejected($engine, $receiptPath);
         chmod($receiptPath, 0o600);
+        $connection->update('backup_record', ['deleted_at' => Identity::now()], ['id' => $backup['id']]);
+        $this->assertRecordingRejected($engine, $receiptPath);
+        $connection->update('backup_record', ['deleted_at' => null], ['id' => $backup['id']]);
+        rename($backup['path'], $backup['path'].'.absent');
+        $this->assertRecordingRejected($engine, $receiptPath);
+        rename($backup['path'].'.absent', $backup['path']);
         file_put_contents($backup['path'], 'damage', FILE_APPEND);
         $this->assertRecordingRejected($engine, $receiptPath);
         self::assertNull($connection->fetchOne('SELECT restored_at FROM backup_record WHERE id = ?', [$backup['id']]));
@@ -148,6 +156,7 @@ final class Phase13RestoreDrillTest extends KernelTestCase
         self::assertSame('State before restore', $connection->fetchOne("SELECT display_name FROM organisation_settings WHERE singleton_key = '1'"));
         self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key = '1'")));
         self::assertSame([], glob(\dirname($backup['path']).'/restore-drill-*.json'));
+        self::assertNull($connection->fetchOne('SELECT MAX(restored_at) FROM backup_record'));
     }
 
     private function assertRecordingRejected(BackupEngine $engine, string $path): void
