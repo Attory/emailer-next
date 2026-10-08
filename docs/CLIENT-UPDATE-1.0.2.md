@@ -225,7 +225,7 @@ Doctor displays no other critical finding.
    start its quiesced worker and refresh scheduler heartbeats. Stop periodic
    operations while retaining worker heartbeat through supervised verification.
    Re-authenticate the unchanged source and reviewed target packages.
-5. Rerun `emailer-update@1.0.2.service` with the exact reviewed target. Its
+5. Rerun the `emailer-update@` instance for version `1.0.2` with the exact reviewed target. Its
    transient root cache must be fresh. The recovery finding clears only after a
    subsequent verified update passes and records success. Restart on new code,
    verify preservation/readiness, then explicitly resume delivery.
