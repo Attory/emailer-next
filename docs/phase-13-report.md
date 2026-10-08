@@ -486,3 +486,33 @@ runtime file and verifies that the old assignment selects the shared service
 cache, while the repaired command selects the private root cache. The probe
 constructs the kernel without booting or writing a cache; no installation,
 database, key, or private-state change is made by that proof.
+
+## Uploaded template image delivery repair — 2026-10-08
+
+Bounded repair of Phase 13 PR #17, starting from exact PR head
+`d4bb5f89a08d4945d129d6a46dd5592f18d66d59` on
+`codex/phase-13-v1-hardening-acceptance`. The phase base remains
+`39c8eeccea9866215ce231a08d0e32df9b341199`.
+
+Uploaded raster images were stored with relative public paths and those paths
+survived into SMTP MIME unchanged. The shared outbound MIME factory now expands
+only approved uploaded image `src` paths to the runtime canonical HTTPS origin.
+It rejects missing, insecure, credentialed or non-origin canonical URLs when
+uploaded images are present and counts this configuration fault toward the
+existing transport circuit breaker. Stored versions, approval snapshots, unrelated
+links, tracking images, alt text and unsubscribe headers remain unchanged.
+The test container uses the same reserved HTTPS origin as the PHPUnit fixture.
+
+Focused synthetic regression checks passed (11 tests, 39 assertions), including
+the configured SMTP adapter's actual HTML capture in local Mailpit. Maximum
+PHPStan, Deptrac and architectural boundary checks passed. Full aggregate,
+production privilege, network-isolation and newest-head GitHub matrix results
+are recorded on PR #17 once terminal. The administrator guide now documents
+supported merge fields, uploaded image URLs and the current CSS restrictions.
+
+No dependency, migration, route, external-image allowance, styling capability
+or later phase is introduced. No production credentials, recipient data or
+operator template content are included in this repair or its review. Existing
+operator signing/deployment approval names the preceding SHA and cannot cover
+this changed candidate. A newly approved signed candidate and a preserving
+deployment plan are required before changing the running immutable release.

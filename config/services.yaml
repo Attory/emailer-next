@@ -201,6 +201,10 @@ services:
         arguments:
             $environment: '%kernel.environment%'
 
+    App\Module\Delivery\Infrastructure\OutboundMimeMessageFactory:
+        arguments:
+            $canonicalUri: '%emailer.default_uri%'
+
     App\Module\Backup\Infrastructure\BackupReadinessProbe:
         arguments:
             $backupDirectory: '%emailer.backup_dir%'

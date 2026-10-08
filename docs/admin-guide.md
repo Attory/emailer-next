@@ -49,6 +49,14 @@ re-authentication.
 - Template HTML is sanitized with a strict allowlist. Merge fields are fixed,
   non-evaluating tokens; previews use synthetic values, and the test action
   validates through the fake-only path without sending mail.
+- Use `{{ contact.display_name }}` or `{{ contact.first_name }}` for names and
+  `{{ unsubscribe_url }}` for the unsubscribe link. Legacy `{{name}}`,
+  `{{unsubscribe}}` and `{{email}}` placeholders are unsupported.
+- Upload images through the template asset workflow and use the returned
+  `/template-assets/…` URL. Outgoing MIME converts those image sources to the
+  runtime canonical HTTPS origin; stored versions and approval snapshots stay
+  unchanged. Remote image sources are disallowed. CSS styles, classes and
+  stylesheet blocks are removed by the current allowlist.
 
 ## Implemented campaign and delivery workflows
 

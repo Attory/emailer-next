@@ -1,4 +1,5 @@
 parameters:
+    emailer.default_uri: 'https://emailer.example.test'
     emailer.trusted_hosts: '^(localhost|127\.0\.0\.1|emailer\.example\.test)$'
     emailer.private_dir: '%kernel.cache_dir%/emailer-private'
     emailer.setup_dir: '%emailer.private_dir%/setup'
