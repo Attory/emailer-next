@@ -416,3 +416,22 @@ through Imports; empty audiences still cannot be approved for delivery. SMTP
 confirmation uses existing password/MFA, throttle and session controls with
 no pending secret persistence. No public route, integration or new token
 purpose is introduced.
+
+## Release 1.0.2 newsletter usability changes
+
+- Rate controls are advisory in the browser; the worker enforces the minimum
+  of campaign/installation budgets plus the shared domain/concurrency limits
+  in the claim transaction. Limit changes cannot reset a spent window.
+- Campaign progress exposes state and counts only, using existing authenticated
+  Auditor authorization and private no-store responses. Poll failures retain
+  last-confirmed counts and never trigger sending or retry ambiguous messages.
+- Editing a draft increments its revision and preserves historical test results.
+  Superseded pending tests terminate without provider I/O. Approval binds both
+  the submitted review revision and accepted test to the current draft revision,
+  preventing an open stale review form or in-flight old test from approving changes.
+- Owner delivery-policy and Administrator campaign-approval writes retain CSRF,
+  server-enforced purpose-scoped password/MFA confirmation and session rotation.
+  Passwords and MFA inputs are not retained or redisplayed.
+- MariaDB additive DDL can survive interrupted update rollback. The migration
+  is repeatable; release recovery still requires the verified backup and exact
+  signed predecessor, with delivery quiesced until acceptance.

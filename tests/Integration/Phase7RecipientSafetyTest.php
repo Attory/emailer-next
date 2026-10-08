@@ -212,7 +212,7 @@ final class Phase7RecipientSafetyTest extends KernelTestCase
         $campaigns = $this->phase4Service(CampaignManager::class);
         $campaignId = $campaigns->create($actor, 'Phase 7 campaign '.substr($listId, -6), $versionId, [$listId]);
         $campaigns->submitForReview($actor, $campaignId);
-        $campaigns->approve($actor, $campaignId, true);
+        $campaigns->approve($actor, $campaignId, $this->phase4Int($campaigns->detail($actor, $campaignId)['operation_version']), true);
         $this->transport()->reset();
         $campaigns->queue($actor, $campaignId);
         $recipientId = $connection->fetchOne('SELECT id FROM campaign_recipient WHERE campaign_id = ?', [$campaignId]);

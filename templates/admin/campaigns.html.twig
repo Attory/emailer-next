@@ -1,46 +1,52 @@
 {% extends 'admin/layout.html.twig' %}
 {% block title %}Campaigns · Emailer Next{% endblock %}
+{% block javascripts %}<script type="module" src="{{ asset('newsletter-composer.js') }}"></script>{% endblock %}
 {% block admin_body %}
-<h1>Campaigns</h1>
+{% set values = form_values|default({}) %}
+<div class="page-heading"><div><p class="eyebrow">Make something worth opening</p><h1>Your campaigns.</h1><p class="muted">Prepare a newsletter, check it, then send when you’re ready.</p></div>{% if is_granted('ROLE_OPERATOR') %}<a class="button" href="#compose">Create newsletter <span aria-hidden="true">↓</span></a>{% endif %}</div>
+<section class="panel" aria-labelledby="campaign-history">
+<div class="section-header"><h2 id="campaign-history">Campaign history</h2><span class="muted">{{ campaigns|length }} campaigns</span></div>
+{% if campaigns %}<table><thead><tr><th scope="col">Newsletter</th><th scope="col">Status</th><th scope="col">Audience</th><th scope="col">Accepted</th><th scope="col">Needs attention</th><th scope="col">Updated</th></tr></thead><tbody>
+{% for campaign in campaigns %}<tr><td><a href="{{ path('admin_campaign', {id: campaign.id}) }}">{{ campaign.name }}</a></td><td><span class="status-pill" data-state="{{ campaign.state }}">{{ campaign.state|replace({'queueing':'Preparing', 'sending':'Sending', 'review':'Ready for review'})|capitalize }}</span></td><td class="tabular">{{ campaign.recipient_count }}</td><td class="tabular">{{ campaign.accepted_count|default(0) }}</td><td class="tabular">{{ campaign.failure_count|default(0) }}</td><td><small>{{ campaign.updated_at|date('d M, H:i') }}</small></td></tr>{% endfor %}
+</tbody></table>{% else %}<div class="empty-state"><h2>Your first newsletter starts here.</h2><p class="muted">Choose a list and a template below. You can preview and test everything before sending.</p></div>{% endif %}
+</section>
 {% if is_granted('ROLE_OPERATOR') %}
-<section>
-    <h2>Create draft</h2>
-    <form method="post" action="{{ path('admin_campaign_create') }}" enctype="multipart/form-data">
-        <input type="hidden" name="_token" value="{{ csrf_token('campaign-create') }}">
-        <label>Campaign name <input name="name" maxlength="160" required></label>
-        <fieldset><legend>Recipients</legend>
-            <label><input type="radio" name="audience_mode" value="existing" checked> Choose existing lists</label>
-            {% for list in options.lists %}<label><input type="checkbox" name="lists[]" value="{{ list.id }}"{% if selected_list == list.id %} checked{% endif %}> {{ list.name }}</label>{% else %}<p>No active lists yet. You can upload one below.</p>{% endfor %}
-            <label><input type="radio" name="audience_mode" value="upload"> Upload a new list</label>
-            <label>New list name <input name="list_name" maxlength="160"></label>
-            <label>Recipient CSV <input type="file" name="audience_file" accept="text/csv,.csv"></label>
-            <label>CSV format <select name="csv_mode"><option value="headered">First row contains column headings</option><option value="headerless">No column headings</option></select></label>
-            <details><summary>CSV column mapping</summary><p>Columns are numbered from 0. Email defaults to column 0. Leave optional fields blank when absent.</p>
-            {% for field in ['email', 'display_name', 'first_name', 'last_name', 'locale', 'time_zone', 'consent_source'] %}<label>{{ field|replace({'_': ' '})|title }} column <input type="number" name="column_{{ field }}" min="0" max="31"{% if field == 'email' %} value="0"{% endif %}></label>{% endfor %}
-            </details>
-            <p>Uploaded recipients are previewed before you commit them. Existing unsubscribe records remain effective.</p>
-        </fieldset>
-        <fieldset><legend>Newsletter content</legend>
-            <label><input type="radio" name="template_mode" value="existing" checked> Choose an existing template</label>
-            <label>Template <select name="template_version"><option value="">Choose a template</option>{% for template in options.templates %}<option value="{{ template.id }}"{% if selected_template == template.id %} selected{% endif %}>{{ template.name }}</option>{% endfor %}</select></label>
-            <label><input type="radio" name="template_mode" value="upload"> Upload a new HTML template</label>
-            <label>New template name <input name="template_name" maxlength="160"></label>
-            <label>Subject <input name="subject" maxlength="200"></label>
-            <label>Preheader <input name="preheader" maxlength="200"></label>
-            <label>HTML file <input type="file" name="template_file" accept="text/html,.html,.htm"></label>
-            <p>The selected content is saved for campaign review. Editing later creates a new version and leaves approved mail unchanged.</p>
-        </fieldset>
-        <button type="submit">Create campaign</button>
-        <p>This creates a draft. Sending starts only after testing, approval and Queue now.</p>
-    </form>
-</section>
+<div class="page-heading" id="compose"><div><p class="eyebrow">New newsletter</p><h2>Create your next campaign</h2></div><span class="status-pill">Draft · nothing sends yet</span></div>
+<div class="workspace-grid">
+<form method="post" action="{{ path('admin_campaign_create') }}" enctype="multipart/form-data" data-newsletter-composer>
+<input type="hidden" name="_token" value="{{ csrf_token('campaign-create') }}">
+<ol class="stepper" data-composer-navigation hidden aria-label="Newsletter preparation">
+{% for label in ['Recipients', 'Content', 'Sending rate', 'Review'] %}<li><button type="button" data-composer-step="{{ loop.index0 }}">{{ loop.index }}. {{ label }}</button></li>{% endfor %}
+</ol>
+<fieldset class="composer-step panel" data-composer-panel="0"><legend><span class="step-number">1</span> Who is it for?</legend>
+<label>Campaign name <input name="name" value="{{ values.name|default('') }}" maxlength="160" placeholder="A name you’ll recognise later" required></label><p class="field-hint">For your records. This isn’t the email subject.</p>
+<div class="choice-switch"><label><input type="radio" name="audience_mode" value="existing"{% if attribute(values, 'audience_mode')|default('existing') == 'existing' %} checked{% endif %}>Use existing lists</label><label><input type="radio" name="audience_mode" value="upload"{% if attribute(values, 'audience_mode')|default('existing') == 'upload' %} checked{% endif %}>Upload a CSV</label></div>
+<div data-mode-fields="audience:existing"><div class="list-options">
+{% for list in options.lists %}<label class="list-choice"><span><input type="checkbox" name="lists[]" value="{{ list.id }}" data-list-name="{{ list.name }}"{% if selected_list == list.id or list.id in values.lists|default([]) %} checked{% endif %}>{{ list.name }}</span><small>{{ list.member_count|default(0) }} members</small></label>{% else %}<p class="muted">No lists yet. Upload a CSV or <a href="{{ path('admin_lists') }}">create a list</a>.</p>{% endfor %}
+</div><p class="field-hint">Choose one or more. Repeated contacts and unsubscribes are excluded from the approved audience.</p></div>
+<div data-mode-fields="audience:upload"><label>New list name <input name="list_name" value="{{ attribute(values, 'list_name')|default('') }}" maxlength="160" data-required-when-visible></label><label>Recipient CSV <input type="file" name="audience_file" accept="text/csv,.csv" data-required-when-visible></label><label>CSV format <select name="csv_mode"><option value="headered">First row contains column headings</option><option value="headerless"{% if values.csv_mode|default('headered') == 'headerless' %} selected{% endif %}>No column headings</option></select></label>
+<details><summary>Adjust CSV columns</summary><p class="field-hint">Email defaults to the first column. Column numbers start at 0. Leave absent fields blank.</p><div class="mapping-grid">{% for field in ['email', 'display_name', 'first_name', 'last_name', 'locale', 'time_zone', 'consent_source'] %}<label>{{ field|replace({'_':' '})|title }}<input type="number" name="column_{{ field }}" min="0" max="31" value="{{ attribute(values, 'column_' ~ field)|default(field == 'email' ? '0' : '') }}"></label>{% endfor %}</div></details>
+<p class="field-hint">You’ll review and commit the imported recipients after saving the draft.</p></div>
+</fieldset>
+<fieldset class="composer-step panel" data-composer-panel="1"><legend><span class="step-number">2</span> What would you like to share?</legend>
+<div class="choice-switch"><label><input type="radio" name="template_mode" value="existing"{% if attribute(values, 'template_mode')|default('existing') == 'existing' %} checked{% endif %}>Use a saved template</label><label><input type="radio" name="template_mode" value="upload"{% if attribute(values, 'template_mode')|default('existing') == 'upload' %} checked{% endif %}>Upload or paste HTML</label></div>
+<div data-mode-fields="template:existing"><label>Template <select name="template_version" data-required-when-visible><option value="">Choose your newsletter</option>{% for template in options.templates %}<option value="{{ template.id }}" data-template-name="{{ template.name }}"{% if selected_template == template.id or values.template_version|default('') == template.id %} selected{% endif %}>{{ template.name }} · version {{ template.version_number }}</option>{% endfor %}</select></label><div class="actions"><a data-template-preview data-fallback-url="{{ path('admin_templates') }}" href="{{ path('admin_templates') }}" data-preview-pattern="{{ path('admin_template_preview', {versionId: '00000000-0000-0000-0000-000000000000'}) }}" target="_blank" rel="noopener">Preview selected template ↗</a><a href="{{ path('admin_templates') }}">Edit templates</a></div></div>
+<div data-mode-fields="template:upload"><label>Template name <input name="template_name" value="{{ attribute(values, 'template_name')|default('') }}" maxlength="160" data-required-when-visible></label><label>Email subject <input name="subject" value="{{ attribute(values, 'subject')|default('') }}" maxlength="200" placeholder="The line people see in their inbox" data-required-when-visible></label><label>Preheader <input name="preheader" value="{{ attribute(values, 'preheader')|default('') }}" maxlength="200" placeholder="A little more context beside the subject"></label><label>HTML file <input type="file" name="template_file" accept="text/html,.html,.htm"></label><label>Or paste your HTML <textarea name="html" maxlength="200000" rows="8" spellcheck="false">{{ values.html|default('') }}</textarea></label><p class="field-hint">Use a file or paste HTML. If both are supplied, the file is used. Supported fields include <code>{{ '{{contact.display_name}}' }}</code> and <code>{{ '{{unsubscribe_url}}' }}</code>.</p></div>
+</fieldset>
+<fieldset class="composer-step panel" data-composer-panel="2"><legend><span class="step-number">3</span> Set a comfortable pace</legend>
+<label>Messages per minute <input name="messages_per_minute" value="{{ values.messages_per_minute|default('') }}" type="number" min="1" max="600" placeholder="Use installation limit ({{ limits.messages_per_minute }})"></label><p class="field-hint">Leave blank to use the installation limit, or set a slower pace for this newsletter.</p>
+<div class="panel panel-soft"><strong>Installation ceiling: {{ limits.messages_per_minute }} / minute</strong><p class="field-hint">Shared across all campaigns. A single destination domain is limited to {{ limits.domain_rate }} / minute. The lower limit always applies.</p>{% if is_granted('ROLE_ADMINISTRATOR') %}<a href="{{ path('admin_delivery_settings') }}">View delivery limits →</a>{% endif %}</div>
+<p class="muted">Scheduling and sending come after your preview, test and approval. You can change the rate later while the campaign is paused.</p>
+</fieldset>
+<fieldset class="composer-step panel" data-composer-panel="3"><legend><span class="step-number">4</span> Ready to save your draft?</legend>
+<div data-composer-review><div class="review-line"><strong>Recipients</strong><span data-review-audience>Your selected lists or uploaded CSV</span></div><div class="review-line"><strong>Newsletter content</strong><span data-review-content>Your selected template or HTML</span></div><div class="review-line"><strong>Sending pace</strong><span data-review-rate data-global-rate="{{ limits.messages_per_minute }}">Up to {{ limits.messages_per_minute }} messages per minute</span></div></div>
+<p class="field-hint">Next: preview your newsletter, send a test to yourself and approve the final audience. Saving this draft sends nothing.</p>
+<button type="submit">Save newsletter draft <span aria-hidden="true">→</span></button>
+</fieldset>
+<div class="composer-controls" data-composer-controls hidden><button type="button" class="secondary" data-composer-back>← Back</button><span class="muted" data-composer-position></span><button type="button" data-composer-next>Continue →</button></div>
+<p class="field-error" data-composer-error role="alert" hidden></p>
+</form>
+<aside class="panel sidebar-summary"><p class="eyebrow">One step at a time</p><h2>A clear path to sending</h2><dl><div class="summary-item"><dt>1. Prepare</dt><dd>Recipients &amp; content</dd></div><div class="summary-item"><dt>2. Preview &amp; test</dt><dd>Check your inbox</dd></div><div class="summary-item"><dt>3. Approve</dt><dd>Lock the final audience</dd></div><div class="summary-item"><dt>4. Send or schedule</dt><dd>Watch live progress</dd></div></dl><p class="field-hint">Unsubscribe protections remain active through every step and immediately before each delivery.</p></aside>
+</div>
 {% endif %}
-<section>
-    <h2>Campaign history</h2>
-    <table><thead><tr><th scope="col">Name</th><th scope="col">State</th><th scope="col">Audience</th><th scope="col">Accepted</th><th scope="col">Failures</th><th scope="col">Updated</th></tr></thead><tbody>
-    {% for campaign in campaigns %}
-        <tr><td><a href="{{ path('admin_campaign', {id: campaign.id}) }}">{{ campaign.name }}</a></td><td>{{ campaign.state }}</td><td>{{ campaign.recipient_count }}</td><td>{{ campaign.accepted_count|default(0) }}</td><td>{{ campaign.failure_count|default(0) }}</td><td>{{ campaign.updated_at }}</td></tr>
-    {% else %}<tr><td colspan="6">No campaigns.</td></tr>{% endfor %}
-    </tbody></table>
-</section>
 {% endblock %}

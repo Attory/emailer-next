@@ -35,8 +35,13 @@ final readonly class DeliverCampaignTestHandler
             return;
         }
         $row = $this->connection->transactional(function () use ($message): array|false {
-            $row = $this->connection->fetchAssociative('SELECT t.state, t.recipient_address, c.id campaign_id, c.name, c.template_version_id, c.rsvp_enabled FROM campaign_test_delivery t INNER JOIN campaign c ON c.id = t.campaign_id WHERE t.id = ? FOR UPDATE', [$message->testDeliveryId]);
+            $row = $this->connection->fetchAssociative('SELECT t.state, t.recipient_address, t.draft_version, c.operation_version, c.state campaign_state, c.id campaign_id, c.name, c.template_version_id, c.rsvp_enabled FROM campaign_test_delivery t INNER JOIN campaign c ON c.id = t.campaign_id WHERE t.id = ? FOR UPDATE', [$message->testDeliveryId]);
             if (false === $row || 'pending' !== $row['state']) {
+                return false;
+            }
+            if (!is_numeric($row['draft_version']) || !is_numeric($row['operation_version']) || (int) $row['draft_version'] !== (int) $row['operation_version'] || !\in_array($row['campaign_state'], ['draft', 'review'], true)) {
+                $this->connection->update('campaign_test_delivery', ['state' => 'failed', 'failure_class' => 'superseded'], ['id' => $message->testDeliveryId]);
+
                 return false;
             }
             $this->connection->update('campaign_test_delivery', ['state' => 'processing'], ['id' => $message->testDeliveryId]);

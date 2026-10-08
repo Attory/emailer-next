@@ -9,9 +9,11 @@ use App\Module\Delivery\Application\Contract\InterruptedDeliveryRecovery;
 use App\Module\Release\Application\PackageInspector;
 use App\Module\Release\Application\ReleaseManager;
 use App\Module\Release\Presentation\Cli\UpdateReleaseCommand;
+use App\Shared\Identity;
 use App\Shared\MaintenanceOperationLock;
 use App\Tests\Support\Phase4State;
 use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Symfony\Bundle\FrameworkBundle\Test\KernelTestCase;
 use Symfony\Component\Console\Command\Command;
 use Symfony\Component\Console\Tester\CommandTester;
@@ -28,6 +30,8 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
     /** @var non-empty-string */
     private string $signingSecret;
     private string $sourceArchive;
+    /** @var list<array<string, mixed>> */
+    private array $laterMigrationRows = [];
 
     protected function setUp(): void
     {
@@ -49,6 +53,10 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         sodium_memzero($signingSecret);
         $this->removeTree($this->directory);
         if (null !== self::$kernel) {
+            $connection = $this->phase4Service(Connection::class);
+            foreach ($this->laterMigrationRows as $row) {
+                $connection->insert('doctrine_migration_versions', $row);
+            }
             $this->removePhase4Files();
         }
         parent::tearDown();
@@ -169,7 +177,7 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         self::assertSame($this->directory.'/releases/0.4.0', realpath($this->directory.'/releases/current'));
     }
 
-    #[\PHPUnit\Framework\Attributes\DataProvider('supportedVersionOneSources')]
+    #[DataProvider('supportedVersionOneSources')]
     public function testVersionOneTargetUpdaterSucceedsFromEveryAcceptedPredecessorArtifact(string $sourceVersion, string $sourceCommit): void
     {
         [$connection, $manager, $backups, $archive] = $this->fixture(
@@ -188,6 +196,77 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         self::assertSame(1, $backups->created);
         self::assertSame(0, $backups->restored);
         self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key = '1'")));
+    }
+
+    #[DataProvider('newsletterUpdateOutcomes')]
+    public function testNewsletterTargetAuthenticatesDeployedPredecessorAndRecoversFailures(int $doctorExit, int $migrationExit, bool $succeeds): void
+    {
+        // The fake console leaves DDL/ledger unchanged; actual advancement is guarded below and rehearsed in the VM.
+        [$connection, $manager, $backups, $archive] = $this->fixture($doctorExit, $migrationExit, minimumSchema: '20260828000000', targetSchema: '20261008000000', sourceVersion: '1.0.0', targetVersion: '1.0.2', minimumSourceVersion: '1.0.0');
+        $previous = $this->publishAcceptedPredecessorRelease('1.0.0', 'eabd9abb153d1ea91c35b060422db04bfcbc2d7a');
+        try {
+            $manager->update($archive, $this->sourceArchive);
+            self::assertTrue($succeeds);
+        } catch (\RuntimeException) {
+            self::assertFalse($succeeds);
+        }
+        self::assertSame($succeeds ? $this->directory.'/releases/1.0.2' : $previous, realpath($this->directory.'/releases/current'));
+        self::assertSame($succeeds ? 0 : 1, $backups->restored);
+        self::assertSame(1, $backups->created);
+        self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key = '1'")));
+    }
+
+    /** @return iterable<string, array{int, int, bool}> */
+    public static function newsletterUpdateOutcomes(): iterable
+    {
+        yield 'success' => [0, 0, true];
+        yield 'migration failure' => [0, 2, false];
+        yield 'health failure' => [2, 0, false];
+    }
+
+    #[DataProvider('schemaRecoveryFailures')]
+    public function testDataRestoreCannotSwitchOlderCodeOntoUnrestoredSchema(bool $metadataOnly, int $migrationExit): void
+    {
+        [$connection, $manager, $backups, $archive] = $this->fixture(2, $migrationExit, minimumSchema: '20260828000000', targetSchema: '20261008000000', sourceVersion: '1.0.0', targetVersion: '1.0.2', minimumSourceVersion: '1.0.0');
+        $previous = $this->publishPreviousRelease('1.0.0');
+        $backups->onRestore = static function () use ($connection, $metadataOnly): void {
+            if ($metadataOnly) {
+                $connection->insert('doctrine_migration_versions', ['version' => 'DoctrineMigrations\\Version20991231000000', 'executed_at' => Identity::now(), 'execution_time' => 1]);
+            } else {
+                $connection->executeStatement('ALTER TABLE campaign ADD COLUMN recovery_probe INT DEFAULT NULL');
+            }
+        };
+        try {
+            try {
+                $manager->update($archive, $this->sourceArchive);
+                self::fail('A row-only restore must not authorize rollback onto changed schema.');
+            } catch (\RuntimeException $exception) {
+                self::assertStringContainsString('automatic rollback failed', $exception->getMessage());
+                self::assertSame(0 === $migrationExit ? $this->directory.'/releases/1.0.2' : $previous, realpath($this->directory.'/releases/current'));
+                self::assertDirectoryExists($this->directory.'/releases/1.0.2');
+                self::assertSame('rollback_failed', $connection->fetchOne("SELECT detail_code FROM release_operation WHERE status = 'failed' ORDER BY finished_at DESC LIMIT 1"));
+                self::assertSame(0, $this->phase4Int($connection->fetchOne('SELECT accepting_work FROM delivery_runtime')));
+                self::assertSame(1, $backups->restored);
+                self::assertTrue($backups->restoreCompleted, 'The restore must return normally before schema verification fails.');
+                $findings = $this->phase4Service(\App\Module\Health\Infrastructure\SystemReadinessProbe::class)->findings();
+                self::assertContains('release_schema_recovery', array_column($findings, 'code'));
+            }
+        } finally {
+            if ($metadataOnly) {
+                $connection->delete('doctrine_migration_versions', ['version' => 'DoctrineMigrations\\Version20991231000000']);
+            } else {
+                $connection->executeStatement('ALTER TABLE campaign DROP COLUMN recovery_probe');
+            }
+        }
+    }
+
+    /** @return iterable<string, array{bool, int}> */
+    public static function schemaRecoveryFailures(): iterable
+    {
+        yield 'health failure with advanced ledger' => [true, 0];
+        yield 'health failure with retained DDL' => [false, 0];
+        yield 'migration failure with advanced ledger' => [true, 1];
+        yield 'migration failure with partial DDL' => [false, 1];
     }
 
     public function testSignedPredecessorPackageMustExactlyMatchTheInstalledCurrentRelease(): void
@@ -261,6 +340,9 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         self::bootKernel();
         $connection = $this->phase4Service(Connection::class);
         $this->preparePhase4State($connection);
+        // These fault fixtures model the historical schema ledger, not a current-code downgrade.
+        $this->laterMigrationRows = $connection->fetchAllAssociative('SELECT * FROM doctrine_migration_versions WHERE version > ?', ['DoctrineMigrations\\Version20260828000000']);
+        $connection->executeStatement('DELETE FROM doctrine_migration_versions WHERE version > ?', ['DoctrineMigrations\\Version20260828000000']);
         $connection->executeStatement("UPDATE delivery_runtime SET accepting_work = 1, active_claims = 1 WHERE singleton_key = '1'");
         mkdir($this->directory.'/locks', 0o700);
         $locks = new LockFactory(new FlockStore($this->directory.'/locks'));
@@ -322,6 +404,7 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
             '0.2.0' => '0.1.0',
             '0.3.0' => '0.2.0',
             '0.4.0' => '0.3.0',
+            '1.0.0' => '0.1.0',
             default => throw new \InvalidArgumentException('Unsupported accepted predecessor version.'),
         };
         $rollbackCompatible = '0.1.0' === $version ? 'true' : 'false';
@@ -402,7 +485,7 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         self::assertTrue($zip->addFromString('public/index.php', $frontController));
         $zip->close();
         $files = ['bin/console' => hash('sha256', $console), 'composer.lock' => hash('sha256', $lock), 'config/services.yaml' => hash('sha256', $services), 'public/index.php' => hash('sha256', $frontController)];
-        $supportedSources = '1.0.0' === $targetVersion ? ['0.1.0', '0.2.0', '0.3.0', '0.4.0'] : [$minimumSourceVersion];
+        $supportedSources = '1.0.0' === $targetVersion && '0.1.0' === $minimumSourceVersion ? ['0.1.0', '0.2.0', '0.3.0', '0.4.0'] : [$minimumSourceVersion];
         $manifest = ['format' => 'emailer-next-release-v1', 'version' => $targetVersion, 'source_commit' => str_repeat('b', 40), 'minimum_source_version' => $minimumSourceVersion, 'supported_source_versions' => $supportedSources, 'minimum_schema_version' => $minimumSchema, 'schema_version' => $targetSchema, 'rollback_schema_compatible' => false, 'platform' => ['php_min' => '8.4.0', 'php_max_exclusive' => '8.6.0', 'mariadb' => ['10.11', '11.8']], 'files' => $files];
         $manifestBytes = json_encode($manifest, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n";
         $checksumBytes = hash_file('sha256', $archive).'  '.basename($archive)."\n";
@@ -421,7 +504,7 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
             '0.1.0' => '20260824010000',
             '0.2.0' => '20260826000000',
             '0.3.0' => '20260827000000',
-            '0.4.0' => '20260828000000',
+            '0.4.0', '1.0.0' => '20260828000000',
             default => throw new \InvalidArgumentException('Unsupported synthetic source version.'),
         };
     }
@@ -450,6 +533,8 @@ final class RecordingBackupOperations implements BackupOperations
 {
     public int $created = 0;
     public int $restored = 0;
+    public ?\Closure $onRestore = null;
+    public bool $restoreCompleted = false;
 
     public function __construct(private readonly string $path)
     {
@@ -470,5 +555,7 @@ final class RecordingBackupOperations implements BackupOperations
     public function restore(string $path): void
     {
         ++$this->restored;
+        ($this->onRestore ?? static function (): void {})();
+        $this->restoreCompleted = true;
     }
 }

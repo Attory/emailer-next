@@ -57,7 +57,7 @@ final class Phase9MvpLoadTest extends KernelTestCase
         $campaigns->submitForReview($actor, $campaignId);
         $memoryBefore = memory_get_usage(true);
         $started = microtime(true);
-        $campaigns->approve($actor, $campaignId, true);
+        $campaigns->approve($actor, $campaignId, $this->phase4Int($campaigns->detail($actor, $campaignId)['operation_version']), true);
         $campaigns->queue($actor, $campaignId);
         $elapsed = microtime(true) - $started;
         $memoryDelta = memory_get_usage(true) - $memoryBefore;
@@ -66,7 +66,7 @@ final class Phase9MvpLoadTest extends KernelTestCase
         self::assertSame(self::RECIPIENTS, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM campaign_recipient WHERE campaign_id = ?', [$campaignId])));
         $transport = self::getContainer()->get('messenger.transport.async');
         self::assertInstanceOf(InMemoryTransport::class, $transport);
-        self::assertCount(1000, $transport->getSent(), 'The bounded dispatch batch must enqueue exactly 1,000 of the durable 2,000-recipient ledger rows.');
+        self::assertCount(120, $transport->getSent(), 'The bounded dispatch batch must enqueue one installation-rate window of the durable 2,000-recipient ledger rows.');
         self::assertLessThan(45.0, $elapsed, 'The 2,000-recipient reference campaign exceeded the 45-second CI acceptance budget.');
         self::assertLessThan(134217728, $memoryDelta, 'The 2,000-recipient reference campaign exceeded the 128 MiB incremental memory budget.');
     }

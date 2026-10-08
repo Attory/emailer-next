@@ -34,14 +34,14 @@ final class Phase9AccessibilityTest extends TestCase
         }
 
         $campaign = (string) file_get_contents($root.'/templates/admin/campaign.html.twig');
-        foreach (['Selected audience', 'Currently suppressed', 'Template', 'Sender', 'Schedule time zone', 'Tracking', 'RSVP', 'Test send'] as $requiredCue) {
+        foreach (['Selected audience', 'Currently suppressed', 'Template', 'Sender', 'Time zone', 'Tracking', 'RSVP', 'Latest test'] as $requiredCue) {
             self::assertStringContainsString($requiredCue, $campaign);
         }
 
         $css = (string) file_get_contents($root.'/assets/styles/app.css');
         self::assertStringContainsString(':focus-visible', $css);
         self::assertStringContainsString('textarea:focus-visible', $css);
-        self::assertStringContainsString('@media (max-width: 48rem)', $css);
-        self::assertStringContainsString('overflow-x: auto', $css);
+        self::assertStringContainsString('@media(max-width:600px)', $css);
+        self::assertStringContainsString('overflow-x:auto', $css);
     }
 }

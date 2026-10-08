@@ -53,7 +53,8 @@ final readonly class DoctrineCampaignDeliveryGateway implements CampaignDelivery
 
     public function dispatchDue(string $campaignId): void
     {
-        $rows = $this->connection->fetchAllAssociative("SELECT r.id, r.operation_version, r.next_attempt_at FROM campaign_recipient r INNER JOIN campaign c ON c.id = r.campaign_id WHERE r.campaign_id = ? AND c.state = 'sending' AND r.state IN ('pending', 'retry') AND (r.next_attempt_at IS NULL OR r.next_attempt_at <= UTC_TIMESTAMP(6)) ORDER BY r.id LIMIT 1000", [$campaignId]);
+        $limit = max(1, $this->intValue($this->connection->fetchOne("SELECT LEAST(1000, COALESCE(c.messages_per_minute, d.messages_per_minute), d.messages_per_minute) FROM campaign c CROSS JOIN delivery_policy d WHERE c.id = ? AND d.singleton_key = '1'", [$campaignId])));
+        $rows = $this->connection->fetchAllAssociative("SELECT r.id, r.operation_version, r.next_attempt_at FROM campaign_recipient r INNER JOIN campaign c ON c.id = r.campaign_id WHERE r.campaign_id = ? AND c.state = 'sending' AND r.state IN ('pending', 'retry') AND (r.next_attempt_at IS NULL OR r.next_attempt_at <= UTC_TIMESTAMP(6)) ORDER BY r.id LIMIT $limit", [$campaignId]);
         foreach ($rows as $row) {
             if (!\is_string($row['id'])) {
                 continue;

@@ -85,7 +85,7 @@ final class Phase13OwnerWorkflowHttpTest extends WebTestCase
             self::assertSelectorNotExists('form[action$="/review"]');
             self::assertSelectorNotExists('form[action$="/test"]');
             self::assertSame(1, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM list_membership')));
-            $client->submit($client->getCrawler()->selectButton('Commit reviewed recipients')->form(), [], $server);
+            $client->submit($client->getCrawler()->selectButton('Add reviewed recipients')->form(), [], $server);
             self::assertResponseStatusCodeSame(303);
             $client->followRedirect();
             self::assertSelectorTextContains('main', 'Reviewed recipients imported');
@@ -199,5 +199,85 @@ final class Phase13OwnerWorkflowHttpTest extends WebTestCase
         self::assertSelectorExists('dialog');
         self::assertSelectorExists('form[data-mail-settings-confirmation-expires-at-value="0"]');
         self::assertSame(0, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM campaign_test_delivery')));
+    }
+
+    public function testNewsletterComposerKeepsRejectedInputAndProgressIsPrivateAndReadOnly(): void
+    {
+        $client = self::createClient();
+        $db = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($db);
+        $password = 'synthetic-password-'.bin2hex(random_bytes(12));
+        $owner = $this->createPhase4User($db, 'composer@example.test', $password);
+        $contacts = $this->phase4Service(ContactManager::class);
+        $list = $contacts->createList($owner, 'Composer recipients');
+        $contact = $contacts->create($owner, 'private@example.test', ['consent_source' => 'synthetic']);
+        $contacts->addMembership($owner, $list, $contact);
+        $templates = $this->phase4Service(TemplateManager::class);
+        $template = $templates->create($owner, 'Composer content', 'Synthetic subject', '', '<p>Hello</p>', 'Hello');
+        $version = $this->phase4String($templates->versions($owner, $template)[0]['id']);
+        $server = $this->phase4HttpsServer('2001:db8::102');
+        $crawler = $client->request('GET', '/login', server: $server);
+        $client->submit($crawler->selectButton('Sign in')->form(['login_identifier' => 'composer@example.test', 'password' => $password, 'mfa_code' => '']), [], $server);
+        $crawler = $client->request('GET', '/admin/campaigns', server: $server);
+        self::assertSelectorExists('[data-newsletter-composer]');
+        $client->submit($crawler->selectButton('Save newsletter draft')->form(['name' => 'Keep my work', 'template_version' => $version, 'messages_per_minute' => '20']), [], $server);
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorExists('input[name="name"][value="Keep my work"]');
+        self::assertSame(0, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM campaign')));
+        $client->submit($client->getCrawler()->selectButton('Save newsletter draft')->form(['lists' => [$list]]), [], $server);
+        self::assertResponseStatusCodeSame(303);
+        $client->followRedirect();
+        self::assertSelectorExists('progress[max="100"][value="0"]');
+        self::assertSelectorTextContains('main', '20');
+        $url = $client->getRequest()->getPathInfo();
+        $client->request('GET', $url.'/progress', server: $server);
+        self::assertResponseIsSuccessful();
+        self::assertResponseHeaderSame('Cache-Control', 'max-age=0, must-revalidate, no-store, private');
+        $content = $client->getResponse()->getContent();
+        self::assertIsString($content);
+        self::assertStringNotContainsString('private@example.test', $content);
+        self::assertStringContainsString('"total":0', $content);
+        self::assertSame(0, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM campaign_recipient')));
+        $client->request('GET', $url.'/edit', server: $server);
+        self::assertResponseIsSuccessful();
+        self::assertSelectorExists('input[name="messages_per_minute"][value="20"]');
+        $client->submit($client->getCrawler()->selectButton('Save draft')->form(['name' => 'Retain this edit', 'messages_per_minute' => '0']), [], $server);
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorExists('input[name="name"][value="Retain this edit"]');
+        $client->request('GET', '/admin/campaigns/00000000-0000-0000-0000-000000000000/edit', server: $server);
+        self::assertResponseStatusCodeSame(404);
+        $crawler = $client->request('GET', '/admin/campaigns', server: $server);
+        $token = $crawler->filter('form[data-newsletter-composer] input[name="_token"]')->attr('value');
+        $client->request('POST', '/admin/campaigns/create', ['_token' => $token, 'name' => ['unexpected'], 'template_version' => ['unexpected'], 'html' => ['unexpected'], 'lists' => 'unexpected'], server: $server);
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(1, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM campaign')));
+    }
+
+    public function testOwnerDeliveryLimitsRequireConfirmationAndPreserveRuntimeBudget(): void
+    {
+        $client = self::createClient();
+        $db = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($db);
+        $password = 'synthetic-password-'.bin2hex(random_bytes(12));
+        $this->createPhase4User($db, 'limits@example.test', $password);
+        $server = $this->phase4HttpsServer('2001:db8::103');
+        $crawler = $client->request('GET', '/login', server: $server);
+        $client->submit($crawler->selectButton('Sign in')->form(['login_identifier' => 'limits@example.test', 'password' => $password, 'mfa_code' => '']), [], $server);
+        $crawler = $client->request('GET', '/admin/settings/delivery', server: $server);
+        self::assertResponseIsSuccessful();
+        $before = $db->fetchAssociative('SELECT * FROM delivery_policy');
+        $budget = $db->fetchAssociative('SELECT * FROM delivery_runtime');
+        $fields = ['messages_per_minute' => '30', 'worker_concurrency' => '2', 'retry_limit' => '3', 'maximum_campaign_size' => '500'];
+        $client->submit($crawler->selectButton('Save delivery limits')->form($fields), [], $server);
+        self::assertResponseRedirects('/admin/settings/delivery', 303);
+        self::assertSame($before, $db->fetchAssociative('SELECT * FROM delivery_policy'));
+        $crawler = $client->request('GET', '/admin/settings/delivery', server: $server);
+        $client->submit($crawler->selectButton('Save delivery limits')->form($fields + ['owner_password' => $password]), [], $server);
+        self::assertResponseRedirects('/admin/settings/delivery', 303);
+        self::assertSame(30, $this->phase4Int($db->fetchOne('SELECT messages_per_minute FROM delivery_policy')));
+        self::assertSame($budget, $db->fetchAssociative('SELECT * FROM delivery_runtime'));
+        $client->request('POST', '/admin/settings/delivery/update', $fields + ['_token' => 'invalid'], server: $server);
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame(30, $this->phase4Int($db->fetchOne('SELECT messages_per_minute FROM delivery_policy')));
     }
 }

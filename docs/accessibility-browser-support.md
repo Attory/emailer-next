@@ -1,6 +1,6 @@
 # Browser support and accessibility acceptance
 
-**Version:** Emailer Next `1.0.0`
+**Version:** Emailer Next `1.0.2`
 
 ## Product support decision
 
@@ -34,7 +34,7 @@ setup, and public recipient surfaces. Relevant controls include:
 - semantic landmarks, headings, labels, fieldsets, table-header scope, and
   status/alert roles;
 - full keyboard operation and a skip link before repeated admin navigation;
-- a high-visibility two-colour focus indicator and no focus-triggered mutation;
+- a high-visibility three-pixel focus indicator and no focus-triggered mutation;
 - minimum pointer target sizing for ordinary controls;
 - no colour-only success, failure, campaign, or Doctor state;
 - text resize and responsive table overflow without loss of operations;
@@ -90,7 +90,7 @@ client or person.
 
 Any critical workflow failure, missing accessible name, keyboard trap,
 unreadable error, content loss at 200%, or security behavior that depends on
-JavaScript blocks the `1.0.0` candidate. Minor non-blocking findings require an
+JavaScript blocks the `1.0.2` candidate. Minor non-blocking findings require an
 owner, severity, workaround, and removal target; critical/high findings cannot
 be waived.
 
@@ -101,3 +101,13 @@ be waived.
   https://www.w3.org/WAI/test-evaluate/
 - MDN Baseline browser definition:
   https://developer.mozilla.org/en-US/docs/Glossary/Baseline/Compatibility
+
+## 1.0.2 development evidence
+
+Controlled Chromium checks cover desktop and 390-pixel mobile composition,
+draft editing, confirmation cancellation/Escape, visible keyboard focus, live
+progress and the no-JavaScript fallback. Polling announces meaningful changes
+without repeating timestamps; failures preserve confirmed counts. A synthetic
+50-recipient ledger demonstrates 25 processed and 50% progress with fake
+transport only. No external browser requests occurred. This evidence does not
+substitute for the human browser/assistive-technology checklist above.

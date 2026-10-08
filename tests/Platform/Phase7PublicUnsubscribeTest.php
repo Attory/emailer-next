@@ -127,7 +127,7 @@ final class Phase7PublicUnsubscribeTest extends WebTestCase
         $campaigns = $this->phase4Service(CampaignManager::class);
         $campaignId = $campaigns->create($actor, 'Phase 7 public campaign '.substr($listId, -6), $versionId, [$listId]);
         $campaigns->submitForReview($actor, $campaignId);
-        $campaigns->approve($actor, $campaignId, true);
+        $campaigns->approve($actor, $campaignId, $this->phase4Int($campaigns->detail($actor, $campaignId)['operation_version']), true);
         $transport = self::getContainer()->get('messenger.transport.async');
         self::assertInstanceOf(\Symfony\Component\Messenger\Transport\InMemory\InMemoryTransport::class, $transport);
         $transport->reset();

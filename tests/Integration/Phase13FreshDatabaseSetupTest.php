@@ -66,7 +66,7 @@ final class Phase13FreshDatabaseSetupTest extends KernelTestCase
             $setup->configure($input);
             self::assertTrue($connection->createSchemaManager()->tablesExist(['doctrine_migration_versions', 'installation_state', 'backup_record']));
             $versions = $connection->fetchAllAssociative('SELECT version FROM doctrine_migration_versions ORDER BY version');
-            self::assertCount(13, $versions);
+            self::assertCount(14, $versions);
             // CLI setup initializes the key in this same process immediately after DDL.
             $key = new FilesystemMasterKey($directory.'/master.key', \dirname(__DIR__, 2).'/public', \dirname(__DIR__, 2), 'test');
             $state = new DoctrineSetupState($connection, $key, $lifecycle);
@@ -81,6 +81,19 @@ final class Phase13FreshDatabaseSetupTest extends KernelTestCase
             self::assertNull($connection->fetchOne("SELECT organisation_ready_at FROM installation_state WHERE singleton_key = '1'"));
             $setup->configure($input);
             self::assertSame($versions, $connection->fetchAllAssociative('SELECT version FROM doctrine_migration_versions ORDER BY version'));
+            // Model restored 1.0.0 data after an interrupted additive DDL update.
+            // The columns/check may already exist; retry must complete without data loss.
+            $connection->insert('suppression', ['id' => \App\Shared\Identity::uuidV7(), 'email_canonical' => 'preserved@example.test', 'reason' => 'manual', 'source' => 'synthetic-upgrade', 'created_at' => \App\Shared\Identity::now()]);
+            $connection->executeStatement('DELETE FROM doctrine_migration_versions WHERE version = ?', ['DoctrineMigrations\\Version20261008000000']);
+            $connection->executeStatement('ALTER TABLE campaign_test_delivery DROP COLUMN draft_version');
+            $retryFactory = DependencyFactory::fromConnection(new ExistingConfiguration($configuration), new ExistingConnection($connection));
+            (new DatabaseSetup($connection, $retryFactory, $lifecycle))->configure($input);
+            $preserved = $connection->fetchOne("SELECT COUNT(*) FROM suppression WHERE email_canonical = 'preserved@example.test'");
+            self::assertTrue(is_numeric($preserved));
+            self::assertSame(1, (int) $preserved);
+            self::assertTrue($connection->createSchemaManager()->introspectTable('campaign_test_delivery')->hasColumn('draft_version'));
+            self::assertSame($versions, $connection->fetchAllAssociative('SELECT version FROM doctrine_migration_versions ORDER BY version'));
+
             $lock->create([]);
             try {
                 $setup->configure($input);

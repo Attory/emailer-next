@@ -1,51 +1,46 @@
 {% extends 'admin/layout.html.twig' %}
-{% block title %}Campaign · Emailer Next{% endblock %}
+{% block title %}{{ campaign.name }} · Emailer Next{% endblock %}
+{% block javascripts %}<script type="module" src="{{ asset('campaign-progress.js') }}"></script>{% if is_granted('ROLE_ADMINISTRATOR') %}<script type="module" src="{{ asset('mail-settings.js') }}"></script>{% endif %}{% endblock %}
 {% block admin_body %}
 <p><a href="{{ path('admin_campaigns') }}">← Campaigns</a></p>
-<h1>{{ campaign.name }}</h1>
-<dl><dt>State</dt><dd>{{ campaign.state }}</dd><dt>Audience snapshot</dt><dd>{{ campaign.recipient_count }}</dd><dt>Approved</dt><dd>{{ campaign.approved_at|default('Not yet') }}</dd><dt>Scheduled</dt><dd>{{ campaign.scheduled_at|default('Not scheduled') }}</dd></dl>
-{% if campaign.latest_test %}<p>Latest test: {{ campaign.latest_test.state }}{% if campaign.latest_test.failure_class %} ({{ campaign.latest_test.failure_class }}){% endif %}</p>{% endif %}
+<div class="page-heading"><div><p class="eyebrow">Newsletter</p><h1>{{ campaign.name }}</h1><span class="status-pill" data-state="{{ campaign.state }}" data-campaign-state>{{ campaign.state|replace({'_': ' '})|title }}</span></div>{% if is_granted('ROLE_OPERATOR') and campaign.state in ['draft', 'review'] and not campaign.pending_import %}<a class="button secondary" href="{{ path('admin_campaign_edit', {id: campaign.id}) }}">Edit draft</a>{% endif %}</div>
+<div class="workspace-grid"><div>
 {% if campaign.pending_import %}
-<section aria-labelledby="upload-review"><h2 id="upload-review">Review uploaded recipients</h2>
-<p>Valid {{ campaign.pending_import.valid_count }}; duplicate {{ campaign.pending_import.duplicate_count }}; unsubscribed {{ campaign.pending_import.suppressed_count }}; invalid {{ campaign.pending_import.invalid_count }}; rejected {{ campaign.pending_import.rejected_count }}.</p>
-<p>These recipients have not been added to the list yet.</p>
-<form method="post" action="{{ path('admin_campaign_import_commit', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-import-' ~ campaign.id) }}"><button type="submit">Commit reviewed recipients</button></form>
-<a href="{{ path('admin_import_details', {id: campaign.pending_import.id}) }}">Review column mapping and private rejection report</a>
+<section class="next-step" aria-labelledby="upload-review"><h2 id="upload-review">Review uploaded recipients</h2>
+<p>Valid {{ campaign.pending_import.valid_count }}; duplicate {{ campaign.pending_import.duplicate_count }}; unsubscribed {{ campaign.pending_import.suppressed_count }}; invalid {{ campaign.pending_import.invalid_count }}; rejected {{ campaign.pending_import.rejected_count }}.</p><p>These recipients have not been added to the list yet.</p>
+<div class="actions"><form method="post" action="{{ path('admin_campaign_import_commit', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-import-' ~ campaign.id) }}"><button type="submit">Add reviewed recipients</button></form><a href="{{ path('admin_import_details', {id: campaign.pending_import.id}) }}">Review column mapping and private rejection report</a></div></section>
+{% elseif campaign.state in ['draft', 'review'] %}
+<section class="next-step"><h2>{{ campaign.state == 'draft' ? 'Next: send yourself a test' : 'Next: approve your newsletter' }}</h2>{% if is_granted('ROLE_OPERATOR') %}<p><a href="{{ path('admin_template_preview', {versionId: campaign.template_version_id}) }}" target="_blank" rel="noopener">Preview newsletter ↗</a></p>{% endif %}<p>Check the current content in your inbox, then approve the final newsletter and recipients.</p><p>Latest test: <strong data-test-state>{{ campaign.latest_test ? campaign.latest_test.state : 'Not run' }}{% if campaign.latest_test and not campaign.latest_test.current_revision %} (previous revision; send a fresh test){% endif %}</strong>{% if campaign.latest_test and campaign.latest_test.failure_class %} ({{ campaign.latest_test.failure_class }}){% endif %}</p>
+{% if is_granted('ROLE_OPERATOR') %}<div class="actions"><form method="post" action="{{ path('admin_campaign_test', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-test-' ~ campaign.id) }}"><button>Send a test to myself</button></form>{% if campaign.state == 'draft' %}<form method="post" action="{{ path('admin_campaign_review', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-review-' ~ campaign.id) }}"><button class="secondary">Review newsletter</button></form>{% endif %}</div>{% endif %}
+{% if campaign.state == 'review' and is_granted('ROLE_ADMINISTRATOR') %}
+<form method="post" action="{{ path('admin_campaign_approve', {id: campaign.id}) }}" data-mail-settings-confirmation-expires-at-value="{{ confirmation_expires_at }}">
+<input type="hidden" name="_token" value="{{ csrf_token('campaign-approve-' ~ campaign.id) }}"><input type="hidden" name="reviewed_revision" value="{{ campaign.operation_version }}"><label><input type="checkbox" name="waive_test" value="1"> Skip the test (recorded in the audit history)</label>
+<fieldset data-mail-settings-target="confirmation"><legend>Confirm your identity to approve</legend><label>Current password<input name="owner_password" type="password" autocomplete="current-password" data-mail-settings-target="password"></label><label>Authenticator or recovery code<input name="owner_mfa_code" autocomplete="one-time-code" data-mail-settings-target="code"></label></fieldset>
+<dialog data-mail-settings-target="dialog" aria-label="Confirm approval"><button type="button" data-action="mail-settings#confirm">Confirm and approve</button><button type="button" data-action="mail-settings#cancel">Cancel</button></dialog><button>Approve newsletter</button></form>
+{% endif %}</section>
+{% elseif campaign.state == 'approved' %}<section class="next-step"><h2>Ready to send</h2><p>Your content and audience are approved. Choose Send now or schedule below.</p></section>
+{% elseif campaign.state == 'paused' %}<section class="next-step"><h2>Delivery paused</h2><p>You can adjust the rate and resume below. A message already being transmitted may still finish.</p></section>
+{% elseif campaign.state == 'scheduled' %}<section class="next-step"><h2>Newsletter scheduled</h2><p>Starts {{ campaign.scheduled_at|date('j M Y, g:i a', campaign.review.time_zone) }} ({{ campaign.review.time_zone }}), subject to delivery readiness.</p></section>{% endif %}
+<section class="panel" aria-labelledby="progress-title" data-campaign-progress data-progress-url="{{ path('admin_campaign_progress', {id: campaign.id}) }}" data-initial-state="{{ campaign.state }}">
+<div class="section-header"><h2 id="progress-title">Delivery progress</h2><a href="{{ path('admin_campaign', {id: campaign.id}) }}">Refresh page</a></div>
+<div class="progress-header"><span><span data-processed>{{ campaign.progress.processed }}</span> of <span data-total>{{ campaign.progress.total }}</span> processed</span><strong><span data-percent>{{ campaign.progress.percent }}</span>%</strong></div>
+<progress class="progress-track" max="100" value="{{ campaign.progress.percent }}" aria-label="Delivery processing progress">{{ campaign.progress.percent }}%</progress>
+<dl class="progress-stats">{% for key, label in {'accepted':'SMTP accepted', 'pending':'Waiting', 'retry':'Retrying', 'permanent_failure':'Failed', 'processing':'In progress', 'suppressed':'Suppressed', 'ambiguous':'Uncertain', 'cancelled':'Cancelled'} %}<div><dt>{{ label }}</dt><dd data-count="{{ key }}">{{ campaign.progress.counts[key] }}</dd></div>{% endfor %}</dl>
+<p class="help" data-progress-updated></p>
+<p class="progress-feedback" data-progress-feedback role="status" aria-live="polite">{% if campaign.progress.total == 0 %}Delivery starts after approval when you choose Send now or schedule.{% else %}Live counts refresh when this page is visible.{% endif %}</p><p class="help">“Accepted” means the SMTP transport accepted a message; it does not prove inbox placement. Processed includes failures, suppressions, cancellations and uncertain outcomes. Uncertain messages are not automatically resent.</p>
+{% if is_granted('ROLE_OPERATOR') %}<div class="actions">
+{% if campaign.state == 'approved' %}<form method="post" action="{{ path('admin_campaign_queue', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-queue-' ~ campaign.id) }}"><button>Send now</button></form>{% endif %}
+{% if campaign.state in ['queueing', 'sending'] %}<form method="post" action="{{ path('admin_campaign_pause', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-pause-' ~ campaign.id) }}"><button class="secondary">Pause delivery</button></form>{% endif %}
+{% if campaign.state == 'paused' %}<form method="post" action="{{ path('admin_campaign_resume', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-resume-' ~ campaign.id) }}"><button>Resume delivery</button></form>{% endif %}
+{% if campaign.state in ['approved', 'scheduled', 'queueing', 'sending', 'paused'] %}<form method="post" action="{{ path('admin_campaign_cancel', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-cancel-' ~ campaign.id) }}"><button class="danger">Cancel remaining deliveries</button></form>{% endif %}</div>{% endif %}
 </section>
-{% endif %}
-<section aria-labelledby="approval-summary">
-    <h2 id="approval-summary">Approval summary</h2>
-    <dl>
-        <dt>Selected audience</dt><dd>{{ campaign.review.selected_count }}</dd>
-        <dt>Currently suppressed</dt><dd>{{ campaign.review.suppressed_count }}</dd>
-        <dt>Currently eligible</dt><dd>{{ campaign.review.eligible_count }}</dd>
-        <dt>Template</dt><dd>{{ campaign.template_name }} version {{ campaign.template_version }}</dd>
-        <dt>Sender</dt><dd>{{ campaign.review.sender_name }} &lt;{{ campaign.review.sender_address }}&gt;</dd>
-        <dt>Schedule time zone</dt><dd>{{ campaign.review.time_zone }}</dd>
-        <dt>Tracking</dt><dd>{{ campaign.review.tracking }}</dd>
-        <dt>RSVP</dt><dd>{{ campaign.review.rsvp }}</dd>
-        <dt>One-click unsubscribe</dt><dd>{{ campaign.review.one_click }}</dd>
-        <dt>Test send</dt><dd>{{ campaign.latest_test ? campaign.latest_test.state : 'Not run' }}</dd>
-    </dl>
-</section>
-{% if is_granted('ROLE_OPERATOR') %}
-<div class="actions">
-{% if campaign.state in ['draft', 'review'] and not campaign.pending_import %}
-    <form method="post" action="{{ path('admin_campaign_test', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-test-' ~ campaign.id) }}"><button>Queue test send</button></form>
-{% endif %}
-{% if campaign.state == 'draft' and not campaign.pending_import %}<form method="post" action="{{ path('admin_campaign_review', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-review-' ~ campaign.id) }}"><button>Submit for review</button></form>{% endif %}
-{% if campaign.state == 'draft' %}<form method="post" action="{{ path('admin_campaign_rsvp', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-rsvp-' ~ campaign.id) }}"><label><input type="checkbox" name="enabled" value="1"{% if campaign.rsvp_enabled %} checked{% endif %}> Enable RSVP for this campaign</label><button>Save RSVP setting</button></form>{% endif %}
-{% if campaign.state == 'review' and is_granted('ROLE_ADMINISTRATOR') %}<p><a href="{{ path('admin_reauthenticate', {purpose: 'campaign_approval'}) }}">Re-authenticate before approval</a></p><form method="post" action="{{ path('admin_campaign_approve', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-approve-' ~ campaign.id) }}"><label><input type="checkbox" name="waive_test" value="1"> Audited test waiver</label><button>Approve snapshot</button></form>{% endif %}
-{% if campaign.state == 'approved' %}
-    <form method="post" action="{{ path('admin_campaign_queue', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-queue-' ~ campaign.id) }}"><button>Queue now</button></form>
-    <form method="post" action="{{ path('admin_campaign_schedule', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-schedule-' ~ campaign.id) }}"><label>Schedule <input type="datetime-local" name="scheduled_at" required></label><button>Schedule</button></form>
-{% endif %}
-{% if campaign.state in ['queueing', 'sending'] %}<form method="post" action="{{ path('admin_campaign_pause', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-pause-' ~ campaign.id) }}"><button>Pause</button></form>{% endif %}
-{% if campaign.state == 'paused' %}<form method="post" action="{{ path('admin_campaign_resume', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-resume-' ~ campaign.id) }}"><button>Resume</button></form>{% endif %}
-{% if campaign.state in ['approved', 'scheduled', 'queueing', 'sending', 'paused'] %}<form method="post" action="{{ path('admin_campaign_cancel', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-cancel-' ~ campaign.id) }}"><button>Cancel unclaimed deliveries</button></form>{% endif %}
-</div>
-{% endif %}
-<h2>Durable delivery progress</h2>
-<table><thead><tr><th scope="col">State</th><th scope="col">Count</th></tr></thead><tbody>{% for row in campaign.delivery_counts %}<tr><td>{{ row.state }}</td><td>{{ row.count }}</td></tr>{% else %}<tr><td colspan="2">No delivery ledger records yet.</td></tr>{% endfor %}</tbody></table>
-<p>“Accepted” means the configured SMTP transport accepted the message; it does not prove inbox placement.</p>
+{% if campaign.state == 'approved' and is_granted('ROLE_OPERATOR') %}<section class="panel"><h2>Send later</h2><form method="post" action="{{ path('admin_campaign_schedule', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-schedule-' ~ campaign.id) }}"><label>Date and time ({{ campaign.review.time_zone }})<input type="datetime-local" name="scheduled_at" required></label><p class="help">Choose a time outside skipped or repeated daylight-saving hours.</p><button class="secondary">Schedule newsletter</button></form></section>{% endif %}
+<section class="panel" aria-labelledby="approval-summary"><h2 id="approval-summary">{{ campaign.approved_at ? 'Approved newsletter' : 'Review your newsletter' }}</h2><dl class="campaign-summary">
+<div><dt>Selected audience</dt><dd>{{ campaign.review.selected_count }}</dd></div><div><dt>Currently suppressed</dt><dd>{{ campaign.review.suppressed_count }}</dd></div><div><dt>{{ campaign.approved_at ? 'Approved recipients' : 'Currently eligible' }}</dt><dd>{{ campaign.approved_at ? campaign.recipient_count : campaign.review.eligible_count }}</dd></div><div><dt>Template</dt><dd>{{ campaign.template_name }} · version {{ campaign.template_version }}</dd></div><div><dt>Sender</dt><dd>{{ campaign.review.sender_name }} &lt;{{ campaign.review.sender_address }}&gt;</dd></div><div><dt>Time zone</dt><dd>{{ campaign.review.time_zone }}</dd></div><div><dt>Tracking</dt><dd>{{ campaign.review.tracking }}</dd></div><div><dt>RSVP</dt><dd>{{ campaign.review.rsvp }}</dd></div><div><dt>One-click unsubscribe</dt><dd>{{ campaign.review.one_click }}</dd></div><div><dt>Approved</dt><dd>{{ campaign.approved_at ? campaign.approved_at|date('j M Y, g:i a', campaign.review.time_zone) : 'Not yet' }}</dd></div></dl><p class="help">Unsubscribe protections apply again immediately before every delivery, including after approval.</p></section>
+</div><aside class="sidebar-summary">
+<section class="panel"><p class="eyebrow">Sending pace</p><p><strong class="metric-number">{{ campaign.effective_rate }}</strong> / minute</p><p class="help">Maximum for this campaign. Installation: {{ campaign.delivery_limits.messages_per_minute }}/minute, destination domain: {{ campaign.delivery_limits.domain_rate }}/minute. Actual throughput can be lower.</p>
+{% if is_granted('ROLE_OPERATOR') and campaign.state in ['draft', 'paused'] %}<form method="post" action="{{ path('admin_campaign_rate', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-rate-' ~ campaign.id) }}"><label>Campaign messages per minute<input name="messages_per_minute" type="number" min="1" max="600" value="{{ campaign.messages_per_minute }}" placeholder="{{ campaign.delivery_limits.messages_per_minute }}"></label><p class="help">Leave blank to use the installation limit.</p><button class="secondary">Save sending rate</button></form>{% elseif campaign.state in ['queueing', 'sending', 'scheduled', 'approved', 'review'] %}<p class="help">Change pacing in a draft or pause active delivery first.</p>{% endif %}
+{% if is_granted('ROLE_ADMINISTRATOR') %}<p><a href="{{ path('admin_delivery_settings') }}">Installation delivery limits</a></p>{% endif %}</section>
+{% if is_granted('ROLE_OPERATOR') and campaign.state == 'draft' %}<section class="panel"><h2>RSVP</h2><form method="post" action="{{ path('admin_campaign_rsvp', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-rsvp-' ~ campaign.id) }}"><label><input type="checkbox" name="enabled" value="1"{% if campaign.rsvp_enabled %} checked{% endif %}> Enable RSVP for this campaign</label><button class="secondary">Save RSVP setting</button></form><p class="help">The template must include the RSVP merge field when enabled. Changes require a fresh test.</p></section>{% endif %}
+</aside></div>
 {% endblock %}
