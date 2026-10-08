@@ -17,11 +17,17 @@ Base32 and a separate random challenge identifier. Only the identifier, SHA-256
 hash of normalized code, timestamps, failed-attempt count, and requesting-IP
 hash are stored in a mode-`0600` private state file.
 
-The page displays the fixed path:
+The page displays the single configured fixed path. Development defaults to:
 
 ```text
 <APPLICATION_ROOT>/.emailer-install-proof
 ```
+
+An immutable client release instead sets `EMAILER_INSTALL_PROOF_FILE` to a
+mode-`0700`, service-owned setup directory outside release code. The supplied
+root helper writes a mode-`0600` service-owned file there. This lets setup read
+and delete only its transient proof without granting the web process write
+access to the root-owned release.
 
 The operator creates that file with only the displayed code. Verification:
 
@@ -102,8 +108,11 @@ self-declared and therefore does not authenticate backup provenance.
 - Challenge issuance is limited to 6 per 15 minutes per client and proof posts
   to 10 per 15 minutes, in addition to the challenge's ten-attempt ceiling.
 - `emailer:setup:install` runs safe preflight and records only a
-  credential-free CLI ownership marker. It does not collect credentials or
-  create the final installation lock.
+  credential-free CLI ownership marker. With `--complete`, protected
+  interactive hidden prompts drive the same setup services through permanent
+  finalization without placing secrets in arguments, output, or setup state.
+  CLI setup deliberately skips MFA enrollment so it never prints TOTP/recovery
+  material; the Owner must enroll MFA later through authenticated HTTPS.
 - `emailer:setup:reset` has the reset lifecycle and all guards, but the
   Phase 2 self-declared evidence remains rejected. Phase 8 encrypted backup
   verification is now the only accepted producer.
@@ -138,9 +147,14 @@ self-declared and therefore does not authenticate backup provenance.
   publishes the restrictive lock, and compensates database completion if
   publication fails. No setup record changes after publication; routes return
   an empty 404 permanently.
-- `emailer:secrets:replace` and `emailer:secrets:rotate-master-key` are
-  argument-free fail-closed skeletons pending Phase 4 re-authentication and
-  later recovery controls.
+- `emailer:secrets:replace` remains an argument-free fail-closed skeleton;
+  production SMTP credentials are replaced through the Owner-authorized HTTPS
+  configuration workflow. `emailer:secrets:rotate-master-key` is a protected
+  interactive operation: it requires active Owner password/MFA
+  re-authentication, quiesced delivery, an automatically created verified
+  backup, installation-wide maintenance locking, row-locked transactional
+  re-encryption, atomic restrictive key replacement, compensation on failure,
+  and redacted audit evidence.
 
 Phase 3 adds no login/logout, general user management, database-backed
 sessions, admin shell, contacts, campaigns, queue messages, delivery worker,

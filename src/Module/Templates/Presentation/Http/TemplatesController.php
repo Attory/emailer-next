@@ -46,6 +46,50 @@ final class TemplatesController extends AbstractController
         }
     }
 
+    #[Route('/{id}/edit', name: 'admin_template_edit', requirements: ['id' => '[0-9a-f-]{36}'], methods: ['GET', 'HEAD', 'POST'])]
+    public function edit(Request $request, string $id): Response
+    {
+        return $this->templateForm($request, $id, false);
+    }
+
+    #[Route('/{id}/duplicate', name: 'admin_template_duplicate', requirements: ['id' => '[0-9a-f-]{36}'], methods: ['GET', 'HEAD', 'POST'])]
+    public function duplicate(Request $request, string $id): Response
+    {
+        return $this->templateForm($request, $id, true);
+    }
+
+    private function templateForm(Request $request, string $id, bool $duplicate): Response
+    {
+        try {
+            $template = $this->templates->draftInfo($this->user(), $id);
+        } catch (\InvalidArgumentException) {
+            throw $this->createNotFoundException();
+        }
+        $operation = $duplicate ? 'duplicate' : 'edit';
+        if ($request->isMethod('POST')) {
+            if (!$this->csrf($request, 'template-'.$operation.'-'.$id)) {
+                return $this->badRequest();
+            }
+            try {
+                if ($duplicate) {
+                    $id = $this->templates->duplicate($this->user(), $id, $request->request->getString('name'));
+                    $this->addFlash('success', 'Template duplicated as a new draft.');
+                } else {
+                    $this->templates->edit($this->user(), $id, $request->request->getString('name'), $request->request->getString('subject'), $request->request->getString('preheader'), $request->request->getString('html_body'), $request->request->getString('text_body'));
+                    $this->addFlash('success', 'Template saved as a new draft. Existing sent content is unchanged.');
+                }
+
+                return $this->redirectToRoute('admin_template_versions', ['id' => $id], Response::HTTP_SEE_OTHER);
+            } catch (\Throwable) {
+                $this->addFlash('error', 'Template change was not accepted. Check the new name and supported template content.');
+
+                return $this->redirectToRoute('admin_template_'.$operation, ['id' => $id], Response::HTTP_SEE_OTHER);
+            }
+        }
+
+        return $this->render('admin/template-edit.html.twig', ['template' => $template, 'operation' => $operation]);
+    }
+
     #[Route('/{id}/versions', name: 'admin_template_versions', requirements: ['id' => '[0-9a-f-]{36}'], methods: ['GET', 'HEAD'])]
     public function versions(string $id): Response
     {

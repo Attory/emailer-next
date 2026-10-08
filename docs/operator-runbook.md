@@ -1,6 +1,16 @@
 # Operator runbook
 
-**Status:** Accepted Phase 12 `0.4.0` update-candidate operations runbook.
+**Status:** Phase 13 Version-1 acceptance runbook. The accepted `0.4.0`
+candidate remains unpublished; `1.0.0` remains pending final acceptance.
+
+## Installing or updating to 1.0.0
+
+For a new client server, follow
+[CLIENT-INSTALL-1.0.0.md](CLIENT-INSTALL-1.0.0.md) in order. For an existing
+accepted exact `0.1.0`, `0.2.0`, `0.3.0`, or `0.4.0` installation, follow
+[CLIENT-UPDATE-1.0.0.md](CLIENT-UPDATE-1.0.0.md). Do not substitute an unsigned
+archive, skip the independent public-key fingerprint, unpack before standalone
+verification, or resume delivery before Doctor and restore evidence pass.
 
 ## Updating 0.3.x to 0.4.0
 
@@ -176,7 +186,9 @@ paste secrets, raw recipient lists, message bodies, or tokens into chat/issues.
 ## Phase 2 setup operations
 
 - Inspect setup safely with `bin/console emailer:setup:install`; it performs
-  preflight and stores no credential.
+  preflight and stores no credential. Use `--complete` only in a protected
+  interactive terminal when the CLI route is chosen. The command never accepts
+  secrets as options, never prints them, and uses a local fake Mailpit probe.
 - `bin/console emailer:setup:reset` is intentionally unavailable in Phase 2:
   no supported integrity-authenticated backup artifact exists yet. Do not use a
   marker file or self-declared digest as backup authority. Phase 8 must provide
@@ -230,16 +242,50 @@ key, organisation, Owner/MFA, mail, secret, and policy setup writers fail closed
 Owner resumption requires the original password, and skipping/restarting MFA
 removes pending inactive enrollment material.
 
-`emailer:secrets:replace` and `emailer:secrets:rotate-master-key` deliberately
-return failure and mutate nothing. They are reserved interfaces, not emergency
-recovery tools. Phase 3 contains its setup-schema migration plus the bounded
-mail-evidence integrity migration and no new dependency.
+`emailer:secrets:replace` remains fail closed; use the authenticated Owner mail
+configuration workflow for transport-secret replacement. Master-key rotation
+is now a separately controlled maintenance operation:
+
+1. stop new delivery and wait for active claims to reach zero, then stop
+   PHP-FPM, worker, scheduler, and operations processes so only the protected
+   rotation CLI can access secrets during the transaction;
+2. confirm the separately held current recovery package is readable and its
+   passphrase is available to the recovery owner;
+3. run `bin/console emailer:secrets:rotate-master-key` from the service account
+   in a protected terminal and complete Owner password/MFA re-authentication
+   plus the hidden current recovery-package passphrase check;
+4. retain the reported verified pre-rotation backup and old recovery package
+   until the change is accepted;
+5. move the old recovery package to separately controlled historical custody,
+   ensure the configured recovery output path is empty, then run
+   `bin/console emailer:secrets:export-recovery-key` with a new independently
+   stored passphrase;
+6. create and verify a new encrypted backup, run full Doctor, and perform the
+   documented secret-dependent smoke checks, restart every application process,
+   and rerun Doctor before resuming delivery.
+
+The rotation journal remains inside the external mode-`0700` key directory.
+Every key/journal content write is flushed and file-`fsync`ed before publication;
+every journal/key link, rename, and unlink is followed by an `fsync` of that
+directory before the protocol advances, so contents and namespace ordering
+survive host power loss as well as process interruption. Initial key creation
+and recovery use the same file-before-directory barrier order. The journal is reconciled
+automatically against the committed opaque audit marker after a process crash
+or ambiguous commit. A concurrent process is denied key access
+while the maintenance lock is held. Any failure keeps delivery stopped. If
+journal reconciliation reports failure, do not retry blindly: preserve the key
+directory, restore from the separately held recovery material only through the
+incident procedure, authenticate the reported pre-rotation backup, and follow
+incident response. Rotation never contacts a provider and the audit contains
+counts/opaque IDs only.
 
 ## Phase 4 identity operations
 
 1. Apply `Version20260817000000` and `Version20260818000000` through the normal
    migration gate. Configure only the actual trusted proxy hops and a strict
-   `TRUSTED_HOSTS` expression for the canonical host. Serve the admin surface
+   `TRUSTED_HOSTS` expression for the canonical host, quoting the entire value
+   in a systemd environment file so literal regex backslashes survive parsing.
+   Serve the admin surface
    over HTTPS; forwarded host values are deliberately ignored. Provision
    the final proxy to replace `X-Forwarded-For` with its directly observed
    client address; never append an inbound value. Provision
@@ -321,14 +367,24 @@ creates a public recipient endpoint.
 3. Export the recovery package with `emailer:secrets:export-recovery-key`; do
    not record its passphrase. Create and verify backups with
    `emailer:backup:create` and `emailer:backup:verify`.
+   For an isolated drill, add `--drill-receipt` to the real restore command in
+   the disposable runtime. Securely transfer the authenticated receipt into
+   the originating private backup directory and run interactive
+   `emailer:backup:record-restore-drill <receipt>`. This checks the exact retained
+   backup and records its actual restore time without restoring live state.
+   Follow [backup-restore.md](backup-restore.md); never edit restore timestamps
+   manually or convert an unsigned diagnostic into authenticated evidence.
 4. For restore, quiesce delivery and allow the scheduler to recover interrupted
    claims until the reported count reaches zero. Then stop worker/scheduler,
    run interactive `emailer:backup:restore`, verify suppression and Doctor, and
    explicitly resume. Restore never resumes delivery itself.
 5. Run `emailer:retention:run` for dry-run and add `--apply` only after review.
    Each category is capped at 200 rows; rerun for further bounded batches.
-6. Inspect packages before change. The updater verifies pinned signature,
-   checksum, manifest, SBOM, compatibility and disk space before mutation. It
+6. Inspect packages before change. For a `1.0.0` update, retain the exact signed
+   predecessor archive and its four sidecars beside the target and pass it with
+   `--source-package`; a source version string alone is not evidence. The target
+   updater verifies both pinned signatures, checksums, manifests, SBOMs, the
+   installed predecessor file set, compatibility, and disk space before mutation. It
    quiesces, performs an interrupted-claim recovery pass, creates a verified
    backup, installs immutably, migrates, switches atomically, and runs Doctor.
    Failure remains in maintenance and uses only compatible pointer rollback or

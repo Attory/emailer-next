@@ -1,8 +1,9 @@
 # Installation
 
-**Status:** Accepted Phase 12 installation contract. The operator-signed
-`0.4.0` candidate supports clean installation and update from the accepted
-`0.3.x` line; it is not published, deployed, or installed on a client server.
+**Status:** Phase 13 `1.0.0` installation contract under acceptance. Use the
+ordered [client-server installation manual](CLIENT-INSTALL-1.0.0.md) for an
+approved candidate. No candidate is published, deployed, or installed by this
+document.
 
 The current repository can create a completed installation with an
 external key, initial Owner, exact local Mailpit test evidence, sender identity,
@@ -99,23 +100,34 @@ when migrations run. No manual production migration is authorized in Phase 1.
 ## Phase 2 setup entry
 
 An unlocked deployment exposes `/setup` and coarse liveness only. Follow the
-displayed instruction to create `<APPLICATION_ROOT>/.emailer-install-proof`
-with mode `0600` and the displayed code only, then submit the CSRF-protected
-verification form. Delete and recreate any rejected proof as a regular file;
-links, files over 256 bytes, and group/world-writable files are rejected.
+displayed instruction to create its one fixed `.emailer-install-proof` with
+mode `0600` and the displayed code only, then submit the CSRF-protected
+verification form. Development defaults to the application root. Immutable
+client releases configure `EMAILER_INSTALL_PROOF_FILE` in a service-owned setup
+directory outside the release; the supplied root helper creates the file with
+the correct identity and mode. Delete and recreate any rejected proof as a
+regular file; links, files over 256 bytes, and group/world-writable files are
+rejected.
 
 After success the browser session rotates and `/setup/preflight` requires
-HTTPS. This phase does not ask for a database password, master key, Owner data,
-or mail settings. The CLI alternative is `bin/console emailer:setup:install`;
-it also stops before credentials and does not create a completed installation.
+HTTPS. `bin/console emailer:setup:install` performs the same credential-free
+preflight. The HTTPS-independent full alternative is
+`bin/console emailer:setup:install --complete` from a protected interactive
+terminal. It accepts secrets only through hidden prompts, never command-line
+options; uses the same database, organisation, Owner, local-Mailpit, policy,
+and finalization services as the web wizard; and never prints MFA enrollment
+material. Enrol Owner MFA from the authenticated HTTPS UI before production.
 
 ## Phase 3 runtime configuration and completion
 
 Before web setup, operators supply `DATABASE_URL`, `EMAILER_PRIVATE_DIR`, and
 `EMAILER_SECRET_KEY_FILE` through external runtime configuration. Production
 refuses an omitted, relative, application/release/public, symlink-directed, or
-unsafe-ancestor key path. The complete existing chain is checked; setup creates
-the immediate parent as mode `0700` and key as mode `0600`. Development Compose
+unsafe-ancestor key path. The complete existing chain is checked; the immediate
+parent must be owned by the effective service user with exact mode `0700`, and
+the key is mode `0600`. For the client layout use
+`/var/lib/emailer/keys/master.key`; do not combine its parent with root-owned
+runtime configuration. Development Compose
 uses a separate `/emailer-secrets` volume. Never pre-create the key with
 content, put it in Git, pass it on a command line, or include it in an ordinary
 backup.
@@ -199,7 +211,18 @@ The Phase 11 operator-held `0.3.0` candidate is accepted but unpublished; use
 update procedure. Installation or deployment remains a separate operator
 action.
 
-## Clean-server `0.1.0` installation
+## Clean-server `1.0.0` installation
+
+The authoritative step-by-step procedure is
+[CLIENT-INSTALL-1.0.0.md](CLIENT-INSTALL-1.0.0.md). It covers change authority,
+supported versions, service accounts and paths, database provisioning, public
+key pinning, standalone pre-extraction verification, immutable extraction,
+protected runtime configuration, PHP-FPM/web-server configuration, setup,
+workers, scheduler, backup/restore drills, Doctor, accessibility acceptance,
+go-live, rollback, and handover.
+
+The historical `0.1.0` outline below remains useful release-train context but
+must not replace the `1.0.0` client manual.
 
 1. Provision a supported Linux host with PHP-FPM 8.4.24 or 8.5.9 and every
    extension in `composer.json`, MariaDB 10.11.19 or 11.8.9, Nginx or Apache,
@@ -231,6 +254,14 @@ action.
    verify an encrypted backup and separate recovery package, verify the web
    exposure probes, and keep delivery quiesced until every critical finding is
    cleared. A real provider test or DNS change is a separate action.
+
+For Version 1 updates, keep the releases root and every semantic-version tree
+root-owned. Authenticate the target archive with the independently pinned key
+and separately approved verifier hashes before extracting target code or
+installing its systemd unit. The root-controlled target updater reads an exact
+source version from `/etc/emailer/update.env`, verifies it against the current
+pointer, and publishes the new release without granting the `emailer` identity
+any release-write capability.
 
 The Phase 9 rehearsal performs these steps only against disposable synthetic
 services and Mailpit. It does not deploy a client server.

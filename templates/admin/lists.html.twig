@@ -2,8 +2,12 @@
 {% block title %}Lists — Emailer Next{% endblock %}
 {% block admin_body %}
 <h1>Lists</h1>
+<p>Open a list to see its members, find contacts, and manage membership. Send to starts a campaign draft for that list.</p>
 <form method="post" action="{{ path('admin_list_create') }}"><input type="hidden" name="_token" value="{{ csrf_token('list-create') }}"><label>Name <input name="name" maxlength="160" required></label><button type="submit">Create list</button></form>
-<table><thead><tr><th scope="col">Name</th><th scope="col">Members</th><th scope="col">Membership</th><th scope="col">Archive</th></tr></thead><tbody>
-{% for list in lists %}<tr><td>{{ list.name }}</td><td>{{ list.member_count }}</td><td><form method="post" action="{{ path('admin_membership_add', {id: list.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('membership-add-' ~ list.id) }}"><select name="contact_id">{% for contact in contacts %}<option value="{{ contact.id }}">{{ contact.email_display }}</option>{% endfor %}</select><button type="submit">Add</button></form></td><td><form method="post" action="{{ path('admin_list_archive', {id: list.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('list-archive-' ~ list.id) }}"><button type="submit">Archive</button></form></td></tr>{% else %}<tr><td colspan="4">No lists.</td></tr>{% endfor %}
+<table><thead><tr><th scope="col">Name</th><th scope="col">Members</th><th scope="col">Actions</th></tr></thead><tbody>
+{% for list in lists %}
+<tr><td><a href="{{ path('admin_list', {id: list.id}) }}">{{ list.name }}</a></td><td>{{ list.member_count }}</td><td>{% include 'admin/_list-actions.html.twig' %}</td></tr>
+{% else %}<tr><td colspan="3">No lists.</td></tr>{% endfor %}
 </tbody></table>
+<p>Archive hides a list from future selection. Contact records and unsubscribe protections remain intact.</p>
 {% endblock %}

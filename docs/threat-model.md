@@ -1,11 +1,11 @@
 # Threat model
 
-**Status:** Accepted Phase 12 `0.4.0` candidate operational controls.
+**Status:** Phase 13 full Version-1 review under acceptance.
 
 **Method:** Asset/trust-boundary review with STRIDE-style misuse cases and
 privacy-abuse review
 
-**Last reviewed:** 2026-08-26
+**Last reviewed:** 2026-08-27
 
 ## Scope and security objectives
 
@@ -88,7 +88,7 @@ message does not prove inbox delivery.
 | TM-02 | Setup proof leaks through log, error, session, or race | Store hash only; generic response; redacted logging; state/proof deletion; session rotation; concurrent verification test | 2 |
 | TM-03 | Web server exposes `.git`, `.env`, source, logs, backups, private data, or key | `public/` document root; artifact allowlist; server probes; safe permissions; Doctor sending gate | 1/8/9 |
 | TM-04 | Stolen database reveals SMTP secret or TOTP seed | XChaCha20-Poly1305; external key; purpose HKDF; fresh nonce; record-bound AAD; fail closed | 3 |
-| TM-05 | Key substitution, permission weakness, or ciphertext swapping | Explicit absolute external path; complete ancestor ownership/mode/link and replacement checks; strict key length/mode/link count; installation/record/type/version in AAD; constant-time failure; transactional rotation | 3 |
+| TM-05 | Key substitution, permission weakness, ciphertext swapping, or crash between database/key commits | Explicit absolute external path; complete ancestor ownership/mode/link and replacement checks; strict key length/mode/link count; installation/record/type/version in AAD; constant-time failure; maintenance lock; restrictive old/new journal reconciled to committed opaque audit marker | 3/13 |
 | TM-06 | Password/session/account takeover | Argon2id; throttling; optional TOTP with Owner policy; hashed recovery codes; secure server sessions; rotation/revocation; generic recovery | 3–4 |
 | TM-07 | Operator exceeds role or removes last Owner | Default-deny route and service authorization; recent auth; generated role matrix; database/application invariant; audit | 4 |
 | TM-08 | CSRF or unsafe GET changes state | Unsafe methods for mutations; framework CSRF negative matrix; SameSite cookie; public-token routes isolated | 4/7 |
@@ -115,8 +115,10 @@ message does not prove inbox delivery.
 
 - A public URL, log label, metric, filename, or correlation ID must not identify
   a recipient.
-- Ordinary operational views mask addresses; full-address access and exports
-  receive a separate authorization decision and audit event.
+- Ordinary views below Owner mask addresses. Explicitly authorized private
+  Owner contact/list, suppression and SMTP reads show full nonsecret fields
+  with authorization, opaque audit and no-store responses. Exports and
+  Administrator reveal retain separate recent authentication and CSRF.
 - Open events are approximate and must not be represented as proof that a human
   read a message.
 - A forwarded recipient link may allow the holder to exercise its scoped
@@ -243,6 +245,19 @@ production sending state.
   verified backup, migration, atomic pointer, Doctor, and compatible
   rollback-or-restore behavior.
 
+Phase 13 strengthens TM-23/TM-26 by authenticating target-version code before
+any root service definition is installed, validating the recorded predecessor
+against the actual immutable pointer, verifying the retained predecessor package
+under the pinned key, matching the complete installed file tree to its signed
+manifest before mutation, and publishing releases recursively as
+root-owned/non-writable. Accepted `0.1.0`–`0.4.0` integrated source trees are
+built into runtime artifacts, signed with a disposable test key, installed, and
+consumed through the target updater; they are not represented as externally held
+operator outputs. Master-key content writes require file durability before
+publication, and containing-directory durability barriers order every journal
+and key namespace transition so a power loss cannot silently reorder the
+recovery protocol.
+
 ## Phase 9 control status
 
 - TM-21/TM-23 now include current and reachable-history scans, deterministic
@@ -321,6 +336,47 @@ Phase 12 Doctor and automation expansion.
 Phase 12 does not publish/deploy a package, create a cloud account, contact a
 provider, rotate a credential, change DNS, or use live SMTP.
 
+## Phase 13 control status
+
+- TM-20/TM-25 walkthrough repair adds authenticated isolated-drill evidence
+  issued only after real restore, full bounded row/asset comparison, and
+  quiescence. CLI import binds the exact retained artifact and same master key,
+  verifies it again, rejects tampered/unsafe/future/mismatched input, preserves
+  the actual drill time on replay, and records audit evidence without restoring
+  live data. Receipts contain only opaque IDs, digests, sizes, versions, counts,
+  and UTC time. They do not prove host isolation or human approval, and cannot
+  protect against the operator/root/key-compromise boundary.
+
+- TM-01/TM-02 now include an HTTPS-independent full CLI installation path that
+  accepts secrets only as hidden interactive input, reuses canonical setup
+  services, writes no plaintext setup state, emits no secret values, and
+  permanently locks setup. Immutable client deployments no longer need to
+  grant the web process temporary release-root mutation authority.
+- TM-04/TM-05 now include implemented master-key rotation rather than a
+  skeleton: Owner password/MFA re-authentication, throttle/audit, current
+  recovery-package authentication, delivery quiescence, verified pre-rotation
+  backup, maintenance/row locks, authenticated
+  decrypt/re-encrypt of the complete inventory, restrictive atomic key
+  replacement, maintenance-lock concurrency refusal, and crash reconciliation
+  tests on both sides of the database commit.
+- TM-21/TM-23 candidate inspection now rejects missing SPDX license decisions,
+  and the aggregate gate audits all production dependency licenses against the
+  documented allowlist.
+- TM-11/Version-1 UI acceptance adds visible skip navigation, two-colour focus,
+  minimum target sizing, reduced-motion handling, an explicit browser matrix,
+  WCAG 2.2 AA target, and a human keyboard/screen-reader checklist that cannot
+  be replaced by automated assertions.
+- The HTTP route set and schema are unchanged. The complete inventory was
+  reviewed for authentication, authorization, method, CSRF, recipient-token,
+  caching, and disclosure boundaries; the only CLI surface expansion is the
+  bounded setup/rotation commands above and the isolated-drill receipt option
+  and interactive recorder documented in the CLI inventory.
+
+Phase 13 does not publish, tag, deploy, change DNS/provider state, rotate a live
+credential, use live SMTP, or install on a client server. Operator signing,
+independent review, browser/assistive-technology acceptance, and exact-head
+approval remain release-candidate prerequisites.
+
 ## Residual risks and non-guarantees
 
 The design cannot guarantee protection after full root compromise, a malicious
@@ -341,3 +397,22 @@ service, new upload format, provider adapter, data export, backup destination,
 authentication mechanism, plugin system, multi-process topology, or schema that
 crosses module ownership. Every phase closes or tests its listed controls and
 records new residual risks.
+
+## Phase 13 Owner workflow follow-up
+
+Review TM-05 authorization/CSRF, TM-11 uploaded template validation, TM-16
+redaction, TM-20 suppression preservation and TM-21 clean-room boundaries for
+the authorized usability follow-up. New routes are private and default-deny;
+all mutations use CSRF POST, and full contact editors require Owner. Address
+search is a private POST body, not a query string. Inactive profile edits do not
+reactivate delivery. Suppression follows an address correction transactionally
+and remains durable at the previous address. Upload preparation is atomic for
+business rows, cleans private staged files on failure, and never dispatches
+mail. Import commit is bound to the draft's selected list and existing import
+access rules (Administrators/Owners may manage others' imports). The current
+session retains at most 100 opaque campaign/import references; pending imports
+block test/review in that session. After a session change, recover the upload
+through Imports; empty audiences still cannot be approved for delivery. SMTP
+confirmation uses existing password/MFA, throttle and session controls with
+no pending secret persistence. No public route, integration or new token
+purpose is introduced.

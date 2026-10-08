@@ -57,3 +57,14 @@ secret/private-data, origin, or network-safety item blocks the phase.
 - [ ] Documentation updated.
 - [ ] Manual operator actions identified.
 - [ ] Next phase not started automatically.
+
+## Release and update evidence
+
+- [ ] Every supported update path uses the exact signed predecessor package and
+  original sidecars, not only a version string, source checkout, or directory name.
+- [ ] The installed predecessor file set and digests match its signed manifest
+  before delivery quiescence, backup, migration, or pointer mutation.
+- [ ] Legacy package parsing is restricted to same-version predecessor evidence
+  and cannot relax the current target-package contract.
+- [ ] Security-sensitive file contents are `fsync`ed before publication and the
+  containing directory is `fsync`ed after namespace changes.

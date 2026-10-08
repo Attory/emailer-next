@@ -2,7 +2,7 @@
 {% block title %}Contacts — Emailer Next{% endblock %}
 {% block admin_body %}
 <h1>Contacts</h1>
-<p>Addresses remain masked in ordinary views. Suppression is global.</p>
+<p>{% if is_granted('ROLE_OWNER') %}Full email addresses are shown for your Owner account.{% else %}Addresses remain masked in ordinary views.{% endif %} Suppression is global.</p>
 <form method="post" action="{{ path('admin_contact_create') }}">
     <input type="hidden" name="_token" value="{{ csrf_token('contact-create') }}">
     <label>Email <input type="email" name="email" maxlength="254" required></label>
@@ -17,7 +17,8 @@
 </form>
 <table><thead><tr><th scope="col">Address</th><th scope="col">Name</th><th scope="col">Status</th><th scope="col">Actions</th></tr></thead><tbody>
 {% for contact in contacts %}<tr><td>{{ contact.email_display }}</td><td>{{ contact.display_name ?: contact.first_name }}</td><td>{{ contact.suppressed ? 'Suppressed' : 'Eligible data' }}</td><td>
-    {% if is_granted('ROLE_ADMINISTRATOR') %}<form method="post" action="{{ path('admin_contact_reveal', {id: contact.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('contact-reveal-' ~ contact.id) }}"><button type="submit">Reveal full address</button></form>{% endif %}
+    {% if is_granted('ROLE_OWNER') %}<a href="{{ path('admin_contact_edit', {id: contact.id}) }}">Edit contact</a>{% endif %}
+    {% if is_granted('ROLE_ADMINISTRATOR') and not is_granted('ROLE_OWNER') %}<form method="post" action="{{ path('admin_contact_reveal', {id: contact.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('contact-reveal-' ~ contact.id) }}"><button type="submit">Reveal full address</button></form>{% endif %}
     <form method="post" action="{{ path('admin_contact_archive', {id: contact.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('contact-archive-' ~ contact.id) }}"><button type="submit">Archive</button></form>
 </td></tr>{% else %}<tr><td colspan="4">No contacts.</td></tr>{% endfor %}
 </tbody></table>

@@ -80,9 +80,12 @@ final class AdminController extends AbstractController
         }
         $this->reauthentication->mark($request->getSession(), $purpose);
         $this->rotateAndBind($request, $user);
-        $this->addFlash('success', 'Recent re-authentication recorded.');
+        $this->addFlash('success', 'Identity confirmed for five minutes in this browser session.');
 
-        return $this->redirectToRoute('admin_dashboard', status: Response::HTTP_SEE_OTHER);
+        return $this->redirectToRoute(
+            'backup_management' === $purpose ? 'admin_backups' : 'admin_dashboard',
+            status: Response::HTTP_SEE_OTHER,
+        );
     }
 
     #[Route('/profile', name: 'admin_profile', methods: ['GET', 'HEAD'])]

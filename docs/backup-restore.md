@@ -1,8 +1,7 @@
 # Backup and restore
 
-**Status:** Accepted Phase 12 encrypted backup/recovery/CLI restore contract,
-including off-by-default scheduled transfer to an approved filesystem
-destination.
+**Status:** Phase 13 Version-1 encrypted backup/recovery/restore and master-key
+rotation contract under acceptance.
 
 ## Backup scope
 
@@ -56,6 +55,31 @@ Export the separate package interactively with
 operations, 64 MiB) and XChaCha20-Poly1305. Recover only a missing key with
 `emailer:secrets:recover-master-key`; an existing key is never replaced.
 
+## Master-key rotation recovery boundary
+
+`emailer:secrets:rotate-master-key` is not a routine update command. It requires
+interactive active-Owner password/MFA re-authentication, authenticates the
+current recovery package/passphrase against the live key, requires quiesced
+delivery, and creates a verified pre-rotation backup before any key change. Under the shared
+maintenance lock and database row locks, every encrypted record is authenticated
+with the old key and re-encrypted with a fresh key. Before publishing the new
+external file, the service durably journals both key sides and an opaque
+operation ID in the same mode-`0700` directory. The redacted audit marker uses
+that ID inside the database transaction. A reader cannot reconcile while the
+maintenance lock proves the rotation process is active. After a process crash,
+the next key access restores the old key when no committed marker exists or
+keeps the new key when the marker committed, then removes the journal. Ordinary
+in-process failures use the same reconciliation path.
+
+The reported pre-rotation backup remains encrypted under the old key. Keep it
+with the old recovery package in separate historical custody until rotation is
+accepted. Before resuming delivery, move the old recovery package out of the
+configured output path, export a new package with a new separately held
+passphrase, create/verify a new backup encrypted under the new key, run Doctor,
+and perform an isolated restore/secret-dependent smoke check. Never delete the
+old recovery material merely to make the exporter accept its exclusive output
+path.
+
 ## Restore procedure
 
 Restore is CLI-only and requires maintenance mode, Owner/operator approval,
@@ -72,6 +96,61 @@ resume.
 
 The restore command never obtains a backup path or passphrase from an HTTP
 request and never prints decrypted contents or key material.
+
+## Record an isolated restore drill
+
+Use a disposable, network-isolated environment with its own database,
+private directory, cache, lock directory, asset roots, and backup directory.
+Keep every copied key and private artifact inside restrictive storage and remove
+the temporary environment after recording its redacted evidence. Do not point
+the drill runtime at the live database or run its workers/scheduler.
+
+1. Provision the same application/schema and a separately protected copy of the
+   required master key, or recover a missing drill key from the separately held
+   package. Copy the exact encrypted backup into the drill backup directory.
+2. Quiesce the drill runtime, confirm zero active claims, and run interactively:
+
+   ```sh
+   php bin/console emailer:backup:restore /private/drill/backups/backup.enxbackup --drill-receipt
+   ```
+
+   This performs the real restore and safety-backup/rollback procedure. It then
+   compares every contributed table row and approved asset with the authenticated
+   snapshot in bounded batches. Only a successful comparison and successful
+   post-restore quiescence can publish a mode-`0600` receipt in the drill backup
+   directory. The protected CLI reports its path; no path or private content is
+   included in the receipt itself.
+3. Transfer the receipt into the originating installation's private backup
+   directory using mode `0600` and ownership `emailer:emailer`. Retain the exact
+   verified encrypted backup there. Run the commands as the `emailer` service
+   user with the protected runtime environment, as described in
+   [CLIENT-INSTALL-0.9.1.md](CLIENT-INSTALL-0.9.1.md#8-create-the-first-local-encrypted-backup).
+   On the originating installation, run interactively:
+
+   ```sh
+   php bin/console emailer:backup:record-restore-drill /private/live/backups/restore-drill-receipt.json
+   php bin/console emailer:doctor:run --json
+   ```
+
+The recorder authenticates a purpose-separated HMAC derived from the same
+external master key, verifies the retained backup, and matches its ID, digest,
+size, source/schema, and table/asset inventory. It updates only backup evidence
+and appends redacted audit evidence; it does not restore business data or change
+delivery state. Future/pre-backup timestamps, tampered receipts, a different
+key/backup, unsafe files, and missing/deleted/damaged artifacts fail closed.
+Replaying older evidence never advances the restore time to the import time;
+cadence uses the time the actual drill ran. Importing a receipt does not refresh
+`verified_at` or clear the independent backup-recency gate. A failed restore
+followed by safety rollback records no successful restore timestamp. Existing
+successful normal restores remain part of the historical restore-cadence metric;
+that metric alone does not certify an isolated comparison or human acceptance.
+
+The receipt proves authenticated restore/comparison, not independent key
+custody, recovery-passphrase correctness, host/network isolation, or human
+approval. Operators remain responsible for those boundaries and their evidence.
+Older unsigned diagnostic receipts cannot be imported: repeat the real drill
+with this command. No web endpoint accepts a receipt, backup, path, or restore
+operation, and no database migration or Doctor-gate exception is introduced.
 
 ## Drill and policy
 

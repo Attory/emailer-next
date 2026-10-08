@@ -9,6 +9,7 @@ use App\Module\Audit\Application\Contract\AuditSink;
 use App\Module\Identity\Application\Contract\AdministrativeAccessLevel;
 use App\Module\Identity\Application\Contract\AdministrativeActor;
 use App\Module\Identity\Application\Contract\AdministrativeAuthorization;
+use App\Module\Suppression\Application\Contract\AddressCorrectionSuppression;
 use App\Module\Suppression\Application\Contract\SuppressionLookup;
 use App\Shared\EmailAddress;
 use App\Shared\Identity;
@@ -21,6 +22,7 @@ final readonly class ContactManager
         private AdministrativeAuthorization $authorization,
         private AuditSink $audit,
         private SuppressionLookup $suppressions,
+        private AddressCorrectionSuppression $corrections,
     ) {
     }
 
@@ -31,12 +33,31 @@ final readonly class ContactManager
         $rows = $this->connection->fetchAllAssociative('SELECT c.* FROM contact c WHERE c.archived_at IS NULL ORDER BY c.updated_at DESC, c.id DESC LIMIT 500');
         foreach ($rows as &$row) {
             $address = new EmailAddress($this->stringValue($row['email_entered']));
-            $row['email_display'] = $address->masked();
+            $row['email_display'] = $actor->roleRank() >= AdministrativeAccessLevel::Owner->value ? $address->entered : $address->masked();
             $row['suppressed'] = $this->suppressions->isSuppressed($this->stringValue($row['email_canonical']));
             unset($row['email_entered'], $row['email_canonical']);
         }
 
+        if ($actor->roleRank() >= AdministrativeAccessLevel::Owner->value) {
+            $this->audit->append(new AuditRecord($actor->id(), 'contact.addresses.viewed', null, 'success', ['count' => \count($rows)]));
+        }
+
         return $rows;
+    }
+
+    /** @return array<string, mixed> */
+    public function contactForEdit(AdministrativeActor $actor, string $id): array
+    {
+        $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Owner, 'contacts.edit.view');
+        $this->assertUuid($id);
+        $row = $this->connection->fetchAssociative('SELECT * FROM contact WHERE id = ?', [$id]);
+        if (false === $row) {
+            throw new \InvalidArgumentException('Contact is unavailable.');
+        }
+        $row['attributes'] = $this->connection->fetchAllKeyValue('SELECT field_key, value_text FROM contact_attribute WHERE contact_id = ?', [$id]);
+        $this->audit->append(new AuditRecord($actor->id(), 'contact.address.revealed', $id, 'success'));
+
+        return $row;
     }
 
     public function reveal(AdministrativeActor $actor, string $id): string
@@ -94,6 +115,13 @@ final readonly class ContactManager
         $this->assertUuid($id);
         $address = new EmailAddress($email);
         $this->connection->transactional(function () use ($actor, $id, $address, $profile, $attributes): void {
+            $previous = $this->connection->fetchOne('SELECT email_canonical FROM contact WHERE id = ?'.($actor->roleRank() >= AdministrativeAccessLevel::Owner->value ? '' : " AND status = 'active'").' FOR UPDATE', [$id]);
+            if (!\is_string($previous)) {
+                throw new \InvalidArgumentException('Contact is unavailable.');
+            }
+            if ($previous !== $address->canonical) {
+                $this->corrections->preserve($actor, $previous, $address->canonical);
+            }
             $changed = $this->connection->update('contact', [
                 'email_entered' => $address->entered,
                 'email_canonical' => $address->canonical,
@@ -104,7 +132,7 @@ final readonly class ContactManager
                 'time_zone' => $this->timeZone($profile['time_zone'] ?? ''),
                 'consent_source' => $this->requiredText($profile['consent_source'] ?? 'manual', 120),
                 'updated_at' => Identity::now(),
-            ], ['id' => $id, 'status' => 'active']);
+            ], ['id' => $id]);
             if (1 !== $changed) {
                 throw new \InvalidArgumentException('Contact is unavailable.');
             }
@@ -154,6 +182,94 @@ final readonly class ContactManager
         $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'contacts.lists.list');
 
         return $this->connection->fetchAllAssociative('SELECT l.id, l.name, l.created_at, COUNT(m.contact_id) AS member_count FROM contact_list l LEFT JOIN list_membership m ON m.list_id = l.id WHERE l.archived_at IS NULL GROUP BY l.id, l.name, l.created_at ORDER BY l.name');
+    }
+
+    /** @return array<string, mixed> */
+    public function listInfo(AdministrativeActor $actor, string $id): array
+    {
+        $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'contacts.lists.view');
+        $this->assertUuid($id);
+        $row = $this->connection->fetchAssociative('SELECT id, name FROM contact_list WHERE id = ? AND archived_at IS NULL', [$id]);
+        if (false === $row) {
+            throw new \InvalidArgumentException('List is unavailable.');
+        }
+        $row['member_count'] = $this->intValue($this->connection->fetchOne('SELECT COUNT(*) FROM list_membership WHERE list_id = ?', [$id]));
+
+        return $row;
+    }
+
+    /** @return array{rows: list<array<string, mixed>>, total: int, page: int, pages: int} */
+    public function listPage(AdministrativeActor $actor, string $id, int $page = 1, string $query = '', bool $available = false): array
+    {
+        $this->listInfo($actor, $id);
+        if ($page < 1 || $page > 1000000 || !mb_check_encoding($query, 'UTF-8') || mb_strlen($query, 'UTF-8') > 160 || 0 !== preg_match('/[\x00-\x1F\x7F]/', $query)) {
+            throw new \InvalidArgumentException('List search is invalid.');
+        }
+        $owner = $actor->roleRank() >= AdministrativeAccessLevel::Owner->value;
+        $membership = 'EXISTS (SELECT 1 FROM list_membership m WHERE m.contact_id = c.id AND m.list_id = ?)';
+        $where = $available ? 'NOT '.$membership." AND c.archived_at IS NULL AND c.status = 'active'" : $membership;
+        $parameters = [$id];
+        if ('' !== trim($query)) {
+            $pattern = '%'.str_replace(['!', '%', '_'], ['!!', '!%', '!_'], trim($query)).'%';
+            $columns = ['display_name', 'first_name', 'last_name'];
+            if ($owner) {
+                $columns[] = 'email_entered';
+            }
+            $conditions = [];
+            foreach ($columns as $column) {
+                $conditions[] = "LOWER(c.$column) LIKE LOWER(?) ESCAPE '!'";
+                $parameters[] = $pattern;
+            }
+            $where .= ' AND ('.implode(' OR ', $conditions).')';
+        }
+        $total = $this->intValue($this->connection->fetchOne('SELECT COUNT(*) FROM contact c WHERE '.$where, $parameters));
+        $pages = max(1, (int) ceil($total / 100));
+        $page = min($page, $pages);
+        $rows = $this->connection->fetchAllAssociative('SELECT c.id, c.email_entered, c.display_name, c.first_name, c.last_name, c.status, c.archived_at, c.email_canonical FROM contact c WHERE '.$where.' ORDER BY c.email_canonical, c.id LIMIT 100 OFFSET '.(($page - 1) * 100), $parameters);
+        foreach ($rows as &$row) {
+            $address = new EmailAddress($this->stringValue($row['email_entered']));
+            $row['email_display'] = $owner ? $address->entered : $address->masked();
+            $row['suppressed'] = $this->suppressions->isSuppressed($this->stringValue($row['email_canonical']));
+            unset($row['email_entered'], $row['email_canonical']);
+        }
+        unset($row);
+        if ($owner) {
+            $this->audit->append(new AuditRecord($actor->id(), 'contact.list.addresses.viewed', $id, 'success', ['count' => \count($rows), 'page' => $page, 'available' => $available]));
+        }
+
+        return ['rows' => $rows, 'total' => $total, 'page' => $page, 'pages' => $pages];
+    }
+
+    public function renameList(AdministrativeActor $actor, string $id, string $name): void
+    {
+        $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'contacts.lists.rename');
+        $this->assertUuid($id);
+        $name = $this->requiredText($name, 160);
+        $this->connection->transactional(function () use ($actor, $id, $name): void {
+            if (1 !== $this->connection->executeStatement('UPDATE contact_list SET name = ?, updated_at = ? WHERE id = ? AND archived_at IS NULL', [$name, Identity::now(), $id])) {
+                throw new \InvalidArgumentException('List is unavailable.');
+            }
+            $this->audit->append(new AuditRecord($actor->id(), 'contact.list.renamed', $id, 'success'));
+        });
+    }
+
+    public function duplicateList(AdministrativeActor $actor, string $id, string $name): string
+    {
+        $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'contacts.lists.duplicate');
+        $this->assertUuid($id);
+        $name = $this->requiredText($name, 160);
+        $newId = Identity::uuidV7();
+        $this->connection->transactional(function () use ($actor, $id, $name, $newId): void {
+            if (false === $this->connection->fetchOne('SELECT id FROM contact_list WHERE id = ? AND archived_at IS NULL FOR UPDATE', [$id])) {
+                throw new \InvalidArgumentException('List is unavailable.');
+            }
+            $now = Identity::now();
+            $this->connection->insert('contact_list', ['id' => $newId, 'name' => $name, 'created_at' => $now, 'updated_at' => $now, 'archived_at' => null]);
+            $count = $this->connection->executeStatement('INSERT INTO list_membership (list_id, contact_id, source, created_at) SELECT ?, contact_id, ?, ? FROM list_membership WHERE list_id = ?', [$newId, 'duplicate', $now, $id]);
+            $this->audit->append(new AuditRecord($actor->id(), 'contact.list.duplicated', $newId, 'success', ['source_list' => $id, 'count' => $count]));
+        });
+
+        return $newId;
     }
 
     public function createList(AdministrativeActor $actor, string $name): string

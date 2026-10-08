@@ -1,0 +1,13 @@
+# Emailer Next 0.9.1 human-acceptance candidate
+
+- Source commit: `@SOURCE_COMMIT@`
+- Source date epoch: `@SOURCE_EPOCH@`
+- Archive SHA-256: `@ARCHIVE_SHA256@`
+- Root installer SHA-256: `@INSTALLER_SHA256@`
+- Bootstrap verifier SHA-256: `@VERIFIER_SHA256@`
+- Package inspector SHA-256: `@INSPECTOR_SHA256@`
+- Schema: `20260828000000`
+- Purpose: runnable pre-public candidate for browser, accessibility, installation, and operational acceptance
+- Reproducibility: two builds and all five package outputs were byte-identical
+- Signature: detached Ed25519 signature verified against the retained release public key
+- Publication/deployment: not performed by the candidate build

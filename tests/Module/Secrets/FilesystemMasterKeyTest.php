@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Tests\Module\Secrets;
 
+use App\Module\Secrets\Application\Contract\DirectoryDurability;
+use App\Module\Secrets\Application\Contract\FileDurability;
 use App\Module\Secrets\Infrastructure\FilesystemMasterKey;
 use PHPUnit\Framework\TestCase;
 
@@ -40,6 +42,54 @@ final class FilesystemMasterKeyTest extends TestCase
         self::assertSame(1, $metadata['nlink']);
     }
 
+    public function testCreateAndRecoveryCrossFileDurabilityBarriersBeforePublication(): void
+    {
+        $durability = new RecordingFileDurability();
+        $provider = $this->provider(fileDurability: $durability);
+        $provider->create();
+        self::assertSame(1, $durability->calls);
+
+        self::assertTrue(unlink($this->root.'/external/secrets/master.key'));
+        $recovered = random_bytes(32);
+        try {
+            $provider->recover($recovered);
+        } finally {
+            sodium_memzero($recovered);
+        }
+        self::assertSame(2, $durability->calls);
+    }
+
+    public function testFailedCreateFileBarrierPublishesNoKey(): void
+    {
+        $provider = $this->provider(fileDurability: new RecordingFileDurability(1));
+        try {
+            $provider->create();
+            self::fail('A failed master-key file durability barrier was accepted.');
+        } catch (\RuntimeException $exception) {
+            self::assertStringContainsString('durability', strtolower($exception->getMessage()));
+        }
+        self::assertFileDoesNotExist($this->root.'/external/secrets/master.key');
+        self::assertSame([], glob($this->root.'/external/secrets/.master-key-*.tmp'));
+    }
+
+    public function testFailedRecoveryFileBarrierPublishesNoKey(): void
+    {
+        $provider = $this->provider(fileDurability: new RecordingFileDurability(1));
+        $recovered = random_bytes(32);
+        try {
+            try {
+                $provider->recover($recovered);
+                self::fail('A failed recovered-key file durability barrier was accepted.');
+            } catch (\RuntimeException $exception) {
+                self::assertStringContainsString('durability', strtolower($exception->getMessage()));
+            }
+        } finally {
+            sodium_memzero($recovered);
+        }
+        self::assertFileDoesNotExist($this->root.'/external/secrets/master.key');
+        self::assertSame([], glob($this->root.'/external/secrets/.master-key-recovery-*.tmp'));
+    }
+
     public function testOmittedRelativeReleaseAndPublicConfigurationFailClosed(): void
     {
         foreach ([
@@ -64,6 +114,34 @@ final class FilesystemMasterKeyTest extends TestCase
         $key = $provider->load();
         self::assertSame(32, \strlen($key));
         sodium_memzero($key);
+    }
+
+    public function testReplacementRequiresExpectedKeyAndPublishesRestrictively(): void
+    {
+        $provider = $this->provider();
+        $provider->create();
+        $old = $provider->load();
+        $replacement = random_bytes(32);
+
+        try {
+            $provider->replace($old, $replacement);
+            $loaded = $provider->load();
+            try {
+                self::assertTrue(hash_equals($replacement, $loaded));
+            } finally {
+                sodium_memzero($loaded);
+            }
+            self::assertSame(0o600, fileperms($this->root.'/external/secrets/master.key') & 0o777);
+            $metadata = stat($this->root.'/external/secrets/master.key');
+            self::assertIsArray($metadata);
+            self::assertSame(1, $metadata['nlink']);
+
+            $this->expectException(\RuntimeException::class);
+            $provider->replace($old, random_bytes(32));
+        } finally {
+            sodium_memzero($old);
+            sodium_memzero($replacement);
+        }
     }
 
     public function testMissingMalformedUnsafeSymlinkHardlinkAndNestedSymlinkEscapeFailClosed(): void
@@ -111,13 +189,70 @@ final class FilesystemMasterKeyTest extends TestCase
         $this->expectLoadFailure($this->provider());
     }
 
-    private function provider(): FilesystemMasterKey
+    public function testRotationNamespaceMutationsCrossDirectoryDurabilityBarriers(): void
+    {
+        $durability = new RecordingDirectoryDurability();
+        $provider = $this->provider($durability);
+        $provider->create();
+        $old = $provider->load();
+        $replacement = random_bytes(32);
+        $operationId = '018f1f6e-7b2c-7a3d-8c4e-0123456789ab';
+        try {
+            $provider->prepareRotation($old, $replacement, $operationId);
+            $provider->publishRotation($operationId);
+            $provider->resolveRotation($operationId, false);
+            $loaded = $provider->load();
+            try {
+                self::assertTrue(hash_equals($old, $loaded));
+            } finally {
+                sodium_memzero($loaded);
+            }
+        } finally {
+            sodium_memzero($old);
+            sodium_memzero($replacement);
+        }
+
+        self::assertGreaterThanOrEqual(5, $durability->calls);
+        self::assertSame(array_fill(0, $durability->calls, $this->root.'/external/secrets'), $durability->directories);
+        self::assertFileDoesNotExist($this->root.'/external/secrets/master.key.rotation-journal');
+    }
+
+    public function testFailedReplacementDirectoryBarrierRestoresTheDurableOldKey(): void
+    {
+        $durability = new RecordingDirectoryDurability(2);
+        $provider = $this->provider($durability);
+        $provider->create();
+        $old = $provider->load();
+        $replacement = random_bytes(32);
+        try {
+            try {
+                $provider->replace($old, $replacement);
+                self::fail('A failed directory durability barrier was accepted.');
+            } catch (\RuntimeException $exception) {
+                self::assertStringContainsString('durability', strtolower($exception->getMessage()));
+            }
+            $loaded = $provider->load();
+            try {
+                self::assertTrue(hash_equals($old, $loaded));
+            } finally {
+                sodium_memzero($loaded);
+            }
+        } finally {
+            sodium_memzero($old);
+            sodium_memzero($replacement);
+        }
+        self::assertSame(3, $durability->calls);
+    }
+
+    private function provider(?DirectoryDurability $durability = null, ?FileDurability $fileDurability = null): FilesystemMasterKey
     {
         return new FilesystemMasterKey(
             $this->root.'/external/secrets/master.key',
             $this->root.'/release/public',
             $this->root.'/release',
             'prod',
+            $durability,
+            $fileDurability,
         );
     }
 
@@ -160,5 +295,43 @@ final class FilesystemMasterKeyTest extends TestCase
             }
         }
         rmdir($directory);
+    }
+}
+
+final class RecordingDirectoryDurability implements DirectoryDurability
+{
+    public int $calls = 0;
+
+    /** @var list<string> */
+    public array $directories = [];
+
+    public function __construct(private readonly ?int $failOnCall = null)
+    {
+    }
+
+    public function sync(string $directory): void
+    {
+        ++$this->calls;
+        $this->directories[] = $directory;
+        if ($this->failOnCall === $this->calls) {
+            throw new \RuntimeException('Synthetic directory durability barrier failed.');
+        }
+    }
+}
+
+final class RecordingFileDurability implements FileDurability
+{
+    public int $calls = 0;
+
+    public function __construct(private readonly ?int $failOnCall = null)
+    {
+    }
+
+    public function sync(mixed $handle): void
+    {
+        ++$this->calls;
+        if ($this->failOnCall === $this->calls) {
+            throw new \RuntimeException('Synthetic file durability barrier failed.');
+        }
     }
 }

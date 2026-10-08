@@ -1,6 +1,14 @@
 # Initial data model
 
-**Status:** Accepted Phase 12 `0.4.0` candidate schema.
+**Status:** Phase 13 `1.0.0` acceptance retains the accepted Phase 12 schema at
+`20260828000000`; no Phase 13 migration or table is added.
+
+The walkthrough repair records authenticated isolated-drill evidence in the
+existing `backup_record.restored_at` field. That UTC timestamp is the actual
+restore/comparison time, never the later receipt import time. The exact retained
+backup is authenticated before recording, updates are monotonic/idempotent,
+and an append-only redacted audit event records the outcome. Newer backups do
+not hide the latest restore evidence from the operational dashboard.
 
 `DoctrineMigrations\Version20260723000000` remains the no-schema platform
 smoke check. Phase 3 adds `Version20260815000000`, which creates only the
@@ -185,7 +193,7 @@ provider-DKIM one-click attestation used for that campaign.
 | Class | Examples | Storage and exposure rule |
 | --- | --- | --- |
 | Secret | Master key, SMTP credential, TOTP seed | External restrictive file or authenticated ciphertext only; never logs/URLs/queue |
-| Restricted personal | Full address, contact attributes, RSVP values | MariaDB/private storage; role checked; masked in ordinary operations |
+| Restricted personal | Full address, contact attributes, RSVP values | MariaDB/private storage; role checked; full private Owner reads, masked for lower roles (authorized Phase 13 exception) |
 | Internal | Campaign names, counts, health evidence, audit metadata | Authenticated access; redact exports and logs as needed |
 | Public-token data | Unsubscribe/view/tracking token | Opaque in URL; purpose scoped; no embedded raw address |
 | Public | Static application assets, coarse liveness state | Explicit allowlist under `public/` |

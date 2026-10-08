@@ -6,7 +6,7 @@ namespace App\Module\Configuration\Presentation\Http;
 
 use App\Module\Configuration\Application\MailConfigurationManager;
 use App\Module\Identity\Application\Contract\AdministrativeActor;
-use App\Module\Identity\Application\ReauthenticationService;
+use App\Module\Identity\Application\Contract\SensitiveActionAuthorizer;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
@@ -15,14 +15,14 @@ use Symfony\Component\Routing\Attribute\Route;
 #[Route('/admin/settings/mail')]
 final class MailConfigurationController extends AbstractController
 {
-    public function __construct(private readonly MailConfigurationManager $mail, private readonly ReauthenticationService $reauthentication)
+    public function __construct(private readonly MailConfigurationManager $mail, private readonly SensitiveActionAuthorizer $reauthentication)
     {
     }
 
     #[Route('', name: 'admin_mail_settings', methods: ['GET', 'HEAD'])]
-    public function view(): Response
+    public function view(Request $request): Response
     {
-        return $this->render('admin/mail-settings.html.twig', ['mail' => $this->mail->view($this->actor())]);
+        return $this->render('admin/mail-settings.html.twig', ['mail' => $this->mail->view($this->actor()), 'confirmation_expires_at' => $this->reauthentication->expiresAt($request->getSession(), 'mail_configuration')]);
     }
 
     #[Route('/update', name: 'admin_mail_settings_update', methods: ['POST'])]
@@ -31,7 +31,13 @@ final class MailConfigurationController extends AbstractController
         if (!$this->isCsrfTokenValid('mail-settings-update', $request->request->getString('_token'))) {
             return new Response('Request not accepted.', Response::HTTP_BAD_REQUEST);
         }
-        $this->reauthentication->assertRecent($request->getSession(), 'mail_configuration');
+        if (!$this->reauthentication->isRecent($request->getSession(), 'mail_configuration')
+            && ('' === $request->request->getString('owner_password') || !$this->reauthentication->confirm($request->getSession(), $this->actor(), $request->request->getString('owner_password'), $request->request->getString('owner_mfa_code'), 'mail_configuration', $request->getClientIp(), $request->headers->get('User-Agent')))
+        ) {
+            $this->addFlash('error', 'Owner identity confirmation failed. Re-enter your current Owner password and authenticator or recovery code to store SMTP settings.');
+
+            return $this->redirectToRoute('admin_mail_settings', status: Response::HTTP_SEE_OTHER);
+        }
         try {
             $this->mail->configureSecureSmtp($this->actor(), $request->request->getString('host'), $request->request->getInt('port'), $request->request->getString('encryption'), $request->request->getString('username'), $request->request->getString('password'), $request->request->getString('sender_address'), $request->request->getString('sender_name'), $request->request->getString('reply_to'), $request->request->getBoolean('one_click_dkim_confirmed'));
             $this->addFlash('success', 'Secure SMTP configuration updated. No provider connection was attempted.');

@@ -1,0 +1,10 @@
+<div class="actions" aria-label="Actions for {{ list.name }}">
+    <a href="{{ path('admin_list', {id: list.id}) }}">View</a>
+    <a href="{{ path('admin_list_edit', {id: list.id}) }}">Edit</a>
+    <a href="{{ path('admin_campaigns', {list: list.id}) }}">Send to</a>
+    <a href="{{ path('admin_list_duplicate', {id: list.id}) }}">Duplicate</a>
+    <form method="post" action="{{ path('admin_list_archive', {id: list.id}) }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('list-archive-' ~ list.id) }}">
+        <button type="submit">Archive</button>
+    </form>
+</div>

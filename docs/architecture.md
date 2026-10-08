@@ -1,10 +1,27 @@
 # Architecture
 
-**Status:** Accepted Phase 12 `0.4.0` candidate architecture.
+**Status:** Phase 13 Version-1 hardening architecture under acceptance.
 
-**Last reviewed:** 2026-08-26
+**Last reviewed:** 2026-08-27
 
 ## System context
+
+The Phase 13 walkthrough repair keeps the schema and HTTP surface unchanged.
+`Backup` now issues private authenticated evidence after an isolated real
+restore and complete bounded snapshot comparison. A separate interactive CLI
+records that evidence against the originating retained backup and Audit
+contract. Health remains read-only and derives cadence from the recorded actual
+restore time; there is no acknowledgement, manual timestamp, or SMTP bypass.
+
+Phase 13 preserves the modular-monolith and schema boundaries. It closes two
+previously reserved CLI contracts without adding an HTTP route: the protected
+terminal installer orchestrates existing Setup, Configuration, Identity, and
+Health services, while `Secrets` owns application-layer master-key rotation
+using Backup and Audit contracts plus the shared installation-wide maintenance
+lock. A restrictive external journal bridges the filesystem publication and
+database commit: first key access after a crash selects old or new key from the
+committed opaque audit marker, while the maintenance lock blocks premature
+reconciliation by another process. The current schema remains `20260828000000`.
 
 Phase 12 adds an `Operations` application-coordination module. It owns only
 bounded scheduler policy/run evidence and consumes published Health,
@@ -108,6 +125,19 @@ verified restore. Phase 9 turns that mechanism into the reproducible signed
 operator-controlled signing custody, clean-install/update rehearsal, and no
 publication or deployment side effect.
 
+Phase 13's combined release-train update never delegates compatibility policy
+to an older predecessor binary. The operator authenticates the `1.0.0` package
+before extraction or root configuration, freezes a root-owned target-code
+tree, records the exact source version in a root-only environment file, and
+runs that target updater through a root-controlled one-shot unit. The updater
+requires the recorded source to equal the basename of the current immutable
+pointer, verifies the retained signed predecessor package under the pinned key,
+and requires every installed predecessor file to match that signed manifest
+before mutation. It then publishes a recursively root-owned, non-writable release.
+All processes use the explicit shared flock path under application-private
+storage; systemd private temporary directories never partition the maintenance
+lock.
+
 Template assets move to persistent private storage outside immutable release
 directories and are exposed only through the exact random-name public asset
 route; updates therefore never make mutable data part of a release tree.
@@ -116,8 +146,12 @@ route; updates therefore never make mutable data part of a release tree.
 
 An absent private installation lock keeps ordinary application routes at a
 generic setup-required response. `GET /setup` issues a rate-limited challenge;
-`POST /setup/proof/verify` verifies only `.emailer-install-proof`, deletes proof
-and private state on success, and rotates the session. Preflight then requires
+`POST /setup/proof/verify` verifies only the fixed configured
+`.emailer-install-proof`, deletes proof and private state on success, and
+rotates the session. Development defaults that path to the application root;
+immutable client releases set `EMAILER_INSTALL_PROOF_FILE` to a service-owned
+setup directory outside release code so the service can delete the transient
+proof without release-write authority. Preflight then requires
 the verified session and HTTPS. A present lock makes every setup route return
 404. Phase 3 publishes the lock only after all setup rows, explicit external-key
 validation, exact Mailpit evidence, safe defaults, and CLI capability checks
@@ -155,7 +189,9 @@ flowchart LR
    never define campaign progress.
 4. Dynamic secrets are authenticated-encrypted in the database. The 32-byte
    master key is stored in a restrictive external file and never in the
-   database, queue, logs, session, or Git.
+   database, queue, logs, session, or Git. Rotation journals both key sides only
+   in the same external mode-`0700` custody boundary until committed audit
+   evidence resolves the crash window.
 5. Delivery is at-least-once processing with best-effort duplicate
    minimisation. The product never claims exactly-once SMTP delivery.
 6. Every production message is constructed for one recipient. There is no
@@ -262,13 +298,27 @@ current-release pointer selects the active code. Client configuration, the
 external master key, private/writable state, and backups remain outside every
 release. A deterministic manifest, checksum, SPDX SBOM, and detached Ed25519
 signature bind package identity and compatibility. Only an explicit operator
-CLI may verify, quiesce, back up, migrate, switch, and health-check an update;
-there is no web or unattended update path. Phase 1 tests the artifact boundary,
+CLI may verify, quiesce, back up, migrate, switch, and health-check an update.
+Production publication uses authenticated target-version code under a
+root-controlled one-shot service; ordinary web/worker identities cannot change
+release ownership or modes. There is no web or unattended update path. Phase 1 tests the artifact boundary,
 Phase 8 implements this topology, and Phase 9 rehearses the first MVP package.
 Deployment, publishing, and rollback remain explicit operator actions.
 
 ## Decision records
 
-The design is governed by accepted ADRs `0001` through `0011` in
+The design is governed by accepted ADRs `0001` through `0013` in
 [docs/adr](adr/). A change to an invariant requires a superseding ADR, updated
 threat model, route/data review where relevant, and passing quality gates.
+
+## Phase 13 Owner workflow repair
+
+Presentation adds private list/template editors and a multipart campaign composer.
+Campaign preparation coordinates existing Contacts/Import and Templates through
+Application contracts, sharing the existing DBAL transaction for atomic business
+state and cleaning staged upload files on failure. Draft creation never calls
+delivery. Identity exposes a purpose-scoped sensitive-action contract for inline
+SMTP confirmation and session rotation; Configuration retains encrypted storage.
+Contacts requests suppression preservation through an add-only Suppression
+contract inside profile updates. No schema, worker, dependency or public surface
+is added. Existing immutable snapshots and pre-attempt suppression remain intact.

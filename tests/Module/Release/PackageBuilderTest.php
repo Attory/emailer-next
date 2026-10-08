@@ -51,6 +51,7 @@ final class PackageBuilderTest extends TestCase
         $manifest = json_decode((string) file_get_contents($first.'.manifest.json'), true, flags: JSON_THROW_ON_ERROR);
         self::assertIsArray($manifest);
         self::assertSame('0.1.0', $manifest['version'] ?? null);
+        self::assertSame(['0.1.0'], $manifest['supported_source_versions'] ?? null);
         self::assertSame('20260824000000', $manifest['minimum_schema_version'] ?? null);
         self::assertSame('20260824010000', $manifest['schema_version'] ?? null);
     }

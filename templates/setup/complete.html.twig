@@ -3,10 +3,11 @@
 {% block body %}
 <main>
     <h1>Final critical preflight</h1>
-    <p>Completion is irreversible through HTTP. It validates the database, external key, Owner, sender, fake-mail test, privacy defaults, and CLI capabilities before publishing the installation lock.</p>
+    <p>This final check does not send a campaign. It validates the database, external master key, active Owner, local Mailpit test, sender identity, privacy defaults, and CLI capabilities.</p>
+    <p>After the button succeeds, setup is permanently disabled and <code>/setup</code> will return Not Found by design. Continue at <code>/login</code>. Reopening setup later requires the protected CLI reset workflow and a verified backup.</p>
     <form method="post" action="{{ path('setup_complete') }}">
         <input type="hidden" name="_token" value="{{ csrf_token('setup-complete') }}">
-        <button type="submit">Complete and permanently lock setup</button>
+        <button type="submit">Complete installation and permanently close setup</button>
     </form>
 </main>
 {% endblock %}

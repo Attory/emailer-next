@@ -9,10 +9,12 @@ use App\Module\Audit\Application\Contract\AuditSink;
 use App\Module\Campaigns\Application\Contract\SendingGate;
 use App\Module\Configuration\Application\Contract\DeliveryConfiguration;
 use App\Module\Contacts\Application\Contract\AudienceProvider;
+use App\Module\Contacts\Application\Contract\CampaignAudiencePreparation;
 use App\Module\Delivery\Application\Contract\CampaignDeliveryGateway;
 use App\Module\Identity\Application\Contract\AdministrativeAccessLevel;
 use App\Module\Identity\Application\Contract\AdministrativeActor;
 use App\Module\Identity\Application\Contract\AdministrativeAuthorization;
+use App\Module\Templates\Application\Contract\CampaignTemplatePreparation;
 use App\Module\Templates\Application\Contract\PublishedTemplateProvider;
 use App\Shared\EmailAddress;
 use App\Shared\Identity;
@@ -25,7 +27,9 @@ final readonly class CampaignManager
         private AdministrativeAuthorization $authorization,
         private AuditSink $audit,
         private AudienceProvider $audiences,
+        private CampaignAudiencePreparation $uploads,
         private PublishedTemplateProvider $templates,
+        private CampaignTemplatePreparation $preparation,
         private DeliveryConfiguration $configuration,
         private CampaignDeliveryGateway $delivery,
         private SendingGate $sendingGate,
@@ -108,6 +112,42 @@ final readonly class CampaignManager
         return $id;
     }
 
+    /** @param list<string> $listIds
+     * @param array{name: string, subject: string, preheader: string, html: string}|null          $content
+     * @param array{name: string, source: string, mode: string, mapping: array<string, int>}|null $audience
+     *
+     * @return array{id: string, import_id: ?string}
+     */
+    public function prepareDraft(AdministrativeActor $actor, string $name, string $version, array $listIds, ?array $content = null, ?array $audience = null): array
+    {
+        $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'campaign.prepare');
+
+        return $this->connection->transactional(function () use ($actor, $name, $version, $listIds, $content, $audience): array {
+            $importId = null;
+            try {
+                if (null !== $content) {
+                    $version = $this->preparation->prepareContent($actor, $content['name'], $content['subject'], $content['preheader'], $content['html']);
+                }
+                $this->preparation->publishForDraft($actor, $version);
+                if (null !== $audience) {
+                    $import = $this->uploads->prepareImport($actor, $audience['name'], $audience['source'], $audience['mode'], $audience['mapping']);
+                    if (!\is_string($import['id']) || !\is_string($import['list_id'])) {
+                        throw new \UnexpectedValueException('Prepared audience is invalid.');
+                    }
+                    $importId = $import['id'];
+                    $listIds = [$import['list_id']];
+                }
+
+                return ['id' => $this->create($actor, $name, $version, $listIds), 'import_id' => $importId];
+            } catch (\Throwable $exception) {
+                if (null !== $importId) {
+                    $this->uploads->discardPreparedFiles($actor, $importId);
+                }
+                throw $exception;
+            }
+        });
+    }
+
     public function configureRsvp(AdministrativeActor $actor, string $id, bool $enabled): void
     {
         $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'campaign.rsvp.configure');
@@ -124,6 +164,20 @@ final readonly class CampaignManager
     public function submitForReview(AdministrativeActor $actor, string $id): void
     {
         $this->transition($actor, $id, ['draft'], 'review', 'campaign.review.submitted');
+    }
+
+    public function commitAudienceUpload(AdministrativeActor $actor, string $campaignId, string $importId): void
+    {
+        $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'campaign.audience.import');
+        $this->uuid($campaignId);
+        $this->connection->transactional(function () use ($actor, $campaignId, $importId): void {
+            $state = $this->connection->fetchOne('SELECT state FROM campaign WHERE id = ? FOR UPDATE', [$campaignId]);
+            $import = $this->uploads->importSummary($actor, $importId);
+            if ('draft' !== $state || !\is_string($import['list_id']) || false === $this->connection->fetchOne('SELECT 1 FROM campaign_list_selection WHERE campaign_id = ? AND list_id = ?', [$campaignId, $import['list_id']])) {
+                throw new \DomainException('Campaign upload does not match this draft.');
+            }
+            $this->uploads->commitImport($actor, $importId);
+        });
     }
 
     public function requestTest(AdministrativeActor $actor, string $campaignId): string

@@ -119,16 +119,19 @@
         ],
         "check:composer": [
             "@composer validate --strict",
-            "@composer audit --locked --abandoned=fail"
+            "@composer audit --locked --abandoned=fail",
+            "@php tools/quality/check-license-policy.php"
         ],
         "check:style": "php-cs-fixer --using-cache=no fix --dry-run --diff",
         "check:static": [
             "phpstan analyse --memory-limit=512M",
             "deptrac analyse --no-progress --cache-file=var/cache/deptrac.cache",
             "@php tools/quality/check-module-boundaries.php",
+            "@php -l tools/quality/check-license-policy.php",
             "@php -l tools/release/build-package.php",
             "@php -l tools/release/verify-package.php",
-            "@php -l tools/release/generate-test-keypair.php"
+            "@php -l tools/release/generate-test-keypair.php",
+            "@php -l tools/security/check-master-key-access.php"
         ],
         "test": "phpunit",
         "check:migrations": "bash tools/quality/check-migrations.sh",

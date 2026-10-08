@@ -20,10 +20,11 @@ for output in "$temporary_root/first" "$temporary_root/second"; do
     php "$project_root/tools/release/build-package.php" \
         --artifact="$project_root/build/artifact" \
         --output="$output" \
-        --version=0.4.0 \
+        --version=1.0.0 \
         --source="$source_commit" \
-        --minimum-source=0.3.0 \
-        --minimum-schema=20260827000000 \
+        --minimum-source=0.1.0 \
+        --supported-sources=0.1.0,0.2.0,0.3.0,0.4.0 \
+        --minimum-schema=20260824010000 \
         --schema=20260828000000 \
         --rollback-schema-compatible=false \
         --signing-key="$temporary_root/signing.key" \
@@ -31,22 +32,34 @@ for output in "$temporary_root/first" "$temporary_root/second"; do
 done
 
 for suffix in '' .manifest.json .sha256 .spdx.json .sig; do
-    cmp "$temporary_root/first/emailer-next-0.4.0.zip$suffix" "$temporary_root/second/emailer-next-0.4.0.zip$suffix"
+    cmp "$temporary_root/first/emailer-next-1.0.0.zip$suffix" "$temporary_root/second/emailer-next-1.0.0.zip$suffix"
 done
 
-php "$project_root/tools/release/verify-package.php" \
-    --archive="$temporary_root/first/emailer-next-0.4.0.zip" \
-    --public-key="$temporary_root/release.pub" \
-    --current-version=0.3.0 \
-    --expected-version=0.4.0 \
-    --expected-source="$source_commit" >/dev/null
+mkdir "$temporary_root/standalone-verifier"
+install -m 0644 "$project_root/tools/release/verify-package.php" "$temporary_root/standalone-verifier/verify-package.php"
+install -m 0644 "$project_root/src/Module/Release/Application/PackageInspector.php" "$temporary_root/standalone-verifier/PackageInspector.php"
+
+for supported_source in 0.1.0 0.2.0 0.3.0 0.4.0; do
+    php "$temporary_root/standalone-verifier/verify-package.php" \
+        --archive="$temporary_root/first/emailer-next-1.0.0.zip" \
+        --public-key="$temporary_root/release.pub" \
+        --current-version="$supported_source" \
+        --expected-version=1.0.0 \
+        --expected-source="$source_commit" >/dev/null
+    mkdir "$temporary_root/target-runtime-$supported_source"
+    EMAILER_RUNTIME_DIR="$temporary_root/target-runtime-$supported_source" \
+    EMAILER_RELEASE_PUBLIC_KEY_FILE="$temporary_root/release.pub" \
+    EMAILER_UPDATE_SOURCE_VERSION="$supported_source" \
+    php "$project_root/build/artifact/bin/console" emailer:release:inspect \
+        "$temporary_root/first/emailer-next-1.0.0.zip" >/dev/null
+done
 
 EMAILER_RELEASE_PUBLIC_KEY_FILE="$temporary_root/release.pub" \
 EMAILER_RELEASES_DIR="$temporary_root/releases" \
 php "$project_root/bin/console" emailer:release:install \
-    "$temporary_root/first/emailer-next-0.4.0.zip" >/dev/null
-test -f "$temporary_root/releases/0.4.0/bin/console"
+    "$temporary_root/first/emailer-next-1.0.0.zip" >/dev/null
+test -f "$temporary_root/releases/1.0.0/bin/console"
 test ! -e "$temporary_root/releases/current"
-test "$(stat -c '%a' "$temporary_root/releases/0.4.0/bin/console")" = 444
+test "$(stat -c '%a' "$temporary_root/releases/1.0.0/bin/console")" = 444
 
-printf 'Deterministic signed candidate tooling and clean install verified.\n'
+printf 'Deterministic signed 1.0.0 tooling, supported-source verification, and clean install verified.\n'

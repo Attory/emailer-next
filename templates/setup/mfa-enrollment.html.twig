@@ -4,15 +4,17 @@
 <main>
     <h1>Save Owner MFA recovery material</h1>
     <p>This TOTP seed and these recovery codes are displayed once. They are not retained in plaintext and cannot be redisplayed.</p>
+    <p>In an authenticator app, add a new account by scanning/importing the provisioning URI or manually entering the TOTP seed. The authenticator app—not Emailer Next—then generates a new six-digit code every 30 seconds. Enter the currently displayed code below.</p>
+    <p>Store the recovery codes outside this server. They are emergency one-time substitutes for the authenticator code; do not enter a recovery code in the six-digit field during enrolment.</p>
     <p><strong>TOTP seed:</strong> <code>{{ seed }}</code></p>
     <p><strong>Provisioning URI:</strong> <code>{{ provisioning_uri }}</code></p>
     <ul>{% for code in recovery_codes %}<li><code>{{ code }}</code></li>{% endfor %}</ul>
     <form method="post" action="{{ path('setup_owner') }}" autocomplete="off">
         <input type="hidden" name="_token" value="{{ csrf_token('setup-owner') }}">
         <input type="hidden" name="action" value="confirm_mfa">
-        <label>Current six-digit TOTP code <input name="totp_code" inputmode="numeric" pattern="[0-9]{6}" required autocomplete="one-time-code"></label>
+        <label>Current six-digit code from your authenticator app <input name="totp_code" inputmode="numeric" pattern="[0-9]{6}" required autocomplete="one-time-code"></label>
         <label><input name="recovery_saved" type="checkbox" value="1" required> I saved the recovery codes outside this server</label>
-        <button type="submit">Confirm MFA</button>
+        <button type="submit">Verify authenticator and finish MFA enrolment</button>
     </form>
 </main>
 {% endblock %}

@@ -4,7 +4,8 @@ parameters:
     emailer.setup_dir: '%emailer.private_dir%/setup'
     emailer.setup_state_file: '%emailer.setup_dir%/challenge.json'
     emailer.setup_cli_state_file: '%emailer.setup_dir%/cli-state.json'
-    emailer.proof_file: '%kernel.project_dir%/.emailer-install-proof'
+    emailer.default_proof_file: '%kernel.project_dir%/.emailer-install-proof'
+    emailer.proof_file: '%env(default:emailer.default_proof_file:EMAILER_INSTALL_PROOF_FILE)%'
     emailer.install_lock_file: '%emailer.private_dir%/install.lock'
     emailer.import_dir: '%emailer.private_dir%/imports'
     emailer.template_asset_dir: '%emailer.private_dir%/template-assets'
@@ -17,7 +18,8 @@ parameters:
     emailer.release_public_key_file: '%env(default:emailer.default_release_public_key_file:EMAILER_RELEASE_PUBLIC_KEY_FILE)%'
     emailer.default_releases_dir: ''
     emailer.releases_dir: '%env(default:emailer.default_releases_dir:EMAILER_RELEASES_DIR)%'
-    emailer.app_version: '0.4.0'
+    emailer.app_version: '1.0.0'
+    emailer.update_source_version: '%env(default:emailer.app_version:EMAILER_UPDATE_SOURCE_VERSION)%'
     emailer.schema_version: '20260828000000'
     emailer.default_uri: '%env(DEFAULT_URI)%'
     emailer.default_master_key_file: ''
@@ -105,12 +107,18 @@ services:
             $projectDirectory: '%kernel.project_dir%'
             $environment: '%kernel.environment%'
 
-    App\Module\Secrets\Application\Contract\MasterKey: '@App\Module\Secrets\Infrastructure\FilesystemMasterKey'
+    App\Module\Secrets\Application\Contract\DirectoryDurability: '@App\Module\Secrets\Infrastructure\PosixDirectoryDurability'
+    App\Module\Secrets\Application\Contract\FileDurability: '@App\Module\Secrets\Infrastructure\PosixFileDurability'
+
+    App\Module\Secrets\Application\Contract\MasterKey: '@App\Module\Secrets\Infrastructure\CrashRecoveringMasterKey'
+    App\Module\Secrets\Application\Contract\TransactionalMasterKey: '@App\Module\Secrets\Infrastructure\CrashRecoveringMasterKey'
     App\Module\Setup\Application\Contract\SetupLifecycle: '@App\Module\Setup\Infrastructure\LockedSetupLifecycle'
     App\Module\Secrets\Application\Contract\SecretVault: '@App\Module\Secrets\Infrastructure\DoctrineSecretVault'
+    App\Module\Secrets\Application\Contract\RecoveryKeyVerifier: '@App\Module\Secrets\Application\RecoveryKeyExporter'
     App\Module\Setup\Application\Contract\SetupState: '@App\Module\Setup\Infrastructure\DoctrineSetupState'
     App\Module\Configuration\Application\Contract\ConfigurationSetup: '@App\Module\Configuration\Infrastructure\DoctrineConfigurationSetup'
     App\Module\Identity\Application\Contract\OwnerSetup: '@App\Module\Identity\Infrastructure\DoctrineOwnerSetup'
+    App\Module\Identity\Application\Contract\AdministrativeUserLoader: '@App\Module\Identity\Infrastructure\DoctrineUserProvider'
     App\Module\Identity\Application\Contract\RecoveryCodeConsumer: '@App\Module\Identity\Infrastructure\DoctrineRecoveryCodeConsumer'
     App\Module\Health\Application\Contract\SetupDoctor: '@App\Module\Health\Infrastructure\Phase3SetupDoctor'
     App\Module\Health\Application\Contract\ScheduledHealthOperations: '@App\Module\Health\Application\Doctor'
@@ -146,6 +154,8 @@ services:
             $contributors: !tagged_iterator emailer.backup_contributor
             $backupDirectory: '%emailer.backup_dir%'
             $sourceVersion: '%emailer.app_version%'
+            $drillEvidence: '@App\Module\Backup\Application\RestoreDrillEvidence'
+            $audit: '@App\Module\Audit\Application\Contract\AuditSink'
 
     App\Module\Operations\Application\OperationsDashboard:
         arguments:
@@ -191,6 +201,10 @@ services:
         arguments:
             $environment: '%kernel.environment%'
 
+    App\Module\Delivery\Infrastructure\OutboundMimeMessageFactory:
+        arguments:
+            $canonicalUri: '%emailer.default_uri%'
+
     App\Module\Backup\Infrastructure\BackupReadinessProbe:
         arguments:
             $backupDirectory: '%emailer.backup_dir%'
@@ -212,12 +226,13 @@ services:
     App\Module\Release\Application\PackageInspector:
         arguments:
             $publicKeyFile: '%emailer.release_public_key_file%'
-            $currentVersion: '%emailer.app_version%'
+            $currentVersion: '%emailer.update_source_version%'
 
     App\Module\Release\Application\ReleaseManager:
         arguments:
             $releasesDirectory: '%emailer.releases_dir%'
-            $currentVersion: '%emailer.app_version%'
+            $currentVersion: '%emailer.update_source_version%'
+            $environment: '%kernel.environment%'
 
     App\Module\Release\Presentation\Cli\CheckReleaseCommand:
         arguments:
@@ -264,3 +279,8 @@ services:
     App\Module\Setup\Presentation\Cli\SetupInstallCommand:
         arguments:
             $publicDirectory: '%kernel.project_dir%/public'
+
+    App\Module\Identity\Application\Contract\SensitiveActionAuthorizer: '@App\Module\Identity\Application\ReauthenticationService'
+    App\Module\Suppression\Application\Contract\AddressCorrectionSuppression: '@App\Module\Suppression\Application\SuppressionManager'
+    App\Module\Templates\Application\Contract\CampaignTemplatePreparation: '@App\Module\Templates\Application\TemplateManager'
+    App\Module\Contacts\Application\Contract\CampaignAudiencePreparation: '@App\Module\Contacts\Application\CampaignAudiencePreparation'

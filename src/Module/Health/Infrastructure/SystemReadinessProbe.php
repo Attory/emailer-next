@@ -100,7 +100,7 @@ final readonly class SystemReadinessProbe implements LightweightReadinessProbe, 
     {
         $stat = @lstat($path);
 
-        return '' !== $path && str_starts_with($path, '/') && \is_array($stat) && 0o040000 === ($stat['mode'] & 0o170000) && !is_link($path) && is_writable($path) && !$this->insideProject($path);
+        return '' !== $path && str_starts_with($path, '/') && \is_array($stat) && 0o040000 === ($stat['mode'] & 0o170000) && 0 === ($stat['mode'] & 0o002) && !is_link($path) && is_readable($path) && !$this->insideProject($path);
     }
 
     private function safePublicKey(): bool

@@ -1,9 +1,9 @@
 # Open decisions
 
-**Status:** Decisions through Phase 12 resolved; Phase 13 acceptance decisions
-remain bounded to that phase.
+**Status:** Version-1 product decisions are resolved. Deployment-specific
+operator decisions remain external to the repository.
 
-**Last reviewed:** 2026-08-26
+**Last reviewed:** 2026-08-27
 
 The core architecture in ADRs `0001`–`0011` is accepted. Phase 1 resolved its
 four bounded decisions:
@@ -32,7 +32,7 @@ implementation evidence. None authorizes a weaker security outcome.
 | OD-11 | Resolved in Phase 7: `vN.random-handle.HMAC` bearer token; 365-day expiry and key-verification overlap; revoked/expired fail generically; rows purged 30 days after expiry; forwarding can only suppress the frozen recipient; replay is idempotent | Phase 7 | Wrong-purpose/tamper/version/expiry/replay/rotation tests; no raw address in URL, logs, rate keys, or response |
 | OD-12 | **Resolved Phase 12:** policy UI enforces bounded per-class periods; analytics/RSVP remain independently 1–365 days, operational classes have narrower safe ranges, durable audit/suppression/campaign evidence is excluded, and each run is dry-run capable and capped at 200 rows per category | Phases 10–12 | Deployment-specific periods and legal holds remain operator decisions |
 | OD-13 | **Resolved Phase 12:** the first approved external adapter is an operator-provisioned absolute filesystem mount outside release/private roots. Automation is off by default; exclusive mode-0600 copy, byte count, SHA-256 read-back, redacted evidence, and bounded deletion are mandatory | Phase 8 / Phase 12 | Cloud/provider adapters require a new reviewed threat model and authorization |
-| OD-14 | License and supported-browser/accessibility matrix | Phase 13 | Dependency/license audit and operator product decision; WCAG-oriented acceptance evidence |
+| OD-14 | **Resolved Phase 13:** proprietary application distribution; production dependencies require one of Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC, MIT, or MPL-2.0 and no `NOASSERTION`; browser support is current and previous Chrome/Edge/Firefox, current and previous Safari on macOS/iOS, and current Android Chrome; WCAG 2.2 AA is the target with automated blocking checks plus mandatory human keyboard and assistive-technology acceptance | Phase 13 | [license-policy.md](license-policy.md), [accessibility-browser-support.md](accessibility-browser-support.md), aggregate license checker, candidate inspector, and acceptance checklist |
 | OD-15 | **Resolved Phase 9:** operator-controlled offline Ed25519 private key with separate encrypted recovery custody; independently fingerprint-verified external public-key pin; explicit old-key bridge and out-of-band ceremony for rotation; first release is clean-installed while the acceptance-only path rehearses `0.1.0-rc.1` to `0.1.0`; later minors support the immediately preceding release line as documented | Phase 9 | See [release-signing.md](release-signing.md); supported, tampered, wrongly signed, same/downgrade, and unsupported-source rehearsals remain blocking candidate evidence |
 
 The operator must later supply deployment-specific values—base URL, proxy

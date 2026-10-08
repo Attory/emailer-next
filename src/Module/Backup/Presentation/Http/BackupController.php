@@ -16,6 +16,7 @@ use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
 use Symfony\Component\HttpFoundation\Request;
 use Symfony\Component\HttpFoundation\Response;
 use Symfony\Component\Routing\Attribute\Route;
+use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 #[Route('/admin/backups')]
 final class BackupController extends AbstractController
@@ -38,7 +39,9 @@ final class BackupController extends AbstractController
         if (!$this->isCsrfTokenValid('backup-policy', $request->request->getString('_token'))) {
             return new Response('Request not accepted.', Response::HTTP_BAD_REQUEST);
         }
-        $this->reauthentication->assertRecent($request->getSession(), 'backup_management');
+        if (null !== $response = $this->requireRecentBackupAuthentication($request)) {
+            return $response;
+        }
         $actor = $this->actor();
         try {
             $enabled = $request->request->getBoolean('backup_automation_enabled');
@@ -69,7 +72,9 @@ final class BackupController extends AbstractController
         if (!$this->isCsrfTokenValid('backup-create', $request->request->getString('_token'))) {
             return new Response('Request not accepted.', Response::HTTP_BAD_REQUEST);
         }
-        $this->reauthentication->assertRecent($request->getSession(), 'backup_management');
+        if (null !== $response = $this->requireRecentBackupAuthentication($request)) {
+            return $response;
+        }
         $policy = $this->policy->current();
         $transferred = $request->request->getBoolean('transfer');
         $backup = $transferred ? $this->automation->createAndTransfer((string) $policy['backup_destination_type']) : $this->backups->create();
@@ -78,6 +83,19 @@ final class BackupController extends AbstractController
         $this->addFlash('success', $transferred ? 'Encrypted backup created, transferred, and independently verified.' : 'Encrypted backup created and verified.');
 
         return $this->redirectToRoute('admin_backups', status: Response::HTTP_SEE_OTHER);
+    }
+
+    private function requireRecentBackupAuthentication(Request $request): ?Response
+    {
+        try {
+            $this->reauthentication->assertRecent($request->getSession(), 'backup_management');
+
+            return null;
+        } catch (AccessDeniedException) {
+            $this->addFlash('error', 'Confirm your current Owner password and MFA in this browser session before managing backups.');
+
+            return $this->redirectToRoute('admin_reauthenticate', ['purpose' => 'backup_management'], Response::HTTP_SEE_OTHER);
+        }
     }
 
     private function actor(): AdministrativeActor

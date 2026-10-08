@@ -28,9 +28,13 @@ final readonly class MailConfigurationManager
         if (false === $row) {
             throw new \RuntimeException('Mail configuration is unavailable.');
         }
-        $row['sender_address'] = \is_string($row['sender_address']) ? (new EmailAddress($row['sender_address']))->masked() : '';
-        $row['reply_to_address'] = \is_string($row['reply_to_address']) ? (new EmailAddress($row['reply_to_address']))->masked() : null;
-        $row['smtp_username'] = \is_string($row['smtp_username']) ? $this->mask($row['smtp_username']) : null;
+        if ($actor->roleRank() < AdministrativeAccessLevel::Owner->value) {
+            $row['sender_address'] = \is_string($row['sender_address']) ? (new EmailAddress($row['sender_address']))->masked() : '';
+            $row['reply_to_address'] = \is_string($row['reply_to_address']) ? (new EmailAddress($row['reply_to_address']))->masked() : null;
+            $row['smtp_username'] = \is_string($row['smtp_username']) ? $this->mask($row['smtp_username']) : null;
+        } else {
+            $this->audit->append(new AuditRecord($actor->id(), 'mail.configuration.viewed', null, 'success'));
+        }
 
         return $row;
     }

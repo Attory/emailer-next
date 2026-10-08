@@ -6,6 +6,7 @@ namespace App\Module\Identity\Infrastructure;
 
 use App\Module\Identity\Application\AdministrativeRole;
 use App\Module\Identity\Application\AuthenticatedUser;
+use App\Module\Identity\Application\Contract\AdministrativeUserLoader;
 use App\Module\Identity\Application\IdentityUtil;
 use Doctrine\DBAL\Connection;
 use Symfony\Component\Security\Core\Exception\UnsupportedUserException;
@@ -14,7 +15,7 @@ use Symfony\Component\Security\Core\User\UserInterface;
 use Symfony\Component\Security\Core\User\UserProviderInterface;
 
 /** @implements UserProviderInterface<AuthenticatedUser> */
-final class DoctrineUserProvider implements UserProviderInterface
+final class DoctrineUserProvider implements UserProviderInterface, AdministrativeUserLoader
 {
     public const DUMMY_ID = '00000000-0000-7000-8000-000000000000';
     private const DUMMY_HASH = '$argon2id$v=19$m=65536,t=4,p=1$LlQ3ZFRrM3lMZlVjcUU3MQ$i0gF/18yHkIix4VEt5CbJ26eUeonyRNZ3meAPp1Iujw';

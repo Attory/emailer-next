@@ -63,12 +63,18 @@ final readonly class DatabaseSetup
             }
 
             try {
+                $this->migrations->getMetadataStorage()->ensureInitialized();
                 $target = $this->migrations->getVersionAliasResolver()->resolveVersionAlias('latest');
                 $plan = $this->migrations->getMigrationPlanCalculator()->getPlanUntilVersion($target);
-                $configuration = (new MigratorConfiguration())->setAllOrNothing(true);
+                // MariaDB DDL commits implicitly; the schema cannot be one transaction.
+                $configuration = (new MigratorConfiguration())->setAllOrNothing(false);
                 $this->migrations->getMigrator()->migrate($plan, $configuration);
             } catch (\Throwable) {
                 throw new \RuntimeException('Database migration failed.');
+            } finally {
+                // Doctrine may retain nested savepoints after an implicit DDL commit.
+                // Reconnect before key initialization starts its own real transaction.
+                $this->connection->close();
             }
 
             if (!$this->connection->createSchemaManager()->tablesExist(['installation_state'])) {

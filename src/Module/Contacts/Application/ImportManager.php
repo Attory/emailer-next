@@ -201,6 +201,20 @@ final readonly class ImportManager
         return ['id' => $id, 'report_token' => $reportToken, ...$counts];
     }
 
+    // Used only inside preparation transactions that are about to roll back.
+    public function discardPreparedFiles(AdministrativeActor $actor, string $id): void
+    {
+        $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'contacts.import.discard');
+        if (!$this->connection->isTransactionActive()) {
+            throw new \LogicException('Discard requires a preparation rollback transaction.');
+        }
+        $import = $this->import($id, $actor, ['uploaded', 'previewed']);
+        $this->storage->delete($this->stringValue($import['file_token']));
+        if (\is_string($import['report_token'])) {
+            $this->storage->deleteReport($import['report_token']);
+        }
+    }
+
     /** @return array<string, int> */
     public function commit(AdministrativeActor $actor, string $id): array
     {

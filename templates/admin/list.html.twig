@@ -1,0 +1,39 @@
+{% extends 'admin/layout.html.twig' %}
+{% block title %}{{ list.name }} — Emailer Next{% endblock %}
+{% block admin_body %}
+<p><a href="{{ path('admin_lists') }}">← Lists</a></p>
+<h1>{{ list.name }}</h1>
+<p>{{ list.member_count }} members. Unsubscribed contacts are excluded when a campaign is approved and checked again before sending.</p>
+{% include 'admin/_list-actions.html.twig' %}
+<nav aria-label="List membership"><a href="{{ path('admin_list', {id: list.id}) }}"{% if not available %} aria-current="page"{% endif %}>Members</a> · <a href="{{ path('admin_list', {id: list.id, available: 1}) }}"{% if available %} aria-current="page"{% endif %}>Add contacts</a></nav>
+<h2>{{ available ? 'Contacts you can add' : 'List members' }}</h2>
+<form method="post" action="{{ path('admin_list_browse', {id: list.id}) }}">
+    <input type="hidden" name="_token" value="{{ csrf_token('list-browse-' ~ list.id) }}">
+    <input type="hidden" name="available" value="{{ available ? '1' : '0' }}">
+    <label>{{ is_granted('ROLE_OWNER') ? 'Find by name or email address' : 'Find by name' }} <input name="query" value="{{ query }}" maxlength="160"></label>
+    <button type="submit">Find contacts</button>
+</form>
+<p>{{ results.total }} matching contacts. Page {{ results.page }} of {{ results.pages }}.</p>
+<table><thead><tr><th scope="col">Email address</th><th scope="col">Name</th><th scope="col">Status</th><th scope="col">Action</th></tr></thead><tbody>
+{% for contact in results.rows %}
+<tr><td>{{ contact.email_display }}</td><td>{{ contact.display_name ?: (contact.first_name ~ ' ' ~ contact.last_name)|trim }}</td><td>{{ contact.suppressed ? 'Unsubscribed' : (contact.archived_at or contact.status != 'active' ? 'Inactive' : 'Eligible') }}</td><td>
+{% if is_granted('ROLE_OWNER') %}<a href="{{ path('admin_contact_edit', {id: contact.id, list: list.id}) }}">Edit contact</a>{% endif %}
+<form method="post" action="{{ path(available ? 'admin_membership_add' : 'admin_membership_remove', {id: list.id}) }}">
+    <input type="hidden" name="_token" value="{{ csrf_token((available ? 'membership-add-' : 'membership-remove-') ~ list.id) }}">
+    <input type="hidden" name="contact_id" value="{{ contact.id }}">
+    <button type="submit">{{ available ? 'Add to list' : 'Remove from list' }}</button>
+</form>
+</td></tr>
+{% else %}<tr><td colspan="4">No matching contacts.</td></tr>{% endfor %}
+</tbody></table>
+{% if results.pages > 1 %}
+<form method="post" action="{{ path('admin_list_browse', {id: list.id}) }}" aria-label="Contact pages">
+    <input type="hidden" name="_token" value="{{ csrf_token('list-browse-' ~ list.id) }}">
+    <input type="hidden" name="available" value="{{ available ? '1' : '0' }}">
+    <input type="hidden" name="query" value="{{ query }}">
+    {% if results.page > 1 %}<button name="page" value="{{ results.page - 1 }}">Previous page</button>{% endif %}
+    {% if results.page < results.pages %}<button name="page" value="{{ results.page + 1 }}">Next page</button>{% endif %}
+</form>
+{% endif %}
+<p>Remove from list changes membership only. Contact records and global unsubscribe status are retained.</p>
+{% endblock %}

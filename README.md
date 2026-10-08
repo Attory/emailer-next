@@ -2,16 +2,16 @@
 
 Emailer Next is the clean-room successor to Emailer: a self-hosted email
 campaign application for exactly one organisation per installation. The
-repository has completed **Phase 12** and currently identifies as `0.4.0` with
-schema `20260828000000`. It includes persistent full/read-only Doctor
-operations, a redacted operational dashboard, configurable bounded retention,
-and off-by-default verified external backup automation. Phase 13 has not
-started.
+repository is implementing **Phase 13** and currently identifies as `1.0.0`
+with schema `20260828000000`. The Phase 13 branch adds complete Version-1
+acceptance tooling, a protected interactive CLI installer, transactional
+master-key rotation, license and browser/accessibility policy, and client-grade
+`1.0.0` installation/update manuals.
 
-An operator-signed `0.4.0` update candidate was built from the independently
-reviewed Phase 12 head and verified outside Git. It has not been tagged,
-published, deployed, installed on a client server, or used to contact a
-production mail service.
+The accepted operator-signed `0.4.0` candidate remains unpublished and
+undeployed. A `1.0.0` candidate is not accepted until the Phase 13 head passes
+all local/CI gates, independent review, operator signing, and exact-head
+approval. No Phase 13 work authorizes client installation or production mail.
 
 ## Safe local bootstrap
 
@@ -46,9 +46,9 @@ See [Installation](docs/installation.md) and
 - Legacy source, history, templates, dependencies, credentials, and private
   records remain prohibited.
 
-See the [Phase 12 report](docs/phase-12-report.md) for the current implementation
-boundary, acceptance evidence, candidate identity, limitations, and manual
-actions. Earlier phase reports remain the authoritative incremental record.
+See the [Phase 13 report](docs/phase-13-report.md) for current acceptance
+evidence, candidate status, limitations, and manual actions. Earlier phase
+reports remain the authoritative incremental record.
 
 ## Documentation map
 

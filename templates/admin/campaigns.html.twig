@@ -5,18 +5,33 @@
 {% if is_granted('ROLE_OPERATOR') %}
 <section>
     <h2>Create draft</h2>
-    <form method="post" action="{{ path('admin_campaign_create') }}">
+    <form method="post" action="{{ path('admin_campaign_create') }}" enctype="multipart/form-data">
         <input type="hidden" name="_token" value="{{ csrf_token('campaign-create') }}">
-        <label>Name <input name="name" maxlength="160" required></label>
-        <label>Published template
-            <select name="template_version" required>
-                {% for template in options.templates %}<option value="{{ template.id }}">{{ template.name }} (v{{ template.version_number }})</option>{% endfor %}
-            </select>
-        </label>
-        <fieldset><legend>Audience lists</legend>
-            {% for list in options.lists %}<label><input type="checkbox" name="lists[]" value="{{ list.id }}"> {{ list.name }}</label>{% else %}<p>Create an active list first.</p>{% endfor %}
+        <label>Campaign name <input name="name" maxlength="160" required></label>
+        <fieldset><legend>Recipients</legend>
+            <label><input type="radio" name="audience_mode" value="existing" checked> Choose existing lists</label>
+            {% for list in options.lists %}<label><input type="checkbox" name="lists[]" value="{{ list.id }}"{% if selected_list == list.id %} checked{% endif %}> {{ list.name }}</label>{% else %}<p>No active lists yet. You can upload one below.</p>{% endfor %}
+            <label><input type="radio" name="audience_mode" value="upload"> Upload a new list</label>
+            <label>New list name <input name="list_name" maxlength="160"></label>
+            <label>Recipient CSV <input type="file" name="audience_file" accept="text/csv,.csv"></label>
+            <label>CSV format <select name="csv_mode"><option value="headered">First row contains column headings</option><option value="headerless">No column headings</option></select></label>
+            <details><summary>CSV column mapping</summary><p>Columns are numbered from 0. Email defaults to column 0. Leave optional fields blank when absent.</p>
+            {% for field in ['email', 'display_name', 'first_name', 'last_name', 'locale', 'time_zone', 'consent_source'] %}<label>{{ field|replace({'_': ' '})|title }} column <input type="number" name="column_{{ field }}" min="0" max="31"{% if field == 'email' %} value="0"{% endif %}></label>{% endfor %}
+            </details>
+            <p>Uploaded recipients are previewed before you commit them. Existing unsubscribe records remain effective.</p>
+        </fieldset>
+        <fieldset><legend>Newsletter content</legend>
+            <label><input type="radio" name="template_mode" value="existing" checked> Choose an existing template</label>
+            <label>Template <select name="template_version"><option value="">Choose a template</option>{% for template in options.templates %}<option value="{{ template.id }}"{% if selected_template == template.id %} selected{% endif %}>{{ template.name }}</option>{% endfor %}</select></label>
+            <label><input type="radio" name="template_mode" value="upload"> Upload a new HTML template</label>
+            <label>New template name <input name="template_name" maxlength="160"></label>
+            <label>Subject <input name="subject" maxlength="200"></label>
+            <label>Preheader <input name="preheader" maxlength="200"></label>
+            <label>HTML file <input type="file" name="template_file" accept="text/html,.html,.htm"></label>
+            <p>The selected content is saved for campaign review. Editing later creates a new version and leaves approved mail unchanged.</p>
         </fieldset>
         <button type="submit">Create campaign</button>
+        <p>This creates a draft. Sending starts only after testing, approval and Queue now.</p>
     </form>
 </section>
 {% endif %}

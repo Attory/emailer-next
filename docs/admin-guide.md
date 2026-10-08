@@ -1,7 +1,7 @@
 # Administrator guide
 
-**Status:** Accepted Phase 12 administration, operational dashboard, Doctor,
-retention, backup automation, optional tracking, and optional RSVP workflows.
+**Status:** Phase 13 Version-1 administration and operations guide under final
+acceptance.
 
 Emailer Next has one organisation per installation and individual
 administrator accounts. There is no self-registration, shared global password,
@@ -49,6 +49,14 @@ re-authentication.
 - Template HTML is sanitized with a strict allowlist. Merge fields are fixed,
   non-evaluating tokens; previews use synthetic values, and the test action
   validates through the fake-only path without sending mail.
+- Use `{{ contact.display_name }}` or `{{ contact.first_name }}` for names and
+  `{{ unsubscribe_url }}` for the unsubscribe link. Legacy `{{name}}`,
+  `{{unsubscribe}}` and `{{email}}` placeholders are unsupported.
+- Upload images through the template asset workflow and use the returned
+  `/template-assets/…` URL. Outgoing MIME converts those image sources to the
+  runtime canonical HTTPS origin; stored versions and approval snapshots stay
+  unchanged. Remote image sources are disallowed. CSS styles, classes and
+  stylesheet blocks are removed by the current allowlist.
 
 ## Implemented campaign and delivery workflows
 
@@ -75,8 +83,9 @@ reached an inbox. Open events, if enabled, are approximate.
 
 ## Privacy and safety cues
 
-Ordinary views mask recipient addresses. Full-address access and exports are
-separately authorized and audited. Public URLs never contain a raw address.
+Owners see full email addresses in Contacts, Lists and Suppressions, and full
+nonsecret SMTP fields. Other roles retain masked ordinary views. Exports and
+Administrator reveal require recent authentication and are audited. Public URLs never contain a raw address.
 Tracking and RSVP are independently off by default. Global suppression is
 checked immediately before every attempt and cannot be temporarily bypassed.
 
@@ -115,3 +124,49 @@ on-demand local or verified external copy after recent re-authentication.
 No form accepts a filesystem path, provider credential, restore artifact,
 package, migration, or deployment instruction. Those remain external/CLI
 operator boundaries.
+
+## Lists, templates and newsletter drafts
+
+Each active list has **View, Edit, Send to, Duplicate, Archive** actions. View
+opens all members in pages of 100 with search; Owners can search full email
+addresses and edit every member's email, names, locale, time zone, consent
+source and configured custom fields. Edit changes the list name. Add contacts
+opens contacts outside the list; Remove from list keeps the contact record and
+unsubscribe status. Profiles are shared across lists. Inactive contacts remain
+inactive after editing. Correcting an unsubscribed address keeps both the old
+and new addresses suppressed. Duplicate requires a new unique name and copies
+membership, not separate contact identities. Archive keeps historical records.
+
+Each active template has **Preview, Edit, Send, Duplicate, Archive**, plus its
+version history. Preview uses synthetic data. Edit saves a new immutable draft
+version; approved/sent content is retained. Duplicate requires a new unique
+name and creates a separate draft from the latest content. Names are unique
+without regard to case; archived names remain reserved. Template edits preserve
+the earlier published version for existing campaigns.
+
+To send a newsletter:
+
+1. Choose **Send to** beside a list or **Send** beside a template. The composer
+   preselects that item. Enter a campaign name.
+2. Choose existing lists or upload a new CSV with a unique list name. For an
+   upload, specify headings/no headings and zero-based column mapping.
+3. Choose a template or upload HTML with a unique template name, subject and
+   optional preheader. Create campaign publishes the chosen template version for reuse and
+   creates a draft; it sends nothing.
+4. For CSV uploads, review valid, duplicate, unsubscribed, invalid and rejected
+   counts, then **Commit reviewed recipients**. Suppressions are checked again.
+   If the session expires, finish the private upload through **Imports**.
+5. Review eligible recipients and sender/content settings. **Queue test send**
+   sends a test to your signed-in administrator address. Check the received
+   message before **Submit for review**.
+6. Re-authenticate for approval, **Approve snapshot**, then **Queue now** or
+   schedule it. The approval snapshot fixes the content/audience; suppression
+   is still checked before every attempt.
+
+Mail settings show the complete nonsecret configuration to Owners. Clicking
+**Store secure SMTP configuration** asks for current Owner password and MFA
+when the five-minute SMTP confirmation has expired. Confirm and store completes
+the same form. Cancel clears only confirmation credentials and leaves unsaved
+SMTP fields on the page. Without JavaScript, confirmation fields appear in the
+form. The dialog is always present, and its expiry hint is checked on Store
+click so an expired grant can be renewed without leaving the form. SMTP passwords remain write-only and storage does not contact a provider.

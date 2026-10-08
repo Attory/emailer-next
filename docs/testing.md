@@ -1,7 +1,6 @@
 # Testing
 
-**Status:** Accepted Phase 12 coverage over the complete Phase 1–11 behavior
-and optional RSVP update boundary.
+**Status:** Phase 13 complete Version-1 acceptance coverage in progress.
 
 The stable gate order and executable commands are in
 [quality-gates.md](quality-gates.md). Results are recorded in the phase report
@@ -159,6 +158,41 @@ data is accepted.
   first/last timestamps, with bounded dry-run/apply retention.
 - Package gates build `0.2.0` for clean install and rehearse the supported
   `0.1.0` update, failure, restore, and schema-rejection paths.
+
+## Phase 13 coverage
+
+- Full CLI setup drives canonical database, key, organisation, Owner, Mailpit,
+  policy, Doctor/finalization services against MariaDB and local Mailpit, then
+  proves permanent lock and absence of submitted passwords from console output.
+- Master-key replacement verifies expected-key compare, restrictive atomic
+  publication and metadata. Integration tests cover verified pre-rotation
+  backup, delivery-quiescence refusal, complete secret re-encryption, unchanged
+  revealed value, key change, redacted audit, and database/key compensation
+  when failure occurs after filesystem publication. Durable-journal tests model
+  process crash before and after database commit, and prove a concurrent reader
+  cannot reconcile while the rotation process owns the maintenance lock.
+  Directory-durability tests require barriers after journal/key namespace
+  changes and prove a failed key-publication barrier restores the old key.
+- Production dependency licenses are parsed from the lock and candidate SPDX
+  inspection rejects missing license decisions.
+- Package acceptance checks out each exact accepted integrated `0.1.0`, `0.2.0`,
+  `0.3.0`, and `0.4.0` runtime tree, runs its artifact builder, packages and
+  signs it with one disposable test key, installs those manifest-bound contents,
+  and requires the authenticated target updater to verify the source package and
+  match every installed file. These are real source-derived test packages, not
+  claims that externally held historical operator outputs are present in Git.
+  It also covers signature tamper, installed drift, source/current-pointer
+  mismatch, approved-target mismatch, unsupported older sources, immutable clean install,
+  deterministic double build, tamper/incompatibility, interrupted update,
+  failed health, and restore behavior.
+- A root-run production privilege gate proves root-owned `0555`/`0444`
+  publication, verifies a fresh `emailer` identity cannot make release code
+  writable, and confirms the root updater can read the service-owned key while
+  key mutation remains service-identity-only.
+- Static acceptance checks bind version/schema/tooling, the complete 18-step
+  client installation manual, skip navigation, visible two-colour focus,
+  target sizing, reduced motion, and the documented browser/human accessibility
+  matrix. Human assistive-technology results are recorded separately.
 
 ## Phase 1 coverage
 

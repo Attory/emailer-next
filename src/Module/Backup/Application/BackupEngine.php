@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Module\Backup\Application;
 
+use App\Module\Audit\Application\Contract\AuditRecord;
+use App\Module\Audit\Application\Contract\AuditSink;
 use App\Module\Backup\Application\Contract\BackupContributor;
 use App\Module\Backup\Application\Contract\BackupOperations;
 use App\Module\Secrets\Application\Contract\MasterKey;
@@ -18,7 +20,7 @@ final readonly class BackupEngine implements BackupOperations
     private const CHUNK = 65536;
 
     /** @param iterable<BackupContributor> $contributors */
-    public function __construct(private Connection $connection, private MasterKey $masterKey, private LockFactory $locks, private MaintenanceOperationLock $maintenance, private iterable $contributors, private string $backupDirectory, private string $sourceVersion)
+    public function __construct(private Connection $connection, private MasterKey $masterKey, private LockFactory $locks, private MaintenanceOperationLock $maintenance, private iterable $contributors, private string $backupDirectory, private string $sourceVersion, private ?RestoreDrillEvidence $drillEvidence = null, private ?AuditSink $audit = null)
     {
     }
 
@@ -86,6 +88,15 @@ final readonly class BackupEngine implements BackupOperations
 
     /** @return array<string, mixed> */
     public function verify(string $path): array
+    {
+        $manifest = $this->inspect($path);
+        $this->connection->executeStatement("UPDATE backup_record SET status = 'verified', verified_at = ? WHERE filename = ? AND ciphertext_sha256 = ?", [Identity::now(), basename($path), hash_file('sha256', $path)]);
+
+        return $manifest;
+    }
+
+    /** @return array<string, mixed> */
+    private function inspect(string $path): array
     {
         $this->assertSafePath($path);
         $plain = tempnam($this->backupDirectory, '.backup-verify-');
@@ -159,8 +170,6 @@ final readonly class BackupEngine implements BackupOperations
             } finally {
                 $zip->close();
             }
-            $filename = basename($path);
-            $this->connection->executeStatement("UPDATE backup_record SET status = 'verified', verified_at = ? WHERE filename = ? AND ciphertext_sha256 = ?", [Identity::now(), $filename, hash_file('sha256', $path)]);
 
             return $manifest;
         } finally {
@@ -178,27 +187,123 @@ final readonly class BackupEngine implements BackupOperations
         }
     }
 
-    private function restoreWithLock(string $path): void
+    public function restoreForDrill(string $path): string
+    {
+        $this->maintenance->acquire();
+        try {
+            $receipt = $this->restoreWithLock($path, true);
+            if (null === $receipt) {
+                throw new \RuntimeException('Restore-drill evidence was not published.');
+            }
+
+            return $receipt;
+        } finally {
+            $this->maintenance->release();
+        }
+    }
+
+    public function recordRestoreDrill(string $path): void
+    {
+        $this->maintenance->acquire();
+        try {
+            $this->assertSafePath($path);
+            $handle = @fopen($path, 'rb');
+            if (false === $handle) {
+                throw new \RuntimeException('Restore-drill evidence cannot be read.');
+            }
+            try {
+                $before = fstat($handle);
+                $contents = stream_get_contents($handle, 4097);
+                $after = @lstat($path);
+                if (false === $before || false === $after || false === $contents || $before['dev'] !== $after['dev'] || $before['ino'] !== $after['ino'] || 1 !== $before['nlink'] || 1 !== $after['nlink'] || 0 !== ($before['mode'] & 0o077) || 0 !== ($after['mode'] & 0o077) || 4096 < $before['size'] || $before['size'] !== \strlen($contents)) {
+                    throw new \RuntimeException('Restore-drill evidence is unsafe.');
+                }
+            } finally {
+                fclose($handle);
+            }
+            $payload = $this->evidence()->authenticate($contents);
+            $record = $this->connection->fetchAssociative("SELECT * FROM backup_record WHERE id = ? AND status = 'verified' AND deleted_at IS NULL", [$payload['backup_id']]);
+            if (false === $record
+                || $record['ciphertext_sha256'] !== $payload['ciphertext_sha256']
+                || $this->integer($record['byte_size']) !== $payload['byte_size']
+                || $record['source_version'] !== $payload['source_version']
+                || $record['schema_version'] !== $payload['schema_version']
+                || !\is_string($record['created_at']) || $payload['restored_at'] < $record['created_at']
+                || $payload['restored_at'] > Identity::now()
+                || !\is_string($record['filename']) || basename($record['filename']) !== $record['filename']
+            ) {
+                throw new \RuntimeException('Restore-drill evidence does not match a retained verified backup.');
+            }
+            $backup = $this->backupDirectory.'/'.$record['filename'];
+            $manifest = $this->inspect($backup);
+            $entries = $manifest['entries'];
+            if (!\is_array($entries)) {
+                throw new \RuntimeException('Restore-drill evidence backup entries are invalid.');
+            }
+            $assetCount = 0;
+            foreach (array_keys($entries) as $name) {
+                if (\is_string($name) && str_starts_with($name, 'assets/')) {
+                    ++$assetCount;
+                }
+            }
+            if ($manifest['backup_id'] !== $payload['backup_id'] || $manifest['source_version'] !== $payload['source_version'] || $manifest['schema_version'] !== $payload['schema_version'] || !hash_equals($payload['ciphertext_sha256'], (string) hash_file('sha256', $backup)) || filesize($backup) !== $payload['byte_size'] || $payload['checked_tables'] !== \count($this->tables()) || $payload['checked_assets'] !== $assetCount) {
+                throw new \RuntimeException('Restore-drill evidence backup verification failed.');
+            }
+            if (null === $this->audit) {
+                throw new \RuntimeException('Restore-drill audit is unavailable.');
+            }
+            $this->connection->transactional(function () use ($payload): void {
+                $changed = $this->connection->executeStatement('UPDATE backup_record SET restored_at = ? WHERE id = ? AND (restored_at IS NULL OR restored_at < ?)', [$payload['restored_at'], $payload['backup_id'], $payload['restored_at']]);
+                if (0 < $changed) {
+                    $this->audit->append(new AuditRecord(null, 'backup.restore_drill_recorded', $payload['backup_id'], 'success', ['checked_tables' => $payload['checked_tables'], 'checked_assets' => $payload['checked_assets']]));
+                }
+            });
+        } finally {
+            $this->maintenance->release();
+        }
+    }
+
+    private function restoreWithLock(string $path, bool $drill = false): ?string
     {
         $lock = $this->locks->createLock('emailer-backup-restore', 3600.0);
         if (!$lock->acquire()) {
             throw new \RuntimeException('Another backup restore is active.');
         }
         $maintenanceConfirmed = false;
+        $receipt = null;
         try {
             try {
                 $this->assertQuiesced();
                 $maintenanceConfirmed = true;
                 $manifest = $this->verify($path);
+                if ($drill) {
+                    $this->evidence();
+                }
                 $safety = $this->create();
                 try {
                     $this->apply($path);
+                    if ($drill) {
+                        $checked = $this->validateRestoredSnapshot($path);
+                    }
                     $this->recordVerified($path, $manifest);
+                    if ($drill) {
+                        $receipt = $this->evidence()->issue([
+                            'format' => 'emailer-next-restore-drill-v1',
+                            'backup_id' => $manifest['backup_id'],
+                            'ciphertext_sha256' => hash_file('sha256', $path),
+                            'byte_size' => filesize($path),
+                            'source_version' => $manifest['source_version'],
+                            'schema_version' => $manifest['schema_version'],
+                            'restored_at' => Identity::now(),
+                            'checked_tables' => $checked['tables'],
+                            'checked_assets' => $checked['assets'],
+                        ]);
+                    }
                 } catch (\Throwable $exception) {
                     try {
                         $safetyManifest = $this->verify($safety['path']);
                         $this->apply($safety['path']);
-                        $this->recordVerified($safety['path'], $safetyManifest);
+                        $this->recordVerified($safety['path'], $safetyManifest, false);
                     } catch (\Throwable $rollback) {
                         throw new \RuntimeException('Restore failed and automatic rollback also failed; keep delivery quiesced.', previous: $rollback);
                     }
@@ -209,9 +314,195 @@ final readonly class BackupEngine implements BackupOperations
                     $this->connection->executeStatement("UPDATE delivery_runtime SET accepting_work = 0, active_claims = 0, updated_at = ? WHERE singleton_key = '1'", [Identity::now()]);
                 }
             }
+            if (null !== $receipt) {
+                $receiptPath = $this->backupDirectory.'/restore-drill-'.Identity::uuidV7().'.json';
+                $handle = @fopen($receiptPath, 'x+b');
+                if (false === $handle) {
+                    throw new \RuntimeException('Restore-drill evidence cannot be published.');
+                }
+                try {
+                    if (!chmod($receiptPath, 0o600) || fwrite($handle, $receipt) !== \strlen($receipt) || !fflush($handle) || !fsync($handle)) {
+                        @unlink($receiptPath);
+                        throw new \RuntimeException('Restore-drill evidence cannot be published safely.');
+                    }
+                } finally {
+                    fclose($handle);
+                }
+
+                return $receiptPath;
+            }
+
+            return null;
         } finally {
             $lock->release();
         }
+    }
+
+    /** @return array{tables: int, assets: int} */
+    private function validateRestoredSnapshot(string $path): array
+    {
+        $plain = tempnam($this->backupDirectory, '.drill-verify-');
+        if (false === $plain) {
+            throw new \RuntimeException('Restore-drill validation staging cannot be created.');
+        }
+        @chmod($plain, 0o600);
+        try {
+            $this->decrypt($path, $plain);
+            $zip = new \ZipArchive();
+            if (true !== $zip->open($plain)) {
+                throw new \RuntimeException('Restore-drill archive is invalid.');
+            }
+            try {
+                foreach ($this->tables() as $table) {
+                    $primary = $this->connection->createSchemaManager()->introspectTable($table)->getPrimaryKey();
+                    if (null === $primary) {
+                        throw new \RuntimeException('Restore-drill table has no primary key.');
+                    }
+                    $columns = $primary->getColumns();
+                    $rows = 0;
+                    $batch = [];
+                    $batchBytes = 0;
+                    foreach ($this->rows($zip, $table) as $expected) {
+                        $batch[] = $expected;
+                        $batchBytes += \strlen(json_encode($expected, JSON_THROW_ON_ERROR));
+                        if (200 <= \count($batch) || 8388608 <= $batchBytes) {
+                            $this->validateRowBatch($table, $columns, $batch);
+                            $batch = [];
+                            $batchBytes = 0;
+                        }
+                        ++$rows;
+                    }
+                    if ([] !== $batch) {
+                        $this->validateRowBatch($table, $columns, $batch);
+                    }
+                    if ($rows !== $this->integer($this->connection->fetchOne('SELECT COUNT(*) FROM '.$this->connection->quoteSingleIdentifier($table)))) {
+                        throw new \RuntimeException('Restore-drill row count does not match the backup.');
+                    }
+                }
+                $assetCount = 0;
+                foreach ($this->assets() as $logical => $root) {
+                    $expectedFiles = [];
+                    $prefix = 'assets/'.$logical.'/';
+                    for ($index = 0; $index < $zip->numFiles; ++$index) {
+                        $name = $zip->getNameIndex($index);
+                        if (false === $name || !str_starts_with($name, $prefix)) {
+                            continue;
+                        }
+                        $relative = substr($name, \strlen($prefix));
+                        $stream = $zip->getStream($name);
+                        if (false === $stream) {
+                            throw new \RuntimeException('Restore-drill asset cannot be read.');
+                        }
+                        try {
+                            $hash = hash_init('sha256');
+                            hash_update_stream($hash, $stream);
+                            $file = $root.'/'.$relative;
+                            if (is_link($file) || !is_file($file) || hash_file('sha256', $file) !== hash_final($hash)) {
+                                throw new \RuntimeException('Restore-drill assets do not match the backup.');
+                            }
+                        } finally {
+                            fclose($stream);
+                        }
+                        $expectedFiles[] = $relative;
+                        ++$assetCount;
+                    }
+                    $actualFiles = [];
+                    foreach (new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS)) as $file) {
+                        if (!$file instanceof \SplFileInfo || $file->isLink() || !$file->isFile()) {
+                            throw new \RuntimeException('Restore-drill asset storage is unsafe.');
+                        }
+                        $actualFiles[] = substr($file->getPathname(), \strlen($root) + 1);
+                    }
+                    sort($expectedFiles);
+                    sort($actualFiles);
+                    if ($expectedFiles !== $actualFiles) {
+                        throw new \RuntimeException('Restore-drill asset inventory does not match the backup.');
+                    }
+                }
+
+                return ['tables' => \count($this->tables()), 'assets' => $assetCount];
+            } finally {
+                $zip->close();
+            }
+        } finally {
+            @unlink($plain);
+        }
+    }
+
+    /**
+     * @param list<string>               $columns
+     * @param list<array<string, mixed>> $batch
+     */
+    private function validateRowBatch(string $table, array $columns, array $batch): void
+    {
+        $expectedRows = [];
+        $conditions = [];
+        $values = [];
+        foreach ($batch as $expected) {
+            $identity = [];
+            $rowConditions = [];
+            foreach ($columns as $column) {
+                $value = $expected[$column] ?? null;
+                if (!\is_scalar($value)) {
+                    throw new \RuntimeException('Restore-drill row identity is invalid.');
+                }
+                $identity[] = (string) $value;
+                $rowConditions[] = $this->connection->quoteSingleIdentifier($column).' = ?';
+                $values[] = $value;
+            }
+            $key = json_encode($identity, JSON_THROW_ON_ERROR);
+            if (isset($expectedRows[$key])) {
+                throw new \RuntimeException('Restore-drill row identity is duplicated.');
+            }
+            $expectedRows[$key] = $this->normalizedRow($expected);
+            $conditions[] = '('.implode(' AND ', $rowConditions).')';
+        }
+        foreach ($this->connection->executeQuery('SELECT * FROM '.$this->connection->quoteSingleIdentifier($table).' WHERE '.implode(' OR ', $conditions), $values)->iterateAssociative() as $actual) {
+            $identity = [];
+            foreach ($columns as $column) {
+                $value = $actual[$column] ?? null;
+                if (!\is_scalar($value)) {
+                    throw new \RuntimeException('Restore-drill row identity is invalid.');
+                }
+                $identity[] = (string) $value;
+            }
+            $key = json_encode($identity, JSON_THROW_ON_ERROR);
+            if (!isset($expectedRows[$key]) || $expectedRows[$key] !== $this->normalizedRow($actual)) {
+                throw new \RuntimeException('Restore-drill rows do not match the backup.');
+            }
+            unset($expectedRows[$key]);
+        }
+        if ([] !== $expectedRows) {
+            throw new \RuntimeException('Restore-drill rows are missing.');
+        }
+    }
+
+    /**
+     * @param array<string, mixed> $row
+     *
+     * @return array<string, string|null>
+     */
+    private function normalizedRow(array $row): array
+    {
+        $normalized = [];
+        foreach ($row as $column => $value) {
+            if (null !== $value && !\is_scalar($value)) {
+                throw new \RuntimeException('Restore-drill row value is invalid.');
+            }
+            $normalized[$column] = null === $value ? null : (string) $value;
+        }
+        ksort($normalized);
+
+        return $normalized;
+    }
+
+    private function evidence(): RestoreDrillEvidence
+    {
+        if (null === $this->drillEvidence) {
+            throw new \RuntimeException('Restore-drill evidence service is unavailable.');
+        }
+
+        return $this->drillEvidence;
     }
 
     public function isRecentVerified(string $path, int $now): bool
@@ -630,7 +921,7 @@ final readonly class BackupEngine implements BackupOperations
     }
 
     /** @param array<string, mixed> $manifest */
-    private function recordVerified(string $path, array $manifest): void
+    private function recordVerified(string $path, array $manifest, bool $restored = true): void
     {
         $id = $manifest['backup_id'] ?? null;
         $schema = $manifest['schema_version'] ?? null;
@@ -642,7 +933,9 @@ final readonly class BackupEngine implements BackupOperations
             throw new \RuntimeException('Restored backup evidence is invalid.');
         }
         $this->connection->executeStatement("INSERT INTO backup_record (id, format_version, filename, ciphertext_sha256, byte_size, schema_version, source_version, status, created_at, verified_at) VALUES (?, 1, ?, ?, ?, ?, ?, 'verified', ?, ?) ON DUPLICATE KEY UPDATE ciphertext_sha256 = VALUES(ciphertext_sha256), byte_size = VALUES(byte_size), status = 'verified', verified_at = VALUES(verified_at)", [$id, basename($path), $hash, $bytes, $schema, $source, $created, Identity::now()]);
-        $this->connection->update('backup_record', ['restored_at' => Identity::now()], ['id' => $id]);
+        if ($restored) {
+            $this->connection->update('backup_record', ['restored_at' => Identity::now()], ['id' => $id]);
+        }
     }
 
     private function safeArchiveEntry(string $name): bool

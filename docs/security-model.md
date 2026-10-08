@@ -1,7 +1,45 @@
 # Security model
 
-**Status:** Accepted Phase 12 `0.4.0` candidate controls, including full Doctor,
-retention scheduling, redacted operations status, and external backup transfer.
+**Status:** Phase 13 complete Version-1 security controls under acceptance.
+
+## Phase 13 closure controls
+
+- Isolated restore evidence is issued only after actual restore, bounded full
+  row/asset comparison, and quiescence. A purpose-separated master-key HMAC
+  binds the receipt to the exact retained backup and original restore time.
+  Interactive CLI-only recording re-verifies that artifact, rejects unsafe or
+  future/mismatched evidence, records a redacted audit event, and never restores
+  live data or advances a replay to the import time. Host isolation and approval
+  remain operator responsibilities; root/key compromise can forge this evidence.
+
+- Full CLI installation accepts secrets only through hidden interactive
+  questions, exposes no secret-bearing option/argument, calls the same setup
+  application services as HTTPS onboarding, and permanently locks setup after
+  critical validation. It uses fake local Mailpit only and prints no MFA seed
+  or recovery values.
+- Master-key rotation requires an active Owner, consumes password plus MFA or a
+  recovery code through the existing throttled re-authentication service, and
+  authenticates the separately held current recovery package/passphrase against
+  the live key before mutation.
+  The operation requires delivery quiescence, creates a verified encrypted
+  pre-rotation backup, takes the installation-wide maintenance lock and row
+  locks, authenticates every existing envelope, re-encrypts every record with a
+  fresh 32-byte key, atomically publishes a restrictive external key, and
+  commits redacted audit evidence in the database transaction.
+- A restrictive durable journal binds old/new key material to the opaque audit
+  operation ID before publication. The maintenance lock prevents a concurrent
+  reader from deciding an in-flight rotation. After a process crash or
+  ambiguous commit, first key access reconciles the filesystem to committed
+  audit evidence; no committed marker restores the old key and a committed
+  marker retains the new key. Any ordinary failure follows the same path.
+  Delivery remains stopped until a new recovery package and
+  new verified backup are independently stored and Doctor passes. A reported
+  compensation failure is an incident and requires the separately held old
+  recovery key plus verified pre-rotation backup.
+- Production dependencies must have a declared license in the approved
+  allowlist and candidate inspection rejects `NOASSERTION`. The browser matrix,
+  WCAG 2.2 AA target, automated checks, and mandatory human keyboard/assistive-
+  technology acceptance are explicit.
 
 ## Phase 12 operational controls
 
@@ -83,7 +121,9 @@ public recipient routes, and production mail remain absent.
 
 Phase 2 additionally implements a 160-bit Crockford Base32 ownership challenge,
 SHA-256-only private state, expiry and attempt limits, source throttles, locking,
-and a fixed proof path. Proof reads reject symlinks, non-regular or oversized
+and one fixed configured proof path. Immutable deployments place that transient
+path in service-owned setup storage outside root-owned release code. Proof reads
+reject symlinks, non-regular or oversized
 objects, unsafe permissions, and file replacement detected across the bounded
 read. Successful proof deletes transient files and rotates the setup session.
 Public failures are generic, and structured proof logs contain only the opaque
@@ -226,8 +266,9 @@ external 32-byte master key
 - Each encrypted record uses a fresh nonce and a versioned envelope.
 - Authentication failure is handled uniformly and fails closed.
 - Passwords and recovery codes are one-way hashed, never encrypted.
-- Rotation is transactional; any failure rolls back. Audit records contain
-  lifecycle metadata but no secret value.
+- Rotation uses database transaction plus a restrictive crash-recovery journal;
+  any failure or restart converges to the side selected by committed redacted
+  audit evidence. Audit records contain lifecycle metadata but no secret value.
 - The ordinary backup excludes the plaintext master key. A separate
   passphrase-encrypted recovery package is generated and verified explicitly.
 
@@ -275,8 +316,12 @@ readiness remains required before MVP sending is declared healthy.
   [data-model.md](data-model.md).
 - Raw recipient data is absent from public URLs, logs, exception text, metrics
   labels, queue names/payloads, filenames, and correlation IDs.
-- Operational views mask addresses. Full display/export is separately
-  authorized and audited.
+- Ordinary views mask addresses for roles below Owner. Active Owners see full
+  contact/list and suppression addresses and nonsecret SMTP fields following
+  the explicit Phase 13 usability authorization; each read is role checked,
+  audited with opaque identifiers/counts, and served with private no-store
+  headers. Administrator reveal and all exports retain recent purpose-scoped
+  re-authentication, CSRF and audit. Credentials remain write-only.
 - Production logs are structured JSON with UTC time and random correlation IDs.
   Central processors strip credentials, tokens, cookies, headers, addresses,
   bodies, uploaded rows, control characters, and unsafe exception detail.
@@ -295,6 +340,22 @@ rejection protect file operations.
 Delivery and restore are CLI-only. The web process cannot start a worker.
 Workers receive only the permissions needed for their queue, data, key, and mail
 operations. Source and immutable release files are not web-writable.
+Production semantic-version directories are recursively root-owned and have no
+write bits. The root-controlled updater executes only a target-version tree
+whose package signature and file contract were verified before extraction or
+service installation. It validates the root-only recorded predecessor against
+the actual current pointer, authenticates the exact retained predecessor package,
+and compares the complete installed predecessor tree to its signed file manifest
+before quiescence or backup; ordinary application identities never receive a
+release-write group. Legacy predecessor manifest rules are accepted only for
+that same-version evidence input and can never authorize a target package.
+The production lock DSN names a shared mode-`0700` directory under external
+private storage. Bare temporary-directory flock storage is prohibited because
+systemd `PrivateTmp` would otherwise isolate locks by service.
+An update-created encrypted safety backup remains mode `0600`; after verifying
+it, the root updater transfers that exact inode to the owner/group of the
+mode-`0700` service backup directory so later service-owned verification and
+restore remain possible.
 
 Development and CI use fake SMTP and must be unable to resolve or connect to a
 live SMTP target by default. No Doctor or setup operation modifies DNS,
@@ -315,6 +376,12 @@ operator-pinned public key before any migration or release-pointer change.
 Updates use new immutable directories, an exclusive maintenance lock, worker
 quiescence, a verified encrypted backup, an atomic switch, and fail-closed
 health checks. HTTP upload/update/restore and unattended update are prohibited.
+Initial master-key creation, recovery, replacement, rotation staging, journal
+publication, and rollback require a file `fsync` after flushing contents and
+before publication. The externally stored master-key rotation journal and key
+replacement also cross an `fsync` barrier on the containing directory after
+every security-relevant link, rename, or unlink, so database audit evidence can
+reconcile either side after process interruption or power loss.
 
 A likely credential, private key, or private-data finding blocks merge and
 release. Suppression of a scanner finding requires review showing it is a safe
@@ -337,3 +404,30 @@ compensating controls, test evidence, and removal plan. It cannot permit a real
 secret/private record in Git, disable TLS peer verification, bypass suppression,
 reopen setup, expose a private path, enable HTTP delivery, or claim exactly-once
 SMTP semantics.
+
+## Phase 13 Owner workflow repair
+
+The explicitly authorized Owner visibility exception supersedes the Phase 5
+masking requirement only for private Owner reads. Search addresses travel in
+CSRF-protected POST bodies, never URLs, audit summaries or diagnostic exports.
+Owner profile edits preserve archived status. Correcting a suppressed address
+adds suppression for the corrected address in the same transaction while
+retaining the previous suppression; duplicate-address failure rolls back both.
+
+List copies share contacts and retain global suppression. Template edits append
+immutable versions; copies require unique names. Send actions only preselect a
+draft composer. Combined uploads validate through existing private CSV and HTML
+services and roll back list/template/campaign writes on failure, removing staged
+private files. Import commit checks authorization, selected-list identity and
+draft state, then rechecks suppression. Preview creates no recipient ledger or
+mail request. Existing campaign test, approval, immutable snapshot and queue
+controls remain required.
+
+SMTP Store requests preserve CSRF, Owner authorization, password plus enrolled
+MFA, existing retry throttles, five-minute purpose grants, session rotation and
+binding. A page-specific local JavaScript module activates the dialog and checks the
+server grant expiry hint at Store click. The server skips empty confirmation
+without charging a failed authentication attempt. The dialog holds unsaved fields in the current DOM only; without
+JavaScript the same confirmation fields submit normally. Passwords/codes are
+never saved as pending state or returned. No provider connection occurs on
+configuration storage.

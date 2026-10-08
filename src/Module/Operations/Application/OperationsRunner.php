@@ -73,6 +73,19 @@ final readonly class OperationsRunner
             return true;
         }
 
+        if ('doctor' === $operation) {
+            $installationCompleted = $this->connection->fetchOne("SELECT completed_at FROM installation_state WHERE singleton_key = '1'");
+            if (\is_string($installationCompleted)) {
+                try {
+                    if ($finished < new \DateTimeImmutable($installationCompleted, new \DateTimeZone('UTC'))) {
+                        return true;
+                    }
+                } catch (\Throwable) {
+                    return true;
+                }
+            }
+        }
+
         return $finished->modify('+'.$intervalHours.' hours') <= new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
     }
 

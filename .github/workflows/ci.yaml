@@ -64,6 +64,9 @@ jobs:
       - name: Run aggregate release-candidate checks
         run: docker compose run --rm app composer check
 
+      - name: Verify production updater privilege boundary
+        run: docker compose run --rm --user root app bash tools/release/check-production-privileges.sh
+
       - name: Repeat test suite with external egress disabled
         run: bash tools/ci/run-network-isolated-tests.sh
 

@@ -8,13 +8,17 @@
 
 body { margin: 0; }
 a { color: #174ea6; }
-a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 3px solid #f4b400; outline-offset: 2px; }
+a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible { outline: 2px solid #fff; outline-offset: 2px; box-shadow: 0 0 0 5px #17202a; }
+.skip-link { position: fixed; left: 1rem; top: -5rem; z-index: 1000; padding: 0.75rem 1rem; background: #fff; color: #17202a; }
+.skip-link:focus { top: 1rem; }
 .auth-shell, .admin-content { max-width: 70rem; margin: 2rem auto; padding: 1.5rem; background: #fff; }
 .admin-header { background: #17324d; color: #fff; padding: 1rem 2rem; }
 .admin-header a { color: #fff; margin-right: 1rem; }
 .admin-header form { display: inline; }
 label { display: block; margin: 0.8rem 0; }
 input, select, textarea, button { font: inherit; padding: 0.45rem; }
+button, select, input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]) { min-height: 2.75rem; }
+input[type="checkbox"], input[type="radio"] { min-width: 1.5rem; min-height: 1.5rem; }
 button { cursor: pointer; }
 .alert { border-left: 0.35rem solid #b3261e; padding: 0.7rem; background: #fce8e6; }
 .success { border-left-color: #137333; background: #e6f4ea; }
@@ -23,9 +27,21 @@ th, td { border-bottom: 1px solid #ccd4dc; padding: 0.65rem; text-align: left; v
 code { overflow-wrap: anywhere; }
 .muted { color: #5f6368; }
 
+@media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { scroll-behavior: auto !important; transition-duration: 0.01ms !important; }
+}
+
 @media (max-width: 48rem) {
     .auth-shell, .admin-content { margin: 0; padding: 1rem; }
     .admin-header { padding: 1rem; }
     .admin-header a, .admin-header form { display: block; margin: 0.45rem 0; }
     table { display: block; overflow-x: auto; }
 }
+
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; }
+.actions form { margin: 0; }
+.actions a { display: inline-block; padding: 0.4rem 0.6rem; border: 1px solid #ccd4dc; border-radius: 0.2rem; text-decoration: none; }
+fieldset { margin: 1.25rem 0; border: 1px solid #ccd4dc; padding: 1rem; }
+legend { font-weight: 600; }
+dialog { max-width: 32rem; border: 1px solid #ccd4dc; padding: 1.5rem; }
+dialog::backdrop { background: rgba(23, 32, 42, 0.5); }

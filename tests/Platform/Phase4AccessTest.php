@@ -401,7 +401,7 @@ final class Phase4AccessTest extends WebTestCase
         $crawler = $client->request('GET', '/admin/reauthenticate?purpose=user_management', server: $server);
         $sessionBefore = $client->getCookieJar()->get('EMAILERSESSID');
         self::assertNotNull($sessionBefore);
-        $client->submit($crawler->selectButton('Re-authenticate')->form([
+        $client->submit($crawler->selectButton('Confirm current credentials')->form([
             'password' => $password,
             'mfa_code' => '',
         ]), [], $server);
@@ -420,28 +420,41 @@ final class Phase4AccessTest extends WebTestCase
         self::assertResponseRedirects('/admin/users', 303);
         self::assertSame(1, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM app_user WHERE login_identifier = ?', [$createdLogin])));
 
-        $crawler = $client->request('GET', '/admin/contacts', server: $server);
-        $client->submit($crawler->selectButton('Reveal full address')->form(), [], $server);
-        self::assertResponseStatusCodeSame(403);
+        $client->request('GET', '/admin/contacts', server: $server);
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('main', 'restricted@example.test');
+        self::assertSelectorNotExists('form[action$="/reveal"]');
+        self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'contact.addresses.viewed' AND actor_user_id = ?", [$owner->id()])));
 
         $crawler = $client->request('GET', '/admin/reauthenticate?purpose=contact_data_access', server: $server);
-        $client->submit($crawler->selectButton('Re-authenticate')->form([
+        $client->submit($crawler->selectButton('Confirm current credentials')->form([
             'password' => $password,
             'mfa_code' => '',
         ]), [], $server);
         self::assertResponseRedirects('/admin', 303);
 
         $crawler = $client->request('GET', '/admin/contacts', server: $server);
-        $client->submit($crawler->selectButton('Reveal full address')->form(), [], $server);
-        self::assertResponseIsSuccessful();
-        self::assertSelectorTextContains('code', 'restricted@example.test');
-        self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'contact.address.revealed' AND target_id = ?", [$contactId])));
-
-        $crawler = $client->request('GET', '/admin/contacts', server: $server);
         $client->submit($crawler->selectButton('Export full contact CSV')->form(), [], $server);
         self::assertResponseIsSuccessful();
         self::assertResponseHeaderSame('Content-Disposition', 'attachment; filename="contacts.csv"');
         self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'contact.exported' AND actor_user_id = ?", [$owner->id()])));
+
+        $crawler = $client->request('GET', '/admin/backups', server: $server);
+        self::assertSelectorTextContains('main', 'current Owner password');
+        $client->submit($crawler->selectButton('Create and verify local backup')->form(), [], $server);
+        self::assertResponseRedirects('/admin/reauthenticate?purpose=backup_management', 303);
+
+        $crawler = $client->request('GET', '/admin/reauthenticate?purpose=backup_management', server: $server);
+        $client->submit($crawler->selectButton('Confirm current credentials')->form([
+            'password' => $password,
+            'mfa_code' => '',
+        ]), [], $server);
+        self::assertResponseRedirects('/admin/backups', 303);
+
+        $crawler = $client->request('GET', '/admin/backups', server: $server);
+        $client->submit($crawler->selectButton('Create and verify local backup')->form(), [], $server);
+        self::assertResponseRedirects('/admin/backups', 303);
+        self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'backup.created' AND actor_user_id = ?", [$owner->id()])));
     }
 
     public function testCombinedPasswordMfaLoginAndRecoveryReplayRejection(): void

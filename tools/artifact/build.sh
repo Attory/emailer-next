@@ -25,6 +25,7 @@ copy_directory() {
 copy_directory "$project_root/assets" "$artifact_root/assets"
 mkdir -p "$artifact_root/assets/controllers"
 copy_directory "$project_root/config" "$artifact_root/config"
+copy_directory "$project_root/deployment" "$artifact_root/deployment"
 copy_directory "$project_root/migrations" "$artifact_root/migrations"
 copy_directory "$project_root/public" "$artifact_root/public"
 copy_directory "$project_root/src" "$artifact_root/src"

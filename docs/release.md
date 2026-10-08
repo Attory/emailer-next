@@ -1,8 +1,16 @@
 # Release
 
-**Status:** Accepted operator-signed Phase 12 `0.4.0` candidate over the
-accepted `0.3.0` base. It has not been tagged, published, deployed, or installed
-on a client server.
+**Status:** Phase 13 `1.0.0` candidate tooling under acceptance. The accepted
+operator-signed `0.4.0` candidate remains unpublished and undeployed. No
+operator-signed `1.0.0` candidate exists until an exact reviewed head receives
+separate signing authorization.
+
+The explicitly requested `0.9.x` packages are non-public human-acceptance
+builds of the complete Phase 13 application. `0.9.1` supersedes the first
+`0.9.0` walkthrough build with the resulting installer and interface repairs.
+They exist to exercise the real root installation, browser workflow, and
+accessibility checklist before `1.0.0` is finalized; they are not an additional
+supported production update line.
 
 Production deployment is an explicit operator action and never a side effect of
 CI, a phase job, or an update check. No release has an unattended auto-update.
@@ -46,21 +54,46 @@ not a release candidate and must not be published or deployed.
 A candidate is a reproducible semantic-versioned archive built from a clean
 committed tree. It contains runtime files only. A deterministic manifest binds
 the application version, source commit, supported platform, schema version,
-migration set, file digests, and minimum supported source release. The archive
+migration set, file digests, minimum source release, and explicit supported
+source-version allowlist. The archive
 ships with a checksum, SPDX SBOM, and detached Ed25519 signature.
 
 Signing private material remains outside Git, build output, logs, prompts, CI
 artifacts, and client installations. Installation pins the trusted public key.
 Package verification is fail-closed before any file, migration, or release
-pointer change.
+pointer change. The target version may inspect its own package for a clean
+install rehearsal; `ReleaseManager::update` still rejects every same-version
+update. This self-inspection exception does not add a source version to the
+signed update allowlist.
 
 Key custody, fingerprint distribution, rotation, recovery, and the supported
 update window are fixed in [release-signing.md](release-signing.md).
 
-`tools/release/build-0.4.0-candidate.sh` performs two deterministic builds for
-schema `20260828000000`, requires minimum source `0.3.0` and schema
-`20260827000000`, verifies the pinned public key, and bundles
-`CLIENT-UPDATE-0.4.0.md`. Its signing key must remain outside the repository.
+`tools/release/build-1.0.0-candidate.sh` performs two deterministic builds for
+schema `20260828000000`, declares the supported floor as source `0.1.0` and
+schema `20260824010000`, explicitly accepts only `0.1.0`, `0.2.0`, `0.3.0`,
+and `0.4.0`, and exercises target-package inspection under each declared source
+identity. The integration gate separately builds, signs with a disposable key,
+installs, and consumes manifest-bound runtime artifacts from each exact accepted
+predecessor source tree. It bundles
+the standalone verifier plus [CLIENT-INSTALL-1.0.0.md](CLIENT-INSTALL-1.0.0.md)
+and [CLIENT-UPDATE-1.0.0.md](CLIENT-UPDATE-1.0.0.md). The operator key and
+candidate outputs remain outside the repository.
+
+For the combined `1.0.0` train, production update compatibility is enforced by
+the authenticated target-version runtime, not by predecessor binaries whose
+contracts predate the exact allowlist. Before root configuration, the operator
+checks the standalone verifier/inspector hashes against the independently
+approved candidate record and verifies the signed archive with the pinned key.
+The frozen target tree then runs in the root-controlled one-shot updater with a
+root-only source-version record; it refuses to proceed unless that value equals
+the actual current release-pointer basename. It also verifies the retained
+predecessor package and sidecars under the pinned key and requires the installed
+tree to match that signed manifest. Publication is recursively root-owned and
+non-writable.
+
+The Phase 12 `build-0.4.0-candidate.sh` remains available for reproducibility;
+it is not the Version-1 builder.
 
 The package never contains client configuration, a master/recovery/signing
 private key, SMTP credentials, recipient or campaign data, writable runtime
@@ -89,8 +122,10 @@ immutable release directories.
    signature.
 4. Verify the artifact independently against its manifest, digest, signature,
    and pinned trust key.
-5. Rehearse a clean install and, after `0.1.0`, update the latest supported
-   release through the same operator CLI used in production.
+5. Rehearse a clean install and every declared source path using retained signed
+   predecessor packages. CI builds equivalent manifest-bound fixtures from the
+   exact accepted integrated trees with a disposable key; candidate acceptance
+   must not mislabel those fixtures as historical operator-signed outputs.
 6. Exercise incompatibility, tamper, interruption, failed-health-check, and
    rollback-or-restore behavior.
 7. Produce a release-candidate report with versions, migrations, known
