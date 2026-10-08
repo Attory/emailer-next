@@ -11,10 +11,9 @@ Group=root
 WorkingDirectory=/var/lib/emailer-candidate/verified-%i
 EnvironmentFile=/etc/emailer/runtime.env
 EnvironmentFile=/etc/emailer/update.env
-Environment=EMAILER_RUNTIME_DIR=/run/emailer-update-%i
 RuntimeDirectory=emailer-update-%i
 RuntimeDirectoryMode=0700
-ExecStart=/usr/bin/php /var/lib/emailer-candidate/verified-%i/bin/console emailer:release:update /var/lib/emailer-candidate/emailer-next-%i.zip --source-package=/var/lib/emailer-candidate/emailer-next-${EMAILER_UPDATE_SOURCE_VERSION}.zip --no-interaction --approved-target=%i
+ExecStart=/usr/bin/env EMAILER_RUNTIME_DIR=/run/emailer-update-%i /usr/bin/php /var/lib/emailer-candidate/verified-%i/bin/console emailer:release:update /var/lib/emailer-candidate/emailer-next-%i.zip --source-package=/var/lib/emailer-candidate/emailer-next-${EMAILER_UPDATE_SOURCE_VERSION}.zip --no-interaction --approved-target=%i
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict

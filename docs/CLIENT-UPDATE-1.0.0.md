@@ -111,7 +111,10 @@ Do not put the source-version override in `runtime.env`; ordinary application
 processes must continue to identify themselves as their packaged version.
 The unit overrides only `EMAILER_RUNTIME_DIR` to its root-only transient
 `/run/emailer-update-1.0.0` directory, preventing target container cache files
-from colliding with or changing ownership of the ordinary service cache.
+from colliding with or changing ownership of the ordinary service cache. Its
+`ExecStart` applies that override through `/usr/bin/env` after systemd has read
+both protected environment files: `EnvironmentFile` would override a plain
+`Environment=EMAILER_RUNTIME_DIR=...` assignment.
 
 Run the supervised update through the root-controlled unit:
 

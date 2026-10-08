@@ -466,3 +466,23 @@ fresh-schema diagnostic on the same Debian VM's PHP 8.4.26 / MariaDB 11.8.6
 also passes first-attempt key initialization with the repaired source. That
 diagnostic loads the repair outside the immutable signed installation and is
 not represented as a signed-package installation rehearsal.
+
+### Updater unit: root runtime precedence
+
+Independent review of the supervised deployment procedure identified that
+systemd `EnvironmentFile` overrides `Environment`. The runtime file generated
+by the installer therefore defeated the updater example's transient cache
+assignment. This bounded follow-up applies the runtime override in the
+`ExecStart` command with `/usr/bin/env`, after both protected files are loaded,
+and updates the manual and platform regression. The root updater uses its
+root-only transient directory even when the ordinary runtime file selects the
+service cache. No source-version override, update allowlist, migration,
+dependency, or later phase changes. Renewed exact-head checks, review and
+signing authorization are required; earlier-SHA approvals do not transfer.
+
+The complete local aggregate passes with 237 tests / 3,319 assertions. A
+nonmutating actual-systemd probe in the synthetic Debian VM loads the ordinary
+runtime file and verifies that the old assignment selects the shared service
+cache, while the repaired command selects the private root cache. The probe
+constructs the kernel without booting or writing a cache; no installation,
+database, key, or private-state change is made by that proof.

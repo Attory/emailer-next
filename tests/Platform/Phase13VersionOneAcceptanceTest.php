@@ -76,7 +76,8 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
         self::assertStringContainsString('/var/lib/emailer-candidate/verified-%i/bin/console', $updater);
         self::assertStringContainsString('EnvironmentFile=/etc/emailer/update.env', $updater);
         self::assertStringContainsString('RuntimeDirectory=emailer-update-%i', $updater);
-        self::assertStringContainsString('Environment=EMAILER_RUNTIME_DIR=/run/emailer-update-%i', $updater);
+        self::assertStringContainsString('ExecStart=/usr/bin/env EMAILER_RUNTIME_DIR=/run/emailer-update-%i /usr/bin/php ', $updater);
+        self::assertStringNotContainsString('Environment=EMAILER_RUNTIME_DIR=', $updater);
         self::assertStringContainsString('--approved-target=%i', $updater);
         self::assertStringContainsString('--source-package=/var/lib/emailer-candidate/emailer-next-${EMAILER_UPDATE_SOURCE_VERSION}.zip', $updater);
         self::assertStringContainsString("TRUSTED_HOSTS='^emailer\\.client\\.example$'", $manual);
