@@ -42,6 +42,12 @@ final class CampaignsController extends AbstractController
         return $this->render('admin/campaigns.html.twig', ['selected_list' => $selectedList, 'selected_template' => $selectedTemplate, 'campaigns' => $this->campaigns->list($user), 'options' => $options, 'limits' => $this->campaigns->deliveryLimits(), 'form_values' => $request->isMethod('POST') ? $this->retainedValues($request) : []]);
     }
 
+    #[Route('/guide', name: 'admin_campaign_guide', methods: ['GET', 'HEAD'])]
+    public function guide(): Response
+    {
+        return $this->render('admin/campaign-guide.html.twig');
+    }
+
     #[Route('/create', name: 'admin_campaign_create', methods: ['POST'])]
     public function create(Request $request): Response
     {

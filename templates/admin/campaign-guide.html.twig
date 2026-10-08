@@ -1,0 +1,44 @@
+{% extends 'admin/layout.html.twig' %}
+{% block title %}Newsletter guide · Emailer Next{% endblock %}
+{% block admin_body %}
+<div class="page-heading"><div><p class="eyebrow">User manual</p><h1>Create and edit a newsletter</h1><p class="muted">Prepare → Test → Approve → Send.</p></div><a class="button secondary" href="{{ path('admin_campaigns') }}">Back to campaigns</a></div>
+<article class="panel guide-copy">
+<nav aria-label="Guide contents"><a href="#create">Create</a> · <a href="#edit">Edit</a> · <a href="#send">Test and send</a> · <a href="#progress">Progress</a> · <a href="#help">Troubleshooting</a></nav>
+<p>A campaign is one newsletter sent to a selected audience. A template is its reusable email content; a list is a group of contacts. Saving a draft sends nothing.</p>
+<p>Owners can complete the whole process. Operators prepare, test and send approved campaigns; Administrators and Owners approve. Auditors can view campaigns.</p>
+<section id="create"><h2>1. Create a campaign</h2><ol>
+<li>Open <strong>Campaigns → Create newsletter</strong>. You can also use <strong>Send to</strong> beside a list, or <strong>Send</strong> beside a template.</li>
+<li><strong>Recipients:</strong> enter an internal campaign name. Select one or more existing lists, or choose <strong>Upload a CSV</strong>, give the new list a name and map its email column. The internal name is not the email subject. Duplicate contacts and unsubscribes are excluded from delivery.</li>
+<li><strong>Content:</strong> select a saved template and preview it, or choose a new template and upload/paste HTML. Enter its template name, email subject and preheader. The preheader is the short inbox preview.</li>
+<li><strong>Sending rate:</strong> enter messages per minute, or leave blank to use the installation limit. This is a maximum, not guaranteed throughput. For example, 50 recipients at 10/minute take several minutes; domain limits and retries can make it longer.</li>
+<li><strong>Review:</strong> check the selections, then save the draft. If you uploaded a CSV, review the import counts on the new campaign page and click <strong>Add reviewed recipients</strong> before testing or reviewing the newsletter.</li>
+</ol><p>Send only to contacts you have permission to email. Reimporting or duplicating a list does not remove global unsubscribe protections.</p></section>
+<section id="edit"><h2>2. Edit a draft</h2><ol>
+<li>Open <strong>Campaigns</strong>, then click the campaign’s name.</li>
+<li>Choose <strong>Edit draft</strong>. It is available in Draft and Review, after any pending CSV import has been committed.</li>
+<li>Change the internal name, selected lists, template version or sending rate, then save. Editing a campaign in Review returns it to Draft.</li>
+<li>To change the email’s wording, subject or preheader, open <strong>Templates → Edit</strong> and save a new version. Return to <strong>Edit draft</strong> and explicitly select that new version. Existing drafts keep their earlier version until you change it.</li>
+<li>Send a fresh test and review again after saving changes. Earlier tests no longer confirm the edited draft.</li>
+</ol><p>Use <strong>Lists → View/Edit</strong> to correct members before approval. Approval locks the audience and content for that campaign. After approval, create a new campaign for changed content or recipients; if needed, cancel the old campaign’s remaining delivery. A message already being transmitted may still finish.</p></section>
+<section id="send"><h2>3. Test, approve and send</h2><ol>
+<li>Choose <strong>Send a test to myself</strong>. It sends to your signed-in account’s email address. Wait for the test to be accepted and check its subject, layout, links and unsubscribe footer in your inbox.</li>
+<li>Choose <strong>Review newsletter</strong>. Check the eligible and suppressed counts, template, sender, time zone, tracking and RSVP settings. Approval records the audience at that moment; the final recipient count can differ from an earlier preview.</li>
+<li>An Administrator or Owner chooses <strong>Approve newsletter</strong>, confirming their own password and MFA when requested. Operators ask an Administrator or Owner to approve.</li>
+<li>Choose <strong>Send now</strong>, or enter a date/time and choose <strong>Schedule newsletter</strong>. Use the organisation time zone shown beside the field. Avoid skipped or repeated daylight-saving hours.</li>
+</ol><p>Approval does not start delivery. You must choose Send now or schedule it.</p></section>
+<section id="progress"><h2>4. Follow delivery and change its pace</h2><p>The campaign page shows a live progress bar and counts. <strong>SMTP accepted</strong> means the mail server accepted the message, not that it reached the inbox. Processed also includes failures, unsubscribes, cancellations and uncertain outcomes.</p><ul>
+<li><strong>Pause delivery:</strong> stop starting more messages, then change the campaign rate while paused and choose <strong>Resume delivery</strong>.</li>
+<li><strong>Cancel remaining deliveries:</strong> stop the remaining audience. It cannot recall messages already sent.</li>
+<li><strong>Waiting/Retrying:</strong> delivery is still pending or being retried. Rate limits can keep recipients waiting.</li>
+<li><strong>Uncertain:</strong> the provider outcome could not be established. These messages are not automatically resent.</li>
+</ul><p>An Owner can change installation limits under <strong>Settings &amp; tools → Delivery limits</strong>. Shared installation, destination-domain and concurrency limits still apply to every campaign.</p></section>
+<section id="help"><h2>5. Common questions</h2><dl>
+<dt>I cannot see Edit draft.</dt><dd>Check your role and campaign status. Commit any pending recipient upload. Approved, scheduled, sending and completed content cannot be edited.</dd>
+<dt>A new template version did not change my campaign.</dt><dd>Open Edit draft and select the new version explicitly. Send a fresh test before approval.</dd>
+<dt>Approval is unavailable or the test is outdated.</dt><dd>Wait for an accepted test of the current draft. If you edited it, send another test. Only an Administrator or Owner can approve.</dd>
+<dt>Delivery is blocked or progress does not move.</dt><dd>Open Doctor and address critical findings. Check whether the campaign is paused or scheduled, and whether the worker and scheduler are running. Ask the installation operator if services need attention.</dd>
+<dt>The live counts stop refreshing.</dt><dd>Refresh the page, or sign in again if your session expired. Without JavaScript, use Refresh page to update counts manually.</dd>
+</dl></section>
+<p class="help">To keep a copy, use your browser’s Print → Save as PDF.</p>
+</article>
+{% endblock %}

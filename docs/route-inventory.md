@@ -222,3 +222,12 @@ Existing campaign create now accepts bounded private CSV/HTML multipart uploads
 through the same validated services. Existing mail update performs inline
 password/MFA confirmation when its purpose grant expires, rotates/binds the
 session and retains Owner/CSRF checks. No provider is contacted by either form.
+
+## 1.0.3 bounded repair
+
+`GET/HEAD /admin/campaigns/guide` (`admin_campaign_guide`) is an authenticated,
+private/no-store read available to Auditor and above. It serves the basic manual
+and contains no personal records. Existing user create/update/delete POST routes
+retain Administrator/Owner authorization and CSRF; expired user-management
+confirmation now invokes inline current-password/MFA verification, with a
+422 form on failure and no secret retention.
