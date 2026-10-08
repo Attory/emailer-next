@@ -431,3 +431,14 @@ without charging a failed authentication attempt. The dialog holds unsaved field
 JavaScript the same confirmation fields submit normally. Passwords/codes are
 never saved as pending state or returned. No provider connection occurs on
 configuration storage.
+
+## 1.0.3 user-management confirmation repair
+
+Create/update/delete user actions confirm the signed-in administrator inline
+through the existing throttled password/MFA verifier. Only the `user_management`
+purpose is accepted, within its five-minute lifetime. Successful confirmation
+rotates/binds the browser session; CSRF is checked before credentials. Missing
+or invalid confirmation produces an actionable 422 form without mutation. Only
+creation email/role may be retained; initial/current passwords and codes are
+never redisplayed or saved as pending actions. Role/last-Owner safeguards remain
+server-side. The guide is authenticated and private/no-store.

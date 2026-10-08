@@ -1,0 +1,5 @@
+<fieldset data-mail-settings-target="confirmation"><legend>Confirm your administrator identity</legend>
+<label>Your current password<input type="password" name="actor_password" autocomplete="current-password" data-mail-settings-target="password"></label>
+<label>Your authenticator or recovery code<input name="actor_mfa_code" autocomplete="one-time-code" data-mail-settings-target="code"></label>
+<p class="help">Use your own sign-in credentials, not the new account’s initial password. Enter a code if your account has MFA.</p></fieldset>
+<dialog data-mail-settings-target="dialog" aria-label="Confirm administrator identity"><button type="button" data-action="mail-settings#confirm">{{ confirmation_action }}</button><button type="button" data-action="mail-settings#cancel">Cancel</button></dialog>

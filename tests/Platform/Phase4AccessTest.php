@@ -396,7 +396,8 @@ final class Phase4AccessTest extends WebTestCase
             'password' => 'phase4-created-'.bin2hex(random_bytes(10)),
             'role' => AdministrativeRole::Auditor->value,
         ]), [], $server);
-        self::assertResponseStatusCodeSame(403);
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(0, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM app_user WHERE login_identifier = ?', ['premature@example.test'])));
 
         $crawler = $client->request('GET', '/admin/reauthenticate?purpose=user_management', server: $server);
         $sessionBefore = $client->getCookieJar()->get('EMAILERSESSID');

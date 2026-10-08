@@ -227,12 +227,9 @@ final class AdminController extends AbstractController
     }
 
     #[Route('/users', name: 'admin_users', methods: ['GET', 'HEAD'])]
-    public function users(): Response
+    public function users(Request $request): Response
     {
-        return $this->render('admin/users.html.twig', [
-            'users' => $this->users->list($this->user()),
-            'roles' => AdministrativeRole::cases(),
-        ]);
+        return $this->renderUsers($request);
     }
 
     #[Route('/users/create', name: 'admin_user_create', methods: ['POST'])]
@@ -241,7 +238,11 @@ final class AdminController extends AbstractController
         if (!$this->validCsrf($request, 'admin-user-create')) {
             return new Response('Request not accepted.', Response::HTTP_BAD_REQUEST);
         }
-        $this->reauthentication->assertRecent($request->getSession(), 'user_management');
+        if (!$this->confirmUserManagement($request)) {
+            $this->addFlash('error', 'Confirm your current password and authenticator or recovery code to make this user change. Passwords must be entered again.');
+
+            return $this->renderUsers($request, Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
         try {
             $this->users->create(
                 $this->user(),
@@ -266,7 +267,11 @@ final class AdminController extends AbstractController
         if (!$this->validCsrf($request, 'admin-user-update-'.$id)) {
             return new Response('Request not accepted.', Response::HTTP_BAD_REQUEST);
         }
-        $this->reauthentication->assertRecent($request->getSession(), 'user_management');
+        if (!$this->confirmUserManagement($request)) {
+            $this->addFlash('error', 'Confirm your current password and authenticator or recovery code to make this user change. Passwords must be entered again.');
+
+            return $this->renderUsers($request, Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
         try {
             $updatedUser = $this->users->update(
                 $this->user(),
@@ -283,6 +288,7 @@ final class AdminController extends AbstractController
                     return $this->redirectToRoute('identity_login', status: Response::HTTP_SEE_OTHER);
                 }
                 $this->replaceCurrentUser($updatedUser);
+                // UserAdministration revoked every target session, including fresh confirmation.
                 $this->rotateAndBind($request, $updatedUser);
             }
             $this->addFlash('success', 'User updated.');
@@ -301,7 +307,11 @@ final class AdminController extends AbstractController
         if (!$this->validCsrf($request, 'admin-user-delete-'.$id)) {
             return new Response('Request not accepted.', Response::HTTP_BAD_REQUEST);
         }
-        $this->reauthentication->assertRecent($request->getSession(), 'user_management');
+        if (!$this->confirmUserManagement($request)) {
+            $this->addFlash('error', 'Confirm your current password and authenticator or recovery code to make this user change. Passwords must be entered again.');
+
+            return $this->renderUsers($request, Response::HTTP_UNPROCESSABLE_ENTITY);
+        }
         try {
             $this->users->delete($this->user(), $id, $this->sourceHash($request));
             $this->addFlash('success', 'User deleted.');
@@ -312,6 +322,35 @@ final class AdminController extends AbstractController
         }
 
         return $this->redirectToRoute('admin_users', status: Response::HTTP_SEE_OTHER);
+    }
+
+    private function confirmUserManagement(Request $request): bool
+    {
+        return $this->reauthentication->isRecent($request->getSession(), 'user_management')
+            || ('' !== $request->request->getString('actor_password') && $this->reauthentication->confirm(
+                $request->getSession(),
+                $this->user(),
+                $request->request->getString('actor_password'),
+                $request->request->getString('actor_mfa_code'),
+                'user_management',
+                $request->getClientIp(),
+                $request->headers->get('User-Agent'),
+            ));
+    }
+
+    private function renderUsers(Request $request, int $status = Response::HTTP_OK): Response
+    {
+        // Retain only the new account's non-secret fields; never passwords or MFA codes.
+        $creating = 'admin_user_create' === $request->attributes->get('_route');
+        $role = $creating ? AdministrativeRole::tryFrom($request->request->getString('role')) : null;
+
+        return $this->render('admin/users.html.twig', [
+            'users' => $this->users->list($this->user()),
+            'roles' => AdministrativeRole::cases(),
+            'confirmation_expires_at' => $this->reauthentication->expiresAt($request->getSession(), 'user_management'),
+            'create_login' => $creating ? mb_substr($request->request->getString('login_identifier'), 0, 254) : '',
+            'create_role' => ($role ?? AdministrativeRole::Operator)->value,
+        ], new Response(status: $status));
     }
 
     private function user(): AuthenticatedUser

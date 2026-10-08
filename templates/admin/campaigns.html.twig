@@ -3,7 +3,7 @@
 {% block javascripts %}<script type="module" src="{{ asset('newsletter-composer.js') }}"></script>{% endblock %}
 {% block admin_body %}
 {% set values = form_values|default({}) %}
-<div class="page-heading"><div><p class="eyebrow">Make something worth opening</p><h1>Your campaigns.</h1><p class="muted">Prepare a newsletter, check it, then send when you’re ready.</p></div>{% if is_granted('ROLE_OPERATOR') %}<a class="button" href="#compose">Create newsletter <span aria-hidden="true">↓</span></a>{% endif %}</div>
+<div class="page-heading"><div><p class="eyebrow">Make something worth opening</p><h1>Your campaigns.</h1><p><a href="{{ path('admin_campaign_guide') }}">How to create and edit a newsletter</a></p><p class="muted">Prepare a newsletter, check it, then send when you’re ready.</p></div>{% if is_granted('ROLE_OPERATOR') %}<a class="button" href="#compose">Create newsletter <span aria-hidden="true">↓</span></a>{% endif %}</div>
 <section class="panel" aria-labelledby="campaign-history">
 <div class="section-header"><h2 id="campaign-history">Campaign history</h2><span class="muted">{{ campaigns|length }} campaigns</span></div>
 {% if campaigns %}<table><thead><tr><th scope="col">Newsletter</th><th scope="col">Status</th><th scope="col">Audience</th><th scope="col">Accepted</th><th scope="col">Needs attention</th><th scope="col">Updated</th></tr></thead><tbody>
