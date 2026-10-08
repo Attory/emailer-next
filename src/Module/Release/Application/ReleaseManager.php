@@ -113,6 +113,7 @@ final readonly class ReleaseManager
         $migrationApplied = false;
         $target = null;
         $manifest = [];
+        $sourceSchemaFingerprint = null;
         try {
             $previous = realpath($this->releasesDirectory.'/current');
             if (false === $previous || !is_dir($previous) || !hash_equals($this->currentVersion, basename($previous))) {
@@ -128,6 +129,7 @@ final readonly class ReleaseManager
             }
             $this->assertPlatformAndSchemaCompatibility($manifest);
             $this->assertDiskCapacity($archive, $manifest);
+            $sourceSchemaFingerprint = $this->schemaFingerprint();
             $operationId = Identity::uuidV7();
             $this->connection->insert('release_operation', ['id' => $operationId, 'operation' => 'update', 'source_version' => $this->currentVersion, 'target_version' => $manifest['version'], 'package_sha256' => hash_file('sha256', $archive), 'status' => 'started', 'detail_code' => 'verified', 'started_at' => Identity::now(), 'finished_at' => null]);
             $this->connection->executeStatement("UPDATE delivery_runtime SET accepting_work = 0, updated_at = ? WHERE singleton_key = '1'", [Identity::now()]);
@@ -155,6 +157,9 @@ final readonly class ReleaseManager
                         $this->switchPointer($previous);
                     } else {
                         $this->backups->restore($safety['path']);
+                        if (null === $sourceSchemaFingerprint || !hash_equals($sourceSchemaFingerprint, $this->schemaFingerprint())) {
+                            throw new \RuntimeException('Safety backup restored data but not the exact source schema; supervised schema recovery is required.');
+                        }
                         if (false !== $previous) {
                             $this->switchPointer($previous);
                         }
@@ -176,6 +181,32 @@ final readonly class ReleaseManager
         } finally {
             $lock->release();
         }
+    }
+
+    private function schemaFingerprint(): string
+    {
+        // Application backups restore rows and assets, not MariaDB DDL or its migration ledger.
+        // Never switch older code back merely because that data restore succeeded.
+        $tables = $this->connection->createSchemaManager()->listTableNames();
+        sort($tables);
+        $definitions = [];
+        foreach ($tables as $table) {
+            $definition = $this->connection->fetchAssociative('SHOW CREATE TABLE '.$this->connection->quoteSingleIdentifier($table));
+            if (false === $definition) {
+                throw new \RuntimeException('Database schema recovery verification is unavailable.');
+            }
+            foreach ($definition as $name => $value) {
+                if (!\is_string($value)) {
+                    throw new \RuntimeException('Database schema recovery verification is invalid.');
+                }
+                // Restoring rows changes AUTO_INCREMENT counters, not the table definition.
+                $definition[$name] = preg_replace('/ AUTO_INCREMENT=[0-9]+/', '', $value);
+            }
+            $definitions[$table] = $definition;
+        }
+        $versions = $this->connection->fetchAllAssociative('SELECT version, executed_at, execution_time FROM doctrine_migration_versions ORDER BY version');
+
+        return hash('sha256', serialize([$definitions, $versions]));
     }
 
     /** @param array<string, mixed> $manifest */

@@ -67,8 +67,7 @@ safe.
 
 The draft PR completion record supplies the exact head SHA, commits/files,
 network-isolated suite, GitHub matrix, disposable VM upgrade and candidate
-checksums after those checks finish. These results must be verified before
-requesting exact-head merge approval.
+checksums after those checks finish. These results must be verified before publication and deployment.
 
 ## Manual acceptance and limits
 
@@ -86,6 +85,20 @@ seen earlier during review. The existing scheduler limits one reconciliation
 batch to 100 campaigns; very large concurrent workloads are outside the MVP
 reference load acceptance.
 
-Merge, operator-key signing and preserving production deployment require
-Anton's approval for the exact repository/job/PR/head. Disposable-key fixtures
-must never be published or deployed to production.
+Anton explicitly authorized completion through deployment once the tests pass.
+This includes merging the verified candidate, offline operator-key signing and
+preserving deployment for this release. Disposable-key fixtures must never be
+published or deployed to production.
+
+## Schema recovery guard
+
+The encrypted application backup restores business rows and assets; it does not
+recreate MariaDB table definitions or migration metadata. The updater fingerprints
+both before migration and verifies them after a failed-update data restore. If
+either differs, recovery records `rollback_failed`, retains the target when it
+has already become current, and keeps delivery quiesced. It refuses to switch
+older code back onto that advanced schema. Complete supervised database schema
+and migration-ledger recovery before attempting an older-release rollback; a
+successful row restore alone is insufficient. Do not resume delivery following
+this failure. Repeatable additive migrations permit a reviewed forward retry
+after exact source recovery; they are not an automatic DDL downgrade.

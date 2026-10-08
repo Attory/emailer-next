@@ -15,7 +15,8 @@ The migration adds optional campaign pacing, durable rate counters and draft-rev
    predecessor package source commit and archive SHA-256, the approved `1.0.2`
    source commit and archive SHA-256, and the rollback owner. The predecessor
    values come from its retained accepted candidate record, not from the
-   directory name.
+   directory name. Capture and retain the complete schema/ledger checkpoint
+   described below before migration; verify both recorded hashes.
 4. Normalize the recorded releases root to `root:root` mode `0755`, keep every
    existing semantic-version directory root-owned and frozen, and create
    candidate staging as `root:root` mode `0755`. Do not recursively cross the `current`
@@ -170,3 +171,66 @@ Resume delivery only through the documented `emailer:delivery:resume` command
 after the change owner accepts all evidence. Publication, deployment, provider
 contact, DNS change, credential rotation, and a live SMTP test remain separate
 operator actions.
+
+## Required schema checkpoint before migration
+
+Before running the updater, capture a schema-only dump with no recipient or
+credential rows and the full ordered `doctrine_migration_versions` rows
+(`version`, `executed_at`, `execution_time`, ordered by `version`). Normalize
+only table-level ` AUTO_INCREMENT=N` counters, as the updater does. Retain the
+complete table definitions, ledger and SHA-256 of each in a root-only operation
+directory alongside the verified encrypted backup and exact source path.
+Confirm that the checkpoint is readable and hashes verify before migration.
+Recovery step 1 compares against these exact retained artifacts; a latest
+version number alone cannot establish source schema recovery.
+
+## Schema recovery guard
+
+The encrypted application backup restores business rows and assets; it does not
+recreate MariaDB table definitions or migration metadata. The updater fingerprints
+both before migration and verifies them after a failed-update data restore. If
+either differs, recovery records `rollback_failed`, retains the target when it
+has already become current, and keeps delivery quiesced. It refuses to switch
+older code back onto that advanced schema. Complete supervised database schema
+and migration-ledger recovery before attempting an older-release rollback; a
+successful row restore alone is insufficient. Do not resume delivery following
+this failure. Repeatable additive migrations permit a reviewed forward retry
+after exact source recovery; they are not an automatic DDL downgrade.
+
+### Supervised recovery and forward retry
+
+The change owner must retain the pre-update schema/ledger fingerprint and exact
+source path alongside the verified encrypted backup. A failed migration may
+leave `current` on `1.0.0`; that old Doctor does not implement the new recovery
+finding. Check the latest `release_operation.detail_code` through protected
+operator tooling. `rollback_failed` forbids resuming delivery even if the old
+Doctor displays no other critical finding.
+
+1. Keep delivery quiesced. Recover **both** the complete source table definitions
+   and migration ledger, then business data/assets from the verified backup.
+   Compare the recovered normalized table definitions and full ordered ledger
+   with the retained pre-update checkpoint and verify both SHA-256 values, plus
+   preserved business-data fingerprints.
+   Do not delete a migration row to conceal an advanced table definition.
+2. Only after source recovery is verified, atomically repoint `current` to the
+   exact recorded immutable `1.0.0` directory. Use a temporary sibling symlink
+   and atomic rename; verify its resolved path and signed predecessor files.
+3. If retained, move the exact recorded `<RELEASES-DIRECTORY>/1.0.2` directory
+   to a protected recovery quarantine outside the web root. Confirm `current`
+   resolves to the verified source first. Use an exact path, no wildcard, and
+   never operate through `current`. This removes the failed target from the
+   install location while retaining evidence; `install()` rejects an existing
+   target directory on retry.
+4. Clear/warm the ordinary service cache as `emailer` using the recovered source,
+   start its quiesced worker and refresh scheduler heartbeats. Stop periodic
+   operations while retaining worker heartbeat through supervised verification.
+   Re-authenticate the unchanged source and reviewed target packages.
+5. Rerun `emailer-update@1.0.2.service` with the exact reviewed target. Its
+   transient root cache must be fresh. The recovery finding clears only after a
+   subsequent verified update passes and records success. Restart on new code,
+   verify preservation/readiness, then explicitly resume delivery.
+
+If complete source recovery cannot be verified, retain the installed target,
+backup and failure evidence and obtain supervised database recovery. Do not
+force the pointer, remove the target, or clear the failure record merely to
+make Doctor appear healthy.

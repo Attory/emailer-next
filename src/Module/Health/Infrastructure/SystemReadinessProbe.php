@@ -27,6 +27,10 @@ final readonly class SystemReadinessProbe implements LightweightReadinessProbe, 
             if (!\is_string($schema) || $this->expectedSchemaVersion !== substr($schema, -14)) {
                 $findings[] = $this->critical('schema_version_mismatch', 'Application code and database schema versions differ.', 'Apply the exact reviewed migrations for this application release.');
             }
+            $lastUpdate = $this->connection->fetchAssociative("SELECT status, detail_code FROM release_operation WHERE operation = 'update' ORDER BY started_at DESC, id DESC LIMIT 1");
+            if (false !== $lastUpdate && 'failed' === $lastUpdate['status'] && 'rollback_failed' === $lastUpdate['detail_code']) {
+                $findings[] = $this->critical('release_schema_recovery', 'A failed update requires supervised schema recovery.', 'Keep delivery quiesced; recover the exact reviewed database schema and release before resuming.');
+            }
             $server = $this->connection->fetchOne('SELECT VERSION()');
             if (!\is_string($server) || 1 !== preg_match('/^(\d+\.\d+)/', $server, $matches) || !\in_array($matches[1], ['10.11', '11.8'], true)) {
                 $findings[] = $this->critical('database_version', 'The database server version is unsupported.', 'Use a project-tested MariaDB 10.11 or 11.8 release.');
