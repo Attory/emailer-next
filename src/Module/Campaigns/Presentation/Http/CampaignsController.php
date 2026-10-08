@@ -39,7 +39,7 @@ final class CampaignsController extends AbstractController
             }
         }
 
-        return $this->render('admin/campaigns.html.twig', ['selected_list' => $selectedList, 'selected_template' => $selectedTemplate, 'campaigns' => $this->campaigns->list($user), 'options' => $options]);
+        return $this->render('admin/campaigns.html.twig', ['selected_list' => $selectedList, 'selected_template' => $selectedTemplate, 'campaigns' => $this->campaigns->list($user), 'options' => $options, 'limits' => $this->campaigns->deliveryLimits(), 'form_values' => $request->isMethod('POST') ? $this->retainedValues($request) : []]);
     }
 
     #[Route('/create', name: 'admin_campaign_create', methods: ['POST'])]
@@ -74,11 +74,15 @@ final class CampaignsController extends AbstractController
             $templateVersion = $request->request->getString('template_version');
             if ('upload' === $request->request->getString('template_mode', 'existing')) {
                 $file = $request->files->get('template_file');
-                if (!$file instanceof UploadedFile || !$file->isValid() || $file->getSize() > 200000) {
-                    throw new \InvalidArgumentException('Template upload is invalid.');
+                if ($file instanceof UploadedFile) {
+                    if (!$file->isValid() || $file->getSize() > 200000) {
+                        throw new \InvalidArgumentException('Template upload is invalid.');
+                    }
+                    $html = file_get_contents($file->getPathname());
+                } else {
+                    $html = $request->request->getString('html');
                 }
-                $html = file_get_contents($file->getPathname());
-                if (!\is_string($html) || !mb_check_encoding($html, 'UTF-8')) {
+                if (!\is_string($html) || '' === trim($html) || \strlen($html) > 200000 || !mb_check_encoding($html, 'UTF-8')) {
                     throw new \InvalidArgumentException('Template upload is invalid.');
                 }
                 $content = ['name' => $request->request->getString('template_name'), 'subject' => $request->request->getString('subject'), 'preheader' => $request->request->getString('preheader'), 'html' => $html];
@@ -100,7 +104,7 @@ final class CampaignsController extends AbstractController
             } else {
                 $listIds = array_values(array_filter($request->request->all('lists'), '\is_string'));
             }
-            $prepared = $this->campaigns->prepareDraft($actor, $request->request->getString('name'), $templateVersion, $listIds, $content, $audience);
+            $prepared = $this->campaigns->prepareDraft($actor, $request->request->getString('name'), $templateVersion, $listIds, $content, $audience, $this->rate($request));
             $id = $prepared['id'];
             if (null !== $prepared['import_id']) {
                 $bag[$id] = $prepared['import_id'];
@@ -112,9 +116,9 @@ final class CampaignsController extends AbstractController
 
             return $this->redirectToRoute('admin_campaign', ['id' => $id], Response::HTTP_SEE_OTHER);
         } catch (\Throwable) {
-            $this->addFlash('error', 'Draft creation was not accepted. Check the selected lists and template, unique upload names, and CSV column mapping. No campaign or uploaded list/template was saved.');
+            $this->addFlash('error', 'Draft creation was not accepted. Check the selected lists and template, unique upload names, and CSV column mapping. No campaign or uploaded list/template was saved. Your text is retained; select upload files again.');
 
-            return $this->redirectToRoute('admin_campaigns', status: Response::HTTP_SEE_OTHER);
+            return $this->index($request)->setStatusCode(Response::HTTP_UNPROCESSABLE_ENTITY);
         }
     }
 
@@ -148,10 +152,91 @@ final class CampaignsController extends AbstractController
             $campaign = $this->campaigns->detail($this->user(), $id);
             $campaign['pending_import'] = $this->pendingImport($request, $id);
 
-            return $this->render('admin/campaign.html.twig', ['campaign' => $campaign]);
+            return $this->render('admin/campaign.html.twig', ['campaign' => $campaign, 'confirmation_expires_at' => $this->reauthentication->expiresAt($request->getSession(), 'campaign_approval')]);
         } catch (\Throwable) {
             throw $this->createNotFoundException();
         }
+    }
+
+    #[Route('/{id}/progress', name: 'admin_campaign_progress', requirements: ['id' => '[0-9a-f-]{36}'], methods: ['GET', 'HEAD'])]
+    public function progress(string $id): Response
+    {
+        try {
+            return $this->json($this->campaigns->progress($this->user(), $id));
+        } catch (\InvalidArgumentException) {
+            throw $this->createNotFoundException();
+        }
+    }
+
+    #[Route('/{id}/edit', name: 'admin_campaign_edit', requirements: ['id' => '[0-9a-f-]{36}'], methods: ['GET', 'HEAD', 'POST'])]
+    public function edit(Request $request, string $id): Response
+    {
+        try {
+            $campaign = $this->campaigns->detail($this->user(), $id);
+        } catch (\InvalidArgumentException) {
+            throw $this->createNotFoundException();
+        }
+        $rejected = false;
+        if (!\in_array($campaign['state'], ['draft', 'review'], true)) {
+            $this->addFlash('error', 'This newsletter is approved. Its content and recipients are locked.');
+
+            return $this->redirectToRoute('admin_campaign', ['id' => $id], Response::HTTP_SEE_OTHER);
+        }
+        if ($request->isMethod('POST')) {
+            if (!$this->validCsrf($request, 'campaign-edit-'.$id)) {
+                return new Response('Request not accepted.', Response::HTTP_BAD_REQUEST);
+            }
+            try {
+                if (null !== $this->pendingImport($request, $id)) {
+                    throw new \DomainException('Commit your uploaded recipients before editing this draft.');
+                }
+                $lists = array_values(array_filter($request->request->all('lists'), \is_string(...)));
+                $this->campaigns->updateDraft($this->user(), $id, $request->request->getString('name'), $request->request->getString('template_version'), $lists, $this->rate($request));
+                $this->addFlash('success', 'Draft saved. Send a fresh test before approval.');
+
+                return $this->redirectToRoute('admin_campaign', ['id' => $id], Response::HTTP_SEE_OTHER);
+            } catch (\Throwable) {
+                $rejected = true;
+                $this->addFlash('error', 'Draft could not be saved. Check the name, selected lists, template and rate; commit any pending recipient upload first.');
+            }
+        }
+        $options = $this->campaigns->options($this->user());
+        $options['templates'] = $this->templates->campaignOptions($this->user());
+
+        return $this->render('admin/campaign-edit.html.twig', ['campaign' => $campaign, 'options' => $options, 'form_values' => $rejected ? $this->retainedValues($request) : null])->setStatusCode($rejected ? Response::HTTP_UNPROCESSABLE_ENTITY : Response::HTTP_OK);
+    }
+
+    #[Route('/{id}/rate', name: 'admin_campaign_rate', requirements: ['id' => '[0-9a-f-]{36}'], methods: ['POST'])]
+    public function configureRate(Request $request, string $id): Response
+    {
+        return $this->mutate($request, $id, 'campaign-rate', fn () => $this->campaigns->configureRate($this->user(), $id, $this->rate($request)), 'Sending rate saved. Installation and destination-domain limits still apply.');
+    }
+
+    /** @return array<string, string|list<string>> */
+    private function retainedValues(Request $request): array
+    {
+        // Keep newsletter text, never authentication fields or arbitrary nested input.
+        $input = $request->request->all();
+        $values = [];
+        foreach (['name', 'list_name', 'template_name', 'template_version', 'subject', 'preheader', 'html', 'messages_per_minute', 'audience_mode', 'template_mode', 'csv_mode', 'column_email', 'column_display_name', 'column_first_name', 'column_last_name', 'column_locale', 'column_time_zone', 'column_consent_source'] as $field) {
+            $values[$field] = isset($input[$field]) && \is_string($input[$field]) ? $input[$field] : '';
+        }
+        $values['lists'] = isset($input['lists']) && \is_array($input['lists']) ? array_values(array_filter($input['lists'], \is_string(...))) : [];
+
+        return $values;
+    }
+
+    private function rate(Request $request): ?int
+    {
+        $value = $request->request->getString('messages_per_minute');
+        if ('' === $value) {
+            return null;
+        }
+        if (!ctype_digit($value)) {
+            throw new \InvalidArgumentException('Sending rate must be a whole number.');
+        }
+
+        return (int) $value;
     }
 
     #[Route('/{id}/review', name: 'admin_campaign_review', requirements: ['id' => '[0-9a-f-]{36}'], methods: ['POST'])]
@@ -178,15 +263,21 @@ final class CampaignsController extends AbstractController
         if (!$this->validCsrf($request, 'campaign-approve-'.$id)) {
             return new Response('Request not accepted.', Response::HTTP_BAD_REQUEST);
         }
-        $this->reauthentication->assertRecent($request->getSession(), 'campaign_approval');
+        if (!$this->reauthentication->isRecent($request->getSession(), 'campaign_approval')
+            && ('' === $request->request->getString('owner_password') || !$this->reauthentication->confirm($request->getSession(), $this->user(), $request->request->getString('owner_password'), $request->request->getString('owner_mfa_code'), 'campaign_approval', $request->getClientIp(), $request->headers->get('User-Agent')))
+        ) {
+            $this->addFlash('error', 'Confirm your current password and authenticator or recovery code to approve this newsletter.');
 
-        return $this->mutate($request, $id, 'campaign-approve', fn () => $this->campaigns->approve($this->user(), $id, $request->request->getBoolean('waive_test')), 'Campaign approved with immutable snapshots.');
+            return $this->redirectToRoute('admin_campaign', ['id' => $id], Response::HTTP_SEE_OTHER);
+        }
+
+        return $this->mutate($request, $id, 'campaign-approve', fn () => $this->campaigns->approve($this->user(), $id, $request->request->getInt('reviewed_revision'), $request->request->getBoolean('waive_test')), 'Campaign approved with immutable snapshots.');
     }
 
     #[Route('/{id}/schedule', name: 'admin_campaign_schedule', requirements: ['id' => '[0-9a-f-]{36}'], methods: ['POST'])]
     public function schedule(Request $request, string $id): Response
     {
-        return $this->mutate($request, $id, 'campaign-schedule', fn () => $this->campaigns->schedule($this->user(), $id, new \DateTimeImmutable($request->request->getString('scheduled_at'))), 'Campaign scheduled.');
+        return $this->mutate($request, $id, 'campaign-schedule', fn () => $this->campaigns->schedule($this->user(), $id, $this->campaigns->scheduleTime($request->request->getString('scheduled_at'))), 'Campaign scheduled.');
     }
 
     #[Route('/{id}/queue', name: 'admin_campaign_queue', requirements: ['id' => '[0-9a-f-]{36}'], methods: ['POST'])]
@@ -227,7 +318,14 @@ final class CampaignsController extends AbstractController
             $operation();
             $this->addFlash('success', $success);
         } catch (\Throwable) {
-            $this->addFlash('error', 'Campaign operation was not accepted.');
+            $this->addFlash('error', match ($token) {
+                'campaign-approve' => 'Approval was not accepted. Refresh the review if this draft changed. Send an accepted test of the current draft, check its audience size, and confirm its RSVP setting matches the template.',
+                'campaign-test', 'campaign-review' => 'Complete any pending recipient import first, then try again while this newsletter is a draft or in review.',
+                'campaign-queue', 'campaign-resume' => 'Delivery could not start. Check Doctor for blocking findings and confirm the newsletter is approved or paused.',
+                'campaign-rate' => 'Pause delivery before changing the rate. Use 1–600 messages per minute or leave blank for the installation limit.',
+                'campaign-schedule' => 'Choose a future date and time in the displayed time zone. The newsletter must be approved and Doctor must be ready.',
+                default => 'This action is unavailable in the current campaign state. Refresh the newsletter and try again.',
+            });
         }
 
         return $this->redirectToRoute('admin_campaign', ['id' => $id], Response::HTTP_SEE_OTHER);

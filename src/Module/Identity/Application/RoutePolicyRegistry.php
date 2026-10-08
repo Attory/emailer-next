@@ -76,6 +76,9 @@ final class RoutePolicyRegistry
         'admin_template_asset_upload' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
         'admin_campaigns' => ['role' => AdministrativeRole::Auditor, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
         'admin_campaign' => ['role' => AdministrativeRole::Auditor, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
+        'admin_campaign_progress' => ['role' => AdministrativeRole::Auditor, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
+        'admin_campaign_edit' => ['role' => AdministrativeRole::Operator, 'methods' => ['GET', 'HEAD', 'POST'], 'sensitive' => false],
+        'admin_campaign_rate' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
         'admin_campaign_import_commit' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
         'admin_campaign_create' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
         'admin_campaign_review' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
@@ -91,6 +94,8 @@ final class RoutePolicyRegistry
         'admin_rsvp_export' => ['role' => AdministrativeRole::Administrator, 'methods' => ['POST'], 'sensitive' => true],
         'admin_mail_settings' => ['role' => AdministrativeRole::Administrator, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
         'admin_mail_settings_update' => ['role' => AdministrativeRole::Owner, 'methods' => ['POST'], 'sensitive' => true],
+        'admin_delivery_settings' => ['role' => AdministrativeRole::Administrator, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
+        'admin_delivery_settings_update' => ['role' => AdministrativeRole::Owner, 'methods' => ['POST'], 'sensitive' => true],
     ];
 
     /** @return array{role: AdministrativeRole, methods: list<string>, sensitive: bool}|null */

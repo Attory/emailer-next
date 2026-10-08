@@ -94,7 +94,7 @@ final class Phase10RecipientAnalyticsTest extends WebTestCase
         $campaigns = $this->phase4Service(CampaignManager::class);
         $campaignId = $campaigns->create($actor, 'Phase 10 public campaign', $versionId, [$listId]);
         $campaigns->submitForReview($actor, $campaignId);
-        $campaigns->approve($actor, $campaignId, true);
+        $campaigns->approve($actor, $campaignId, $this->phase4Int($campaigns->detail($actor, $campaignId)['operation_version']), true);
         $campaigns->queue($actor, $campaignId);
         $recipientId = $connection->fetchOne('SELECT id FROM campaign_recipient WHERE campaign_id = ?', [$campaignId]);
         self::assertIsString($recipientId);

@@ -322,3 +322,17 @@ SMTP confirmation and session rotation; Configuration retains encrypted storage.
 Contacts requests suppression preservation through an add-only Suppression
 contract inside profile updates. No schema, worker, dependency or public surface
 is added. Existing immutable snapshots and pre-attempt suppression remain intact.
+
+## Release 1.0.2 newsletter workspace
+
+Twig and AssetMapper retain ownership of rendering. Two small page-local native
+modules guide the composer and poll an authenticated, no-store campaign counts
+endpoint; no browser business state, external runtime or new frontend package
+is introduced. No-JavaScript forms and explicit test/approval/send boundaries
+remain usable. Configuration owns Owner delivery-policy updates through a
+purpose-scoped confirmation contract. Delivery locks the shared runtime and
+fresh policy alongside its campaign claim and durable campaign rate window.
+Draft content changes increment the campaign revision while retaining historical
+test results and immutable approved snapshots. Superseded pending tests terminate
+without provider I/O. An in-flight test can record its historical result; approval
+requires both the displayed review revision and an accepted test revision to match.

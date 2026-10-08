@@ -192,7 +192,7 @@ final class Phase11RsvpTest extends WebTestCase
         $campaignId = $campaigns->create($actor, 'Phase 11 campaign '.substr($listId, -6), $versionId, [$listId]);
         $campaigns->configureRsvp($actor, $campaignId, $enabled);
         $campaigns->submitForReview($actor, $campaignId);
-        $campaigns->approve($actor, $campaignId, true);
+        $campaigns->approve($actor, $campaignId, $this->phase4Int($campaigns->detail($actor, $campaignId)['operation_version']), true);
         $campaigns->queue($actor, $campaignId);
         $recipientId = $connection->fetchOne('SELECT id FROM campaign_recipient WHERE campaign_id = ?', [$campaignId]);
         self::assertIsString($recipientId);
@@ -225,7 +225,7 @@ final class Phase11RsvpTest extends WebTestCase
         $campaignId = $campaigns->create($actor, 'Phase 11 concurrency campaign', $versionId, [$listId]);
         $campaigns->configureRsvp($actor, $campaignId, true);
         $campaigns->submitForReview($actor, $campaignId);
-        $campaigns->approve($actor, $campaignId, true);
+        $campaigns->approve($actor, $campaignId, $this->phase4Int($campaigns->detail($actor, $campaignId)['operation_version']), true);
         $campaigns->queue($actor, $campaignId);
         $rows = $connection->fetchAllAssociative('SELECT id, contact_id FROM campaign_recipient WHERE campaign_id = ? ORDER BY contact_id', [$campaignId]);
         $byContact = [];

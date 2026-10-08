@@ -181,7 +181,7 @@ final class Phase13OwnerWorkflowTest extends KernelTestCase
         self::assertSame('review', $campaigns->detail($owner, $draft['id'])['state']);
         $published = $this->phase4Service(\App\Module\Templates\Application\Contract\PublishedTemplateProvider::class)->get($this->phase4String($first['id']));
         self::assertSame('Subject', $published['subject']);
-        $campaigns->approve($owner, $draft['id'], true);
+        $campaigns->approve($owner, $draft['id'], $this->phase4Int($campaigns->detail($owner, $draft['id'])['operation_version']), true);
         self::assertSame('Subject', $db->fetchOne('SELECT subject FROM campaign_content_snapshot WHERE campaign_id = ?', [$draft['id']]));
         self::assertSame('approved', $campaigns->detail($owner, $draft['id'])['state']);
         self::assertSame(0, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM campaign_test_delivery')));

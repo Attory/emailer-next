@@ -8,20 +8,20 @@ use PHPUnit\Framework\TestCase;
 
 final class Phase13VersionOneAcceptanceTest extends TestCase
 {
-    public function testVersionOneRuntimeAndReleaseTrainContractAreExact(): void
+    public function testCurrentRuntimeAndReleaseTrainContractAreExact(): void
     {
         $root = \dirname(__DIR__, 2);
         $services = (string) file_get_contents($root.'/config/services.yaml');
-        self::assertStringContainsString("emailer.app_version: '1.0.0'", $services);
-        self::assertStringContainsString("emailer.schema_version: '20260828000000'", $services);
+        self::assertStringContainsString("emailer.app_version: '1.0.2'", $services);
+        self::assertStringContainsString("emailer.schema_version: '20261008000000'", $services);
 
         $tooling = (string) file_get_contents($root.'/tools/release/check-candidate-tooling.sh');
-        self::assertStringContainsString('--version=1.0.0', $tooling);
-        self::assertStringContainsString('--minimum-source=0.1.0', $tooling);
-        self::assertStringContainsString('--supported-sources=0.1.0,0.2.0,0.3.0,0.4.0', $tooling);
-        self::assertStringContainsString('--minimum-schema=20260824010000', $tooling);
-        self::assertStringContainsString('--schema=20260828000000', $tooling);
-        self::assertStringContainsString('for supported_source in 0.1.0 0.2.0 0.3.0 0.4.0', $tooling);
+        self::assertStringContainsString('--version=1.0.2', $tooling);
+        self::assertStringContainsString('--minimum-source=1.0.0', $tooling);
+        self::assertStringContainsString('--supported-sources=1.0.0', $tooling);
+        self::assertStringContainsString('--minimum-schema=20260828000000', $tooling);
+        self::assertStringContainsString('--schema=20261008000000', $tooling);
+        self::assertStringContainsString('for supported_source in 1.0.0', $tooling);
         self::assertStringContainsString('EMAILER_UPDATE_SOURCE_VERSION="$supported_source"', $tooling);
         self::assertStringContainsString('build/artifact/bin/console" emailer:release:inspect', $tooling);
     }
@@ -147,10 +147,10 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
         self::assertStringContainsString('id="main-content"', $layout);
 
         $css = (string) file_get_contents($root.'/assets/styles/app.css');
-        self::assertStringContainsString('outline: 2px solid #fff', $css);
-        self::assertStringContainsString('box-shadow: 0 0 0 5px #17202a', $css);
-        self::assertStringContainsString('min-height: 2.75rem', $css);
-        self::assertStringContainsString('prefers-reduced-motion: reduce', $css);
+        self::assertStringContainsString('outline:3px solid #856f37', $css);
+        self::assertStringContainsString('outline-offset:3px', $css);
+        self::assertStringContainsString('min-height:44px', $css);
+        self::assertStringContainsString('prefers-reduced-motion:reduce', $css);
 
         $policy = $this->repositoryFile($root, 'docs/accessibility-browser-support.md');
         if (null === $policy) {
