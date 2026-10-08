@@ -436,3 +436,33 @@ production-artifact, deployment and deterministic package gates. The final
 committed-head repeat, isolation/privilege proofs, newest matrix and renewed
 read-only review are recorded on PR #17. No operator key was loaded or signed,
 no installed application was changed, and no later phase was implemented.
+
+### Full-installer rehearsal: MariaDB implicit commits
+
+The operator-signed `9fa0e894c1337575161c4c23c0b935b2a8b3afa5` acceptance
+installer completed in a disposable Debian 13 Nginx fixture. The first full CLI
+setup ran all 13 migrations but immediate key initialization failed with a
+missing Doctrine savepoint. A fresh synthetic schema reproduced the failure:
+MariaDB DDL had committed implicitly while DBAL still tracked 13 transaction
+levels. A retry in a new process succeeded, but that does not satisfy fresh
+setup acceptance.
+
+The bounded follow-up disables the misleading all-or-nothing wrapper during
+setup migrations and closes the migration connection before schema validation
+and key initialization. MariaDB DDL cannot be rolled back as one transaction;
+the setup lifecycle lock remains held, failures remain sanitized, and submitted
+credentials are still verified before metadata initialization. No migration
+file, dependency, schema, or later phase changes. The regression fails before
+the repair and checks all 13 persisted versions, immediate key initialization
+on the same connection, and actual subsequent transaction rollback after it.
+
+Renewed exact-head aggregate, GitHub matrix, independent review, and operator
+signing authorization are required. Earlier signing/source approvals do not
+transfer to this repair. The live acceptance installation remains unchanged
+during this repair.
+
+The complete local aggregate passes with 237 tests / 3,295 assertions. A separate
+fresh-schema diagnostic on the same Debian VM's PHP 8.4.26 / MariaDB 11.8.6
+also passes first-attempt key initialization with the repaired source. That
+diagnostic loads the repair outside the immutable signed installation and is
+not represented as a signed-package installation rehearsal.

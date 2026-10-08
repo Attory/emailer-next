@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration;
 
+use App\Module\Secrets\Infrastructure\FilesystemMasterKey;
 use App\Module\Setup\Application\DatabaseInput;
 use App\Module\Setup\Application\DatabaseSetup;
+use App\Module\Setup\Infrastructure\DoctrineSetupState;
 use App\Module\Setup\Infrastructure\FilesystemInstallationLock;
 use App\Module\Setup\Infrastructure\LockedSetupLifecycle;
 use Doctrine\DBAL\Connection;
@@ -49,7 +51,8 @@ final class Phase13FreshDatabaseSetupTest extends KernelTestCase
             $configuration->addMigrationsDirectory('DoctrineMigrations', \dirname(__DIR__, 2).'/migrations');
             $factory = DependencyFactory::fromConnection(new ExistingConfiguration($configuration), new ExistingConnection($connection));
             $lock = new FilesystemInstallationLock($directory.'/install.lock');
-            $setup = new DatabaseSetup($connection, $factory, new LockedSetupLifecycle($connection, $lock, new LockFactory(new FlockStore($directory))));
+            $lifecycle = new LockedSetupLifecycle($connection, $lock, new LockFactory(new FlockStore($directory)));
+            $setup = new DatabaseSetup($connection, $factory, $lifecycle);
             self::assertSame([], $connection->createSchemaManager()->listTableNames());
             try {
                 $setup->configure(new DatabaseInput($host, (int) $port, $database, $user, 'wrong-synthetic-password'));
@@ -64,6 +67,18 @@ final class Phase13FreshDatabaseSetupTest extends KernelTestCase
             self::assertTrue($connection->createSchemaManager()->tablesExist(['doctrine_migration_versions', 'installation_state', 'backup_record']));
             $versions = $connection->fetchAllAssociative('SELECT version FROM doctrine_migration_versions ORDER BY version');
             self::assertCount(13, $versions);
+            // CLI setup initializes the key in this same process immediately after DDL.
+            $key = new FilesystemMasterKey($directory.'/master.key', \dirname(__DIR__, 2).'/public', \dirname(__DIR__, 2), 'test');
+            $state = new DoctrineSetupState($connection, $key, $lifecycle);
+            self::assertSame(0, $connection->getTransactionNestingLevel());
+            $installationId = $state->initializeKey();
+            self::assertTrue($key->exists());
+            self::assertSame($installationId, $connection->fetchOne("SELECT installation_uuid FROM installation_state WHERE singleton_key = '1'"));
+            self::assertNotNull($connection->fetchOne("SELECT key_ready_at FROM installation_state WHERE singleton_key = '1'"));
+            $connection->beginTransaction();
+            $connection->executeStatement("UPDATE installation_state SET organisation_ready_at = '2000-01-01' WHERE singleton_key = '1'");
+            $connection->rollBack();
+            self::assertNull($connection->fetchOne("SELECT organisation_ready_at FROM installation_state WHERE singleton_key = '1'"));
             $setup->configure($input);
             self::assertSame($versions, $connection->fetchAllAssociative('SELECT version FROM doctrine_migration_versions ORDER BY version'));
             $lock->create([]);
