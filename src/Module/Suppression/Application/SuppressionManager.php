@@ -9,13 +9,14 @@ use App\Module\Audit\Application\Contract\AuditSink;
 use App\Module\Identity\Application\Contract\AdministrativeAccessLevel;
 use App\Module\Identity\Application\Contract\AdministrativeActor;
 use App\Module\Identity\Application\Contract\AdministrativeAuthorization;
+use App\Module\Suppression\Application\Contract\AddressCorrectionSuppression;
 use App\Module\Suppression\Application\Contract\RecipientSuppression;
 use App\Module\Suppression\Application\Contract\SuppressionLookup;
 use App\Shared\EmailAddress;
 use App\Shared\Identity;
 use Doctrine\DBAL\Connection;
 
-final readonly class SuppressionManager implements SuppressionLookup, RecipientSuppression
+final readonly class SuppressionManager implements SuppressionLookup, RecipientSuppression, AddressCorrectionSuppression
 {
     public function __construct(
         private Connection $connection,
@@ -27,6 +28,15 @@ final readonly class SuppressionManager implements SuppressionLookup, RecipientS
     public function isSuppressed(string $canonicalEmail): bool
     {
         return false !== $this->connection->fetchOne('SELECT 1 FROM suppression WHERE email_canonical = ?', [$canonicalEmail]);
+    }
+
+    public function preserve(AdministrativeActor $actor, string $previousAddress, string $newAddress): void
+    {
+        $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'suppression.preserve');
+        $reason = $this->connection->fetchOne('SELECT reason FROM suppression WHERE email_canonical = ? FOR UPDATE', [$previousAddress]);
+        if (\is_string($reason)) {
+            $this->add($actor, $newAddress, $reason, 'contact_address_correction');
+        }
     }
 
     public function add(AdministrativeActor $actor, string $email, string $reason = 'manual', string $source = 'administration'): string
@@ -80,8 +90,13 @@ final readonly class SuppressionManager implements SuppressionLookup, RecipientS
             if (!\is_string($row['email_canonical'])) {
                 throw new \UnexpectedValueException('Suppression address is invalid.');
             }
-            $row['email_display'] = (new EmailAddress($row['email_canonical']))->masked();
+            $address = new EmailAddress($row['email_canonical']);
+            $row['email_display'] = $actor->roleRank() >= AdministrativeAccessLevel::Owner->value ? $address->entered : $address->masked();
             unset($row['email_canonical']);
+        }
+
+        if ($actor->roleRank() >= AdministrativeAccessLevel::Owner->value) {
+            $this->audit->append(new AuditRecord($actor->id(), 'suppression.addresses.viewed', null, 'success', ['count' => \count($rows)]));
         }
 
         return $rows;

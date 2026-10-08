@@ -316,8 +316,12 @@ readiness remains required before MVP sending is declared healthy.
   [data-model.md](data-model.md).
 - Raw recipient data is absent from public URLs, logs, exception text, metrics
   labels, queue names/payloads, filenames, and correlation IDs.
-- Operational views mask addresses. Full display/export is separately
-  authorized and audited.
+- Ordinary views mask addresses for roles below Owner. Active Owners see full
+  contact/list and suppression addresses and nonsecret SMTP fields following
+  the explicit Phase 13 usability authorization; each read is role checked,
+  audited with opaque identifiers/counts, and served with private no-store
+  headers. Administrator reveal and all exports retain recent purpose-scoped
+  re-authentication, CSRF and audit. Credentials remain write-only.
 - Production logs are structured JSON with UTC time and random correlation IDs.
   Central processors strip credentials, tokens, cookies, headers, addresses,
   bodies, uploaded rows, control characters, and unsafe exception detail.
@@ -400,3 +404,30 @@ compensating controls, test evidence, and removal plan. It cannot permit a real
 secret/private record in Git, disable TLS peer verification, bypass suppression,
 reopen setup, expose a private path, enable HTTP delivery, or claim exactly-once
 SMTP semantics.
+
+## Phase 13 Owner workflow repair
+
+The explicitly authorized Owner visibility exception supersedes the Phase 5
+masking requirement only for private Owner reads. Search addresses travel in
+CSRF-protected POST bodies, never URLs, audit summaries or diagnostic exports.
+Owner profile edits preserve archived status. Correcting a suppressed address
+adds suppression for the corrected address in the same transaction while
+retaining the previous suppression; duplicate-address failure rolls back both.
+
+List copies share contacts and retain global suppression. Template edits append
+immutable versions; copies require unique names. Send actions only preselect a
+draft composer. Combined uploads validate through existing private CSV and HTML
+services and roll back list/template/campaign writes on failure, removing staged
+private files. Import commit checks authorization, selected-list identity and
+draft state, then rechecks suppression. Preview creates no recipient ledger or
+mail request. Existing campaign test, approval, immutable snapshot and queue
+controls remain required.
+
+SMTP Store requests preserve CSRF, Owner authorization, password plus enrolled
+MFA, existing retry throttles, five-minute purpose grants, session rotation and
+binding. A page-specific local JavaScript module activates the dialog and checks the
+server grant expiry hint at Store click. The server skips empty confirmation
+without charging a failed authentication attempt. The dialog holds unsaved fields in the current DOM only; without
+JavaScript the same confirmation fields submit normally. Passwords/codes are
+never saved as pending state or returned. No provider connection occurs on
+configuration storage.

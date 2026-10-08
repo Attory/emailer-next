@@ -49,6 +49,20 @@ final class ContactsController extends AbstractController
         return $this->redirectToRoute('admin_contacts', status: Response::HTTP_SEE_OTHER);
     }
 
+    #[Route('/contacts/{id}/edit', name: 'admin_contact_edit', requirements: ['id' => '[0-9a-f-]{36}'], methods: ['GET', 'HEAD'])]
+    public function editContact(Request $request, string $id): Response
+    {
+        $listId = $request->query->getString('list');
+        if ('' !== $listId && 1 !== preg_match('/^[0-9a-f-]{36}$/', $listId)) {
+            return $this->badRequest();
+        }
+        try {
+            return $this->render('admin/contact-edit.html.twig', ['contact' => $this->contacts->contactForEdit($this->user(), $id), 'fields' => $this->contacts->fields($this->user()), 'list_id' => $listId]);
+        } catch (\InvalidArgumentException) {
+            throw $this->createNotFoundException();
+        }
+    }
+
     #[Route('/contacts/{id}/update', name: 'admin_contact_update', requirements: ['id' => '[0-9a-f-]{36}'], methods: ['POST'])]
     public function updateContact(Request $request, string $id): Response
     {
@@ -60,6 +74,11 @@ final class ContactsController extends AbstractController
             $this->addFlash('success', 'Contact updated.');
         } catch (\Throwable) {
             $this->addFlash('error', 'Contact update was not accepted.');
+        }
+
+        $listId = $request->request->getString('list_id');
+        if (1 === preg_match('/^[0-9a-f-]{36}$/', $listId)) {
+            return $this->redirectToRoute('admin_list', ['id' => $listId], Response::HTTP_SEE_OTHER);
         }
 
         return $this->redirectToRoute('admin_contacts', status: Response::HTTP_SEE_OTHER);
@@ -112,7 +131,84 @@ final class ContactsController extends AbstractController
     #[Route('/lists', name: 'admin_lists', methods: ['GET', 'HEAD'])]
     public function lists(): Response
     {
-        return $this->render('admin/lists.html.twig', ['lists' => $this->contacts->lists($this->user()), 'contacts' => $this->contacts->list($this->user())]);
+        return $this->render('admin/lists.html.twig', ['lists' => $this->contacts->lists($this->user())]);
+    }
+
+    #[Route('/lists/{id}', name: 'admin_list', requirements: ['id' => '[0-9a-f-]{36}'], methods: ['GET', 'HEAD'])]
+    public function viewList(Request $request, string $id): Response
+    {
+        try {
+            return $this->renderList($id, max(1, $request->query->getInt('page', 1)), '', $request->query->getBoolean('available'));
+        } catch (\InvalidArgumentException) {
+            throw $this->createNotFoundException();
+        }
+    }
+
+    #[Route('/lists/{id}/browse', name: 'admin_list_browse', requirements: ['id' => '[0-9a-f-]{36}'], methods: ['POST'])]
+    public function browseList(Request $request, string $id): Response
+    {
+        if (!$this->csrf($request, 'list-browse-'.$id)) {
+            return $this->badRequest();
+        }
+        try {
+            return $this->renderList($id, $request->request->getInt('page', 1), $request->request->getString('query'), $request->request->getBoolean('available'));
+        } catch (\InvalidArgumentException) {
+            return $this->badRequest();
+        }
+    }
+
+    #[Route('/lists/{id}/edit', name: 'admin_list_edit', requirements: ['id' => '[0-9a-f-]{36}'], methods: ['GET', 'HEAD', 'POST'])]
+    public function editList(Request $request, string $id): Response
+    {
+        return $this->listForm($request, $id, false);
+    }
+
+    #[Route('/lists/{id}/duplicate', name: 'admin_list_duplicate', requirements: ['id' => '[0-9a-f-]{36}'], methods: ['GET', 'HEAD', 'POST'])]
+    public function duplicateList(Request $request, string $id): Response
+    {
+        return $this->listForm($request, $id, true);
+    }
+
+    private function listForm(Request $request, string $id, bool $duplicate): Response
+    {
+        try {
+            $list = $this->contacts->listInfo($this->user(), $id);
+        } catch (\InvalidArgumentException) {
+            throw $this->createNotFoundException();
+        }
+        $operation = $duplicate ? 'duplicate' : 'edit';
+        if ($request->isMethod('POST')) {
+            if (!$this->csrf($request, 'list-'.$operation.'-'.$id)) {
+                return $this->badRequest();
+            }
+            try {
+                if ($duplicate) {
+                    $id = $this->contacts->duplicateList($this->user(), $id, $request->request->getString('name'));
+                    $this->addFlash('success', 'List duplicated. Unsubscribe protections remain global.');
+                } else {
+                    $this->contacts->renameList($this->user(), $id, $request->request->getString('name'));
+                    $this->addFlash('success', 'List name updated.');
+                }
+
+                return $this->redirectToRoute('admin_list', ['id' => $id], Response::HTTP_SEE_OTHER);
+            } catch (\Throwable) {
+                $this->addFlash('error', 'List change was not accepted. Use a unique name of up to 160 characters.');
+
+                return $this->redirectToRoute('admin_list_'.$operation, ['id' => $id], Response::HTTP_SEE_OTHER);
+            }
+        }
+
+        return $this->render('admin/list-form.html.twig', ['list' => $list, 'operation' => $operation]);
+    }
+
+    private function renderList(string $id, int $page, string $query, bool $available): Response
+    {
+        return $this->render('admin/list.html.twig', [
+            'list' => $this->contacts->listInfo($this->user(), $id),
+            'results' => $this->contacts->listPage($this->user(), $id, $page, $query, $available),
+            'query' => $query,
+            'available' => $available,
+        ]);
     }
 
     #[Route('/lists/create', name: 'admin_list_create', methods: ['POST'])]
@@ -154,11 +250,12 @@ final class ContactsController extends AbstractController
         }
         try {
             $this->contacts->addMembership($this->user(), $id, $request->request->getString('contact_id'));
+            $this->addFlash('success', 'Contact added to the list.');
         } catch (\Throwable) {
             $this->addFlash('error', 'Membership change was not accepted.');
         }
 
-        return $this->redirectToRoute('admin_lists', status: Response::HTTP_SEE_OTHER);
+        return $this->redirectToRoute('admin_list', ['id' => $id], status: Response::HTTP_SEE_OTHER);
     }
 
     #[Route('/lists/{id}/members/remove', name: 'admin_membership_remove', requirements: ['id' => '[0-9a-f-]{36}'], methods: ['POST'])]
@@ -169,11 +266,12 @@ final class ContactsController extends AbstractController
         }
         try {
             $this->contacts->removeMembership($this->user(), $id, $request->request->getString('contact_id'));
+            $this->addFlash('success', 'Contact removed from this list. Their contact record and unsubscribe status are unchanged.');
         } catch (\Throwable) {
             $this->addFlash('error', 'Membership change was not accepted.');
         }
 
-        return $this->redirectToRoute('admin_lists', status: Response::HTTP_SEE_OTHER);
+        return $this->redirectToRoute('admin_list', ['id' => $id], status: Response::HTTP_SEE_OTHER);
     }
 
     #[Route('/imports', name: 'admin_imports', methods: ['GET', 'HEAD'])]

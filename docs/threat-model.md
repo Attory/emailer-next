@@ -115,8 +115,10 @@ message does not prove inbox delivery.
 
 - A public URL, log label, metric, filename, or correlation ID must not identify
   a recipient.
-- Ordinary operational views mask addresses; full-address access and exports
-  receive a separate authorization decision and audit event.
+- Ordinary views below Owner mask addresses. Explicitly authorized private
+  Owner contact/list, suppression and SMTP reads show full nonsecret fields
+  with authorization, opaque audit and no-store responses. Exports and
+  Administrator reveal retain separate recent authentication and CSRF.
 - Open events are approximate and must not be represented as proof that a human
   read a message.
 - A forwarded recipient link may allow the holder to exercise its scoped
@@ -395,3 +397,22 @@ service, new upload format, provider adapter, data export, backup destination,
 authentication mechanism, plugin system, multi-process topology, or schema that
 crosses module ownership. Every phase closes or tests its listed controls and
 records new residual risks.
+
+## Phase 13 Owner workflow follow-up
+
+Review TM-05 authorization/CSRF, TM-11 uploaded template validation, TM-16
+redaction, TM-20 suppression preservation and TM-21 clean-room boundaries for
+the authorized usability follow-up. New routes are private and default-deny;
+all mutations use CSRF POST, and full contact editors require Owner. Address
+search is a private POST body, not a query string. Inactive profile edits do not
+reactivate delivery. Suppression follows an address correction transactionally
+and remains durable at the previous address. Upload preparation is atomic for
+business rows, cleans private staged files on failure, and never dispatches
+mail. Import commit is bound to the draft's selected list and existing import
+access rules (Administrators/Owners may manage others' imports). The current
+session retains at most 100 opaque campaign/import references; pending imports
+block test/review in that session. After a session change, recover the upload
+through Imports; empty audiences still cannot be approved for delivery. SMTP
+confirmation uses existing password/MFA, throttle and session controls with
+no pending secret persistence. No public route, integration or new token
+purpose is introduced.

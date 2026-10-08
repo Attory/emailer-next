@@ -1,0 +1,18 @@
+{% extends 'admin/layout.html.twig' %}
+{% block title %}Edit contact — Emailer Next{% endblock %}
+{% block admin_body %}
+<p><a href="{{ list_id ? path('admin_list', {id: list_id}) : path('admin_contacts') }}">← {{ list_id ? 'List members' : 'Contacts' }}</a></p>
+<h1>Edit contact</h1>
+{% if contact.status != 'active' or contact.archived_at %}<p>This contact remains inactive after editing and cannot receive campaigns.</p>{% endif %}
+<form method="post" action="{{ path('admin_contact_update', {id: contact.id}) }}">
+    <input type="hidden" name="_token" value="{{ csrf_token('contact-update-' ~ contact.id) }}">
+    <input type="hidden" name="list_id" value="{{ list_id }}">
+    <label>Email address <input name="email" type="email" value="{{ contact.email_entered }}" maxlength="254" required></label>
+    {% for field, maximum in {display_name: 160, first_name: 100, last_name: 100, locale: 20, time_zone: 64, consent_source: 120} %}
+    <label>{{ field|replace({'_': ' '})|title }} <input name="{{ field }}" value="{{ attribute(contact, field) }}" maxlength="{{ maximum }}"{% if field == 'consent_source' %} required{% endif %}></label>
+    {% endfor %}
+    {% for field in fields %}<label>{{ field.label }} <input name="attribute_{{ field.field_key }}" value="{{ contact.attributes[field.field_key]|default('') }}" maxlength="{{ field.max_length ?: 500 }}"></label>{% endfor %}
+    <button type="submit">Save contact</button>
+</form>
+<p>Changes apply to this contact in every list. Correcting an unsubscribed address preserves suppression for both the previous and corrected addresses.</p>
+{% endblock %}

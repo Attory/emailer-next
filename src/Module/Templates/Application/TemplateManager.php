@@ -9,10 +9,11 @@ use App\Module\Audit\Application\Contract\AuditSink;
 use App\Module\Identity\Application\Contract\AdministrativeAccessLevel;
 use App\Module\Identity\Application\Contract\AdministrativeActor;
 use App\Module\Identity\Application\Contract\AdministrativeAuthorization;
+use App\Module\Templates\Application\Contract\CampaignTemplatePreparation;
 use App\Shared\Identity;
 use Doctrine\DBAL\Connection;
 
-final readonly class TemplateManager
+final readonly class TemplateManager implements CampaignTemplatePreparation
 {
     private const SYNTHETIC = [
         'contact.first_name' => 'Alex',
@@ -36,7 +37,7 @@ final readonly class TemplateManager
     {
         $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'templates.list');
 
-        return $this->connection->fetchAllAssociative('SELECT t.id, t.name, t.status, t.published_version_id, t.updated_at, COUNT(v.id) AS version_count FROM email_template t LEFT JOIN template_version v ON v.template_id = t.id GROUP BY t.id, t.name, t.status, t.published_version_id, t.updated_at ORDER BY t.updated_at DESC');
+        return $this->connection->fetchAllAssociative('SELECT t.id, t.name, t.status, t.published_version_id, t.updated_at, COUNT(v.id) AS version_count, (SELECT v2.id FROM template_version v2 WHERE v2.template_id = t.id ORDER BY v2.version_number DESC LIMIT 1) AS latest_version_id FROM email_template t LEFT JOIN template_version v ON v.template_id = t.id GROUP BY t.id, t.name, t.status, t.published_version_id, t.updated_at ORDER BY t.updated_at DESC');
     }
 
     public function create(AdministrativeActor $actor, string $name, string $subject, string $preheader, string $html, string $text): string
@@ -103,6 +104,75 @@ final readonly class TemplateManager
             $this->connection->update('email_template', ['status' => 'published', 'published_version_id' => $versionId, 'updated_at' => Identity::now()], ['id' => $templateId]);
             $this->audit->append(new AuditRecord($actor->id(), 'template.published', $templateId, 'success', ['version_id' => $versionId]));
         });
+    }
+
+    /** @return array<string, mixed> */
+    public function draftInfo(AdministrativeActor $actor, string $id): array
+    {
+        $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'templates.edit.view');
+        $this->assertUuid($id);
+        $row = $this->connection->fetchAssociative("SELECT t.id, t.name, t.status, v.id AS version_id, v.subject, v.preheader, v.html_body, v.text_body FROM email_template t INNER JOIN template_version v ON v.template_id = t.id WHERE t.id = ? AND t.status <> 'archived' ORDER BY v.version_number DESC LIMIT 1", [$id]);
+        if (false === $row) {
+            throw new \InvalidArgumentException('Template is unavailable.');
+        }
+
+        return $row;
+    }
+
+    public function edit(AdministrativeActor $actor, string $id, string $name, string $subject, string $preheader, string $html, string $text): string
+    {
+        $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'templates.edit');
+        $this->assertUuid($id);
+        $name = $this->name($name);
+
+        return $this->connection->transactional(function () use ($actor, $id, $name, $subject, $preheader, $html, $text): string {
+            $version = $this->addVersion($actor, $id, $subject, $preheader, $html, $text);
+            $this->connection->update('email_template', ['name' => $name, 'updated_at' => Identity::now()], ['id' => $id]);
+            $this->audit->append(new AuditRecord($actor->id(), 'template.edited', $id, 'success'));
+
+            return $version;
+        });
+    }
+
+    public function duplicate(AdministrativeActor $actor, string $id, string $name): string
+    {
+        $source = $this->draftInfo($actor, $id);
+
+        return $this->connection->transactional(function () use ($actor, $id, $name, $source): string {
+            $newId = $this->create($actor, $name, $this->stringValue($source['subject']), \is_string($source['preheader']) ? $source['preheader'] : '', $this->stringValue($source['html_body']), $this->stringValue($source['text_body']));
+            $this->audit->append(new AuditRecord($actor->id(), 'template.duplicated', $newId, 'success', ['source_template' => $id]));
+
+            return $newId;
+        });
+    }
+
+    /** @return list<array<string, mixed>> */
+    public function campaignOptions(AdministrativeActor $actor): array
+    {
+        $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'templates.campaign.options');
+
+        return $this->connection->fetchAllAssociative("SELECT v.id, t.name, v.version_number, t.status FROM email_template t INNER JOIN template_version v ON v.template_id = t.id WHERE t.status <> 'archived' AND v.version_number = (SELECT MAX(v2.version_number) FROM template_version v2 WHERE v2.template_id = t.id) ORDER BY t.name");
+    }
+
+    public function prepareContent(AdministrativeActor $actor, string $name, string $subject, string $preheader, string $html): string
+    {
+        $id = $this->create($actor, $name, $subject, $preheader, $html, '');
+
+        return $this->stringValue($this->versions($actor, $id)[0]['id']);
+    }
+
+    public function publishForDraft(AdministrativeActor $actor, string $versionId): void
+    {
+        $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'templates.campaign.publish');
+        $this->assertUuid($versionId);
+        if (false === $this->connection->fetchOne("SELECT v.id FROM template_version v INNER JOIN email_template t ON t.id = v.template_id WHERE v.id = ? AND t.status <> 'archived' AND v.version_number = (SELECT MAX(latest.version_number) FROM template_version latest WHERE latest.template_id = t.id)", [$versionId])) {
+            throw new \InvalidArgumentException('Choose the current template version.');
+        }
+        $id = $this->connection->fetchOne('SELECT template_id FROM template_version WHERE id = ?', [$versionId]);
+        if (!\is_string($id)) {
+            throw new \InvalidArgumentException('Template is unavailable.');
+        }
+        $this->publish($actor, $id, $versionId);
     }
 
     public function archive(AdministrativeActor $actor, string $templateId): void

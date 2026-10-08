@@ -1,0 +1,203 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Platform;
+
+use App\Module\Configuration\Application\MailConfigurationManager;
+use App\Module\Contacts\Application\ContactManager;
+use App\Module\Identity\Application\AdministrativeRole;
+use App\Module\Identity\Application\MfaManagement;
+use App\Module\Identity\Application\Totp;
+use App\Module\Templates\Application\TemplateManager;
+use App\Tests\Support\Phase4State;
+use Doctrine\DBAL\Connection;
+use PHPUnit\Framework\Attributes\Group;
+use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
+
+#[Group('integration')]
+final class Phase13OwnerWorkflowHttpTest extends WebTestCase
+{
+    use Phase4State;
+
+    protected function tearDown(): void
+    {
+        if (null !== self::$kernel) {
+            $this->removePhase4Files();
+        }
+        parent::tearDown();
+    }
+
+    public function testListAndTemplateActionsPrefillSafeDraftAndPreviewUploadedRecipients(): void
+    {
+        $client = self::createClient();
+        $db = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($db);
+        $password = 'synthetic-owner-'.bin2hex(random_bytes(12));
+        $owner = $this->createPhase4User($db, 'owner@example.test', $password);
+        $contacts = $this->phase4Service(ContactManager::class);
+        $list = $contacts->createList($owner, 'Synthetic list');
+        $contact = $contacts->create($owner, 'visible@example.test', ['consent_source' => 'synthetic']);
+        $contacts->addMembership($owner, $list, $contact);
+        $templates = $this->phase4Service(TemplateManager::class);
+        $template = $templates->create($owner, 'Synthetic template', 'Synthetic subject', '', '<p>Hello</p>', 'Hello');
+        $version = $this->phase4String($templates->versions($owner, $template)[0]['id']);
+        $server = $this->phase4HttpsServer('2001:db8::131');
+        $crawler = $client->request('GET', '/login', server: $server);
+        $client->submit($crawler->selectButton('Sign in')->form(['login_identifier' => 'owner@example.test', 'password' => $password, 'mfa_code' => '']), [], $server);
+        self::assertResponseRedirects('/admin', 303);
+        $client->request('GET', '/admin/lists', server: $server);
+        foreach (['View', 'Edit', 'Send to', 'Duplicate', 'Archive'] as $action) {
+            self::assertSelectorTextContains('table', $action);
+        }
+        $client->request('GET', '/admin/lists/'.$list, server: $server);
+        self::assertSelectorTextContains('table', 'visible@example.test');
+        self::assertResponseHeaderSame('Cache-Control', 'max-age=0, must-revalidate, no-store, private');
+        $crawler = $client->request('GET', '/admin/lists/'.$list.'/duplicate', server: $server);
+        self::assertSame('', $crawler->filter('input[name="name"]')->attr('value'));
+        $client->request('GET', '/admin/templates', server: $server);
+        foreach (['Preview', 'Edit', 'Send', 'Duplicate', 'Archive'] as $action) {
+            self::assertSelectorTextContains('table', $action);
+        }
+        $client->request('GET', '/admin/campaigns?list='.$list.'&template='.$version, server: $server);
+        self::assertSelectorExists('input[name="lists[]"][value="'.$list.'"][checked]');
+        self::assertSelectorExists('option[value="'.$version.'"][selected]');
+        self::assertSame(0, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM campaign')));
+        self::assertSame('draft', $db->fetchOne('SELECT status FROM email_template WHERE id = ?', [$template]));
+        $csv = tempnam(sys_get_temp_dir(), 'emailer-http-csv-');
+        $html = tempnam(sys_get_temp_dir(), 'emailer-http-html-');
+        self::assertIsString($csv);
+        self::assertIsString($html);
+        file_put_contents($csv, "email\nnew@example.test\ninvalid\n");
+        file_put_contents($html, '<p>Synthetic uploaded content</p>');
+        try {
+            $token = $this->phase4String($client->getCrawler()->filter('form[action="/admin/campaigns/create"] input[name="_token"]')->first()->attr('value'));
+            $client->request('POST', '/admin/campaigns/create', [
+                '_token' => $token, 'name' => 'Uploaded draft', 'audience_mode' => 'upload', 'list_name' => 'Uploaded list', 'csv_mode' => 'headered', 'column_email' => '0',
+                'template_mode' => 'upload', 'template_name' => 'Uploaded template', 'subject' => 'Uploaded subject',
+            ], ['audience_file' => new UploadedFile($csv, 'synthetic.csv', 'text/csv', test: true), 'template_file' => new UploadedFile($html, 'synthetic.html', 'text/html', test: true)], $server);
+            self::assertResponseStatusCodeSame(303);
+            $client->followRedirect();
+            self::assertSelectorTextContains('h1', 'Uploaded draft');
+            self::assertSelectorTextContains('#upload-review', 'Review uploaded recipients');
+            self::assertSelectorTextContains('main', 'Valid 1');
+            self::assertSelectorNotExists('form[action$="/review"]');
+            self::assertSelectorNotExists('form[action$="/test"]');
+            self::assertSame(1, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM list_membership')));
+            $client->submit($client->getCrawler()->selectButton('Commit reviewed recipients')->form(), [], $server);
+            self::assertResponseStatusCodeSame(303);
+            $client->followRedirect();
+            self::assertSelectorTextContains('main', 'Reviewed recipients imported');
+            self::assertSelectorExists('form[action$="/review"]');
+            self::assertSame(2, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM list_membership')));
+            self::assertSame(0, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM campaign_test_delivery')));
+            self::assertSame(0, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM campaign_recipient')));
+            $campaignUrl = $client->getRequest()->getPathInfo();
+            $session = $client->getRequest()->getSession();
+            $session->set('campaign.pending_imports', [basename($campaignUrl) => \App\Shared\Identity::uuidV7()]);
+            $session->save();
+            $client->request('GET', $campaignUrl, server: $server);
+            self::assertResponseIsSuccessful();
+            self::assertSelectorTextContains('main', 'preview expired or is unavailable');
+            self::assertSelectorExists('form[action$="/review"]');
+        } finally {
+            if (is_file($csv)) {
+                unlink($csv);
+            }
+            if (is_file($html)) {
+                unlink($html);
+            }
+        }
+    }
+
+    public function testAdministratorRevealStillRequiresRecentAuthentication(): void
+    {
+        $client = self::createClient();
+        $db = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($db);
+        $password = 'synthetic-admin-'.bin2hex(random_bytes(12));
+        $admin = $this->createPhase4User($db, 'admin@example.test', $password, AdministrativeRole::Administrator);
+        $contact = $this->phase4Service(ContactManager::class)->create($admin, 'restricted@example.test', ['consent_source' => 'synthetic']);
+        $server = $this->phase4HttpsServer('2001:db8::133');
+        $crawler = $client->request('GET', '/login', server: $server);
+        $client->submit($crawler->selectButton('Sign in')->form(['login_identifier' => 'admin@example.test', 'password' => $password, 'mfa_code' => '']), [], $server);
+        $crawler = $client->request('GET', '/admin/contacts', server: $server);
+        self::assertSelectorTextNotContains('table', 'restricted@example.test');
+        $client->submit($crawler->selectButton('Reveal full address')->form(), [], $server);
+        self::assertResponseStatusCodeSame(403);
+        $crawler = $client->request('GET', '/admin/reauthenticate?purpose=contact_data_access', server: $server);
+        $client->submit($crawler->selectButton('Confirm current credentials')->form(['password' => $password, 'mfa_code' => '']), [], $server);
+        self::assertResponseRedirects('/admin', 303);
+        $crawler = $client->request('GET', '/admin/contacts', server: $server);
+        $client->submit($crawler->selectButton('Reveal full address')->form(), [], $server);
+        self::assertResponseIsSuccessful();
+        self::assertSelectorTextContains('code', 'restricted@example.test');
+        self::assertSame(1, $this->phase4Int($db->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'contact.address.revealed' AND target_id = ?", [$contact])));
+    }
+
+    public function testInlineSmtpConfirmationRequiresPasswordMfaAndCsrfAndRotatesSession(): void
+    {
+        $client = self::createClient();
+        $db = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($db);
+        $password = 'synthetic-owner-'.bin2hex(random_bytes(12));
+        $smtpPassword = 'synthetic-smtp-'.bin2hex(random_bytes(12));
+        $owner = $this->createPhase4User($db, 'owner@example.test', $password);
+        $management = $this->phase4Service(MfaManagement::class);
+        $totp = $this->phase4Service(Totp::class);
+        $enrollment = $management->start($owner);
+        $management->confirm($owner, $totp->code($enrollment->seed, intdiv(time(), 30) - 1), true, 'synthetic-session');
+        $server = $this->phase4HttpsServer('2001:db8::132');
+        $crawler = $client->request('GET', '/login', server: $server);
+        $client->submit($crawler->selectButton('Sign in')->form(['login_identifier' => 'owner@example.test', 'password' => $password, 'mfa_code' => $enrollment->recoveryCodes[0]]), [], $server);
+        self::assertResponseRedirects('/admin', 303);
+        $config = ['host' => 'smtp.example.test', 'port' => '587', 'encryption' => 'starttls', 'username' => 'sender@example.test', 'password' => $smtpPassword, 'sender_address' => 'sender@example.test', 'sender_name' => 'Synthetic Sender', 'reply_to' => 'reply@example.test'];
+        $before = $db->fetchAssociative('SELECT * FROM sender_identity');
+        $crawler = $client->request('GET', '/admin/settings/mail', server: $server);
+        self::assertSelectorNotExists('a[href*="reauthenticate?purpose=mail_configuration"]');
+        self::assertSelectorExists('dialog[aria-label="Confirm Owner identity"]');
+        $client->submit($crawler->selectButton('Store secure SMTP configuration')->form($config + ['owner_password' => 'incorrect', 'owner_mfa_code' => $enrollment->recoveryCodes[1]]), [], $server);
+        self::assertResponseRedirects('/admin/settings/mail', 303);
+        self::assertSame($before, $db->fetchAssociative('SELECT * FROM sender_identity'));
+        $db->executeStatement('DELETE FROM login_throttle');
+        $crawler = $client->request('GET', '/admin/settings/mail', server: $server);
+        $client->submit($crawler->selectButton('Store secure SMTP configuration')->form($config + ['owner_password' => $password, 'owner_mfa_code' => '']), [], $server);
+        self::assertResponseRedirects('/admin/settings/mail', 303);
+        self::assertSame($before, $db->fetchAssociative('SELECT * FROM sender_identity'));
+        $client->request('POST', '/admin/settings/mail/update', $config + ['_token' => 'invalid', 'owner_password' => $password, 'owner_mfa_code' => $enrollment->recoveryCodes[1]], server: $server);
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame($before, $db->fetchAssociative('SELECT * FROM sender_identity'));
+        $sessionBefore = $client->getCookieJar()->get('EMAILERSESSID');
+        self::assertNotNull($sessionBefore);
+        $db->executeStatement('DELETE FROM login_throttle');
+        $crawler = $client->request('GET', '/admin/settings/mail', server: $server);
+        $client->submit($crawler->selectButton('Store secure SMTP configuration')->form($config + ['owner_password' => $password, 'owner_mfa_code' => $enrollment->recoveryCodes[1]]), [], $server);
+        self::assertResponseRedirects('/admin/settings/mail', 303);
+        $sessionAfter = $client->getCookieJar()->get('EMAILERSESSID');
+        self::assertNotNull($sessionAfter);
+        self::assertNotSame($sessionBefore->getValue(), $sessionAfter->getValue());
+        $client->followRedirect();
+        self::assertSelectorTextContains('main', 'Secure SMTP configuration updated');
+        self::assertSelectorExists('dialog');
+        self::assertSelectorExists('form[data-mail-settings-confirmation-expires-at-value]');
+        self::assertSelectorExists('input[name="username"][value="sender@example.test"]');
+        self::assertSame('smtp.example.test', $this->phase4Service(MailConfigurationManager::class)->view($owner)['smtp_host']);
+        $response = $client->getResponse()->getContent();
+        self::assertIsString($response);
+        foreach ([$password, $smtpPassword, $enrollment->seed, $enrollment->recoveryCodes[1]] as $secret) {
+            self::assertStringNotContainsString($secret, $response);
+            self::assertStringNotContainsString($secret, json_encode($db->fetchAllAssociative('SELECT * FROM audit_event'), JSON_THROW_ON_ERROR));
+        }
+        $session = $client->getRequest()->getSession();
+        $session->set('identity.reauthenticated_at', time() - 301);
+        $session->save();
+        $client->submit($client->getCrawler()->selectButton('Store secure SMTP configuration')->form($config), [], $server);
+        self::assertResponseRedirects('/admin/settings/mail', 303);
+        self::assertSame(0, $this->phase4Int($db->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'authentication.reauthentication' AND result = 'failure' AND occurred_at > (SELECT MAX(occurred_at) FROM audit_event WHERE action = 'mail.configuration.updated')")));
+        $client->followRedirect();
+        self::assertSelectorExists('dialog');
+        self::assertSelectorExists('form[data-mail-settings-confirmation-expires-at-value="0"]');
+        self::assertSame(0, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM campaign_test_delivery')));
+    }
+}

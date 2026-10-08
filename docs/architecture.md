@@ -310,3 +310,15 @@ Deployment, publishing, and rollback remain explicit operator actions.
 The design is governed by accepted ADRs `0001` through `0013` in
 [docs/adr](adr/). A change to an invariant requires a superseding ADR, updated
 threat model, route/data review where relevant, and passing quality gates.
+
+## Phase 13 Owner workflow repair
+
+Presentation adds private list/template editors and a multipart campaign composer.
+Campaign preparation coordinates existing Contacts/Import and Templates through
+Application contracts, sharing the existing DBAL transaction for atomic business
+state and cleaning staged upload files on failure. Draft creation never calls
+delivery. Identity exposes a purpose-scoped sensitive-action contract for inline
+SMTP confirmation and session rotation; Configuration retains encrypted storage.
+Contacts requests suppression preservation through an add-only Suppression
+contract inside profile updates. No schema, worker, dependency or public surface
+is added. Existing immutable snapshots and pre-attempt suppression remain intact.

@@ -6,10 +6,12 @@ namespace App\Module\Identity\Application;
 
 use App\Module\Audit\Application\Contract\AuditRecord;
 use App\Module\Audit\Application\Contract\AuditSink;
+use App\Module\Identity\Application\Contract\AdministrativeActor;
+use App\Module\Identity\Application\Contract\SensitiveActionAuthorizer;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
-final readonly class ReauthenticationService
+final readonly class ReauthenticationService implements SensitiveActionAuthorizer
 {
     private const LIFETIME_SECONDS = 300;
 
@@ -17,6 +19,7 @@ final readonly class ReauthenticationService
         private MfaVerifier $mfa,
         private AuditSink $audit,
         private LoginThrottle $throttle,
+        private SessionRegistry $sessions,
     ) {
     }
 
@@ -80,6 +83,36 @@ final readonly class ReauthenticationService
         ) {
             throw new AccessDeniedException('Recent re-authentication is required.');
         }
+    }
+
+    public function expiresAt(SessionInterface $session, string $purpose): int
+    {
+        $timestamp = $session->get('identity.reauthenticated_at');
+
+        return $this->isRecent($session, $purpose) && \is_int($timestamp) ? $timestamp + self::LIFETIME_SECONDS : 0;
+    }
+
+    public function isRecent(SessionInterface $session, string $purpose): bool
+    {
+        try {
+            $this->assertRecent($session, $purpose);
+
+            return true;
+        } catch (AccessDeniedException) {
+            return false;
+        }
+    }
+
+    public function confirm(SessionInterface $session, AdministrativeActor $actor, string $password, string $code, string $purpose, ?string $source, ?string $userAgent): bool
+    {
+        if (!$actor instanceof AuthenticatedUser || !$this->verify($actor, $password, $code, $purpose, $source ?? 'unknown', $session->getId())) {
+            return false;
+        }
+        $this->mark($session, $purpose);
+        $session->migrate(true);
+        $this->sessions->bind($session->getId(), $actor->id(), $source, $userAgent);
+
+        return true;
     }
 
     private function normalizePurpose(string $purpose): string

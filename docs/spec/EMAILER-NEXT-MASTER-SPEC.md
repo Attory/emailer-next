@@ -580,7 +580,7 @@ Required conceptual entities:
 
 - Store only fields required for sending and approved reporting.
 - Keep raw recipient addresses out of URLs, log messages, exception text, queue names, filenames, metrics labels, and correlation IDs.
-- Display masked addresses in ordinary operational views.
+- Display full addresses to authorized active Owners in private contact/list and suppression views; mask ordinary views for other roles. This Phase 13 usability exception was explicitly authorized by Anton.
 - Full recipient addresses require a role check and are never included in exported diagnostics.
 - Retention jobs remove analytics and transient delivery data according to policy.
 - Suppression records are durable and retained independently of ordinary analytics unless law/policy requires otherwise.

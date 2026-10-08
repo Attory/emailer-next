@@ -5,6 +5,14 @@
 <h1>{{ campaign.name }}</h1>
 <dl><dt>State</dt><dd>{{ campaign.state }}</dd><dt>Audience snapshot</dt><dd>{{ campaign.recipient_count }}</dd><dt>Approved</dt><dd>{{ campaign.approved_at|default('Not yet') }}</dd><dt>Scheduled</dt><dd>{{ campaign.scheduled_at|default('Not scheduled') }}</dd></dl>
 {% if campaign.latest_test %}<p>Latest test: {{ campaign.latest_test.state }}{% if campaign.latest_test.failure_class %} ({{ campaign.latest_test.failure_class }}){% endif %}</p>{% endif %}
+{% if campaign.pending_import %}
+<section aria-labelledby="upload-review"><h2 id="upload-review">Review uploaded recipients</h2>
+<p>Valid {{ campaign.pending_import.valid_count }}; duplicate {{ campaign.pending_import.duplicate_count }}; unsubscribed {{ campaign.pending_import.suppressed_count }}; invalid {{ campaign.pending_import.invalid_count }}; rejected {{ campaign.pending_import.rejected_count }}.</p>
+<p>These recipients have not been added to the list yet.</p>
+<form method="post" action="{{ path('admin_campaign_import_commit', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-import-' ~ campaign.id) }}"><button type="submit">Commit reviewed recipients</button></form>
+<a href="{{ path('admin_import_details', {id: campaign.pending_import.id}) }}">Review column mapping and private rejection report</a>
+</section>
+{% endif %}
 <section aria-labelledby="approval-summary">
     <h2 id="approval-summary">Approval summary</h2>
     <dl>
@@ -22,10 +30,10 @@
 </section>
 {% if is_granted('ROLE_OPERATOR') %}
 <div class="actions">
-{% if campaign.state in ['draft', 'review'] %}
+{% if campaign.state in ['draft', 'review'] and not campaign.pending_import %}
     <form method="post" action="{{ path('admin_campaign_test', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-test-' ~ campaign.id) }}"><button>Queue test send</button></form>
 {% endif %}
-{% if campaign.state == 'draft' %}<form method="post" action="{{ path('admin_campaign_review', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-review-' ~ campaign.id) }}"><button>Submit for review</button></form>{% endif %}
+{% if campaign.state == 'draft' and not campaign.pending_import %}<form method="post" action="{{ path('admin_campaign_review', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-review-' ~ campaign.id) }}"><button>Submit for review</button></form>{% endif %}
 {% if campaign.state == 'draft' %}<form method="post" action="{{ path('admin_campaign_rsvp', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-rsvp-' ~ campaign.id) }}"><label><input type="checkbox" name="enabled" value="1"{% if campaign.rsvp_enabled %} checked{% endif %}> Enable RSVP for this campaign</label><button>Save RSVP setting</button></form>{% endif %}
 {% if campaign.state == 'review' and is_granted('ROLE_ADMINISTRATOR') %}<p><a href="{{ path('admin_reauthenticate', {purpose: 'campaign_approval'}) }}">Re-authenticate before approval</a></p><form method="post" action="{{ path('admin_campaign_approve', {id: campaign.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('campaign-approve-' ~ campaign.id) }}"><label><input type="checkbox" name="waive_test" value="1"> Audited test waiver</label><button>Approve snapshot</button></form>{% endif %}
 {% if campaign.state == 'approved' %}

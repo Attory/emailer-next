@@ -1,24 +1,33 @@
 {% extends 'admin/layout.html.twig' %}
 {% block title %}Mail settings · Emailer Next{% endblock %}
+{% block javascripts %}{% if is_granted('ROLE_OWNER') %}<script type="module" src="{{ asset('mail-settings.js') }}"></script>{% endif %}{% endblock %}
 {% block admin_body %}
 <h1>Mail transport</h1>
 <p>Configured host: {{ mail.smtp_host }}:{{ mail.smtp_port }}; mode: {{ mail.encryption_mode }}; TLS peer verification: {{ mail.tls_peer_verification ? 'on' : 'off' }}.</p>
 <p>Username: {{ mail.smtp_username|default('none') }}; credential: {{ mail.credential_configured ? 'stored encrypted' : 'not stored' }}; sender: {{ mail.sender_address }}.</p>
 <p>RFC 8058 provider signing attestation: {{ mail.one_click_dkim_confirmed ? 'confirmed' : 'not confirmed; one-click header disabled' }}.</p>
 {% if is_granted('ROLE_OWNER') %}
-<p><a href="{{ path('admin_reauthenticate', {purpose: 'mail_configuration'}) }}">Re-authenticate before changing SMTP credentials</a></p>
-<form method="post" action="{{ path('admin_mail_settings_update') }}" autocomplete="off">
+<form method="post" action="{{ path('admin_mail_settings_update') }}" autocomplete="off" data-mail-settings-confirmation-expires-at-value="{{ confirmation_expires_at }}">
     <input type="hidden" name="_token" value="{{ csrf_token('mail-settings-update') }}">
-    <label>SMTP hostname <input name="host" required></label>
-    <label>Port <input name="port" type="number" min="1" max="65535" required></label>
-    <label>Encryption <select name="encryption"><option value="starttls">STARTTLS required</option><option value="tls">Direct TLS</option></select></label>
-    <label>Username <input name="username" autocomplete="off" required></label>
-    <label>Password <input name="password" type="password" autocomplete="new-password" required></label>
-    <label>Sender address <input name="sender_address" type="email" required></label>
-    <label>Sender name <input name="sender_name" required></label>
-    <label>Reply-to (optional) <input name="reply_to" type="email"></label>
-    <label><input name="one_click_dkim_confirmed" type="checkbox" value="1"> I have verified that the provider applies a valid DKIM signature covering both List-Unsubscribe headers</label>
-    <button>Store secure SMTP configuration</button>
+    <label>SMTP hostname <input name="host" value="{{ mail.smtp_host }}" required></label>
+    <label>Port <input name="port" value="{{ mail.smtp_port }}" type="number" min="1" max="65535" required></label>
+    <label>Encryption <select name="encryption"><option value="starttls"{% if mail.encryption_mode == 'starttls' %} selected{% endif %}>STARTTLS required</option><option value="tls"{% if mail.encryption_mode == 'tls' %} selected{% endif %}>Direct TLS</option></select></label>
+    <label>Username <input name="username" value="{{ mail.smtp_username }}" autocomplete="off" required></label>
+    <label>SMTP password <input name="password" type="password" autocomplete="new-password" required></label>
+    <label>Sender address <input name="sender_address" value="{{ mail.sender_address }}" type="email" required></label>
+    <label>Sender name <input name="sender_name" value="{{ mail.sender_name }}" required></label>
+    <label>Reply-to (optional) <input name="reply_to" value="{{ mail.reply_to_address }}" type="email"></label>
+    <label><input name="one_click_dkim_confirmed" type="checkbox" value="1"{% if mail.one_click_dkim_confirmed %} checked{% endif %}> I have verified that the provider applies a valid DKIM signature covering both List-Unsubscribe headers</label>
+    <fieldset data-mail-settings-target="confirmation">
+        <legend>Confirm your Owner identity to store these settings</legend>
+        <label>Current Owner password <input name="owner_password" type="password" autocomplete="current-password" data-mail-settings-target="password"></label>
+        <label>Authenticator or recovery code <input name="owner_mfa_code" autocomplete="one-time-code" data-mail-settings-target="code"></label>
+    </fieldset>
+    <dialog data-mail-settings-target="dialog" data-action="cancel->mail-settings#cancel" aria-label="Confirm Owner identity">
+        <button type="button" data-action="mail-settings#confirm">Confirm and store</button>
+        <button type="button" data-action="mail-settings#cancel">Cancel</button>
+    </dialog>
+    <button type="submit">Store secure SMTP configuration</button>
 </form>
 <p>Saving validates and encrypts configuration only. Use a queued campaign test to verify transport.</p>
 {% endif %}

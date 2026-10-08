@@ -37,3 +37,11 @@ code { overflow-wrap: anywhere; }
     .admin-header a, .admin-header form { display: block; margin: 0.45rem 0; }
     table { display: block; overflow-x: auto; }
 }
+
+.actions { display: flex; flex-wrap: wrap; align-items: center; gap: 0.6rem; }
+.actions form { margin: 0; }
+.actions a { display: inline-block; padding: 0.4rem 0.6rem; border: 1px solid #ccd4dc; border-radius: 0.2rem; text-decoration: none; }
+fieldset { margin: 1.25rem 0; border: 1px solid #ccd4dc; padding: 1rem; }
+legend { font-weight: 600; }
+dialog { max-width: 32rem; border: 1px solid #ccd4dc; padding: 1.5rem; }
+dialog::backdrop { background: rgba(23, 32, 42, 0.5); }

@@ -193,7 +193,7 @@ provider-DKIM one-click attestation used for that campaign.
 | Class | Examples | Storage and exposure rule |
 | --- | --- | --- |
 | Secret | Master key, SMTP credential, TOTP seed | External restrictive file or authenticated ciphertext only; never logs/URLs/queue |
-| Restricted personal | Full address, contact attributes, RSVP values | MariaDB/private storage; role checked; masked in ordinary operations |
+| Restricted personal | Full address, contact attributes, RSVP values | MariaDB/private storage; role checked; full private Owner reads, masked for lower roles (authorized Phase 13 exception) |
 | Internal | Campaign names, counts, health evidence, audit metadata | Authenticated access; redact exports and logs as needed |
 | Public-token data | Unsubscribe/view/tracking token | Opaque in URL; purpose scoped; no embedded raw address |
 | Public | Static application assets, coarse liveness state | Explicit allowlist under `public/` |

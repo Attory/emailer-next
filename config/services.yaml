@@ -279,3 +279,8 @@ services:
     App\Module\Setup\Presentation\Cli\SetupInstallCommand:
         arguments:
             $publicDirectory: '%kernel.project_dir%/public'
+
+    App\Module\Identity\Application\Contract\SensitiveActionAuthorizer: '@App\Module\Identity\Application\ReauthenticationService'
+    App\Module\Suppression\Application\Contract\AddressCorrectionSuppression: '@App\Module\Suppression\Application\SuppressionManager'
+    App\Module\Templates\Application\Contract\CampaignTemplatePreparation: '@App\Module\Templates\Application\TemplateManager'
+    App\Module\Contacts\Application\Contract\CampaignAudiencePreparation: '@App\Module\Contacts\Application\CampaignAudiencePreparation'

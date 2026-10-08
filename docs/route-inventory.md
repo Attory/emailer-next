@@ -1,7 +1,7 @@
 # Route and command inventory
 
 **Status:** Phase 13 full Version-1 route and command review. The HTTP surface
-is unchanged; CLI setup and master-key rotation now close their Version-1
+includes the bounded Owner workflow repair below; CLI setup and master-key rotation now close their Version-1
 contracts.
 
 This inventory is the security review baseline. Every implemented route must be
@@ -185,8 +185,9 @@ threat-model update before implementation.
 ## Phase 13 full review result
 
 The complete generated HTTP inventory was reconciled against this document and
-the central default-deny administrative policy. Phase 13 adds no HTTP route and
-no public token purpose. Setup, identity/admin, content/import, campaign,
+the central default-deny administrative policy. The initial Phase 13 candidate
+added no HTTP route; the authorized follow-up adds private routes below and no
+public token purpose. Setup, identity/admin, content/import, campaign,
 recipient-action, analytics/RSVP, Doctor/operations, backup/retention, and
 release surfaces retain their authentication, minimum-role, unsafe-method,
 CSRF/re-authentication, cache/cookie, and disclosure boundaries.
@@ -198,3 +199,26 @@ rotation is now implemented as the separately re-authenticated, backup-gated,
 quiesced transactional CLI operation. There is still no browser worker,
 restore, recovery, master-key rotation, migration, package upload, release
 switch, rollback, or deployment route.
+
+## Phase 13 authorized Owner workflow routes
+
+All entries require an active authenticated account, the existing administrative
+request limiter, and private no-store responses. GET/HEAD do not mutate business
+state; full Owner reads append only a redacted access audit. Every POST requires
+a route-specific CSRF token. No route accepts secrets in its URL.
+
+| Route/path | Methods | Minimum role | Data / mutation |
+| --- | --- | --- | --- |
+| `admin_list` `/admin/lists/{id}` | GET, HEAD | Operator | Paged members; Owner addresses full, others masked |
+| `admin_list_browse` `/admin/lists/{id}/browse` | POST | Operator | Private bounded search; addresses allowed only for Owner |
+| `admin_list_edit` `/admin/lists/{id}/edit` | GET, HEAD, POST | Operator | Rename active list |
+| `admin_list_duplicate` `/admin/lists/{id}/duplicate` | GET, HEAD, POST | Operator | Required unique name; copy membership |
+| `admin_contact_edit` `/admin/contacts/{id}/edit` | GET, HEAD | Owner | Full contact/profile editor; existing update POST preserves inactive/suppressed state |
+| `admin_template_edit` `/admin/templates/{id}/edit` | GET, HEAD, POST | Operator | New immutable draft version and optional rename |
+| `admin_template_duplicate` `/admin/templates/{id}/duplicate` | GET, HEAD, POST | Operator | Required unique name; new separate draft |
+| `admin_campaign_import_commit` `/admin/campaigns/{id}/import/commit` | POST | Operator | Owned/authorized private CSV commit bound to selected list and draft |
+
+Existing campaign create now accepts bounded private CSV/HTML multipart uploads
+through the same validated services. Existing mail update performs inline
+password/MFA confirmation when its purpose grant expires, rotates/binds the
+session and retains Owner/CSRF checks. No provider is contacted by either form.
