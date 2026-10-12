@@ -152,6 +152,11 @@ final class ContactsController extends AbstractController
         if (false === $stream) {
             throw new \RuntimeException('List export staging is unavailable.');
         }
+        $path = stream_get_meta_data($stream)['uri'] ?? null;
+        if (!\is_string($path) || !@unlink($path)) {
+            fclose($stream);
+            throw new \RuntimeException('List export staging could not be secured.');
+        }
         try {
             $this->listExporter->write($this->user(), $id, $stream);
             if (0 !== fseek($stream, 0)) {

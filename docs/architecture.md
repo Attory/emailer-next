@@ -8,7 +8,7 @@ recent contact-data confirmation, and list-specific CSRF all gate a full
 address download. Contacts resolves one active list and records a redacted
 audit request before generation. A single unbuffered sorted MariaDB query has
 one statement snapshot, keeping application memory bounded while emitting only
-the three importable CSV columns into a restrictive temporary file. The
+the three importable CSV columns into a restrictive, immediately unlinked temporary file. The
 response streams that completed file and has a private/no-store cache
 policy and sanitized attachment filename. The export neither changes nor
 reports suppression state; campaign approval and delivery continue to check

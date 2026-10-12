@@ -10,7 +10,7 @@ final class ListCsvFormulaGuard
 
     public static function protect(string $value): string
     {
-        return self::needsProtection($value) ? self::PREFIX.$value : $value;
+        return self::needsProtection($value) || str_starts_with($value, self::PREFIX) ? self::PREFIX.$value : $value;
     }
 
     public static function restore(string $value): string
@@ -21,7 +21,7 @@ final class ListCsvFormulaGuard
 
         $original = substr($value, \strlen(self::PREFIX));
 
-        return self::needsProtection($original) ? $original : $value;
+        return self::needsProtection($original) || str_starts_with($original, self::PREFIX) ? $original : $value;
     }
 
     private static function needsProtection(string $value): bool

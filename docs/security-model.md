@@ -5,8 +5,8 @@ second service-level Administrator check. POST requires a list-specific CSRF
 token and recent `contact_data_access` confirmation. An active list is resolved
 before the attachment response; only its three approved contact fields are
 read through one unbuffered database query and statement snapshot. A mode-0600
-temporary file is completed before headers are returned and deleted after
-streaming. The response is private/no-store with a sanitized ASCII attachment
+temporary file is immediately unlinked, completed before headers are returned,
+and closed after streaming. The response is private/no-store with a sanitized ASCII attachment
 filename, `nosniff`, content length and disabled Nginx response buffering.
 Spreadsheet-formula-leading cells use a reversible marked prefix that import
 decodes before suppression checks. The audit contains only actor, opaque list

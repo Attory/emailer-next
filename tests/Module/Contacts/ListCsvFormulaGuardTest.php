@@ -20,5 +20,10 @@ final class ListCsvFormulaGuardTest extends TestCase
         foreach (["'csv:+tag@example.test", "'EMAILER_CSV_SAFE_V1:ordinary@example.test", 'José, Ana', 'plain@example.test'] as $value) {
             self::assertSame($value, ListCsvFormulaGuard::restore($value));
         }
+        foreach (["'EMAILER_CSV_SAFE_V1:=Formula", "'EMAILER_CSV_SAFE_V1:ordinary", "'EMAILER_CSV_SAFE_V1:'EMAILER_CSV_SAFE_V1:@Nested"] as $value) {
+            $protected = ListCsvFormulaGuard::protect($value);
+            self::assertNotSame($value, $protected);
+            self::assertSame($value, ListCsvFormulaGuard::restore($protected));
+        }
     }
 }

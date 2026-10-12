@@ -19,9 +19,9 @@ does not export.
 
 The application reads only the selected list's members through one unbuffered
 sorted database query, using one InnoDB statement snapshot and bounded PHP
-memory. It stages the CSV in a mode-0600 temporary file before returning an
+memory. It stages the CSV in a mode-0600 immediately unlinked temporary file before returning an
 attachment, so a database failure cannot create a successful partial download.
-The temporary file is deleted after the response. The UTF-8
+The file descriptor is closed after the response. The UTF-8
 CSV has exactly `email,first_name,last_name`, CRLF record endings, standard
 double-quote escaping, and one row per trimmed, case-insensitive email.
 Stored address spelling and Unicode names round-trip through import. Cells
@@ -57,11 +57,12 @@ reported directly to Anton, not recorded in repository history.
   addition to checking peak application memory.
 - PHP-CS-Fixer, PHPStan and Deptrac passed with no errors or violations.
 - The rebuilt, network-isolated application image passed 285 tests and 9,549
-  assertions. This image preceded the final archive-race response correction;
-  the final local aggregate and GitHub matrix cover that correction.
+  assertions before the final review repairs. The final-head GitHub matrix
+  repeats this isolation check.
 - The complete local Composer aggregate passed on the final code: strict
   Composer validation and audit, license policy, style, static analysis,
-  shell checks, migration and Doctrine mapping checks, PHPUnit, artifact
+  shell checks, migration and Doctrine mapping checks, PHPUnit (286 tests,
+  4,437 assertions), artifact
   build and inspection, public-path/deployment probes, secret/private-data
   scans, and deterministic signed-candidate tooling. The root-owned release
   and service-key privilege rehearsal passed. No production package was
@@ -72,8 +73,15 @@ reported directly to Anton, not recorded in repository history.
   possible nginx buffering and weak memory evidence. The confirmed issues
   were repaired. A second review found no release blocker but identified an
   archive race that returned 500 and an undersized memory test. Those findings
-  were independently confirmed and repaired. The exact final-head Claude
-  review and GitHub CI results are recorded in draft PR #20.
+  were independently confirmed and repaired. Review of the next exact head
+  identified a literal safety-marker round-trip edge case and a named
+  temporary file that could survive a killed worker. These were confirmed and
+  repaired by escaping literal markers and unlinking staging immediately.
+  A test now covers archiving between preparation and writing. The large-list
+  test checks the unbuffered driver setting while rows are written; its short
+  fixture alone cannot prove that a future array-based implementation would
+  stay under the memory limit. Exact final-head review and GitHub CI results
+  are recorded in draft PR #20.
 
 ## Manual actions and limits
 

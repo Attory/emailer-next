@@ -225,6 +225,31 @@ final class ListCsvDownloadTest extends WebTestCase
         fclose($stream);
         self::assertSame(1501, $lines);
     }
+
+    public function testArchiveBetweenPreparationAndWriteStopsTheExport(): void
+    {
+        self::bootKernel();
+        $db = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($db);
+        $admin = $this->createPhase4User($db, 'list-admin@example.test', 'synthetic-'.bin2hex(random_bytes(10)), AdministrativeRole::Administrator);
+        $contacts = $this->phase4Service(ContactManager::class);
+        $list = $contacts->createList($admin, 'Archive race');
+        $exporter = $this->phase4Service(ListCsvExporter::class);
+        $exporter->prepare($admin, $list);
+        $contacts->archiveList($admin, $list);
+        $stream = fopen('php://temp', 'w+b');
+        self::assertIsResource($stream);
+        try {
+            $exporter->write($admin, $list, $stream);
+            self::fail('Archived list unexpectedly exported.');
+        } catch (\InvalidArgumentException) {
+            rewind($stream);
+            self::assertSame('', stream_get_contents($stream));
+            self::assertSame(0, $db->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'contact.list.export.generated' AND target_id = ?", [$list]));
+        } finally {
+            fclose($stream);
+        }
+    }
 }
 
 final class ListCsvUnbufferedFilter extends \php_user_filter

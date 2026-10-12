@@ -3,7 +3,8 @@
 An Administrator or Owner may download one active contact list after recent
 contact-data re-authentication. The streamed UTF-8 CSV contains only email,
 first name and last name. Downloads are private/no-store responses; a mode-0600
-temporary staging file is deleted after the response. The redacted audit records the actor and
+temporary staging file is unlinked as soon as it is opened, then its file
+descriptor is closed after the response. The redacted audit records the actor and
 opaque list ID, not exported addresses or names. A list export does not mark
 any contact eligible to receive mail: global suppression and inactive-contact
 checks still apply when a campaign is approved and sent. Browser downloads
