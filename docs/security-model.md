@@ -4,10 +4,13 @@ List CSV download uses the central `admin_list_download` route policy and a
 second service-level Administrator check. POST requires a list-specific CSRF
 token and recent `contact_data_access` confirmation. An active list is resolved
 before the attachment response; only its three approved contact fields are
-read in bounded pages under one read-only database snapshot. The response is
-private/no-store with a sanitized ASCII attachment filename and `nosniff`.
-Spreadsheet-formula-leading cells are prefixed with an apostrophe. The audit
-contains only actor, opaque list ID, format and scope. The operation never
+read through one unbuffered database query and statement snapshot. A mode-0600
+temporary file is completed before headers are returned and deleted after
+streaming. The response is private/no-store with a sanitized ASCII attachment
+filename, `nosniff`, content length and disabled Nginx response buffering.
+Spreadsheet-formula-leading cells use a reversible marked prefix that import
+decodes before suppression checks. The audit contains only actor, opaque list
+ID, format, scope and generated row count. The operation never
 reads secret, session, consent, audit-payload or suppression-reason columns.
 
 **Status:** Phase 13 complete Version-1 security controls under acceptance.

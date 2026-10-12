@@ -13,8 +13,6 @@ use Doctrine\DBAL\Connection;
 
 final readonly class ListCsvExporter
 {
-    private const PAGE_SIZE = 500;
-
     public function __construct(
         private Connection $connection,
         private AdministrativeAuthorization $authorization,
@@ -45,13 +43,22 @@ final readonly class ListCsvExporter
     }
 
     /** @param resource $stream */
-    public function write(AdministrativeActor $actor, string $listId, $stream): void
+    public function write(AdministrativeActor $actor, string $listId, $stream): int
     {
         $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Administrator, 'contacts.lists.export');
-        $this->connection->executeStatement('SET TRANSACTION READ ONLY');
+        $native = $this->connection->getNativeConnection();
+        if (!$native instanceof \PDO || !\defined('PDO::MYSQL_ATTR_USE_BUFFERED_QUERY')) {
+            throw new \RuntimeException('Unbuffered list export is unavailable.');
+        }
+        $this->connection->executeStatement('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY');
         $this->connection->beginTransaction();
         try {
-            $this->writeRows($listId, $stream);
+            $native->setAttribute(\PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, false);
+            try {
+                $count = $this->writeRows($listId, $stream);
+            } finally {
+                $native->setAttribute(\PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, true);
+            }
             $this->connection->commit();
         } catch (\Throwable $exception) {
             if ($this->connection->isTransactionActive()) {
@@ -59,59 +66,58 @@ final readonly class ListCsvExporter
             }
             throw $exception;
         }
+        $this->audit->append(new AuditRecord($actor->id(), 'contact.list.export.generated', $listId, 'success', ['row_count' => $count, 'format' => 'csv']));
+
+        return $count;
     }
 
     /** @param resource $stream */
-    private function writeRows(string $listId, $stream): void
+    private function writeRows(string $listId, $stream): int
     {
+        $name = $this->connection->fetchOne('SELECT name FROM contact_list WHERE id = ? AND archived_at IS NULL', [$listId]);
+        if (!\is_string($name)) {
+            throw new \InvalidArgumentException('List is unavailable.');
+        }
         $this->writeRow($stream, ['email', 'first_name', 'last_name']);
-
-        $cursorEmail = null;
-        $cursorId = null;
+        $count = 0;
         $previousEmail = null;
-        do {
-            $where = '';
-            $parameters = [$listId];
-            if (null !== $cursorEmail && null !== $cursorId) {
-                $where = ' AND (LOWER(TRIM(c.email_entered)) COLLATE utf8mb4_bin > ? OR (LOWER(TRIM(c.email_entered)) COLLATE utf8mb4_bin = ? AND c.id > ?))';
-                array_push($parameters, $cursorEmail, $cursorEmail, $cursorId);
-            }
-            $rows = $this->connection->fetchAllAssociative(
-                'SELECT c.id, c.email_entered, c.first_name, c.last_name, LOWER(TRIM(c.email_entered)) AS normalized_email
-                 FROM list_membership m JOIN contact c ON c.id = m.contact_id
-                 WHERE m.list_id = ?'.$where.' ORDER BY normalized_email COLLATE utf8mb4_bin, c.id LIMIT '.self::PAGE_SIZE,
-                $parameters,
-            );
-            foreach ($rows as $row) {
-                $normalized = $row['normalized_email'];
-                if (!\is_string($normalized) || !\is_string($row['id']) || !\is_string($row['email_entered'])) {
+        $result = $this->connection->executeQuery(
+            'SELECT c.email_entered, c.first_name, c.last_name, LOWER(TRIM(c.email_entered)) AS normalized_email
+             FROM list_membership m JOIN contact c ON c.id = m.contact_id
+             WHERE m.list_id = ? ORDER BY normalized_email COLLATE utf8mb4_bin, c.id',
+            [$listId],
+        );
+        try {
+            while (false !== ($row = $result->fetchAssociative())) {
+                $normalized = $row['normalized_email'] ?? null;
+                if (!\is_string($normalized) || !\is_string($row['email_entered'] ?? null)) {
                     throw new \UnexpectedValueException('List export row is invalid.');
                 }
-                $cursorEmail = $normalized;
-                $cursorId = $row['id'];
                 if ($normalized === $previousEmail) {
                     continue;
                 }
                 $previousEmail = $normalized;
                 $this->writeRow($stream, [
-                    $this->neutralize($row['email_entered']),
-                    $this->neutralize($row['first_name']),
-                    $this->neutralize($row['last_name']),
+                    ListCsvFormulaGuard::protect($row['email_entered']),
+                    ListCsvFormulaGuard::protect($this->stringValue($row['first_name'] ?? null)),
+                    ListCsvFormulaGuard::protect($this->stringValue($row['last_name'] ?? null)),
                 ]);
+                ++$count;
             }
-        } while (self::PAGE_SIZE === \count($rows));
+        } finally {
+            $result->free();
+        }
+
+        return $count;
     }
 
-    private function neutralize(mixed $value): string
+    private function stringValue(mixed $value): string
     {
         if (null === $value) {
             return '';
         }
         if (!\is_string($value)) {
             throw new \UnexpectedValueException('List export value is invalid.');
-        }
-        if ('' !== $value && (str_contains('=+-@', $value[0]) || "\t" === $value[0] || "\r" === $value[0] || "\n" === $value[0])) {
-            return "'".$value;
         }
 
         return $value;

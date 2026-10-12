@@ -106,8 +106,9 @@ other later rows below remain planned.
 `email,first_name,last_name`. It requires Administrator or Owner, a
 `contact_data_access` confirmation within five minutes, and a list-specific
 CSRF token. It streams a private/no-store CSV and records only the actor,
-selected list ID, format and scope in audit. The route is absent for other
-roles and returns no CSV for an unknown or archived list.
+selected list ID, format, scope and generated row count in audit. Its control
+is hidden from lower roles; the route returns 403 to them and no CSV for an
+unknown or archived list.
 
 `GET|HEAD /template-assets/{random filename}` preserves the Phase 5 public image
 URL while storing the bytes outside immutable releases. The route accepts only

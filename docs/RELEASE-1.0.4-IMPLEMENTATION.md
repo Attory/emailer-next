@@ -17,15 +17,22 @@ on its detail page. The POST requires list-specific CSRF and recent
 authorization both enforce Administrator rank. An unknown or archived list
 does not export.
 
-The application reads only the selected list's members in 500-row keyset
-pages under a read-only database snapshot and streams the response. The UTF-8
+The application reads only the selected list's members through one unbuffered
+sorted database query, using one InnoDB statement snapshot and bounded PHP
+memory. It stages the CSV in a mode-0600 temporary file before returning an
+attachment, so a database failure cannot create a successful partial download.
+The temporary file is deleted after the response. The UTF-8
 CSV has exactly `email,first_name,last_name`, CRLF record endings, standard
 double-quote escaping, and one row per trimmed, case-insensitive email.
-Stored address spelling and Unicode names remain, with a leading apostrophe
-on spreadsheet-formula-leading cells. The attachment filename contains only a
+Stored address spelling and Unicode names round-trip through import. Cells
+beginning with spreadsheet-formula characters receive an explicit
+`'EMAILER_CSV_SAFE_V1:` prefix, which the importer removes before address,
+deduplication and suppression checks. The attachment filename contains only a
 sanitized ASCII list name, UTC timestamp and random identifier. Private,
-no-store and `nosniff` headers are sent. The audit event holds actor, opaque
-list ID, format and scope, not the addresses, names or CSV body.
+no-store, `nosniff`, no-proxy-buffering and content-length headers are sent.
+Redacted audit events record the accepted request and successful generation
+with a row count; they hold actor, opaque list ID, format and scope, not the
+addresses, names or CSV body.
 
 No contact, membership, consent, suppression, campaign, mail or production
 data was changed. No migration or dependency was added; schema remains
@@ -45,8 +52,8 @@ reported directly to Anton, not recorded in repository history.
 
 ## Validation and review
 
-- Focused synthetic HTTP and multi-page integration tests passed: 3 tests,
-  52 assertions.
+- Focused synthetic HTTP, re-import and large-list tests passed before the
+  adversarial review; renewed figures follow the final repair run.
 - PHPStan passed with no errors.
 - Complete local aggregate, network-isolated tests, candidate/package checks,
   security scans, GitHub CI, and Claude review: pending final branch head.
@@ -59,5 +66,6 @@ must treat the downloaded CSV as private recipient data. A list CSV includes
 inactive or globally suppressed members because membership and deliverability
 are separate; sending always applies the global suppression gate. The export
 has no suppression reasons or consent evidence and must never be treated as a
-ready-to-send audience. Spreadsheet-neutralized cells starting with formula
-characters need review before unusual values are re-imported.
+ready-to-send audience. Formula-leading cells use a reversible prefix that
+the application's importer decodes before validation; external tools must
+preserve the UTF-8 CSV bytes to retain those unusual values exactly.

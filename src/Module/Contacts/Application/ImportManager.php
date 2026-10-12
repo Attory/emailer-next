@@ -131,11 +131,11 @@ final readonly class ImportManager
                         if (1 === $rowNumber && 'headerless' === $import['mode']) {
                             $emailValue = preg_replace('/^\xEF\xBB\xBF/', '', $emailValue) ?? $emailValue;
                         }
-                        $address = new EmailAddress($emailValue);
+                        $address = new EmailAddress(ListCsvFormulaGuard::restore($emailValue));
                         $profile = [];
                         foreach ($mapping as $field => $column) {
                             if ('email' !== $field) {
-                                $profile[$field] = $row[$column] ?? '';
+                                $profile[$field] = ListCsvFormulaGuard::restore($row[$column] ?? '');
                             }
                         }
                         $profile = $this->normalizeImportProfile($profile);

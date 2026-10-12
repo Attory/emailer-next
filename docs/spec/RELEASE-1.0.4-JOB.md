@@ -12,9 +12,10 @@ outside this repository. The feature starts from clean, synchronized main at
   Administrators and Owners only.
 - Require the central route policy, service-level permission, recent
   `contact_data_access` confirmation, and list-specific CSRF.
-- Export only the selected active list as streamed UTF-8
+- Export only the selected active list as bounded-memory UTF-8
   `email,first_name,last_name` CSV, deduplicated by trimmed case-insensitive
-  address, with safe quoting, CRLF endings, filename and headers.
+  address, with reversible spreadsheet protection, safe quoting, CRLF endings,
+  filename and headers.
 - Audit the request without addresses or CSV content.
 - Test authorization, exact membership, Unicode/CSV escaping, empty and large
   lists, headers, privacy, and multi-page deduplication.

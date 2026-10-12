@@ -6,9 +6,10 @@ The existing server-rendered Lists action posts to an Administrator-only
 route. Identity's central route registry, the Contacts application service,
 recent contact-data confirmation, and list-specific CSRF all gate a full
 address download. Contacts resolves one active list and records a redacted
-audit request before streaming. A read-only MariaDB snapshot is read through
-500-row keyset pages, keeping application memory bounded while emitting only
-the three importable CSV columns. The response has a private/no-store cache
+audit request before generation. A single unbuffered sorted MariaDB query has
+one statement snapshot, keeping application memory bounded while emitting only
+the three importable CSV columns into a restrictive temporary file. The
+response streams that completed file and has a private/no-store cache
 policy and sanitized attachment filename. The export neither changes nor
 reports suppression state; campaign approval and delivery continue to check
 the global suppression store independently. No schema, worker, dependency,

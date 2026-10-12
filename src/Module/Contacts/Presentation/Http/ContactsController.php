@@ -148,15 +148,27 @@ final class ContactsController extends AbstractController
         } catch (\InvalidArgumentException) {
             throw $this->createNotFoundException();
         }
-        $actor = $this->user();
-
-        return new StreamedResponse(function () use ($actor, $id): void {
-            $stream = fopen('php://output', 'wb');
-            if (false === $stream) {
-                throw new \RuntimeException('List export output is unavailable.');
+        $stream = tmpfile();
+        if (false === $stream) {
+            throw new \RuntimeException('List export staging is unavailable.');
+        }
+        try {
+            $this->listExporter->write($this->user(), $id, $stream);
+            if (0 !== fseek($stream, 0)) {
+                throw new \RuntimeException('List export staging could not be read.');
             }
+            $size = fstat($stream);
+            if (false === $size) {
+                throw new \RuntimeException('List export size is unavailable.');
+            }
+        } catch (\Throwable $exception) {
+            fclose($stream);
+            throw $exception;
+        }
+
+        return new StreamedResponse(static function () use ($stream): void {
             try {
-                $this->listExporter->write($actor, $id, $stream);
+                fpassthru($stream);
             } finally {
                 fclose($stream);
             }
@@ -166,6 +178,8 @@ final class ContactsController extends AbstractController
             'Cache-Control' => 'private, no-store, max-age=0',
             'Pragma' => 'no-cache',
             'X-Content-Type-Options' => 'nosniff',
+            'X-Accel-Buffering' => 'no',
+            'Content-Length' => (string) $size['size'],
         ]);
     }
 

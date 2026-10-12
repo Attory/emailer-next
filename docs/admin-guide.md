@@ -135,10 +135,11 @@ suppressed contacts; it is a data copy and must not be treated as an eligible
 send audience. The UTF-8 CSV has exactly `email,first_name,last_name` in that
 order, with RFC-style double-quote escaping and CRLF record endings. A member
 whose email compares equal after trimming and case folding appears once. The
-stored email spelling and Unicode names are retained, except cells beginning
-with spreadsheet-formula characters receive a leading apostrophe for safety.
-That protective apostrophe may need review before re-importing an unusual
-address or name. The filename uses a sanitized list name, UTC timestamp and
+stored email spelling and Unicode names are retained. Cells beginning with
+spreadsheet-formula characters receive an explicit
+`'EMAILER_CSV_SAFE_V1:` prefix; Emailer Next strips it during import before
+validating email and checking global suppression. Keep the CSV bytes intact
+when moving it through another tool. The filename uses a sanitized list name, UTC timestamp and
 random identifier. CSVs contain no consent, audit or suppression details;
 use the global suppression controls during every import or send.
 
