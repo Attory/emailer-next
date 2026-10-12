@@ -127,7 +127,23 @@ operator boundaries.
 
 ## Lists, templates and newsletter drafts
 
-Each active list has **View, Edit, Send to, Duplicate, Archive** actions. View
+Each active list has **View, Edit, Send to, Duplicate, Archive** actions, plus
+**Download CSV** for Administrators and Owners. Confirm `contact_data_access`
+with your current credentials, then use Download CSV beside the intended list.
+The download contains only that list's members, including inactive and globally
+suppressed contacts; it is a data copy and must not be treated as an eligible
+send audience. The UTF-8 CSV has exactly `email,first_name,last_name` in that
+order, with RFC-style double-quote escaping and CRLF record endings. A member
+whose email compares equal after trimming and case folding appears once. The
+stored email spelling and Unicode names are retained. Cells beginning with
+spreadsheet-formula characters receive an explicit
+`'EMAILER_CSV_SAFE_V1:` prefix; Emailer Next strips it during import before
+validating email and checking global suppression. Keep the CSV bytes intact
+when moving it through another tool. The filename uses a sanitized list name, UTC timestamp and
+random identifier. CSVs contain no consent, audit or suppression details;
+use the global suppression controls during every import or send.
+
+View
 opens all members in pages of 100 with search; Owners can search full email
 addresses and edit every member's email, names, locale, time zone, consent
 source and configured custom fields. Edit changes the list name. Add contacts

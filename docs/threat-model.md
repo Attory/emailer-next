@@ -1,5 +1,17 @@
 # Threat model
 
+The list-download boundary considers a lower-privilege user requesting full
+addresses, a forged download request, CSV formula execution, header injection
+through a list name, cross-list leakage, and excessive application memory use.
+Central Administrator authorization, recent contact-data confirmation,
+list-specific CSRF, selected-list SQL, formula neutralisation, an ASCII-only
+filename, safe attachment headers, and one unbuffered sorted database query
+address these cases. Staging completes before HTTP headers are returned, and
+the query has one InnoDB statement snapshot. The application importer reverses
+the formula-safe marker before suppression checks. Tests cover denial, exact
+scope, duplicate emails, CSV escaping, re-import, header safety and a large
+export.
+
 **Status:** Phase 13 full Version-1 review under acceptance.
 
 **Method:** Asset/trust-boundary review with STRIDE-style misuse cases and

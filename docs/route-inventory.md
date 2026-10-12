@@ -1,6 +1,6 @@
 # Route and command inventory
 
-**Status:** Phase 13 full Version-1 route and command review. The HTTP surface
+**Status:** Phase 13 Version-1 route review with bounded 1.0.4 list download. The HTTP surface
 includes the bounded Owner workflow repair below; CLI setup and master-key rotation now close their Version-1
 contracts.
 
@@ -102,6 +102,14 @@ POST/CSRF, recently re-authenticated, and audited. Import detail/report access
 is restricted to its uploader or an Administrator. Campaign, delivery, Doctor,
 other later rows below remain planned.
 
+`POST /admin/lists/{id}/download` exports only that active list's membership as
+`email,first_name,last_name`. It requires Administrator or Owner, a
+`contact_data_access` confirmation within five minutes, and a list-specific
+CSRF token. It streams a private/no-store CSV and records only the actor,
+selected list ID, format, scope and generated row count in audit. Its control
+is hidden from lower roles; the route returns 403 to them and no CSV for an
+unknown or archived list.
+
 `GET|HEAD /template-assets/{random filename}` preserves the Phase 5 public image
 URL while storing the bytes outside immutable releases. The route accepts only
 48-hex-character JPEG, PNG, or WebP names and returns no directory listing.
@@ -123,6 +131,7 @@ URL while storing the bytes outside immutable releases. The route accepts only
 | `GET/PATCH /settings/privacy` | Administrator | Tracking/RSVP defaults and retention; audited | 3/4 |
 | `GET/POST/PATCH/DELETE /contacts/*` | Operator | Full-address display/export has separate permission | 5 |
 | `GET/POST/PATCH/DELETE /lists/*` | Operator | Archive rather than destructive delete when referenced | 5 |
+| `POST /lists/{id}/download` | Administrator | CSRF, recent contact-data re-authentication; selected-list CSV only, private/no-store, redacted audit | 13 maintenance |
 | `GET/POST /imports/*` | Operator | Private upload, preview, commit, rejection report; bounded and audited | 5 |
 | `GET/POST /exports/*` | Administrator | Authorized private generation/download; formula neutralisation | 5 |
 | `GET/POST /suppressions/*` | Operator | Global and idempotent; removal policy requires elevated review | 5 |

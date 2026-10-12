@@ -46,6 +46,7 @@ final class RoutePolicyRegistry
         'admin_contact_reveal' => ['role' => AdministrativeRole::Administrator, 'methods' => ['POST'], 'sensitive' => true],
         'admin_contact_field_create' => ['role' => AdministrativeRole::Administrator, 'methods' => ['POST'], 'sensitive' => false],
         'admin_lists' => ['role' => AdministrativeRole::Operator, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
+        'admin_list_download' => ['role' => AdministrativeRole::Administrator, 'methods' => ['POST'], 'sensitive' => true],
         'admin_list' => ['role' => AdministrativeRole::Operator, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
         'admin_list_browse' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
         'admin_list_edit' => ['role' => AdministrativeRole::Operator, 'methods' => ['GET', 'HEAD', 'POST'], 'sensitive' => false],

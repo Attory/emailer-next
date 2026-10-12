@@ -1,5 +1,12 @@
 # Release
 
+The bounded `1.0.4` maintenance candidate adds selected-list CSV download
+without a migration or dependency change. Its signed package contract accepts
+exactly `1.0.3` at schema `20261008000000`. Local candidate checks use a
+disposable test signing key. Operator signing, publication, installation and
+deployment require separate exact-head authorization; this branch performs
+none of them. See `RELEASE-1.0.4-IMPLEMENTATION.md`.
+
 **Status:** Phase 13 `1.0.0` candidate tooling under acceptance. The accepted
 operator-signed `0.4.0` candidate remains unpublished and undeployed. No
 operator-signed `1.0.0` candidate exists until an exact reviewed head receives

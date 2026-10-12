@@ -3,6 +3,12 @@
     <a href="{{ path('admin_list_edit', {id: list.id}) }}">Edit</a>
     <a href="{{ path('admin_campaigns', {list: list.id}) }}">Send to</a>
     <a href="{{ path('admin_list_duplicate', {id: list.id}) }}">Duplicate</a>
+    {% if is_granted('ROLE_ADMINISTRATOR') %}
+    <form method="post" action="{{ path('admin_list_download', {id: list.id}) }}">
+        <input type="hidden" name="_token" value="{{ csrf_token('list-download-' ~ list.id) }}">
+        <button type="submit">Download CSV</button>
+    </form>
+    {% endif %}
     <form method="post" action="{{ path('admin_list_archive', {id: list.id}) }}">
         <input type="hidden" name="_token" value="{{ csrf_token('list-archive-' ~ list.id) }}">
         <button type="submit">Archive</button>

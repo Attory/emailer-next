@@ -315,6 +315,15 @@ recovery value, reset token, raw session ID, or full cookie.
 
 ## Phase 5 content operations
 
+Administrators and Owners can download a single active list from **Admin →
+Lists → Download CSV** after recent contact-data confirmation. The browser
+receives a no-store attachment with `email,first_name,last_name`; the export
+does not change membership or suppression. Store downloaded files in private
+operator storage and apply the global suppression set before any external
+newsletter calculation or delivery. Operators and Auditors cannot download
+full-address lists. The audit records the opaque list ID and request metadata,
+not the CSV body or addresses.
+
 1. Apply `Version20260819000000` through the normal migration gate and verify
    DOM/GD plus JPEG, PNG, and WebP support. Keep the import directory private.
 2. Treat CSV preview as a mandatory validation step. Reports contain only row

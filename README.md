@@ -2,16 +2,16 @@
 
 Emailer Next is the clean-room successor to Emailer: a self-hosted email
 campaign application for exactly one organisation per installation. The
-repository is implementing **Phase 13** and currently identifies as `1.0.0`
-with schema `20260828000000`. The Phase 13 branch adds complete Version-1
+repository is preparing the bounded `1.0.4` list-download maintenance patch
+with schema `20261008000000`. The completed Phase 13 work added Version-1
 acceptance tooling, a protected interactive CLI installer, transactional
 master-key rotation, license and browser/accessibility policy, and client-grade
 `1.0.0` installation/update manuals.
 
-The accepted operator-signed `0.4.0` candidate remains unpublished and
-undeployed. A `1.0.0` candidate is not accepted until the Phase 13 head passes
-all local/CI gates, independent review, operator signing, and exact-head
-approval. No Phase 13 work authorizes client installation or production mail.
+The Hatha Yoga Space installation currently points to `1.0.3`. This `1.0.4`
+branch is a development candidate only. It is not merged, signed with an
+operator key, published, or deployed. The private list recovery files are
+outside this repository and never enter package artifacts.
 
 ## Safe local bootstrap
 
@@ -46,9 +46,9 @@ See [Installation](docs/installation.md) and
 - Legacy source, history, templates, dependencies, credentials, and private
   records remain prohibited.
 
-See the [Phase 13 report](docs/phase-13-report.md) for current acceptance
-evidence, candidate status, limitations, and manual actions. Earlier phase
-reports remain the authoritative incremental record.
+See the [1.0.4 implementation record](docs/RELEASE-1.0.4-IMPLEMENTATION.md)
+for this bounded change. Earlier phase and release reports remain the
+authoritative incremental record.
 
 ## Documentation map
 
