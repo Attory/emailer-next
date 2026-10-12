@@ -62,7 +62,7 @@ reported directly to Anton, not recorded in repository history.
 - The complete local Composer aggregate passed on the final code: strict
   Composer validation and audit, license policy, style, static analysis,
   shell checks, migration and Doctrine mapping checks, PHPUnit (286 tests,
-  4,437 assertions), artifact
+  4,439 assertions), artifact
   build and inspection, public-path/deployment probes, secret/private-data
   scans, and deterministic signed-candidate tooling. The root-owned release
   and service-key privilege rehearsal passed. No production package was
@@ -82,6 +82,10 @@ reported directly to Anton, not recorded in repository history.
   fixture alone cannot prove that a future array-based implementation would
   stay under the memory limit. Exact final-head review and GitHub CI results
   are recorded in draft PR #20.
+- The first PHP 8.5 CI attempt exposed a deprecation in the new MySQL PDO
+  attribute constant. The exporter and its test now use the PHP 8.4+
+  `Pdo\Mysql::ATTR_USE_BUFFERED_QUERY` spelling; the replacement matrix is
+  the release gate.
 
 ## Manual actions and limits
 

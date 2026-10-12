@@ -47,17 +47,17 @@ final readonly class ListCsvExporter
     {
         $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Administrator, 'contacts.lists.export');
         $native = $this->connection->getNativeConnection();
-        if (!$native instanceof \PDO || !\defined('PDO::MYSQL_ATTR_USE_BUFFERED_QUERY')) {
+        if (!$native instanceof \PDO || !\defined('Pdo\\Mysql::ATTR_USE_BUFFERED_QUERY')) {
             throw new \RuntimeException('Unbuffered list export is unavailable.');
         }
         $this->connection->executeStatement('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY');
         $this->connection->beginTransaction();
         try {
-            $native->setAttribute(\PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, false);
+            $native->setAttribute(\Pdo\Mysql::ATTR_USE_BUFFERED_QUERY, false);
             try {
                 $count = $this->writeRows($listId, $stream);
             } finally {
-                $native->setAttribute(\PDO::MYSQL_ATTR_USE_BUFFERED_QUERY, true);
+                $native->setAttribute(\Pdo\Mysql::ATTR_USE_BUFFERED_QUERY, true);
             }
             $this->connection->commit();
         } catch (\Throwable $exception) {

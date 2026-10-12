@@ -270,10 +270,10 @@ final class ListCsvUnbufferedFilter extends \php_user_filter
 
     private static function assertUnbuffered(mixed $connection): void
     {
-        if (!$connection instanceof \PDO || true !== \defined('PDO::MYSQL_ATTR_USE_BUFFERED_QUERY')) {
+        if (!$connection instanceof \PDO || true !== \defined('Pdo\\Mysql::ATTR_USE_BUFFERED_QUERY')) {
             throw new \LogicException('MySQL PDO connection is required.');
         }
-        if (false !== $connection->getAttribute(\PDO::MYSQL_ATTR_USE_BUFFERED_QUERY)) {
+        if (false !== $connection->getAttribute(\Pdo\Mysql::ATTR_USE_BUFFERED_QUERY)) {
             throw new \LogicException('List export buffered its result set.');
         }
     }
