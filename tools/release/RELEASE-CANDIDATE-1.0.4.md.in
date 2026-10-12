@@ -1,0 +1,16 @@
+# Emailer Next 1.0.4 release-candidate record
+
+- Source commit: `@SOURCE_COMMIT@`
+- Source date epoch: `@SOURCE_EPOCH@`
+- Archive SHA-256: `@ARCHIVE_SHA256@`
+- Bootstrap verifier SHA-256: `@VERIFIER_SHA256@`
+- Package inspector SHA-256: `@INSPECTOR_SHA256@`
+- Schema: `20261008000000`
+- Supported sources: exactly `1.0.3`
+- Minimum source: `1.0.3`
+- Minimum source schema: `20261008000000`
+- Rollback: unchanged schema; compatible pointer rollback is declared, with verified backup retained
+- Reproducibility: two independent builds and all five package outputs were byte-identical
+- Signature: detached Ed25519 signature verified against the separately supplied pinned public key
+- Update evidence: production updates require the exact retained signed predecessor package and original sidecars; disposable-key source-derived CI fixtures are not historical operator outputs
+- Publication/deployment: not performed

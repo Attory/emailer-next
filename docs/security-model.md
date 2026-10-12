@@ -1,5 +1,15 @@
 # Security model
 
+List CSV download uses the central `admin_list_download` route policy and a
+second service-level Administrator check. POST requires a list-specific CSRF
+token and recent `contact_data_access` confirmation. An active list is resolved
+before the attachment response; only its three approved contact fields are
+read in bounded pages under one read-only database snapshot. The response is
+private/no-store with a sanitized ASCII attachment filename and `nosniff`.
+Spreadsheet-formula-leading cells are prefixed with an apostrophe. The audit
+contains only actor, opaque list ID, format and scope. The operation never
+reads secret, session, consent, audit-payload or suppression-reason columns.
+
 **Status:** Phase 13 complete Version-1 security controls under acceptance.
 
 ## Phase 13 closure controls

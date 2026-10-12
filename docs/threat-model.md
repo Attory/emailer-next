@@ -1,5 +1,15 @@
 # Threat model
 
+The list-download boundary considers a lower-privilege user requesting full
+addresses, a forged download request, CSV formula execution, header injection
+through a list name, cross-list leakage, and excessive application memory use.
+Central Administrator authorization, recent contact-data confirmation,
+list-specific CSRF, selected-list SQL, formula neutralisation, an ASCII-only
+filename, safe attachment headers, and 500-row keyset pages address these
+cases. A read-only database transaction gives every page one membership
+snapshot. Tests cover denial, exact scope, duplicate emails, CSV escaping,
+header safety and a multi-page export.
+
 **Status:** Phase 13 full Version-1 review under acceptance.
 
 **Method:** Asset/trust-boundary review with STRIDE-style misuse cases and

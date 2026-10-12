@@ -7,6 +7,7 @@ namespace App\Module\Contacts\Presentation\Http;
 use App\Module\Contacts\Application\ContactExporter;
 use App\Module\Contacts\Application\ContactManager;
 use App\Module\Contacts\Application\ImportManager;
+use App\Module\Contacts\Application\ListCsvExporter;
 use App\Module\Identity\Application\Contract\AdministrativeActor;
 use App\Module\Identity\Application\ReauthenticationService;
 use Symfony\Bundle\FrameworkBundle\Controller\AbstractController;
@@ -23,6 +24,7 @@ final class ContactsController extends AbstractController
         private readonly ContactManager $contacts,
         private readonly ImportManager $imports,
         private readonly ContactExporter $exporter,
+        private readonly ListCsvExporter $listExporter,
         private readonly ReauthenticationService $reauthentication,
     ) {
     }
@@ -132,6 +134,39 @@ final class ContactsController extends AbstractController
     public function lists(): Response
     {
         return $this->render('admin/lists.html.twig', ['lists' => $this->contacts->lists($this->user())]);
+    }
+
+    #[Route('/lists/{id}/download', name: 'admin_list_download', requirements: ['id' => '[0-9a-f-]{36}'], methods: ['POST'])]
+    public function downloadList(Request $request, string $id): Response
+    {
+        if (!$this->csrf($request, 'list-download-'.$id)) {
+            return $this->badRequest();
+        }
+        $this->reauthentication->assertRecent($request->getSession(), 'contact_data_access');
+        try {
+            $filename = $this->listExporter->prepare($this->user(), $id);
+        } catch (\InvalidArgumentException) {
+            throw $this->createNotFoundException();
+        }
+        $actor = $this->user();
+
+        return new StreamedResponse(function () use ($actor, $id): void {
+            $stream = fopen('php://output', 'wb');
+            if (false === $stream) {
+                throw new \RuntimeException('List export output is unavailable.');
+            }
+            try {
+                $this->listExporter->write($actor, $id, $stream);
+            } finally {
+                fclose($stream);
+            }
+        }, 200, [
+            'Content-Type' => 'text/csv; charset=utf-8',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'Pragma' => 'no-cache',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     #[Route('/lists/{id}', name: 'admin_list', requirements: ['id' => '[0-9a-f-]{36}'], methods: ['GET', 'HEAD'])]
