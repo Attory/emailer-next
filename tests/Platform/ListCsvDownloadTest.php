@@ -206,9 +206,16 @@ final class ListCsvDownloadTest extends WebTestCase
         $exporter = $this->phase4Service(ListCsvExporter::class);
         $stream = fopen('php://temp/maxmemory:1024', 'w+b');
         self::assertIsResource($stream);
+        if (!\in_array('emailer.assert_unbuffered', stream_get_filters(), true)) {
+            self::assertTrue(stream_filter_register('emailer.assert_unbuffered', ListCsvUnbufferedFilter::class));
+        }
+        ListCsvUnbufferedFilter::$writes = 0;
+        $filter = stream_filter_append($stream, 'emailer.assert_unbuffered', STREAM_FILTER_WRITE, $db->getNativeConnection());
+        self::assertIsResource($filter);
         memory_reset_peak_usage();
         $before = memory_get_usage(true);
         self::assertSame(1500, $exporter->write($admin, $list, $stream));
+        self::assertGreaterThan(1, ListCsvUnbufferedFilter::$writes);
         self::assertLessThan(8 * 1024 * 1024, memory_get_peak_usage(true) - $before);
         rewind($stream);
         $lines = 0;
@@ -217,5 +224,32 @@ final class ListCsvDownloadTest extends WebTestCase
         }
         fclose($stream);
         self::assertSame(1501, $lines);
+    }
+}
+
+final class ListCsvUnbufferedFilter extends \php_user_filter
+{
+    public static int $writes = 0;
+
+    public function filter($in, $out, &$consumed, bool $closing): int
+    {
+        while ($bucket = stream_bucket_make_writeable($in)) {
+            self::assertUnbuffered($this->params);
+            ++self::$writes;
+            $consumed += $bucket->datalen;
+            stream_bucket_append($out, $bucket);
+        }
+
+        return PSFS_PASS_ON;
+    }
+
+    private static function assertUnbuffered(mixed $connection): void
+    {
+        if (!$connection instanceof \PDO || true !== \defined('PDO::MYSQL_ATTR_USE_BUFFERED_QUERY')) {
+            throw new \LogicException('MySQL PDO connection is required.');
+        }
+        if (false !== $connection->getAttribute(\PDO::MYSQL_ATTR_USE_BUFFERED_QUERY)) {
+            throw new \LogicException('List export buffered its result set.');
+        }
     }
 }

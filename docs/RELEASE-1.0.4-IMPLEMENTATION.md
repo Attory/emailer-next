@@ -52,11 +52,28 @@ reported directly to Anton, not recorded in repository history.
 
 ## Validation and review
 
-- Focused synthetic HTTP, re-import and large-list tests passed before the
-  adversarial review; renewed figures follow the final repair run.
-- PHPStan passed with no errors.
-- Complete local aggregate, network-isolated tests, candidate/package checks,
-  security scans, GitHub CI, and Claude review: pending final branch head.
+- Focused synthetic HTTP, re-import and large-list tests passed. The large-list
+  test checks that the MySQL result is unbuffered as rows are written, in
+  addition to checking peak application memory.
+- PHP-CS-Fixer, PHPStan and Deptrac passed with no errors or violations.
+- The rebuilt, network-isolated application image passed 285 tests and 9,549
+  assertions. This image preceded the final archive-race response correction;
+  the final local aggregate and GitHub matrix cover that correction.
+- The complete local Composer aggregate passed on the final code: strict
+  Composer validation and audit, license policy, style, static analysis,
+  shell checks, migration and Doctrine mapping checks, PHPUnit, artifact
+  build and inspection, public-path/deployment probes, secret/private-data
+  scans, and deterministic signed-candidate tooling. The root-owned release
+  and service-key privilege rehearsal passed. No production package was
+  signed, installed or deployed.
+- A read-only Claude adversarial review of the initial branch found a
+  formula-prefix re-import flaw, incomplete formula tests, premature success
+  reporting on a failing export, an archive/snapshot race, repeated sort cost,
+  possible nginx buffering and weak memory evidence. The confirmed issues
+  were repaired. A second review found no release blocker but identified an
+  archive race that returned 500 and an undersized memory test. Those findings
+  were independently confirmed and repaired. The exact final-head Claude
+  review and GitHub CI results are recorded in draft PR #20.
 
 ## Manual actions and limits
 
@@ -68,4 +85,7 @@ are separate; sending always applies the global suppression gate. The export
 has no suppression reasons or consent evidence and must never be treated as a
 ready-to-send audience. Formula-leading cells use a reversible prefix that
 the application's importer decodes before validation; external tools must
-preserve the UTF-8 CSV bytes to retain those unusual values exactly.
+preserve the UTF-8 CSV bytes to retain those unusual values exactly. If two
+distinct contacts differ only by address case, the export keeps the member
+with the lexically first contact ID and its names. A slow download can occupy
+one PHP worker until the client finishes receiving the staged CSV.

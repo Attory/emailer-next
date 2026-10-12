@@ -163,6 +163,9 @@ final class ContactsController extends AbstractController
             }
         } catch (\Throwable $exception) {
             fclose($stream);
+            if ($exception instanceof \InvalidArgumentException) {
+                throw $this->createNotFoundException(previous: $exception);
+            }
             throw $exception;
         }
 
