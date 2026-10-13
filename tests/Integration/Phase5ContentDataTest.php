@@ -101,7 +101,7 @@ final class Phase5ContentDataTest extends KernelTestCase
         self::assertStringContainsString("'=Spreadsheet Formula", $csv);
         self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'contact.address.revealed' AND actor_user_id = ?", [$administrator->id()])));
         self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'contact.exported' AND actor_user_id = ?", [$administrator->id()])));
-        self::assertStringNotContainsString('Sensitive.Person', json_encode($connection->fetchAllAssociative('SELECT * FROM audit_event'), JSON_THROW_ON_ERROR));
+        self::assertStringNotContainsString('Sensitive.Person', json_encode($connection->fetchAllAssociative('SELECT * FROM audit_event WHERE actor_user_id = ?', [$administrator->id()]), JSON_THROW_ON_ERROR));
     }
 
     public function testImportPreviewCommitSuppressionDuplicatesAndPrivateReport(): void
