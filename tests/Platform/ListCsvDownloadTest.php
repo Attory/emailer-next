@@ -80,7 +80,7 @@ final class ListCsvDownloadTest extends WebTestCase
         $row = fgetcsv($stream, escape: '');
         self::assertIsArray($row);
         self::assertContains($row[0], ['Case.Member@EXAMPLE.TEST', 'case.member@example.test']);
-        self::assertSame(['José, Ana', "O\"Neil\nSecond line"], array_slice($row, 1));
+        self::assertSame(['José, Ana', "O\"Neil\nSecond line"], \array_slice($row, 1));
         self::assertFalse(fgetcsv($stream, escape: ''));
         fclose($stream);
         foreach (['unrelated@example.test', 'synthetic-private-marker', 'consent_source', 'email_canonical', 'suppression', 'audit', 'token'] as $private) {
