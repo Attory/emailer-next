@@ -16,6 +16,6 @@ final class Version20261013000000 extends AbstractMigration
 
     public function up(Schema $schema): void
     {
-        $this->addSql("ALTER TABLE organisation_settings ADD security_level VARCHAR(6) NOT NULL DEFAULT 'high', ADD CONSTRAINT chk_organisation_security_level CHECK (security_level IN ('high', 'normal'))");
+        $this->addSql("ALTER TABLE organisation_settings ADD security_level VARCHAR(6) NOT NULL DEFAULT 'high', ADD CONSTRAINT chk_organisation_security_level CHECK (BINARY security_level IN (BINARY 'high', BINARY 'normal'))");
     }
 }

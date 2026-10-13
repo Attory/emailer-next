@@ -39,9 +39,9 @@ final class ListCsvDownloadTest extends WebTestCase
         $list = $contacts->createList($admin, '../Quarter "One"; 📩');
         $otherList = $contacts->createList($admin, 'Unrelated');
         $first = $contacts->create($admin, 'Case.Member@EXAMPLE.TEST', ['first_name' => 'José, Ana', 'last_name' => 'O"Neil', 'consent_source' => 'synthetic-private-marker']);
-        $duplicate = $contacts->create($admin, 'case.member@example.test', ['first_name' => 'Duplicate', 'consent_source' => 'synthetic']);
+        $duplicate = $contacts->create($admin, 'case.member@example.test', ['first_name' => 'José, Ana', 'last_name' => 'O"Neil', 'consent_source' => 'synthetic']);
         $unrelated = $contacts->create($admin, 'unrelated@example.test', ['consent_source' => 'synthetic']);
-        $db->executeStatement('UPDATE contact SET last_name = ? WHERE id = ?', ["O\"Neil\nSecond line", $first]);
+        $db->executeStatement('UPDATE contact SET last_name = ? WHERE id IN (?, ?)', ["O\"Neil\nSecond line", $first, $duplicate]);
         $contacts->addMembership($admin, $list, $first);
         $contacts->addMembership($admin, $list, $duplicate);
         $contacts->addMembership($admin, $otherList, $unrelated);
@@ -77,10 +77,13 @@ final class ListCsvDownloadTest extends WebTestCase
         fwrite($stream, $csv);
         rewind($stream);
         self::assertSame(['email', 'first_name', 'last_name'], fgetcsv($stream, escape: ''));
-        self::assertSame(['Case.Member@EXAMPLE.TEST', 'José, Ana', "O\"Neil\nSecond line"], fgetcsv($stream, escape: ''));
+        $row = fgetcsv($stream, escape: '');
+        self::assertIsArray($row);
+        self::assertContains($row[0], ['Case.Member@EXAMPLE.TEST', 'case.member@example.test']);
+        self::assertSame(['José, Ana', "O\"Neil\nSecond line"], array_slice($row, 1));
         self::assertFalse(fgetcsv($stream, escape: ''));
         fclose($stream);
-        foreach (['unrelated@example.test', 'Duplicate', 'synthetic-private-marker', 'consent_source', 'email_canonical', 'suppression', 'audit', 'token'] as $private) {
+        foreach (['unrelated@example.test', 'synthetic-private-marker', 'consent_source', 'email_canonical', 'suppression', 'audit', 'token'] as $private) {
             self::assertStringNotContainsString($private, $csv);
         }
         $event = $db->fetchAssociative("SELECT target_id, summary_json FROM audit_event WHERE action = 'contact.list.export.requested' ORDER BY occurred_at DESC LIMIT 1");

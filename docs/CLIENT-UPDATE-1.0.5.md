@@ -9,6 +9,10 @@ The update adds installation-wide High and Normal security levels. High is the d
 1. Confirm the installed source version is exactly `1.0.4`, the
    immutable current pointer is valid, Doctor has no unexplained critical
    finding, and no campaign is actively sending.
+   Select the supported CLI binary used by the active Emailer services, for
+   example `PHP_CLI=/usr/bin/php8.5`, and verify it with `test -x "$PHP_CLI"`,
+   `"$PHP_CLI" -v` and `"$PHP_CLI" -m`. Keep that value in the protected
+   terminal. Do not rely on the host's default `/usr/bin/php` symlink.
 2. Create and verify an encrypted backup. Confirm the separately protected
    recovery package/passphrase and pinned release public key are available.
 3. Record the current version/schema/pointer, active-claim count, the exact
@@ -51,7 +55,7 @@ The update adds installation-wide High and Normal security levels. High is the d
    ```sh
    sudo sha256sum /var/lib/emailer-candidate/verify-package.php /var/lib/emailer-candidate/PackageInspector.php
    sudo sh -c 'cd /var/lib/emailer-candidate && sha256sum -c emailer-next-<EXACT-RECORDED-SOURCE-VERSION>.zip.sha256'
-   sudo -u emailer php /var/lib/emailer-candidate/verify-package.php \
+   sudo -u emailer "$PHP_CLI" /var/lib/emailer-candidate/verify-package.php \
      --archive=/var/lib/emailer-candidate/emailer-next-<EXACT-RECORDED-SOURCE-VERSION>.zip \
      --public-key=/etc/emailer/release-signing.pub \
      --current-version=<EXACT-RECORDED-SOURCE-VERSION> \
@@ -59,7 +63,7 @@ The update adds installation-wide High and Normal security levels. High is the d
      --expected-source=<EXACT-RECORDED-SOURCE-COMMIT> \
      --installed-source
    sudo sh -c 'cd /var/lib/emailer-candidate && sha256sum -c emailer-next-1.0.5.zip.sha256'
-   sudo -u emailer php /var/lib/emailer-candidate/verify-package.php \
+   sudo -u emailer "$PHP_CLI" /var/lib/emailer-candidate/verify-package.php \
      --archive=/var/lib/emailer-candidate/emailer-next-1.0.5.zip \
      --public-key=/etc/emailer/release-signing.pub \
      --current-version=<EXACT-RECORDED-SOURCE-VERSION> \
@@ -101,11 +105,17 @@ rejects a mismatch. Reload systemd only after these checks.
 
 ```sh
 sudo install -o root -g root -m 0644 /var/lib/emailer-candidate/verified-1.0.5/deployment/emailer-update@.service.example /etc/systemd/system/emailer-update@.service
+sudo sed -i "s#/usr/bin/php #${PHP_CLI} #g" /etc/systemd/system/emailer-update@.service
+sudo grep '^ExecStart=' /etc/systemd/system/emailer-update@.service
 sudo install -o root -g root -m 0600 /dev/null /etc/emailer/update.env
 sudoedit /etc/emailer/update.env
 readlink -f /srv/emailer/releases/current
 sudo systemctl daemon-reload
 ```
+
+Stop unless the reviewed updater `ExecStart` uses the selected supported
+`PHP_CLI` binary. The packaged unit is an example and may contain an
+`/usr/bin/php` path that resolves to an unsupported host default.
 
 Do not put the source-version override in `runtime.env`; ordinary application
 processes must continue to identify themselves as their packaged version.
@@ -144,7 +154,9 @@ any recovery or delivery resume. Never point 1.0.4 code at the 1.0.5 schema; res
 
 Install the reviewed worker, scheduler, operations, and update unit examples
 from the new immutable release as the fixed root-owned files named in Step 13
-of `CLIENT-INSTALL-1.0.5.md`, then run `systemctl daemon-reload`. This is
+of `CLIENT-INSTALL-1.0.5.md`, substitute the same verified `PHP_CLI` in all
+four service `ExecStart` lines and inspect them, then run
+`systemctl daemon-reload`. This is
 required even when updating an older release that did not yet have every unit.
 Before restarting PHP-FPM or workers, clear and warm the ordinary service cache
 using the new current release as the `emailer` identity. The updater uses a

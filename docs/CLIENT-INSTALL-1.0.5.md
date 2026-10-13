@@ -50,11 +50,17 @@ PNG and WebP, `hash`, `intl`, `json`, `mbstring`, `openssl`, `pdo`,
 Confirm the host before continuing:
 
 ```sh
-php -v
-php -m
-php -r 'foreach (["curl","dom","gd","intl","mbstring","openssl","pdo_mysql","sodium","zip"] as $e) { if (!extension_loaded($e)) { fwrite(STDERR, "missing extension: $e\n"); exit(1); } }'
+PHP_CLI=/usr/bin/php8.5 # Use the verified supported PHP 8.4 or 8.5 CLI path on this host.
+test -x "$PHP_CLI"
+"$PHP_CLI" -v
+"$PHP_CLI" -m
+"$PHP_CLI" -r 'foreach (["curl","dom","gd","intl","mbstring","openssl","pdo_mysql","sodium","zip"] as $e) { if (!extension_loaded($e)) { fwrite(STDERR, "missing extension: $e\n"); exit(1); } }'
 mariadb --version
 ```
+
+Keep this verified `PHP_CLI` path in the protected terminal for every CLI and
+unit-installation step below. A system default `php` symlink may point to an
+unsupported PHP branch even when the correct binary is installed.
 
 Also confirm time synchronization, at least twice the uncompressed package size
 plus 512 MiB release reserve, enough database/private/backup capacity for the
@@ -164,7 +170,7 @@ signed package contract as effective user `emailer`:
 ```sh
 sudo sha256sum /var/lib/emailer-candidate/verify-package.php /var/lib/emailer-candidate/PackageInspector.php
 sudo sh -c 'cd /var/lib/emailer-candidate && sha256sum -c emailer-next-1.0.5.zip.sha256'
-sudo -u emailer php /var/lib/emailer-candidate/verify-package.php \
+sudo -u emailer "$PHP_CLI" /var/lib/emailer-candidate/verify-package.php \
   --archive=/var/lib/emailer-candidate/emailer-next-1.0.5.zip \
   --public-key=/etc/emailer/release-signing.pub \
   --current-version=1.0.0 \
@@ -263,7 +269,7 @@ emailer_cli() {
     --property=PrivateTmp=yes \
     --property=ProtectSystem=strict \
     --property='ReadWritePaths=/var/lib/emailer/private /var/lib/emailer/keys /var/backups/emailer' \
-    /usr/bin/php /srv/emailer/releases/current/bin/console "$@"
+    "$PHP_CLI" /srv/emailer/releases/current/bin/console "$@"
 }
 ```
 
@@ -375,11 +381,15 @@ sudo install -o root -g root -m 0644 /srv/emailer/releases/current/deployment/em
 sudo install -o root -g root -m 0644 /srv/emailer/releases/current/deployment/emailer-operations.service.example /etc/systemd/system/emailer-operations.service
 sudo install -o root -g root -m 0644 /srv/emailer/releases/current/deployment/emailer-operations.timer.example /etc/systemd/system/emailer-operations.timer
 sudo install -o root -g root -m 0644 /srv/emailer/releases/current/deployment/emailer-update@.service.example /etc/systemd/system/emailer-update@.service
+sudo sed -i "s#/usr/bin/php #${PHP_CLI} #g" /etc/systemd/system/emailer-worker.service /etc/systemd/system/emailer-scheduler.service /etc/systemd/system/emailer-operations.service /etc/systemd/system/emailer-update@.service
+sudo grep '^ExecStart=' /etc/systemd/system/emailer-worker.service /etc/systemd/system/emailer-scheduler.service /etc/systemd/system/emailer-operations.service /etc/systemd/system/emailer-update@.service
 sudo systemctl daemon-reload
 sudo systemctl enable --now emailer-worker.service emailer-scheduler.timer emailer-operations.timer
 ```
 
-Review every copied path and sandbox control before starting it. Run all
+Confirm all four `ExecStart` lines use the verified supported `PHP_CLI` path;
+stop if any still names `/usr/bin/php` or an unsupported binary. Review every
+copied path and sandbox control before starting it. Run all
 ordinary processes as `emailer`, from `/srv/emailer/releases/current`, with the
 same protected runtime environment. The inactive update template is root-only,
 loads a separately recorded source version, and executes only a verified,
@@ -393,9 +403,9 @@ never change ownership of the ordinary service cache.
 Required recurring processes are:
 
 ```sh
-php bin/console messenger:consume async --keepalive=5 --time-limit=3600 --memory-limit=256M --failure-limit=10
-php bin/console emailer:scheduler:run
-php bin/console emailer:operations:run
+"$PHP_CLI" bin/console messenger:consume async --keepalive=5 --time-limit=3600 --memory-limit=256M --failure-limit=10
+"$PHP_CLI" bin/console emailer:scheduler:run
+"$PHP_CLI" bin/console emailer:operations:run
 ```
 
 The timers invoke scheduler and operations at least once per minute. If systemd

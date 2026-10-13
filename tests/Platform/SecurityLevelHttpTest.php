@@ -44,6 +44,12 @@ final class SecurityLevelHttpTest extends WebTestCase
         self::assertSame('normal', $reader->current());
         self::assertFalse($reader->requiresRecentAuthentication());
         $db->update('organisation_settings', ['security_level' => 'high'], ['singleton_key' => '1']);
+        try {
+            $db->update('organisation_settings', ['security_level' => 'NORMAL'], ['singleton_key' => '1']);
+            self::fail('The database accepted a security level outside the exact allowlist.');
+        } catch (\Doctrine\DBAL\Exception) {
+            self::assertSame('high', $db->fetchOne("SELECT security_level FROM organisation_settings WHERE singleton_key = '1'"));
+        }
 
         $unreadable = $this->createMock(Connection::class);
         $unreadable->expects(self::once())->method('fetchOne')->willThrowException(new \RuntimeException('Synthetic read failure'));

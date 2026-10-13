@@ -47,7 +47,7 @@ session on account and MFA changes and private exports.
 | `delivery_policy` | Installation delivery limits change | Recent confirmation or inline credential confirmation | Extra confirmation omitted |
 | `password_change` | Current-account password change | Recent purpose-bound confirmation; current password still required | Extra confirmation omitted; current password still required |
 | `session_management` | Current-account session revocation | Recent purpose-bound confirmation | Extra confirmation omitted |
-| `mfa_management` | MFA start, confirm, disable, recovery-code regeneration | Recent purpose-bound confirmation | Extra confirmation omitted; MFA and recovery controls remain |
+| `mfa_management` | MFA start, confirm, disable, recovery-code regeneration | Recent purpose-bound confirmation | Extra confirmation omitted; configured login MFA and recovery-code use remain enforced |
 | `user_management` | User create, update, delete | Recent confirmation or inline credential confirmation | Extra confirmation omitted; role/last-Owner invariants remain |
 | `security_level_change` | High to Normal only | Recent confirmation always mandatory | Not applicable to Normal to High |
 | `master_key_rotation` | Protected CLI rotation | Explicit Owner credential verification in both levels | Explicit Owner credential verification in both levels |
@@ -87,3 +87,24 @@ and atomic, and failed credential confirmation is already audited by the
 existing reauthentication service. The per-render level reads are deliberate
 to avoid stale authorization state. A final exact-head read-only review is
 required after these repairs.
+
+A read-only production preflight also found that host1618.com's default
+`/usr/bin/php` resolves to unsupported PHP 8.2 while its active Emailer
+services use PHP 8.5. The 1.0.4 release check passed under PHP 8.5. The
+1.0.5 installation and update manuals now require selection and inspection
+of that supported CLI binary for every transient command and fixed service
+unit before activation. This documentation correction requires final-head
+validation and review.
+The second read-only Claude review found no blocker but identified a MariaDB
+collation edge case: a case-insensitive CHECK could accept uppercase values
+through a direct database write. The new migration now compares binary strings
+so the stored allowlist is exactly `high` or `normal`, and a database-level
+regression test rejects `NORMAL`. The review also led to more precise wording
+about MFA behavior in Normal.
+The first fresh CI matrix on `830acdae940bc2544511278fd968a4e266557433`
+exposed an unrelated ordering assumption in the selected-list CSV test on
+MariaDB 11.8: two synthetic contacts with the same normalized address could
+sort in either ID order. The fixture now gives either representative the same
+Unicode and quoted names and accepts either stored address spelling while
+still asserting exactly one normalized row and the exact selected-list scope.
+The production exporter and its deduplication rule did not change.
