@@ -103,6 +103,7 @@ message does not prove inbox delivery.
 | TM-05 | Key substitution, permission weakness, ciphertext swapping, or crash between database/key commits | Explicit absolute external path; complete ancestor ownership/mode/link and replacement checks; strict key length/mode/link count; installation/record/type/version in AAD; constant-time failure; maintenance lock; restrictive old/new journal reconciled to committed opaque audit marker | 3/13 |
 | TM-06 | Password/session/account takeover | Argon2id; throttling; optional TOTP with Owner policy; hashed recovery codes; secure server sessions; rotation/revocation; generic recovery | 3–4 |
 | TM-07 | Operator exceeds role or removes last Owner | Default-deny route and service authorization; recent auth; generated role matrix; database/application invariant; audit | 4 |
+| TM-07a | Normal level or a direct request bypasses a privileged boundary | One constrained singleton level, fail-closed policy read on every decision, unchanged login/roles/CSRF, Owner-only row-locked transition, mandatory High-mode downgrade confirmation, redacted audit | 1.0.5 |
 | TM-08 | CSRF or unsafe GET changes state | Unsafe methods for mutations; framework CSRF negative matrix; SameSite cookie; public-token routes isolated | 4/7 |
 | TM-09 | Proxy/header spoofing bypasses HTTPS or changes host/base URL | Explicit trusted proxies/hosts; reject arbitrary forwarded headers; canonical URL checks; Doctor finding | 2–4/8 |
 | TM-10 | Malicious CSV exhausts memory or injects content | Streaming parser; size/row/field/column limits; encoding/control validation; private random files; formula neutralisation | 5 |
@@ -130,7 +131,7 @@ message does not prove inbox delivery.
 - Ordinary views below Owner mask addresses. Explicitly authorized private
   Owner contact/list, suppression and SMTP reads show full nonsecret fields
   with authorization, opaque audit and no-store responses. Exports and
-  Administrator reveal retain separate recent authentication and CSRF.
+  Administrator reveal retain separate recent authentication in High and CSRF.
 - Open events are approximate and must not be represented as proof that a human
   read a message.
 - A forwarded recipient link may allow the holder to exercise its scoped
@@ -321,7 +322,7 @@ provider, or claim exact/person-level analytics.
   database constraints, and serialized unique-row writes limit injection,
   storage abuse, and concurrent repeats.
 - Ordinary authorized views expose aggregates only. Private CSV export requires
-  Administrator authority, CSRF and recent re-authentication, is audited, uses
+  Administrator authority, CSRF and recent re-authentication in High, is audited, uses
   opaque recipient IDs, and neutralizes spreadsheet formulas.
 - Separate bounded retention and encrypted backup coverage apply to responses.
   The `0.2.x` to `0.3.0` update uses verified backup restore on failure.

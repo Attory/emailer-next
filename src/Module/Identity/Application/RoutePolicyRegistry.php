@@ -9,6 +9,8 @@ final class RoutePolicyRegistry
     /** @var array<string, array{role: AdministrativeRole, methods: list<string>, sensitive: bool}> */
     private const POLICIES = [
         'admin_dashboard' => ['role' => AdministrativeRole::Auditor, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
+        'admin_security_settings' => ['role' => AdministrativeRole::Administrator, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
+        'admin_security_settings_update' => ['role' => AdministrativeRole::Owner, 'methods' => ['POST'], 'sensitive' => true],
         'admin_doctor' => ['role' => AdministrativeRole::Auditor, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
         'admin_doctor_run' => ['role' => AdministrativeRole::Administrator, 'methods' => ['POST'], 'sensitive' => false],
         'admin_doctor_export' => ['role' => AdministrativeRole::Auditor, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],

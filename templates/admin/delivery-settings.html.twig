@@ -6,7 +6,7 @@
 <section class="panel">
 <p>The installation shares a budget of <strong>{{ policy.messages_per_minute }} messages per minute</strong> across campaigns. A single destination domain gets at most {{ (policy.messages_per_minute / 2)|round(0, 'ceil') }} per minute. Each campaign can use a lower rate.</p>
 {% if is_granted('ROLE_OWNER') %}
-<form method="post" action="{{ path('admin_delivery_settings_update') }}" data-mail-settings-confirmation-expires-at-value="{{ confirmation_expires_at }}">
+<form method="post" action="{{ path('admin_delivery_settings_update') }}"{% if security_requires_recent() %} data-mail-settings-confirmation-expires-at-value="{{ confirmation_expires_at }}"{% endif %}>
 <input type="hidden" name="_token" value="{{ csrf_token('delivery-settings-update') }}">
 <div class="form-grid">
 <label>Installation messages per minute<input type="number" name="messages_per_minute" min="1" max="600" value="{{ policy.messages_per_minute }}" required><span class="help">A ceiling, not a guaranteed throughput.</span></label>
@@ -14,8 +14,9 @@
 <label>Maximum delivery attempts<input type="number" name="retry_limit" min="1" max="10" value="{{ policy.retry_limit }}" required></label>
 <label>Maximum recipients per campaign<input type="number" name="maximum_campaign_size" min="1" max="100000" value="{{ policy.maximum_campaign_size }}" required></label>
 </div>
-<fieldset data-mail-settings-target="confirmation"><legend>Confirm your Owner identity to save</legend><label>Current Owner password<input type="password" name="owner_password" autocomplete="current-password" data-mail-settings-target="password"></label><label>Authenticator or recovery code<input name="owner_mfa_code" autocomplete="one-time-code" data-mail-settings-target="code"></label></fieldset>
+{% if security_requires_recent() %}<fieldset data-mail-settings-target="confirmation"><legend>Confirm your Owner identity to save</legend><label>Current Owner password<input type="password" name="owner_password" autocomplete="current-password" data-mail-settings-target="password"></label><label>Authenticator or recovery code<input name="owner_mfa_code" autocomplete="one-time-code" data-mail-settings-target="code"></label></fieldset>
 <dialog data-mail-settings-target="dialog" aria-label="Confirm Owner identity"><button type="button" data-action="mail-settings#confirm">Confirm and save</button><button type="button" data-action="mail-settings#cancel">Cancel</button></dialog>
+{% endif %}
 <button type="submit">Save delivery limits</button>
 </form>
 {% else %}<dl><dt>Concurrent workers</dt><dd>{{ policy.worker_concurrency }}</dd><dt>Retry limit</dt><dd>{{ policy.retry_limit }}</dd><dt>Maximum recipients</dt><dd>{{ policy.maximum_campaign_size }}</dd></dl><p>An Owner can change these limits.</p>{% endif %}

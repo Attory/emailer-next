@@ -3,6 +3,7 @@
 {% block admin_body %}
 <p class="eyebrow">Your newsletter workspace</p><h1>Welcome back.</h1>
 <p>Signed in as an individual {{ user.role.label }} account.</p>
+{% if is_granted('ROLE_ADMINISTRATOR') %}<section><h2>Security settings</h2><p><strong>Current level: {{ security_level|capitalize }}</strong></p><p><a href="{{ path('admin_security_settings') }}">View security settings</a></p></section>{% endif %}
 {% if is_granted('ROLE_OPERATOR') %}<section class="quick-start"><div><h2>What would you like to share?</h2><p>Pick your recipients, choose a template and prepare your next newsletter.</p></div><a class="button" href="{{ path('admin_campaigns') }}#compose">Create newsletter <span aria-hidden="true">→</span></a></section>{% endif %}<div class="section-header"><h2>Installation health</h2><a href="{{ path('admin_doctor') }}">Open Doctor</a></div>
 <div class="dashboard-grid">
 {% for section in app.request.attributes.get('operations_dashboard')|default([]) %}

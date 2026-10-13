@@ -1,9 +1,9 @@
 # Installation
 
-**Status:** Phase 13 `1.0.0` installation contract under acceptance. Use the
-ordered [client-server installation manual](CLIENT-INSTALL-1.0.0.md) for an
-approved candidate. No candidate is published, deployed, or installed by this
-document.
+**Status:** The 1.0.5 candidate uses schema `20261013000000`. Use the ordered
+[1.0.5 client-server installation manual](CLIENT-INSTALL-1.0.5.md) for an
+approved candidate. A fresh installation defaults to High security; Normal is
+available only after an Owner selects it through the authenticated settings UI.
 
 The current repository can create a completed installation with an
 external key, initial Owner, exact local Mailpit test evidence, sender identity,

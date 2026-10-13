@@ -40,13 +40,13 @@ php "$project_root/tools/release/generate-test-keypair.php" "$temporary_root/sig
 php "$project_root/tools/release/build-package.php" \
     --artifact="$project_root/build/artifact" \
     --output="$temporary_root/output" \
-    --version=1.0.4 \
+    --version=1.0.5 \
     --source="$(git -C "$project_root" rev-parse HEAD)" \
-    --minimum-source=1.0.3 \
-    --supported-sources=1.0.3 \
+    --minimum-source=1.0.4 \
+    --supported-sources=1.0.4 \
     --minimum-schema=20261008000000 \
-    --schema=20261008000000 \
-    --rollback-schema-compatible=true \
+    --schema=20261013000000 \
+    --rollback-schema-compatible=false \
     --signing-key="$temporary_root/signing.key" \
     --source-date-epoch="$(git -C "$project_root" show -s --format=%ct HEAD)" >/dev/null
 
@@ -60,15 +60,15 @@ EMAILER_RUNTIME_DIR="$temporary_root/update-runtime" \
 EMAILER_SECRET_KEY_FILE="$temporary_root/keys/master.key" \
 EMAILER_RELEASE_PUBLIC_KEY_FILE="$temporary_root/release.pub" \
 EMAILER_RELEASES_DIR="$temporary_root/releases" \
-EMAILER_UPDATE_SOURCE_VERSION=1.0.4 \
+EMAILER_UPDATE_SOURCE_VERSION=1.0.5 \
 LOCK_DSN=flock \
-php "$temporary_root/runner/bin/console" emailer:release:install "$temporary_root/output/emailer-next-1.0.4.zip" --no-interaction >/dev/null
+php "$temporary_root/runner/bin/console" emailer:release:install "$temporary_root/output/emailer-next-1.0.5.zip" --no-interaction >/dev/null
 
-test "$(stat -c '%u:%a' "$temporary_root/releases/1.0.4")" = '0:555'
-test "$(stat -c '%u:%a' "$temporary_root/releases/1.0.4/bin/console")" = '0:444'
+test "$(stat -c '%u:%a' "$temporary_root/releases/1.0.5")" = '0:555'
+test "$(stat -c '%u:%a' "$temporary_root/releases/1.0.5/bin/console")" = '0:444'
 test -d "$temporary_root/update-runtime/cache/prod"
 test ! -e "$temporary_root/private/cache"
-if setpriv --reuid="$service_uid" --regid="$service_gid" --clear-groups chmod u+w "$temporary_root/releases/1.0.4/bin/console" 2>/dev/null; then
+if setpriv --reuid="$service_uid" --regid="$service_gid" --clear-groups chmod u+w "$temporary_root/releases/1.0.5/bin/console" 2>/dev/null; then
     printf 'Ordinary application identity could make the published release writable.\n' >&2
     exit 1
 fi

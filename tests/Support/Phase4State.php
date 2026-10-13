@@ -54,7 +54,7 @@ VALUES ('1', ?, 'Emailer Next Test', 'https://localhost', 'en_AU', 'Australia/Sy
 ON DUPLICATE KEY UPDATE
     installation_uuid = VALUES(installation_uuid), display_name = VALUES(display_name),
     canonical_base_url = VALUES(canonical_base_url), locale = VALUES(locale), time_zone = VALUES(time_zone),
-    updated_at = VALUES(updated_at)
+    updated_at = VALUES(updated_at), security_level = 'high'
 SQL, [$installationId, $now, $now]);
         $connection->executeStatement(<<<'SQL'
 INSERT INTO sender_identity (

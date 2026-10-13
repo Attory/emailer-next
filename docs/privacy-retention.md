@@ -1,7 +1,9 @@
 # Privacy and retention
 
 An Administrator or Owner may download one active contact list after recent
-contact-data re-authentication. The streamed UTF-8 CSV contains only email,
+contact-data reauthentication in High. Normal removes that extra prompt while
+retaining authentication, role authorization, CSRF and redacted audit. The
+streamed UTF-8 CSV contains only email,
 first name and last name. Downloads are private/no-store responses; a mode-0600
 temporary staging file is unlinked as soon as it is opened, then its file
 descriptor is closed after the response. The redacted audit records the actor and
@@ -28,7 +30,7 @@ and on a draft campaign. Approval freezes enablement, the fixed field schema,
 and either keep-first or replace-latest repeat behavior. Input is limited to
 yes/no/maybe, 0–20 guests, and a 500-character note. Stored rows exclude
 address, IP, user agent, and raw token. Reports expose aggregates; Administrator
-export requires recent re-authentication, is audited, uses an opaque recipient
+export requires recent reauthentication in High, is audited, uses an opaque recipient
 identity, and neutralizes formulas. RSVP has separate 1–365 day retention.
 
 `emailer:retention:run` defaults to dry-run and processes at most 200 eligible

@@ -7,7 +7,7 @@
 <p>Username: {{ mail.smtp_username|default('none') }}; credential: {{ mail.credential_configured ? 'stored encrypted' : 'not stored' }}; sender: {{ mail.sender_address }}.</p>
 <p>RFC 8058 provider signing attestation: {{ mail.one_click_dkim_confirmed ? 'confirmed' : 'not confirmed; one-click header disabled' }}.</p>
 {% if is_granted('ROLE_OWNER') %}
-<form method="post" action="{{ path('admin_mail_settings_update') }}" autocomplete="off" data-mail-settings-confirmation-expires-at-value="{{ confirmation_expires_at }}">
+<form method="post" action="{{ path('admin_mail_settings_update') }}" autocomplete="off"{% if security_requires_recent() %} data-mail-settings-confirmation-expires-at-value="{{ confirmation_expires_at }}"{% endif %}>
     <input type="hidden" name="_token" value="{{ csrf_token('mail-settings-update') }}">
     <label>SMTP hostname <input name="host" value="{{ mail.smtp_host }}" required></label>
     <label>Port <input name="port" value="{{ mail.smtp_port }}" type="number" min="1" max="65535" required></label>
@@ -18,7 +18,7 @@
     <label>Sender name <input name="sender_name" value="{{ mail.sender_name }}" required></label>
     <label>Reply-to (optional) <input name="reply_to" value="{{ mail.reply_to_address }}" type="email"></label>
     <label><input name="one_click_dkim_confirmed" type="checkbox" value="1"{% if mail.one_click_dkim_confirmed %} checked{% endif %}> I have verified that the provider applies a valid DKIM signature covering both List-Unsubscribe headers</label>
-    <fieldset data-mail-settings-target="confirmation">
+    {% if security_requires_recent() %}<fieldset data-mail-settings-target="confirmation">
         <legend>Confirm your Owner identity to store these settings</legend>
         <label>Current Owner password <input name="owner_password" type="password" autocomplete="current-password" data-mail-settings-target="password"></label>
         <label>Authenticator or recovery code <input name="owner_mfa_code" autocomplete="one-time-code" data-mail-settings-target="code"></label>
@@ -27,6 +27,7 @@
         <button type="button" data-action="mail-settings#confirm">Confirm and store</button>
         <button type="button" data-action="mail-settings#cancel">Cancel</button>
     </dialog>
+    {% endif %}
     <button type="submit">Store secure SMTP configuration</button>
 </form>
 <p>Saving validates and encrypts configuration only. Use a queued campaign test to verify transport.</p>

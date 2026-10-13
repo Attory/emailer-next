@@ -1,6 +1,6 @@
 # Route and command inventory
 
-**Status:** Phase 13 Version-1 route review with bounded 1.0.4 list download. The HTTP surface
+**Status:** Phase 13 Version-1 route review with bounded 1.0.5 security levels. The HTTP surface
 includes the bounded Owner workflow repair below; CLI setup and master-key rotation now close their Version-1
 contracts.
 
@@ -84,8 +84,9 @@ no-store and omits the address, token, internal IDs, and existence detail.
 ## Authenticated administration surface
 
 The prefix is `/admin`. Read routes require at least the role shown. Mutation
-routes additionally require CSRF; entries marked **recent auth** require a
-fresh re-authentication assertion.
+routes additionally require CSRF. Entries marked **recent auth** require a
+fresh purpose-bound assertion in High. Normal removes that extra check through
+the central policy; roles, CSRF and action-specific checks stay in force.
 
 Phase 4 implements `/admin`, `/admin/logout`, `/admin/reauthenticate`,
 `/admin/profile`, `/admin/profile/password`, `/admin/sessions`,
@@ -98,13 +99,13 @@ Administrator-only CSRF-protected `POST /admin/analytics/policy`.
 Phase 5 implements the contact, list, import, suppression, export, and template
 families shown below. Phase 8 implements Doctor, backup metadata/create,
 retention execution, and release-status routes. Full-address reveal and export are Administrator-only,
-POST/CSRF, recently re-authenticated, and audited. Import detail/report access
+POST/CSRF, recently re-authenticated in High, and audited. Import detail/report access
 is restricted to its uploader or an Administrator. Campaign, delivery, Doctor,
 other later rows below remain planned.
 
 `POST /admin/lists/{id}/download` exports only that active list's membership as
 `email,first_name,last_name`. It requires Administrator or Owner, a
-`contact_data_access` confirmation within five minutes, and a list-specific
+`contact_data_access` confirmation within five minutes in High, and a list-specific
 CSRF token. It streams a private/no-store CSV and records only the actor,
 selected list ID, format, scope and generated row count in audit. Its control
 is hidden from lower roles; the route returns 403 to them and no CSV for an
@@ -124,14 +125,15 @@ URL while storing the bytes outside immutable releases. The route accepts only
 | `GET/POST/PATCH /users/*` | Administrator | Owner promotion/removal is Owner-only; last Owner protected; recent auth | 4 |
 | `GET/POST/DELETE /mfa/*` | Any authenticated role for self | Owner policy; recovery regenerated once; recent auth | 4 |
 | `GET/PATCH /settings/organisation` | Administrator | Singleton settings; recent auth for base URL | 4 |
-| `GET/PATCH /settings/security` | Administrator | Owner-only policy exceptions; recent auth | 4 |
+| `GET|HEAD /settings/security` | Administrator | Current installation security level; private/no-store | 1.0.5 |
+| `POST /settings/security/update` | Owner | Central authorization and CSRF; High to Normal additionally requires purpose-bound recent High reauthentication and deliberate confirmation; redacted audit | 1.0.5 |
 | `GET/POST /settings/secrets/*` | Owner | Replace/rotate only, never reveal; recent auth | 3/4 |
 | `GET/POST/PATCH /settings/mail/*` | Administrator | Secret change Owner-only; test send bounded; recent auth | 3/4 |
 | `GET/PATCH /settings/delivery` | Administrator | Safe bounded values; recent auth where sending impact is material | 3/4 |
 | `GET/PATCH /settings/privacy` | Administrator | Tracking/RSVP defaults and retention; audited | 3/4 |
 | `GET/POST/PATCH/DELETE /contacts/*` | Operator | Full-address display/export has separate permission | 5 |
 | `GET/POST/PATCH/DELETE /lists/*` | Operator | Archive rather than destructive delete when referenced | 5 |
-| `POST /lists/{id}/download` | Administrator | CSRF, recent contact-data re-authentication; selected-list CSV only, private/no-store, redacted audit | 13 maintenance |
+| `POST /lists/{id}/download` | Administrator | CSRF; recent contact-data reauthentication in High, bypassed in Normal; selected-list CSV only, private/no-store, redacted audit | 13 maintenance / 1.0.5 |
 | `GET/POST /imports/*` | Operator | Private upload, preview, commit, rejection report; bounded and audited | 5 |
 | `GET/POST /exports/*` | Administrator | Authorized private generation/download; formula neutralisation | 5 |
 | `GET/POST /suppressions/*` | Operator | Global and idempotent; removal policy requires elevated review | 5 |
@@ -149,7 +151,7 @@ URL while storing the bytes outside immutable releases. The route accepts only
 | `GET /campaigns/*/progress` | Auditor | Counts from durable ledger, masked detail | 6 |
 | `GET /analytics/*` | Auditor | Aggregate/redacted; full data separately authorized | 10 |
 | `GET /admin/rsvp` | Auditor | Aggregate counts only; no private note or recipient identity | 11 |
-| `POST /admin/rsvp/{campaign}/export` | Administrator | CSRF, recent re-authentication, audited opaque-identity CSV, formula neutralization | 11 |
+| `POST /admin/rsvp/{campaign}/export` | Administrator | CSRF, High-mode recent reauthentication, audited opaque-identity CSV, formula neutralization | 11 / 1.0.5 |
 | `POST /admin/campaigns/{id}/rsvp` | Operator | CSRF; draft-only explicit campaign enablement; audited | 11 |
 | `GET /audit` | Auditor | Redacted append-only view; no edit/delete route | 4 |
 | `POST /doctor/run` | Administrator | On-demand checks only; no automatic repair | 8 |

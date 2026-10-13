@@ -32,6 +32,29 @@ credentials, provider responses, or recipient data.
 
 Login performs only cached lightweight read checks. Use
 `emailer:doctor:run --json` or the Doctor page for a current full report.
+
+## Installation security level (1.0.5)
+
+High is the default and recommended level on a new install or update. Confirm
+the database singleton's `security_level` remains `high` after migration and
+production activation. Administrators and Owners can view the level on the
+dashboard and under **Settings & tools → Security**. Only an Owner can change
+it. High to Normal requires a recent purpose-bound High reauthentication and
+deliberate confirmation; Normal to High needs no extra prompt. The web policy
+reads the stored level at each decision, so changes apply immediately.
+
+Normal removes extra recent-authentication prompts from web administrative
+actions only. It retains login, configured MFA, roles, CSRF, session safety,
+HTTPS, audit, suppression and secret handling. The protected CLI master-key
+rotation still verifies Owner password and MFA/recovery material. Review the
+redacted `configuration.security_level.changed` event after any transition;
+its summary contains old/new levels and no credential or session material.
+
+The 1.0.4 to 1.0.5 update adds a forward-only column. Keep a verified encrypted
+backup and the complete pre-update schema and migration-ledger checkpoint.
+An automatic updater failure after migration can leave the target active with
+delivery quiesced. Recover the exact source schema and ledger before any
+predecessor pointer switch; follow [CLIENT-UPDATE-1.0.5.md](CLIENT-UPDATE-1.0.5.md).
 Acknowledgement records operator awareness and never disables a sending gate.
 
 To enable external backup automation, first provision an absolute restrictive

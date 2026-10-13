@@ -1,0 +1,32 @@
+{% extends 'admin/layout.html.twig' %}
+{% block title %}Security settings — Emailer Next{% endblock %}
+{% block admin_body %}
+<p class="eyebrow">Installation settings</p>
+<h1>Security level</h1>
+<p><strong>Current level: {{ security_level|capitalize }}</strong></p>
+<p><strong>High</strong> is the default and recommended level. It keeps extra, purpose-specific reauthentication before sensitive administrative actions.</p>
+<p><strong>Normal</strong> is an Owner-selected usability alternative. It removes extra reauthentication prompts. Login, roles, configured login MFA, CSRF protection and auditing still apply.</p>
+{% if is_granted('ROLE_OWNER') %}
+    {% if security_level == 'high' %}
+        <section class="alert" aria-labelledby="lower-level-warning">
+            <h2 id="lower-level-warning">Before switching to Normal</h2>
+            <p>Sensitive administrative actions will no longer ask you to confirm your identity again during this session. This affects every administrator on this installation.</p>
+        </section>
+        <p><a href="{{ path('admin_reauthenticate', {purpose: 'security_level_change'}) }}">Re-authenticate to change the security level</a></p>
+        <form method="post" action="{{ path('admin_security_settings_update') }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('security-level-update') }}">
+            <input type="hidden" name="security_level" value="normal">
+            <label><input type="checkbox" name="confirm_normal" value="lower_to_normal" required> I understand this installation-wide change and want to use Normal.</label>
+            <button type="submit">Switch to Normal</button>
+        </form>
+    {% else %}
+        <form method="post" action="{{ path('admin_security_settings_update') }}">
+            <input type="hidden" name="_token" value="{{ csrf_token('security-level-update') }}">
+            <input type="hidden" name="security_level" value="high">
+            <button type="submit">Switch to High</button>
+        </form>
+    {% endif %}
+{% else %}
+    <p>Only an Owner can change the installation security level.</p>
+{% endif %}
+{% endblock %}

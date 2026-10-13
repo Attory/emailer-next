@@ -3,7 +3,7 @@
 {% block admin_body %}
 <h1>Encrypted backups</h1>
 <p>Paths, keys, and private content are deliberately omitted. Restore remains CLI-only and always leaves delivery quiesced.</p>
-<p><a href="{{ path('admin_reauthenticate', {purpose: 'backup_management'}) }}">Confirm your identity before creating a backup or changing backup policy</a>. Use your current Owner password and MFA in this same browser session; confirmation lasts five minutes.</p>
+{% if security_requires_recent() %}<p><a href="{{ path('admin_reauthenticate', {purpose: 'backup_management'}) }}">Confirm your identity before creating a backup or changing backup policy</a>. Use your current Owner password and MFA in this same browser session; confirmation lasts five minutes.</p>{% endif %}
 
 <h2>Policy and approved destination</h2>
 <p>Filesystem destination: {% if destination_available %}available{% else %}not provisioned or unsafe{% endif %}. This optional destination is a separate operator-mounted location for scheduled copies. Its path cannot be entered in the browser and remains external runtime configuration.</p>
