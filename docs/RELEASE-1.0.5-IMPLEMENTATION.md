@@ -112,14 +112,15 @@ sort in either ID order. The fixture now gives either representative the same
 Unicode and quoted names and accepts either stored address spelling while
 still asserting exactly one normalized row and the exact selected-list scope.
 The production exporter and its deduplication rule did not change.
-An exact-head isolated run later reached the existing SMTP audit-redaction
-test's 128 MiB process limit because that assertion loaded the entire audit
-table and encoded it once per synthetic secret. The test now examines only
-the current actor's audit events and encodes them once. The redaction
-assertions remain intact and the focused test passes. Full isolated and CI
-validation on this repair are required before merge.
-The same actor-scoped audit assertion was applied to the user-management HTTP
-test after an isolated run hit its process limit at that test. Both assertions
-still inspect complete audit rows for the synthetic actor while avoiding
-unrelated records accumulated by the full suite. The two focused suites pass
-exclusively; final full-suite and CI evidence must use the resulting head.
+An isolated run later reached the existing SMTP audit-redaction test's
+128 MiB process limit because that assertion loaded the entire audit table
+and encoded it once per synthetic secret. Actor-scoped audit assertions also
+repaired the user-management HTTP, content-data and Owner-workflow tests,
+which encountered the same accumulated-table problem. These assertions still
+inspect the complete audit rows for each synthetic actor while avoiding
+unrelated prior test records. The focused tests passed. The complete local
+Composer gate passed with 292 tests and 4,614 assertions; the rebuilt-image
+internal-network Mailpit suite passed with 292 tests and 9,763 assertions,
+and the external-egress probe rejected outbound traffic. The production
+privilege boundary check passed. The final GitHub CI matrix, exact-head Claude
+review, signed release and production validation remain mandatory gates.
