@@ -2,16 +2,16 @@
 
 Emailer Next is the clean-room successor to Emailer: a self-hosted email
 campaign application for exactly one organisation per installation. The
-repository is preparing the bounded `1.0.4` list-download maintenance patch
-with schema `20261008000000`. The completed Phase 13 work added Version-1
+repository is preparing the bounded `1.0.5` installation security-level update
+with schema `20261013000000`. The completed Phase 13 work added Version-1
 acceptance tooling, a protected interactive CLI installer, transactional
 master-key rotation, license and browser/accessibility policy, and client-grade
 `1.0.0` installation/update manuals.
 
-The Hatha Yoga Space installation currently points to `1.0.3`. This `1.0.4`
-branch is a development candidate only. It is not merged, signed with an
-operator key, published, or deployed. The private list recovery files are
-outside this repository and never enter package artifacts.
+The Hatha Yoga Space installation currently points to `1.0.4`. The `1.0.5`
+change defaults new and upgraded installations to High security. An Owner can
+select Normal to remove extra administrative reauthentication prompts while
+login, configured MFA, roles, CSRF and auditing remain enforced.
 
 ## Safe local bootstrap
 
@@ -46,7 +46,7 @@ See [Installation](docs/installation.md) and
 - Legacy source, history, templates, dependencies, credentials, and private
   records remain prohibited.
 
-See the [1.0.4 implementation record](docs/RELEASE-1.0.4-IMPLEMENTATION.md)
+See the [1.0.5 implementation record](docs/RELEASE-1.0.5-IMPLEMENTATION.md)
 for this bounded change. Earlier phase and release reports remain the
 authoritative incremental record.
 

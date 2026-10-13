@@ -23,7 +23,7 @@
 </td></tr>{% else %}<tr><td colspan="4">No contacts.</td></tr>{% endfor %}
 </tbody></table>
 {% if is_granted('ROLE_ADMINISTRATOR') %}
-<p><a href="{{ path('admin_reauthenticate', {purpose: 'contact_data_access'}) }}">Re-authenticate to reveal or export full addresses</a></p>
+{% if security_requires_recent() %}<p><a href="{{ path('admin_reauthenticate', {purpose: 'contact_data_access'}) }}">Re-authenticate to reveal or export full addresses</a></p>{% endif %}
 <h2>Custom-field schema</h2>
 <ul>{% for field in fields %}<li><code>{{ field.field_key }}</code>: {{ field.label }} ({{ field.field_type }})</li>{% else %}<li>No custom fields.</li>{% endfor %}</ul>
 <form method="post" action="{{ path('admin_contact_field_create') }}">

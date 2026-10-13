@@ -1,11 +1,11 @@
 # Release
 
-The bounded `1.0.4` maintenance candidate adds selected-list CSV download
-without a migration or dependency change. Its signed package contract accepts
-exactly `1.0.3` at schema `20261008000000`. Local candidate checks use a
-disposable test signing key. Operator signing, publication, installation and
-deployment require separate exact-head authorization; this branch performs
-none of them. See `RELEASE-1.0.4-IMPLEMENTATION.md`.
+The bounded `1.0.5` update adds installation-wide High and Normal security
+levels. Its signed package contract accepts exactly `1.0.4` at source schema
+`20261008000000` and migrates to `20261013000000`. The one additive migration
+defaults to High and the target declares no code-pointer rollback after that
+migration. Local candidate checks use a disposable test signing key. See
+`RELEASE-1.0.5-IMPLEMENTATION.md` and `CLIENT-UPDATE-1.0.5.md`.
 
 **Status:** Phase 13 `1.0.0` candidate tooling under acceptance. The accepted
 operator-signed `0.4.0` candidate remains unpublished and undeployed. No

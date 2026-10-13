@@ -219,6 +219,21 @@ At least one active Owner always remains. Secret replacement, recovery,
 privileged identity changes, restore/upgrade approval, and other sensitive
 operations require recent re-authentication.
 
+Emailer Next 1.0.5 has one installation-wide security level. **High is the
+default and recommended level** for fresh and upgraded installations; it keeps
+every existing purpose-bound administrative reauthentication gate. **Normal**
+is an Owner-selected usability alternative that removes only those extra web
+administration prompts. Initial login, configured login MFA, central route and
+service authorization, CSRF, secure and revocable sessions, TLS and host/proxy
+controls, throttling, audit, password/recovery protection, suppression and
+secret redaction continue unchanged. Missing, unreadable, malformed or
+unsupported level state is treated as High. A direct High-to-Normal request
+requires Owner authority, CSRF, deliberate confirmation and recent High-mode
+reauthentication; an atomic row-locked transaction records a redacted audit
+event with actor, time, old/new levels and a source hash. The CLI master-key
+rotation's explicit credential verification is outside the web administrative
+policy and remains mandatory in both levels.
+
 Passwords use framework-supported Argon2id settings plus a shared character-aware
 length, local blocklist, and account-context policy. Login/recovery responses
 are generic and atomically throttled by account and source. Re-authentication
@@ -334,7 +349,7 @@ readiness remains required before MVP sending is declared healthy.
   the explicit Phase 13 usability authorization; each read is role checked,
   audited with opaque identifiers/counts, and served with private no-store
   headers. Administrator reveal and all exports retain recent purpose-scoped
-  re-authentication, CSRF and audit. Credentials remain write-only.
+  re-authentication in High, CSRF and audit. Credentials remain write-only.
 - Production logs are structured JSON with UTC time and random correlation IDs.
   Central processors strip credentials, tokens, cookies, headers, addresses,
   bodies, uploaded rows, control characters, and unsafe exception detail.
@@ -407,7 +422,7 @@ public form is cookie-free, rate limited, no-store, and authorized solely by a
 dedicated opaque purpose-scoped bearer token. Input has a fixed bounded schema.
 Responses are private, minimized, separately retained and backed up. Aggregate
 views require Auditor authority; private export additionally requires
-Administrator authority, CSRF, recent re-authentication, audit, and formula
+Administrator authority, CSRF, recent re-authentication in High, audit, and formula
 neutralization.
 
 ## Security exceptions

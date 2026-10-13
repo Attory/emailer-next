@@ -8,6 +8,8 @@ use Symfony\Component\HttpFoundation\Session\SessionInterface;
 
 interface SensitiveActionAuthorizer
 {
+    public function assertRecentUnderHigh(SessionInterface $session, string $purpose): void;
+
     public function expiresAt(SessionInterface $session, string $purpose): int;
 
     public function isRecent(SessionInterface $session, string $purpose): bool;

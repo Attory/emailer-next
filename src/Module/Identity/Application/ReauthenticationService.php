@@ -7,6 +7,7 @@ namespace App\Module\Identity\Application;
 use App\Module\Audit\Application\Contract\AuditRecord;
 use App\Module\Audit\Application\Contract\AuditSink;
 use App\Module\Identity\Application\Contract\AdministrativeActor;
+use App\Module\Identity\Application\Contract\SecurityLevelReader;
 use App\Module\Identity\Application\Contract\SensitiveActionAuthorizer;
 use Symfony\Component\HttpFoundation\Session\SessionInterface;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
@@ -20,6 +21,7 @@ final readonly class ReauthenticationService implements SensitiveActionAuthorize
         private AuditSink $audit,
         private LoginThrottle $throttle,
         private SessionRegistry $sessions,
+        private SecurityLevelReader $securityLevel,
     ) {
     }
 
@@ -73,6 +75,14 @@ final readonly class ReauthenticationService implements SensitiveActionAuthorize
 
     public function assertRecent(SessionInterface $session, string $purpose): void
     {
+        if (!$this->securityLevel->requiresRecentAuthentication()) {
+            return;
+        }
+        $this->assertRecentUnderHigh($session, $purpose);
+    }
+
+    public function assertRecentUnderHigh(SessionInterface $session, string $purpose): void
+    {
         $timestamp = $session->get('identity.reauthenticated_at');
         $storedPurpose = $session->get('identity.reauthenticated_purpose');
         if (!\is_int($timestamp)
@@ -89,7 +99,7 @@ final readonly class ReauthenticationService implements SensitiveActionAuthorize
     {
         $timestamp = $session->get('identity.reauthenticated_at');
 
-        return $this->isRecent($session, $purpose) && \is_int($timestamp) ? $timestamp + self::LIFETIME_SECONDS : 0;
+        return (!$this->securityLevel->requiresRecentAuthentication() || $this->isRecent($session, $purpose)) && \is_int($timestamp) ? $timestamp + self::LIFETIME_SECONDS : 0;
     }
 
     public function isRecent(SessionInterface $session, string $purpose): bool

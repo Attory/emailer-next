@@ -256,6 +256,14 @@ re-authentication are checked before an application service starts a database
 transaction. Responses use security headers, suppress sensitive caching, and
 show a correlation identifier rather than internal detail on failure.
 
+From 1.0.5, the singleton organisation row holds a constrained `high` or
+`normal` security level. A database-backed policy reads it at each
+recent-authentication decision, with missing, unreadable or invalid state
+falling back to High. The reauthentication service is the sole web decision
+point. The Owner-only transition locks the row, enforces a High-mode check
+before lowering, writes the level and redacted audit event in one transaction,
+and has no cached mode to become stale across requests or processes.
+
 ### Campaign queueing
 
 Approval snapshots the chosen template and audience into durable records.

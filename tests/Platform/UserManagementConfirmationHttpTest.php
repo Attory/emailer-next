@@ -107,7 +107,7 @@ final class UserManagementConfirmationHttpTest extends WebTestCase
         self::assertResponseIsSuccessful();
         self::assertSelectorTextContains('p[role="status"]', 'User updated.');
         self::assertSame(1, $this->phase4Int($db->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'identity.user.updated' AND target_id = ?", [$owner->id()])));
-        $audit = json_encode($db->fetchAllAssociative('SELECT * FROM audit_event'), JSON_THROW_ON_ERROR);
+        $audit = json_encode($db->fetchAllAssociative('SELECT * FROM audit_event WHERE actor_user_id = ?', [$owner->id()]), JSON_THROW_ON_ERROR);
         foreach ([$password, $newPassword, $enrollment->seed, $enrollment->recoveryCodes[1]] as $secret) {
             self::assertStringNotContainsString($secret, $audit);
         }

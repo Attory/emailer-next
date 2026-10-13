@@ -18,8 +18,20 @@ tenant selector, or public campaign API.
 - **Auditor:** read-only redacted campaign, health, report, and audit access.
 
 The UI may omit unavailable controls for clarity, but server-side authorization
-always enforces the same ceiling. Sensitive operations request recent
-re-authentication.
+always enforces the same ceiling. High is the default and recommended
+installation security level. It retains the existing purpose-bound recent
+reauthentication gates. Normal is an Owner-selected usability alternative that
+removes those extra prompts from administrative actions. Both levels retain
+login, configured login MFA, roles, CSRF, session safeguards and auditing.
+
+The dashboard and **Settings & tools → Security** show the current level to
+Administrators and Owners. Only an Owner can change it. High to Normal requires
+recent `security_level_change` reauthentication and an explicit warning
+checkbox. Normal to High needs no extra reauthentication. A change applies to
+all administrators immediately, including already open sessions.
+In Normal, anyone using an unlocked signed-in Owner session could change
+accounts or MFA settings and export private data without another identity
+prompt. Keep that session under your control when selecting Normal.
 
 ## Implemented identity workflows
 
@@ -27,9 +39,10 @@ re-authentication.
   recovery code. Public failures deliberately do not explain which factor failed.
 - Review the current account, active sessions, MFA state, and redacted audit
   history from the server-rendered admin navigation.
-- Re-authenticate for the displayed purpose before changing users/roles,
-  password, MFA, or sessions. The assertion expires after five minutes and is
-  not valid for another purpose.
+- In High, re-authenticate for the displayed purpose before changing
+  users/roles, password, MFA, or sessions. The assertion expires after five
+  minutes and is not valid for another purpose. Normal removes the extra prompt
+  while retaining login and every action-specific check.
 - Owners and Administrators create and manage accounts within their authority.
   Only an Owner can affect an Owner, and the last active Owner cannot be
   demoted, disabled, or deleted.
@@ -41,8 +54,9 @@ re-authentication.
 - Operators manage masked contacts, bounded custom fields, lists, memberships,
   private CSV preview/commit, durable global suppression, and immutable template
   versions.
-- Administrators may reveal or export full addresses only after recent
-  re-authentication; those actions are CSRF protected and audited. Exported CSV
+- Administrators may reveal or export full addresses after recent
+  re-authentication in High; those actions are CSRF protected and audited in
+  both levels. Exported CSV
   cells are neutralized against spreadsheet formulas.
 - Import reports identify only source row and safe reason. Suppressed addresses
   are excluded again at commit. There is no Phase 5 suppression removal path.

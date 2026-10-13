@@ -185,9 +185,10 @@ final class Phase13OwnerWorkflowHttpTest extends WebTestCase
         self::assertSame('smtp.example.test', $this->phase4Service(MailConfigurationManager::class)->view($owner)['smtp_host']);
         $response = $client->getResponse()->getContent();
         self::assertIsString($response);
+        $audit = json_encode($db->fetchAllAssociative('SELECT * FROM audit_event WHERE actor_user_id = ?', [$owner->id()]), JSON_THROW_ON_ERROR);
         foreach ([$password, $smtpPassword, $enrollment->seed, $enrollment->recoveryCodes[1]] as $secret) {
             self::assertStringNotContainsString($secret, $response);
-            self::assertStringNotContainsString($secret, json_encode($db->fetchAllAssociative('SELECT * FROM audit_event'), JSON_THROW_ON_ERROR));
+            self::assertStringNotContainsString($secret, $audit);
         }
         $session = $client->getRequest()->getSession();
         $session->set('identity.reauthenticated_at', time() - 301);

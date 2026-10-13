@@ -8,6 +8,7 @@ use App\Module\Audit\Application\Contract\AuditRecord;
 use App\Module\Audit\Application\Contract\AuditSink;
 use App\Module\Identity\Application\AdministrativeRole;
 use App\Module\Identity\Application\AuthenticatedUser;
+use App\Module\Identity\Application\Contract\SecurityLevelReader;
 use App\Module\Identity\Application\LoginThrottle;
 use App\Module\Identity\Application\MfaManagement;
 use App\Module\Identity\Application\ReauthenticationService;
@@ -31,13 +32,14 @@ final class AdminController extends AbstractController
         private readonly AuditSink $audit,
         private readonly TokenStorageInterface $tokens,
         private readonly LoginThrottle $throttle,
+        private readonly SecurityLevelReader $securityLevel,
     ) {
     }
 
     #[Route('', name: 'admin_dashboard', methods: ['GET', 'HEAD'])]
     public function dashboard(): Response
     {
-        return $this->render('admin/dashboard.html.twig', ['user' => $this->user()]);
+        return $this->render('admin/dashboard.html.twig', ['user' => $this->user(), 'security_level' => $this->securityLevel->current()]);
     }
 
     #[Route('/logout', name: 'admin_logout', methods: ['POST'])]

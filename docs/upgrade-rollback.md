@@ -1,5 +1,16 @@
 # Upgrade and rollback
 
+## 1.0.4 to 1.0.5
+
+Use the [1.0.5 update manual](CLIENT-UPDATE-1.0.5.md). Verify the retained
+signed 1.0.4 predecessor and exact installed file set before mutation. Take
+and verify a fresh encrypted backup plus complete schema and migration-ledger
+checkpoint. The additive security-level migration defaults to High and makes
+an ordinary 1.0.4 pointer rollback unsafe after migration. A failed
+post-migration update keeps delivery quiesced until the exact predecessor
+schema/ledger and business data are recovered and verified or a reviewed
+forward repair succeeds. Production must remain High during deployment.
+
 **Status:** Phase 13 `1.0.0` acceptance supports clean installation and direct
 update from exactly `0.1.0`, `0.2.0`, `0.3.0`, or `0.4.0`.
 

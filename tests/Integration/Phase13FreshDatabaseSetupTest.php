@@ -66,7 +66,7 @@ final class Phase13FreshDatabaseSetupTest extends KernelTestCase
             $setup->configure($input);
             self::assertTrue($connection->createSchemaManager()->tablesExist(['doctrine_migration_versions', 'installation_state', 'backup_record']));
             $versions = $connection->fetchAllAssociative('SELECT version FROM doctrine_migration_versions ORDER BY version');
-            self::assertCount(14, $versions);
+            self::assertCount(15, $versions);
             // CLI setup initializes the key in this same process immediately after DDL.
             $key = new FilesystemMasterKey($directory.'/master.key', \dirname(__DIR__, 2).'/public', \dirname(__DIR__, 2), 'test');
             $state = new DoctrineSetupState($connection, $key, $lifecycle);
@@ -92,6 +92,26 @@ final class Phase13FreshDatabaseSetupTest extends KernelTestCase
             self::assertTrue(is_numeric($preserved));
             self::assertSame(1, (int) $preserved);
             self::assertTrue($connection->createSchemaManager()->introspectTable('campaign_test_delivery')->hasColumn('draft_version'));
+            self::assertSame($versions, $connection->fetchAllAssociative('SELECT version FROM doctrine_migration_versions ORDER BY version'));
+
+            // Recreate an existing 1.0.4 organisation row and apply only the
+            // forward 1.0.5 migration. Existing installations must stay High.
+            $connection->executeStatement('ALTER TABLE organisation_settings DROP CONSTRAINT chk_organisation_security_level, DROP COLUMN security_level');
+            $connection->executeStatement('DELETE FROM doctrine_migration_versions WHERE version = ?', ['DoctrineMigrations\\Version20261013000000']);
+            $now = \App\Shared\Identity::now();
+            $connection->insert('organisation_settings', [
+                'singleton_key' => '1',
+                'installation_uuid' => $installationId,
+                'display_name' => 'Preserved synthetic organisation',
+                'canonical_base_url' => 'https://localhost',
+                'locale' => 'en_AU',
+                'time_zone' => 'Australia/Sydney',
+                'created_at' => $now,
+                'updated_at' => $now,
+            ]);
+            (new DatabaseSetup($connection, DependencyFactory::fromConnection(new ExistingConfiguration($configuration), new ExistingConnection($connection)), $lifecycle))->configure($input);
+            self::assertSame('high', $connection->fetchOne("SELECT security_level FROM organisation_settings WHERE singleton_key = '1'"));
+            self::assertSame('Preserved synthetic organisation', $connection->fetchOne("SELECT display_name FROM organisation_settings WHERE singleton_key = '1'"));
             self::assertSame($versions, $connection->fetchAllAssociative('SELECT version FROM doctrine_migration_versions ORDER BY version'));
 
             $lock->create([]);

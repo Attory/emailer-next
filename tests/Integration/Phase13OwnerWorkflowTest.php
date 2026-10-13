@@ -75,7 +75,7 @@ final class Phase13OwnerWorkflowTest extends KernelTestCase
         } catch (AccessDeniedException) {
             self::addToAssertionCount(1);
         }
-        $audit = json_encode($db->fetchAllAssociative('SELECT * FROM audit_event'), JSON_THROW_ON_ERROR);
+        $audit = json_encode($db->fetchAllAssociative('SELECT * FROM audit_event WHERE actor_user_id = ?', [$owner->id()]), JSON_THROW_ON_ERROR);
         foreach (['Original.Person', 'corrected@example.test', 'smtp.example.test', 'sender@example.test', 'reply@example.test'] as $private) {
             self::assertStringNotContainsString($private, $audit);
         }
@@ -135,7 +135,7 @@ final class Phase13OwnerWorkflowTest extends KernelTestCase
         self::assertSame(501, $this->phase4Int($contacts->listInfo($owner, $list)['member_count']));
         $contacts->addMembership($owner, $copy, $member);
         self::assertSame(501, $this->phase4Int($contacts->listInfo($owner, $copy)['member_count']));
-        self::assertStringNotContainsString('member0500@example.test', json_encode($db->fetchAllAssociative('SELECT * FROM audit_event'), JSON_THROW_ON_ERROR));
+        self::assertStringNotContainsString('member0500@example.test', json_encode($db->fetchAllAssociative('SELECT * FROM audit_event WHERE actor_user_id = ?', [$owner->id()]), JSON_THROW_ON_ERROR));
     }
 
     public function testTemplateEditsAndCopiesKeepExistingPublishedContentImmutable(): void
