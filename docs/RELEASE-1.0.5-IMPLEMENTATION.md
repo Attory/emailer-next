@@ -28,8 +28,10 @@ rotation explicitly verifies Owner credentials and remains outside the web
 policy in both levels.
 
 The dashboard and Security settings page show the level to Administrators and
-Owners. Only an Owner may change it. High to Normal needs CSRF, a deliberate
-checkbox and purpose-bound recent authentication under the High rule.
+Owners. The dashboard provides an Owner-only Change action and a view-only
+link for Administrators. Only an Owner may change the level. High to Normal
+needs CSRF, a deliberate checkbox and purpose-bound recent authentication
+under the High rule.
 Normal to High needs CSRF but no additional recent authentication. The
 application service locks the singleton row and records old/new levels, actor,
 timestamp and source hash in an append-only redacted audit event in the same
@@ -116,3 +118,8 @@ table and encoded it once per synthetic secret. The test now examines only
 the current actor's audit events and encodes them once. The redaction
 assertions remain intact and the focused test passes. Full isolated and CI
 validation on this repair are required before merge.
+The same actor-scoped audit assertion was applied to the user-management HTTP
+test after an isolated run hit its process limit at that test. Both assertions
+still inspect complete audit rows for the synthetic actor while avoiding
+unrelated records accumulated by the full suite. The two focused suites pass
+exclusively; final full-suite and CI evidence must use the resulting head.

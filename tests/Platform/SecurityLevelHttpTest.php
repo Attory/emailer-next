@@ -77,6 +77,8 @@ final class SecurityLevelHttpTest extends WebTestCase
         $client->request('POST', '/admin/settings/security/update', server: $server);
         self::assertResponseRedirects('https://localhost/login');
         $this->login($client, 'security-owner@example.test', $password, $server);
+        $client->request('GET', '/admin', server: $server);
+        self::assertSelectorTextContains('section a[href="/admin/settings/security"]', 'Change security level');
         $crawler = $client->request('GET', '/admin/settings/security', server: $server);
         self::assertSelectorTextContains('strong', 'Current level: High');
         $form = $crawler->selectButton('Switch to Normal')->form();
@@ -277,6 +279,8 @@ final class SecurityLevelHttpTest extends WebTestCase
             $client->request('GET', '/admin/settings/security', server: $server);
             self::assertResponseRedirects('https://localhost/login');
             $this->login($client, 'roles-admin@example.test', $password, $server);
+            $client->request('GET', '/admin', server: $server);
+            self::assertSelectorTextContains('section a[href="/admin/settings/security"]', 'View security settings');
             $client->request('GET', '/admin/settings/security', server: $server);
             self::assertResponseIsSuccessful();
             self::assertSelectorTextContains('strong', 'Current level: '.ucfirst($level));
