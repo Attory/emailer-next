@@ -10,7 +10,7 @@
     {% if security_level == 'high' %}
         <section class="alert" aria-labelledby="lower-level-warning">
             <h2 id="lower-level-warning">Before switching to Normal</h2>
-            <p>Sensitive administrative actions will no longer ask you to confirm your identity again during this session. This affects every administrator on this installation.</p>
+            <p>Sensitive administrative actions will no longer ask you to confirm your identity again during this session. This affects every administrator on this installation. Anyone using an unlocked signed-in Owner session could change accounts or MFA settings, or export private data, without another identity prompt.</p>
         </section>
         <p><a href="{{ path('admin_reauthenticate', {purpose: 'security_level_change'}) }}">Re-authenticate to change the security level</a></p>
         <form method="post" action="{{ path('admin_security_settings_update') }}">

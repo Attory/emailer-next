@@ -29,6 +29,9 @@ Administrators and Owners. Only an Owner can change it. High to Normal requires
 recent `security_level_change` reauthentication and an explicit warning
 checkbox. Normal to High needs no extra reauthentication. A change applies to
 all administrators immediately, including already open sessions.
+In Normal, anyone using an unlocked signed-in Owner session could change
+accounts or MFA settings and export private data without another identity
+prompt. Keep that session under your control when selecting Normal.
 
 ## Implemented identity workflows
 

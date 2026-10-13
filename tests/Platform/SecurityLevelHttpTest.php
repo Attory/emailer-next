@@ -84,10 +84,12 @@ final class SecurityLevelHttpTest extends WebTestCase
         $client->request('POST', '/admin/settings/security/update', ['security_level' => 'normal', 'confirm_normal' => 'lower_to_normal', '_token' => $csrf], server: $server);
         self::assertResponseStatusCodeSame(403);
         self::assertSame('high', $db->fetchOne("SELECT security_level FROM organisation_settings WHERE singleton_key = '1'"));
-        $crawler = $client->request('GET', '/admin/lists', server: $server);
-        $client->submit($crawler->filter('form[action="/admin/lists/'.$list.'/download"]')->selectButton('Download CSV')->form(), [], $server);
+        $crawler = $client->request('GET', '/admin/reauthenticate?purpose=contact_data_access', server: $server);
+        $client->submit($crawler->selectButton('Confirm current credentials')->form(['password' => $password, 'mfa_code' => '']), [], $server);
+        self::assertResponseRedirects('/admin', 303);
+        $client->request('POST', '/admin/settings/security/update', ['security_level' => 'normal', 'confirm_normal' => 'lower_to_normal', '_token' => $csrf], server: $server);
         self::assertResponseStatusCodeSame(403);
-
+        self::assertSame('high', $db->fetchOne("SELECT security_level FROM organisation_settings WHERE singleton_key = '1'"));
         $crawler = $client->request('GET', '/admin/reauthenticate?purpose=security_level_change', server: $server);
         $client->submit($crawler->selectButton('Confirm current credentials')->form(['password' => $password, 'mfa_code' => '']), [], $server);
         self::assertResponseRedirects('/admin', 303);
@@ -107,6 +109,12 @@ final class SecurityLevelHttpTest extends WebTestCase
         $crawler = $client->request('GET', '/admin/settings/security', server: $server);
         $client->submit($crawler->selectButton('Switch to High')->form(), [], $server);
         self::assertResponseRedirects('/admin/settings/security', 303);
+        self::assertSame('high', $db->fetchOne("SELECT security_level FROM organisation_settings WHERE singleton_key = '1'"));
+        $session = $client->getRequest()->getSession();
+        $session->set('identity.reauthenticated_at', 0);
+        $session->save();
+        $client->request('POST', '/admin/settings/security/update', ['security_level' => 'normal', 'confirm_normal' => 'lower_to_normal', '_token' => $csrf], server: $server);
+        self::assertResponseStatusCodeSame(403);
         self::assertSame('high', $db->fetchOne("SELECT security_level FROM organisation_settings WHERE singleton_key = '1'"));
         $crawler = $client->request('GET', '/admin/lists', server: $server);
         $client->submit($crawler->filter('form[action="/admin/lists/'.$list.'/download"]')->selectButton('Download CSV')->form(), [], $server);
@@ -163,6 +171,87 @@ final class SecurityLevelHttpTest extends WebTestCase
         }
         $this->expectException(AccessDeniedException::class);
         $service->assertRecentUnderHigh($session, 'security_level_change');
+    }
+
+    public function testNormalAdministrativeFormsApplyImmediatelyAndStillRequireCsrf(): void
+    {
+        $client = self::createClient();
+        $db = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($db);
+        $password = 'normal-forms-'.bin2hex(random_bytes(10));
+        $this->createPhase4User($db, 'normal-forms-owner@example.test', $password);
+        $server = $this->phase4HttpsServer('2001:db8::237');
+        $this->login($client, 'normal-forms-owner@example.test', $password, $server);
+
+        $highUsers = $client->request('GET', '/admin/users', server: $server);
+        self::assertSelectorExists('form[action="/admin/users/create"] [name="actor_password"]');
+        $client->submit($highUsers->selectButton('Create account')->form([
+            'login_identifier' => 'high-blocked@example.test',
+            'password' => 'synthetic-valid-'.bin2hex(random_bytes(10)),
+            'role' => AdministrativeRole::Auditor->value,
+        ]), [], $server);
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(0, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM app_user WHERE login_identifier = ?', ['high-blocked@example.test'])));
+
+        $db->update('organisation_settings', ['security_level' => 'normal'], ['singleton_key' => '1']);
+        $normalUsers = $client->request('GET', '/admin/users', server: $server);
+        self::assertSelectorNotExists('form[action="/admin/users/create"] [name="actor_password"]');
+        self::assertSelectorNotExists('form[action="/admin/users/create"][data-mail-settings-confirmation-expires-at-value]');
+        $create = $normalUsers->selectButton('Create account')->form([
+            'login_identifier' => 'normal-created@example.test',
+            'password' => 'synthetic-valid-'.bin2hex(random_bytes(10)),
+            'role' => AdministrativeRole::Auditor->value,
+        ]);
+        $client->request('POST', '/admin/users/create', array_replace($create->getValues(), ['_token' => 'invalid']), server: $server);
+        self::assertResponseStatusCodeSame(400);
+        $client->submit($create, [], $server);
+        self::assertResponseRedirects('/admin/users', 303);
+        self::assertSame(1, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM app_user WHERE login_identifier = ?', ['normal-created@example.test'])));
+
+        $highDelivery = $db->fetchAssociative('SELECT * FROM delivery_policy');
+        $normalDelivery = $client->request('GET', '/admin/settings/delivery', server: $server);
+        self::assertSelectorNotExists('form[action="/admin/settings/delivery/update"] [name="owner_password"]');
+        $limits = $normalDelivery->selectButton('Save delivery limits')->form([
+            'messages_per_minute' => '30',
+            'worker_concurrency' => '2',
+            'retry_limit' => '3',
+            'maximum_campaign_size' => '500',
+        ]);
+        $client->request('POST', '/admin/settings/delivery/update', array_replace($limits->getValues(), ['_token' => 'invalid']), server: $server);
+        self::assertResponseStatusCodeSame(400);
+        self::assertSame($highDelivery, $db->fetchAssociative('SELECT * FROM delivery_policy'));
+        $client->submit($limits, [], $server);
+        self::assertResponseRedirects('/admin/settings/delivery', 303);
+        self::assertSame(30, $this->phase4Int($db->fetchOne('SELECT messages_per_minute FROM delivery_policy')));
+
+        $normalMail = $client->request('GET', '/admin/settings/mail', server: $server);
+        self::assertSelectorNotExists('form[action="/admin/settings/mail/update"] [name="owner_password"]');
+        $mail = $normalMail->selectButton('Store secure SMTP configuration')->form([
+            'host' => 'smtp.example.test',
+            'port' => '587',
+            'encryption' => 'starttls',
+            'username' => 'sender@example.test',
+            'password' => 'synthetic-smtp-'.bin2hex(random_bytes(10)),
+            'sender_address' => 'sender@example.test',
+            'sender_name' => 'Synthetic Sender',
+            'reply_to' => 'reply@example.test',
+        ]);
+        $client->request('POST', '/admin/settings/mail/update', array_replace($mail->getValues(), ['_token' => 'invalid']), server: $server);
+        self::assertResponseStatusCodeSame(400);
+        $client->submit($mail, [], $server);
+        self::assertResponseRedirects('/admin/settings/mail', 303);
+        self::assertSame('smtp.example.test', $this->phase4String($db->fetchOne('SELECT smtp_host FROM sender_identity')));
+
+        $db->update('organisation_settings', ['security_level' => 'high'], ['singleton_key' => '1']);
+        $highAgain = $client->request('GET', '/admin/users', server: $server);
+        self::assertSelectorExists('form[action="/admin/users/create"] [name="actor_password"]');
+        $client->submit($highAgain->selectButton('Create account')->form([
+            'login_identifier' => 'restored-blocked@example.test',
+            'password' => 'synthetic-valid-'.bin2hex(random_bytes(10)),
+            'role' => AdministrativeRole::Auditor->value,
+        ]), [], $server);
+        self::assertResponseStatusCodeSame(422);
+        self::assertSame(0, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM app_user WHERE login_identifier = ?', ['restored-blocked@example.test'])));
     }
 
     public function testAdministratorCanViewButCannotChangeAndOperatorCannotViewInBothLevels(): void

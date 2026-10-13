@@ -32,6 +32,8 @@ Normal to High needs CSRF but no additional recent authentication. The
 application service locks the singleton row and records old/new levels, actor,
 timestamp and source hash in an append-only redacted audit event in the same
 transaction. Repeated same-level requests do not write or audit a transition.
+The downgrade warning explicitly describes the effect of an unlocked Owner
+session on account and MFA changes and private exports.
 
 ## Complete recent-authentication gate inventory
 
@@ -74,3 +76,14 @@ checks, privilege rehearsal, CI matrix, exact-head Claude review and signed
 release rehearsal are release gates. Record final results, PR, merge, archive
 checksum and production backup/deployment evidence in the private operator
 record after those gates pass.
+
+The first read-only Claude review of `7887f730b042005a8a3de231a7dcd6c8e65f95c5`
+found no blocker. Its warning-copy finding was confirmed and repaired. Its
+request-level test gap was confirmed: coverage now includes purpose separation,
+stale downgrade forms, and inline user, delivery and mail mutations with and
+without CSRF in Normal. The absent audit event for a denied downgrade is not
+a release requirement; the authenticated successful transition is redacted
+and atomic, and failed credential confirmation is already audited by the
+existing reauthentication service. The per-render level reads are deliberate
+to avoid stale authorization state. A final exact-head read-only review is
+required after these repairs.
