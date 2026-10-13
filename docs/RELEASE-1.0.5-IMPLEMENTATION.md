@@ -6,7 +6,9 @@ Anton authorized the combined 1.0.5 development, review, release and
 production deployment after accepting 1.0.4 on 2026-10-13. The starting
 `main`, local HEAD and `origin/main` were clean and synchronized at
 `5d8b41dd2cb386da50188a2ebf3470987f36ac70`. The feature branch is
-`codex/security-levels-1.0.5`.
+`codex/security-levels-1.0.5` and its single draft pull request is
+[Attory/emailer-next #21](https://github.com/Attory/emailer-next/pull/21).
+No dependency was added and `composer.lock` is unchanged.
 
 ## Behavior
 
@@ -108,3 +110,9 @@ sort in either ID order. The fixture now gives either representative the same
 Unicode and quoted names and accepts either stored address spelling while
 still asserting exactly one normalized row and the exact selected-list scope.
 The production exporter and its deduplication rule did not change.
+An exact-head isolated run later reached the existing SMTP audit-redaction
+test's 128 MiB process limit because that assertion loaded the entire audit
+table and encoded it once per synthetic secret. The test now examines only
+the current actor's audit events and encodes them once. The redaction
+assertions remain intact and the focused test passes. Full isolated and CI
+validation on this repair are required before merge.
