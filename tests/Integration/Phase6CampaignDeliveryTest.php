@@ -196,6 +196,33 @@ final class Phase6CampaignDeliveryTest extends KernelTestCase
         self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT circuit_failures FROM delivery_runtime WHERE singleton_key = '1'")));
     }
 
+    public function testKnownUnsentHoldAtRetryLimitPreservesAttemptWithoutAmbiguousOutcome(): void
+    {
+        self::bootKernel();
+        $connection = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($connection);
+        $actor = $this->createPhase4User($connection, 'held-at-limit@example.test', 'synthetic-held-password-'.bin2hex(random_bytes(8)));
+        [$campaigns, $campaignId] = $this->campaign($connection, $actor);
+        $campaigns->submitForReview($actor, $campaignId);
+        $campaigns->approve($actor, $campaignId, $this->phase4Int($campaigns->detail($actor, $campaignId)['operation_version']), true);
+        $this->transport()->reset();
+        $campaigns->queue($actor, $campaignId);
+        $queued = $this->transport()->getSent()[0]->getMessage();
+        self::assertInstanceOf(DeliverCampaignRecipient::class, $queued);
+        $messageId = $connection->fetchOne('SELECT message_id FROM campaign_recipient WHERE id=?', [$queued->recipientId]);
+        $connection->executeStatement("UPDATE delivery_policy SET retry_limit=1 WHERE singleton_key='1'");
+        ($this->faultHandler($connection, 'transient', true))($queued);
+        self::assertSame('retry', $connection->fetchOne('SELECT state FROM campaign_recipient WHERE id=?', [$queued->recipientId]));
+        self::assertSame(1, $this->phase4Int($connection->fetchOne('SELECT attempt_count FROM campaign_recipient WHERE id=?', [$queued->recipientId])));
+        self::assertSame(1, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM delivery_attempt WHERE campaign_recipient_id=?', [$queued->recipientId])));
+        self::assertSame('transient', $connection->fetchOne('SELECT state FROM delivery_attempt WHERE campaign_recipient_id=?', [$queued->recipientId]));
+        self::assertNotNull($connection->fetchOne('SELECT finished_at FROM delivery_attempt WHERE campaign_recipient_id=?', [$queued->recipientId]));
+        self::assertSame($messageId, $connection->fetchOne('SELECT message_id FROM campaign_recipient WHERE id=?', [$queued->recipientId]));
+        self::assertSame('sending', $connection->fetchOne('SELECT state FROM campaign WHERE id=?', [$campaignId]));
+        self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT active_claims FROM delivery_runtime WHERE singleton_key='1'")));
+        self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT circuit_failures FROM delivery_runtime WHERE singleton_key='1'")));
+    }
+
     public function testInterruptedHalfOpenProbeReopensCircuitForBoundedRecovery(): void
     {
         self::bootKernel();
@@ -714,13 +741,13 @@ final class Phase6CampaignDeliveryTest extends KernelTestCase
         return $transport;
     }
 
-    private function faultHandler(Connection $connection, string $outcome): DeliverCampaignRecipientHandler
+    private function faultHandler(Connection $connection, string $outcome, bool $knownUnsent = false): DeliverCampaignRecipientHandler
     {
         return new DeliverCampaignRecipientHandler(
             $connection,
             $this->phase4Service(DeliveryConfiguration::class),
             $this->phase4Service(SuppressionLookup::class),
-            new Phase6FaultTransport($outcome),
+            new Phase6FaultTransport($outcome, $knownUnsent),
             $this->phase4Service(CampaignDeliveryGateway::class),
             $this->phase4Service(RecipientUnsubscribeLinks::class),
             $this->phase4Service(AuditSink::class),
@@ -731,7 +758,7 @@ final class Phase6CampaignDeliveryTest extends KernelTestCase
 
 final readonly class Phase6FaultTransport implements DeliveryTransport
 {
-    public function __construct(private string $outcome)
+    public function __construct(private string $outcome, private bool $knownUnsent = false)
     {
     }
 
@@ -740,7 +767,7 @@ final readonly class Phase6FaultTransport implements DeliveryTransport
         if ('accepted' === $this->outcome) {
             return $message->messageId;
         }
-        throw new DeliveryTransportFailure($this->outcome);
+        throw new DeliveryTransportFailure($this->outcome, affectsCircuit: $this->knownUnsent ? false : null, knownUnsent: $this->knownUnsent);
     }
 }
 

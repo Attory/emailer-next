@@ -240,3 +240,10 @@ The exact operator-signed 1.0.5 predecessor archive, all four sidecars, pinned
 public key, source commit and archive SHA-256 must come from its retained
 installation record. No production installation was inspected by this release
 job. Production deployment is outside this engineering and release task.
+
+The authenticated 1.0.6 target launcher refuses both another update and explicit
+delivery resume while an operation is unfinished or latest recovery failed.
+Keep using that launcher for recovery checks; do not invoke an older release's
+resume command on a partially changed schema. Retain and verify the complete
+original checkpoint under supervision before recording recovery. No unchecked
+command to clear an operation or downgrade a completed update is supplied.

@@ -15,6 +15,39 @@ final class Ripe106DeliveryHoldTest extends KernelTestCase
 {
     use Phase4State;
 
+    #[\PHPUnit\Framework\Attributes\DataProvider('unsafeReleaseStates')]
+    public function testResumeCannotBypassAnUnfinishedOrFailedReleaseRecovery(string $status, string $detail): void
+    {
+        self::bootKernel();
+        $connection = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($connection);
+        $connection->insert('release_operation', ['id' => \App\Shared\Identity::uuidV7(), 'operation' => 'update', 'source_version' => '1.0.5', 'target_version' => '1.0.6', 'package_sha256' => str_repeat('a', 64), 'status' => $status, 'detail_code' => $detail, 'started_at' => \App\Shared\Identity::now(), 'finished_at' => null]);
+        $connection->executeStatement("UPDATE delivery_runtime SET accepting_work=0, active_claims=1 WHERE singleton_key='1'");
+        $gate = $this->createMock(\App\Module\Delivery\Application\Contract\SendingGate::class);
+        $gate->expects(self::never())->method('assertMaintenanceReady');
+        $resumer = new DeliveryResumer($connection, $gate, $this->phase4Service(\App\Shared\MaintenanceOperationLock::class));
+        try {
+            try {
+                $resumer->resume();
+                self::fail('An unsafe native source could resume delivery.');
+            } catch (\DomainException $exception) {
+                self::assertStringContainsString('release recovery prevents delivery resume', $exception->getMessage());
+                self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key='1'")));
+                self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT active_claims FROM delivery_runtime WHERE singleton_key='1'")));
+                self::assertSame($detail, $connection->fetchOne('SELECT detail_code FROM release_operation'));
+            }
+        } finally {
+            $this->removePhase4Files();
+        }
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function unsafeReleaseStates(): iterable
+    {
+        yield 'interrupted' => ['started', 'verified'];
+        yield 'failed recovery' => ['failed', 'rollback_failed'];
+    }
+
     public function testTransportHoldIsTransientBeforeConfigurationSecretsOrSmtpAreUsed(): void
     {
         self::bootKernel();
@@ -36,6 +69,7 @@ final class Ripe106DeliveryHoldTest extends KernelTestCase
             } catch (\App\Module\Delivery\Application\Contract\DeliveryTransportFailure $failure) {
                 self::assertSame('transient', $failure->classification);
                 self::assertFalse($failure->affectsCircuit);
+                self::assertTrue($failure->knownUnsent);
             }
         } finally {
             unlink($file);

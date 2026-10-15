@@ -44,7 +44,7 @@ foreach ([1 => $v, 2 => $rv] as $num => $id) {
 }$c->update('email_template', ['published_version_id' => $rv], ['id' => $t]);
 foreach ($f['campaigns'] as $x) {
     $a = 'draft' !== $x['state'];
-    $c->insert('campaign', ['id' => $x['id'], 'name' => 'Synthetic '.$x['state'], 'template_version_id' => 'paused' === $x['state'] ? $rv : $v, 'state' => $x['state'], 'scheduled_at' => 'scheduled' === $x['state'] ? '2100-01-01 00:00:00.000000' : null, 'approved_at' => $a ? $n : null, 'approved_by' => $a ? $u : null, 'approval_waived_test' => $a ? 1 : 0, 'rsvp_enabled' => 'paused' === $x['state'] ? 1 : 0, 'operation_version' => 1, 'created_by' => $u, 'created_at' => $n, 'updated_at' => $n, 'messages_per_minute' => null, 'rate_window_started_at' => null, 'rate_window_count' => 0]);
+    $c->insert('campaign', ['id' => $x['id'], 'name' => 'Synthetic '.$x['state'], 'template_version_id' => 'paused' === $x['state'] ? $rv : $v, 'state' => $x['state'], 'scheduled_at' => 'scheduled' === $x['state'] ? '2026-01-01 00:00:00.000000' : null, 'approved_at' => $a ? $n : null, 'approved_by' => $a ? $u : null, 'approval_waived_test' => $a ? 1 : 0, 'rsvp_enabled' => 'paused' === $x['state'] ? 1 : 0, 'operation_version' => 1, 'created_by' => $u, 'created_at' => $n, 'updated_at' => $n, 'messages_per_minute' => null, 'rate_window_started_at' => null, 'rate_window_count' => 0]);
 }
 $f['recipients'][] = ['id' => '01990101-0000-7000-8000-000000000025', 'campaign_id' => '01990101-0000-7000-8000-000000000006', 'email' => 'retry-person@example.test', 'profile' => ['first_name' => 'Retry', 'display_name' => 'Synthetic Retry']];
 foreach ($f['recipients'] as $x) {

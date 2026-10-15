@@ -100,7 +100,9 @@ the current pointer and validates again. The application account remains fenced
 until acceptance. Campaign states remain unchanged and delivery remains held.
 Acceptance removes the separately scoped rehearsal database's owned tables
 after checking its protected installation lease and source inventory. Cleanup
-can be repeated after interruption. The encrypted recovery set is retained.
+can be repeated after interruption. Successful recovery also clears its owned
+rehearsal copy; foreign scratch data is refused and left unchanged. The encrypted
+recovery set is retained.
 Automatic Ripe backup pruning excludes retained Light backup provenance;
 operators must make any later Light-backup disposal decision explicitly.
 
@@ -180,3 +182,9 @@ files with mode `0600`. Light's asset restoration otherwise inherits the root
 process umask. Keep the master key service-owned and mode `0600`.
 Keep delivery quiesced and use the signed Ripe installer for any subsequent
 conversion of that recovered isolated installation.
+
+An active-send refusal does not stop a source worker before successful quiescence
+and does not reset claims. Before schema mutation, recovery can verify unchanged
+Light and restore the original application account while retaining its durable
+no-new-work state; existing in-flight evidence stays intact. Do not fabricate
+idleness or resume delivery to make inspection pass.

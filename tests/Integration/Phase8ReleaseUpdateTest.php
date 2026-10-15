@@ -78,12 +78,13 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key = '1'")));
     }
 
-    public function testUnfinishedUpdateCannotCheckpointPartialDdlAsANewSource(): void
+    #[DataProvider('unsafeSourceStates')]
+    public function testUnfinishedUpdateCannotCheckpointPartialDdlAsANewSource(string $status, string $detail): void
     {
         [$connection, $manager, $backups, $archive] = $this->fixture(0);
         $this->publishPreviousRelease();
         $operation = Identity::uuidV7();
-        $connection->insert('release_operation', ['id' => $operation, 'operation' => 'update', 'source_version' => '0.3.0', 'target_version' => '0.4.0', 'package_sha256' => hash_file('sha256', $archive), 'status' => 'started', 'detail_code' => 'verified', 'started_at' => Identity::now(), 'finished_at' => null]);
+        $connection->insert('release_operation', ['id' => $operation, 'operation' => 'update', 'source_version' => '0.3.0', 'target_version' => '0.4.0', 'package_sha256' => hash_file('sha256', $archive), 'status' => $status, 'detail_code' => $detail, 'started_at' => Identity::now(), 'finished_at' => null]);
         $connection->executeStatement('ALTER TABLE campaign ADD interrupted_ddl_marker INT DEFAULT NULL');
         try {
             try {
@@ -94,12 +95,23 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
             }
             self::assertSame(0, $backups->created);
             self::assertSame(0, $backups->restored);
-            self::assertSame('started', $connection->fetchOne('SELECT status FROM release_operation WHERE id = ?', [$operation]));
+            self::assertSame($status, $connection->fetchOne('SELECT status FROM release_operation WHERE id = ?', [$operation]));
+            self::assertSame($detail, $connection->fetchOne('SELECT detail_code FROM release_operation WHERE id = ?', [$operation]));
+            self::assertSame(1, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM release_operation')));
+            self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key = '1'")));
+            self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT active_claims FROM delivery_runtime WHERE singleton_key = '1'")));
             self::assertSame($this->directory.'/releases/0.3.0', realpath($this->directory.'/releases/current'));
             self::assertTrue($connection->createSchemaManager()->introspectTable('campaign')->hasColumn('interrupted_ddl_marker'));
         } finally {
             $connection->executeStatement('ALTER TABLE campaign DROP COLUMN interrupted_ddl_marker');
         }
+    }
+
+    /** @return iterable<string, array{string, string}> */
+    public static function unsafeSourceStates(): iterable
+    {
+        yield 'interrupted' => ['started', 'verified'];
+        yield 'failed recovery' => ['failed', 'rollback_failed'];
     }
 
     public function testFailedProductionOwnershipAssertionRemovesPublishedTarget(): void

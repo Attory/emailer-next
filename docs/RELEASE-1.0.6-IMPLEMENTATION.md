@@ -67,7 +67,7 @@ recovered as an edition downgrade.
 ## Validation and remaining release gates
 
 Local PHP 8.4.24 / MariaDB 10.11.19 full suite passed as the application
-identity: 304 tests, 9,981 assertions, no skips after independent-review repairs. An initial root-run suite failed
+identity: 308 tests, 10,049 assertions, no skips after independent-review repairs. An initial root-run suite failed
 the existing non-root production-owner assertion and skipped the intended
 permission-failure test; rerunning under the correct identity resolved both.
 Composer validation, locked advisory audit and the 85-package production license
@@ -127,3 +127,24 @@ hold regressions. Full local suite after repairs passed 304 tests / 9,981
 assertions. A new exact-head review and matrix run are required for the repaired
 candidate. Final merged trusted-key signing/rehearsals remain blocked by the
 canonical gate; there is no released 1.0.6 upgrade at this point.
+
+Second exact review of `a52c130a0192ab8f9d80aab01127d9db310b484c` confirmed the
+first repairs and identified additional native failed-recovery/resume and Light
+preparation/cleanup edge cases. Assessed fixes preserve attempts and claims,
+refuse unsafe reruns/resume, avoid stopping an active worker during refusal, and
+remove owned scratch data after recovery as well as acceptance. Focused tests
+passed 34 / 895 assertions; full updated suite passed 308 / 10,049 assertions.
+The exact a52c130 disposable-key package passed the full local Light rehearsal;
+all three a52c130 hosted installer/recovery jobs passed. Subsequent fixes and
+partial-cleanup interruption coverage require their own final-head matrix and
+read-only review. No production work or final trusted-key signing has occurred.
+
+Final second-review local regression: 308 tests / 10,049 assertions, no skips.
+Affected formatting, PHPStan, architecture, shell/helper syntax, full artifact,
+secret/private-data and public/deployment checks passed. Original attempts are
+retained for known-unsent holds, including at retry limit one; unfinished/latest
+failed native recovery cannot be hidden by retry or delivery resume. Package
+rehearsals now cover active-claim refusal without worker-stop intent, recovery
+scratch cleanup, interrupted acceptance cleanup and overdue scheduled source
+work. The next commit's exact-head hosted run and read-only review are the
+remaining candidate checks before the unchanged platform release blocker.

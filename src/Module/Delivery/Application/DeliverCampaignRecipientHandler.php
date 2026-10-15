@@ -77,7 +77,7 @@ final readonly class DeliverCampaignRecipientHandler
             $reference = $this->transport->send($outbound);
             $this->finishAccepted($message->recipientId, $claim->attemptId, $reference);
         } catch (DeliveryTransportFailure $failure) {
-            $retry = $this->finishFailure($message->recipientId, $claim->attemptId, $claim->attemptNumber, $message->operationVersion, $failure->classification, $configuration['retry_limit'], $failure->affectsCircuit);
+            $retry = $this->finishFailure($message->recipientId, $claim->attemptId, $claim->attemptNumber, $message->operationVersion, $failure->classification, $configuration['retry_limit'], $failure->affectsCircuit, $failure->knownUnsent);
             if (null !== $retry) {
                 $this->gateway->dispatchAfter($message->recipientId, $message->operationVersion, $retry);
 
@@ -280,10 +280,13 @@ final readonly class DeliverCampaignRecipientHandler
         });
     }
 
-    private function finishFailure(string $recipientId, string $attemptId, int $attemptNumber, int $operationVersion, string $classification, int $retryLimit, bool $affectsCircuit): ?int
+    private function finishFailure(string $recipientId, string $attemptId, int $attemptNumber, int $operationVersion, string $classification, int $retryLimit, bool $affectsCircuit, bool $knownUnsent = false): ?int
     {
-        return $this->connection->transactional(function () use ($recipientId, $attemptId, $attemptNumber, $operationVersion, $classification, $retryLimit, $affectsCircuit): ?int {
-            $retry = 'transient' === $classification && $attemptNumber < $retryLimit;
+        return $this->connection->transactional(function () use ($recipientId, $attemptId, $attemptNumber, $operationVersion, $classification, $retryLimit, $affectsCircuit, $knownUnsent): ?int {
+            // Preserve the claimed attempt and its accurate transient outcome.
+            // A hold before any SMTP connection cannot become an ambiguous send,
+            // even at the retry limit. The durable hold still blocks dispatch.
+            $retry = 'transient' === $classification && ($knownUnsent || $attemptNumber < $retryLimit);
             $delay = $retry ? min(3_600_000, (2 ** min(10, $attemptNumber - 1)) * 60_000 + $this->jitter($recipientId, $attemptNumber)) : null;
             $state = $retry ? 'retry' : ('permanent' === $classification ? 'permanent_failure' : 'ambiguous');
             $next = null === $delay ? null : (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->modify('+'.$delay.' milliseconds')->format('Y-m-d H:i:s.u');

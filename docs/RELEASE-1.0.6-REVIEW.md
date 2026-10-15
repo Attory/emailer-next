@@ -87,3 +87,37 @@ Independently assessed findings:
 
 Repairs require new-head tests, matrix CI and read-only review. The unchanged
 canonical migration gate remains a separate release blocker.
+
+## Exact repaired-candidate follow-up
+
+Claude reviewed `a52c130a0192ab8f9d80aab01127d9db310b484c` with the same
+read-only restrictions. It found no new release blocker, confirmed the repairs,
+and identified additional native failure/resume and preparation edge cases.
+All three installer/recovery jobs for CI run 38664749932 passed. The local exact
+commit disposable-key package also completed the full Light rehearsal.
+
+Further independent assessment and repairs:
+
+- Latest native `rollback_failed` is now refused before another checkpoint or
+  operation can conceal it. Delivery resume separately rejects both unfinished
+  operations and latest failed recovery, retaining claims and forcing the durable
+  accepting-work flag off. The updater's own pre-completion Doctor is unaffected.
+- Before schema mutation, recovery verifies unchanged Light without requiring
+  idle claims to be fabricated. A durable service-stop flag is recorded only
+  after successful quiescence, before stopping services. An active-claim refusal
+  does not stop an in-flight source worker. Real claims are never reset.
+- A known-unsent hold retains the started attempt as a finished transient record
+  and defers even at the configured retry limit; it cannot become an ambiguous
+  SMTP outcome. The review's suggested attempt deletion was not adopted because
+  this task requires preserving claims/history rather than erasing them.
+- Successful recovery also removes its owned rehearsal copy. Foreign scratch
+  data is untouched. A new actual-package interruption rehearsal kills acceptance
+  after committed partial cleanup and reruns acceptance.
+- Native process interruption still requires supervised verification/recovery
+  from the retained complete checkpoint. No general downgrade or unchecked
+  command to clear failed operation evidence is introduced.
+
+New regressions cover latest failed recovery, resume refusal, unchanged claims,
+known-unsent retry-limit outcomes, active-claim preparation refusal, and actual
+partial-cleanup replay. New-head review/CI and the final merged trusted-key
+release gates remain required; the canonical gate is unchanged.

@@ -26,3 +26,8 @@ CI rebuilds accepted native 1.0.5 source for its disposable test-key package; lo
 acceptance additionally authenticates the retained originally signed archive and
 uses its unchanged runtime. Final availability requires the exact merged package
 signed with the independently trusted Ripe key, not a disposable CI key.
+
+The full Light fixture includes overdue scheduled work as well as paused retry and
+accepted recipients. Conversion preserves those states under the durable hold.
+The separate credential check opens no scheduler or worker, even after its explicit
+hold release; historical recipients are not dispatched.

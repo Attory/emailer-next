@@ -120,6 +120,8 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
                 }
                 $this->connection->executeStatement("UPDATE delivery_runtime SET accepting_work = 0 WHERE singleton_key = '1'");
             });
+            $receipt['services_stopped'] = true;
+            $this->record($receipt);
             $this->stopSourceServices();
             $this->fence->lock($account);
             $this->source->assertIdle();
@@ -275,9 +277,14 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
         $directory = EditionData::text($receipt['recovery_directory']);
         $originalPhase = $receipt['phase'] ?? null;
         $requiresRestore = 'recovering' === $originalPhase ? ($receipt['recovery_requires_restore'] ?? true) : !\in_array($originalPhase, ['quiescing', 'backing_up'], true);
+        if (!\is_bool($requiresRestore)) {
+            throw new \RuntimeException('Recovery journal has an invalid restoration decision; delivery remains held.');
+        }
         $receipt['recovery_requires_restore'] = $requiresRestore;
         $this->record(array_replace($receipt, ['phase' => 'recovering']));
-        $this->stopSourceServices();
+        if ($requiresRestore || true === ($receipt['services_stopped'] ?? false)) {
+            $this->stopSourceServices();
+        }
         if (false === $requiresRestore) {
             // No DDL or private-state activation can have happened in these phases.
             $this->source->inspect(false);
@@ -286,8 +293,17 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
         }
         $this->connection->executeStatement("UPDATE delivery_runtime SET accepting_work = 0 WHERE singleton_key = '1'");
         $this->switchPointer($sourceRoot);
-        $this->source->inspect(true);
+        $this->source->inspect(false !== $requiresRestore);
         $this->console($sourceRoot, ['about', '--no-interaction']);
+        $leaseFile = EditionData::text($receipt['recovery_base']).'/scratch-owner.json';
+        if (is_file($leaseFile)) {
+            $scratch = $this->scratch();
+            $lease = ['format' => 'emailer-edition-scratch-v1', 'installation_uuid' => $receipt['installation_uuid'], 'database' => $scratch->getDatabase(), 'target_package_sha256' => $receipt['target_package_sha256']];
+            $scratch->close();
+            if (EditionData::read($leaseFile) === $lease) {
+                $this->clearRehearsalDatabase($receipt);
+            }
+        }
         $this->fence->restore(SourceDatabaseFence::account($receipt['database_account']));
         $this->record(array_replace($receipt, ['phase' => 'recovered']));
     }
