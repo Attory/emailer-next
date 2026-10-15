@@ -374,10 +374,10 @@ final readonly class ReleaseManager
                 $this->assertInstalledReleaseMatchesManifest($this->releasesDirectory.'/1.0.6', $manifest, '1.0.6');
                 $this->removeFailedRelease($this->releasesDirectory.'/1.0.6');
             }
-            $fence->restore($account);
             $this->recordFailedOperation($operationId, $archive, $manifest, $restore ? 'verified_source_recovered' : 'interrupted_before_mutation');
             $journal['phase'] = 'recovered';
             $this->nativeJournal($directory, $journal);
+            $fence->restore($account);
         } catch (\Throwable $failure) {
             EditionRecoverySet::write($directory.'/native-recovery-failure.json', json_encode(['exception_class' => $failure::class, 'message' => $failure->getMessage()], JSON_THROW_ON_ERROR));
             throw new \RuntimeException('Native recovery did not complete. Keep delivery and source/target processes quiesced; protected operation diagnostics identify the failed proof.');

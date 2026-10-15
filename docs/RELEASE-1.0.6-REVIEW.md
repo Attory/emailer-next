@@ -179,3 +179,17 @@ An already recovered checkpoint now refuses drift rather than destructively
 restoring again. Separate review also aligned the root-only systemd example's
 writable recovery/key/configuration roots with actual atomic restoration; the
 trusted public key/candidate stay read-only. No installed service was changed.
+
+The exact 4928760 review found one remaining ordering window: standalone recovery
+unlocked before durably marking recovered. Native and Light now publish recovered
+state before unlocking. Light replays a verified recovered receipt by validating
+source pointer/schema/identity and unlocking without restoration; unfinished
+restoration re-fences before any data copy. Active-claim pre-mutation refusal
+still does not kill an in-flight source connection. Real-package recovery replay
+is exercised explicitly. Fault cleanup now kills only the already killed
+updater's task-database advisory-lock owner, waits for server-session removal and
+asserts the journal-only row remains absent before releasing the synthetic lock.
+Native partial-restoration observation also asserts the account stays locked.
+The native recovery example now spells out the environment files, root-only cache
+and identical systemd sandbox instead of implying a bare command inherits them.
+These repairs require a new exact-head review and final package/matrix evidence.

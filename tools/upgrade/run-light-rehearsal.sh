@@ -114,7 +114,7 @@ run bash -euc 'for iteration in {1..100}; do test ! -f /rehearsal/fault-lock-rea
 rehearsal_detach=1 rehearsal_container="$fault_upgrade" run bash -euc 'set -a; source /rehearsal/updater.env; set +a; printf "%s\n%s\n" "Synthetic recovery rehearsal passphrase only" "Synthetic recovery rehearsal passphrase only" | php /rehearsal/target/bin/console emailer:setup:install --upgrade-light --edition-action=execute --target-package=/package/emailer-next-1.0.6.zip --source-package=/published-light/emailer-light-1.0.0.zip --recovery-directory=/rehearsal/recovery' > /dev/null
 run php /tools/tools/upgrade/observe-rehearsal-phase.php mutating > "$case_root/fault.log"
 docker kill "$fault_upgrade" >/dev/null
-run php -r 'file_put_contents("/rehearsal/release-fault-lock", "release");chmod("/rehearsal/release-fault-lock",0600);'
+run php /tools/tools/upgrade/release-fault-lock.php
 # Wait for the fault lock to disappear before the real recovery invocation.
 for iteration in {1..100}; do
     if ! docker container inspect "$fault_lock" >/dev/null 2>&1; then break; fi
@@ -129,7 +129,7 @@ if run bash -euc 'set -a; source /rehearsal/updater.env; set +a; printf "%s\n%s\
     printf 'Pre-schema recovery-package fault unexpectedly passed.\n' >&2
     exit 1
 fi
-run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /tools/tools/upgrade/observe-light-rehearsal.php restored' >> "$case_root/recovery.log" 2>&1
+run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /tools/tools/upgrade/observe-light-rehearsal.php restored; php /rehearsal/target/bin/console emailer:setup:install --upgrade-light --edition-action=recover --target-package=/package/emailer-next-1.0.6.zip --source-package=/published-light/emailer-light-1.0.0.zip --recovery-directory=/rehearsal/recovery; php /tools/tools/upgrade/observe-light-rehearsal.php restored' >> "$case_root/recovery.log" 2>&1
 run bash -euc 'set -a; source /rehearsal/updater.env; set +a; printf "%s\n%s\n" "Synthetic recovery rehearsal passphrase only" "Synthetic recovery rehearsal passphrase only" | php /rehearsal/target/bin/console emailer:setup:install --upgrade-light --edition-action=execute --target-package=/package/emailer-next-1.0.6.zip --source-package=/published-light/emailer-light-1.0.0.zip --recovery-directory=/rehearsal/recovery' >> "$case_root/rerun.log" 2>&1
 # Interrupt recovery while DROP TABLE has partially committed. The durable
 # recovering decision must survive and restore the source again on the next run.

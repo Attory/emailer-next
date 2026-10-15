@@ -96,9 +96,7 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
                 if (\in_array($receipt['phase'] ?? null, ['activated', 'accepted'], true)) {
                     throw new \RuntimeException('Edition transition already completed; use explicit acceptance, not conversion.');
                 }
-                if ('recovered' !== ($receipt['phase'] ?? null)) {
-                    $this->recover($recoveryDirectory, $sourceRoot);
-                }
+                $this->recover($recoveryDirectory, $sourceRoot);
             }
             $source = $this->source->inspect(false);
             $receipt = ['format' => 'emailer-ripe-edition-transition-v1', 'operation_id' => Identity::uuidV7(), 'installation_uuid' => EditionData::text($source['identity']['installation_uuid']), 'phase' => 'quiescing', 'source_worker_mode' => EditionData::text($this->connection->fetchOne("SELECT worker_mode FROM delivery_policy WHERE singleton_key = '1'")), 'recovery_directory' => $recoveryDirectory, 'source_root' => $sourceRoot, 'target_package_sha256' => $manifest['_verified_archive_sha256']];
@@ -271,8 +269,21 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
     private function recover(string $directory, string $sourceRoot): void
     {
         $receipt = $this->receipt();
-        if (\in_array($receipt['phase'] ?? null, ['accepted', 'recovered'], true) || ($receipt['recovery_base'] ?? null) !== $directory && ($receipt['recovery_directory'] ?? null) !== $directory || ($receipt['source_root'] ?? null) !== $sourceRoot) {
+        if ('accepted' === ($receipt['phase'] ?? null) || ($receipt['recovery_base'] ?? null) !== $directory && ($receipt['recovery_directory'] ?? null) !== $directory || ($receipt['source_root'] ?? null) !== $sourceRoot) {
             throw new \RuntimeException('Recovery journal does not authorize this unfinished transition. Ripe to Light downgrade is prohibited.');
+        }
+        if ('recovered' === ($receipt['phase'] ?? null)) {
+            if (realpath($this->releasesDirectory.'/current') !== $sourceRoot) {
+                throw new \RuntimeException('Recovered source pointer drifted; the old checkpoint cannot overwrite subsequent state.');
+            }
+            $source = $this->source->inspect(false);
+            if (($source['identity']['installation_uuid'] ?? null) !== $receipt['installation_uuid']) {
+                throw new \RuntimeException('Recovered source installation identity drifted.');
+            }
+            $this->connection->executeStatement("UPDATE delivery_runtime SET accepting_work = 0 WHERE singleton_key = '1'");
+            $this->fence->restore(SourceDatabaseFence::account($receipt['database_account']));
+
+            return;
         }
         $directory = EditionData::text($receipt['recovery_directory']);
         $originalPhase = $receipt['phase'] ?? null;
@@ -284,6 +295,7 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
         $this->record(array_replace($receipt, ['phase' => 'recovering']));
         if ($requiresRestore || true === ($receipt['services_stopped'] ?? false)) {
             $this->stopSourceServices();
+            $this->fence->lock(SourceDatabaseFence::account($receipt['database_account']));
         }
         if (false === $requiresRestore) {
             // No DDL or private-state activation can have happened in these phases.
@@ -304,8 +316,8 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
                 $this->clearRehearsalDatabase($receipt);
             }
         }
-        $this->fence->restore(SourceDatabaseFence::account($receipt['database_account']));
         $this->record(array_replace($receipt, ['phase' => 'recovered']));
+        $this->fence->restore(SourceDatabaseFence::account($receipt['database_account']));
     }
 
     private function validateSourceConfiguration(string $sourceRoot): void

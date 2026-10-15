@@ -263,8 +263,18 @@ Use the operation UUID recorded in the protected
 archive hash and installation against the original change record.
 
 ```sh
-"$PHP_CLI" <VERIFIED-TARGET>/bin/console emailer:release:update \
-  /var/lib/emailer-candidate/emailer-next-1.0.6.zip \
+sudo systemd-run --unit=emailer-native-recover --wait --collect --pipe \
+  --property=User=root --property=Group=root \
+  --property='EnvironmentFile=/etc/emailer/runtime.env /etc/emailer/update.env' \
+  --property=RuntimeDirectory=emailer-native-recover \
+  --property=RuntimeDirectoryMode=0700 \
+  --property=NoNewPrivileges=true --property=PrivateTmp=true \
+  --property=ProtectSystem=strict \
+  --property='ReadWritePaths=/srv/emailer/releases /var/lib/emailer/private /var/backups/emailer /run/emailer-native-recover /var/lib/emailer/native-update-recovery /var/lib/emailer/keys /etc/emailer' \
+  --property='ReadOnlyPaths=/var/lib/emailer-candidate /etc/emailer/release-signing.pub' \
+  /usr/bin/env EMAILER_RUNTIME_DIR=/run/emailer-native-recover \
+  "$PHP_CLI" /var/lib/emailer-candidate/verified-1.0.6/bin/console \
+  emailer:release:update /var/lib/emailer-candidate/emailer-next-1.0.6.zip \
   --source-package=/var/lib/emailer-candidate/emailer-next-1.0.5.zip \
   --recover-native-operation=<EXACT-OPERATION-UUID>
 ```

@@ -21,11 +21,17 @@ while (microtime(true) < $deadline) {
             exit;
         }
         if ('journal' === $argv[1] && 'preparing' === ($journal['phase'] ?? null) && false === $c->fetchOne('SELECT id FROM release_operation WHERE id=?', [$journal['operation_id']])) {
+            file_put_contents('/rehearsal/native-journal-only-observed', 'observed');
+            chmod('/rehearsal/native-journal-only-observed', 0600);
             echo "Journal-only native interruption independently observed.\n";
             exit;
         }
         if ('recovering' === $argv[1] && 'recovering' === ($journal['phase'] ?? null) && !$c->createSchemaManager()->tablesExist(['delivery_runtime'])) {
-            echo "Committed partial native source restoration independently observed.\n";
+            $account = $journal['database_account'];
+            if (!in_array($c->fetchOne("SELECT JSON_VALUE(Priv, '$.account_locked') FROM mysql.global_priv WHERE User=? AND Host=?", [$account['name'], $account['host']]), ['true', '1', 1], true)) {
+                throw new RuntimeException('Native partial restoration lost its persistent account fence.');
+            }
+            echo "Committed partial native source restoration independently observed with account fenced.\n";
             exit;
         }
         if ('recovering' !== $argv[1] && $argv[1] === ($journal['phase'] ?? null) && 'started' === $c->fetchOne('SELECT status FROM release_operation WHERE id=?', [$journal['operation_id']])) {
