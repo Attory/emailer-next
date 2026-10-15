@@ -52,6 +52,7 @@ $secret = $vault->store('recipient.token.key', sodium_bin2base64($key, SODIUM_BA
 $c->insert('recipient_token_key', ['key_version' => 1, 'secret_id' => $secret, 'active' => 1, 'verify_until' => null, 'created_at' => $n]);
 $c->update('recipient_token_key_state', ['current_version' => 1], ['singleton_key' => '1']);
 $handle = sodium_bin2base64(random_bytes(32), SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING);
+$c->insert('release_operation', ['id' => '01990606-0000-7000-8000-000000000099', 'operation' => 'update', 'source_version' => '1.0.4', 'target_version' => '1.0.5', 'package_sha256' => str_repeat('a', 64), 'status' => 'succeeded', 'detail_code' => 'synthetic_historical_update', 'started_at' => $n, 'finished_at' => $n]);
 $expires = '2027-10-01 00:00:00.000000';
 $delivery = '01990606-0000-7000-8000-000000000010';
 $c->insert('recipient_token', ['id' => '01990606-0000-7000-8000-000000000030', 'handle' => $handle, 'campaign_id' => $campaign, 'campaign_recipient_id' => $delivery, 'contact_id' => $contact, 'email_canonical' => 'native1@example.test', 'purpose' => 'unsubscribe', 'key_version' => 1, 'issued_at' => $n, 'expires_at' => $expires, 'revoked_at' => null, 'last_used_at' => null, 'use_count' => 0]);

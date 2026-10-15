@@ -13,6 +13,17 @@ installer documented in CLIENT-LIGHT-UPGRADE-1.0.6.md.
 
 ## Before updating
 
+The native updater requires a dedicated application database account and a
+separate privileged maintenance identity for the same database/server. Supply
+the original protected runtime configuration through
+`EMAILER_RUNTIME_CONFIGURATION_FILE`. Quiesce HTTP, workers and schedulers.
+The updater persistently locks the application account and terminates its
+existing connections after claims are idle, before copying database state.
+This blocks recipient HTTP writes as well as delivery, including across a crash.
+Successful update/recovery restores the original account lock state only after
+validation; delivery remains separately held. A failed proof retains the fence.
+
+
 1. Confirm the installed source version is exactly `1.0.5`, the
    immutable current pointer is valid, Doctor has no unexplained critical
    finding, and no campaign is actively sending.
@@ -243,8 +254,8 @@ For an already approved non-interactive isolated workflow, the existing
 `--approved-target=1.0.6 --no-interaction` binding also applies. No SQL edits or
 operation-row deletion are required.
 
-A durable `preparing` journal precedes the backup, so an interruption before a
-checkpoint exists is recoverable. The command proves the original immutable
+A durable `preparing` journal precedes even the operation row and backup, so an interruption before a
+checkpoint exists is recoverable, including a missing operation row when the latest historical update agrees with the protected predecessor identity. The command proves the original immutable
 source package, database binding, schema/ledger, installation UUID and master
 key; it does not restore data that the updater never mutated. It append-closes
 the failed operation as `interrupted_before_mutation` only after source boot,

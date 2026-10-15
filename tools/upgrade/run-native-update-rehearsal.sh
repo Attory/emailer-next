@@ -35,11 +35,13 @@ run php /tools/tools/upgrade/prepare-ripe-rehearsal.php "ripe106_${iteration}_na
 rehearsal_user=1000 run bash -euc 'set -a; source /rehearsal/runtime.env; set +a; php /rehearsal/source-releases/1.0.5/bin/console emailer:setup:install --complete < /rehearsal/install-input' > "$case_root/source-install.log" 2>&1
 run bash -euc 'set -a; source /rehearsal/runtime.env; export EMAILER_RUNTIME_DIR=/rehearsal/source-owner-runtime; set +a; php /tools/tools/upgrade/verify-owner-login.php 1.0.5' > "$case_root/owner-enrollment.log" 2>&1
 run bash -euc 'set -a; source /rehearsal/runtime.env; set +a; php /tools/tools/upgrade/seed-native-ripe105.php; chmod -R a-w /rehearsal/source-releases/1.0.5' > "$case_root/source-fixture.log" 2>&1
+rehearsal_user=1000 run bash -euc 'set -a; source /rehearsal/runtime.env; export EMAILER_RUNTIME_DIR=/rehearsal/source-owner-runtime; set +a; php /rehearsal/source-releases/1.0.5/bin/console emailer:backup:create' >> "$case_root/source-fixture.log" 2>&1
 run bash -euc 'set -a; source /rehearsal/runtime.env; set +a; php /tools/tools/upgrade/observe-native-update.php before' >> "$case_root/preservation.log"
 rehearsal_user=1000 run bash -euc 'set -a; source /rehearsal/runtime.env; set +a; printf "%s\n%s\n" "Synthetic native recovery passphrase only" "Synthetic native recovery passphrase only" | php /rehearsal/source-releases/1.0.5/bin/console emailer:secrets:export-recovery-key' >> "$case_root/source-fixture.log" 2>&1
 run php /tools/tools/upgrade/extract-rehearsal-target.php
 if [ -n "${EMAILER_REHEARSAL_NATIVE_INTERRUPT:-}" ]; then
     case "$EMAILER_REHEARSAL_NATIVE_INTERRUPT" in
+        journal) fault_table=release_operation ;;
         preparing) fault_table=backup_record ;;
         migrating) fault_table=encrypted_secret ;;
         *) printf 'Unsupported native interruption phase.\n' >&2; exit 2 ;;
@@ -57,7 +59,20 @@ if [ -n "${EMAILER_REHEARSAL_NATIVE_INTERRUPT:-}" ]; then
         if ! docker container inspect "$fault_lock" >/dev/null 2>&1; then break; fi
         sleep 0.1
     done
-    run bash -euc 'set -a; source /rehearsal/updater.env; export EMAILER_UPDATE_SOURCE_VERSION=1.0.5; set +a; operation=$(php /tools/tools/upgrade/observe-native-interruption.php operation); printf "yes\n" | php /rehearsal/target/bin/console emailer:release:update /package/emailer-next-1.0.6.zip --source-package=/native-source/emailer-next-1.0.5.zip --recover-native-operation="$operation"; php /tools/tools/upgrade/observe-native-update.php restored; printf "yes\n" | php /rehearsal/target/bin/console emailer:release:update /package/emailer-next-1.0.6.zip --source-package=/native-source/emailer-next-1.0.5.zip; php /tools/tools/upgrade/observe-native-update.php after; if printf "yes\n" | php /rehearsal/target/bin/console emailer:release:update /package/emailer-next-1.0.6.zip --source-package=/native-source/emailer-next-1.0.5.zip --recover-native-operation="$operation"; then exit 1; fi; php /tools/tools/upgrade/observe-native-update.php after' > "$case_root/update.log" 2>&1
+    if [ "$EMAILER_REHEARSAL_NATIVE_INTERRUPT" = migrating ]; then
+        run rm /rehearsal/fault-lock-ready /rehearsal/release-fault-lock
+        rehearsal_detach=1 rehearsal_container="$fault_lock" run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /tools/tools/upgrade/hold-rehearsal-table.php encrypted_secret' >/dev/null
+        run bash -euc 'for iteration in {1..100}; do test ! -f /rehearsal/fault-lock-ready || exit 0; sleep 0.1; done; exit 1'
+        rehearsal_detach=1 rehearsal_container="$fault_update" run bash -euc 'set -a; source /rehearsal/updater.env; export EMAILER_UPDATE_SOURCE_VERSION=1.0.5; set +a; operation=$(php /tools/tools/upgrade/observe-native-interruption.php operation); printf "yes\n" | php /rehearsal/target/bin/console emailer:release:update /package/emailer-next-1.0.6.zip --source-package=/native-source/emailer-next-1.0.5.zip --recover-native-operation="$operation"' >/dev/null
+        run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /tools/tools/upgrade/observe-native-interruption.php recovering' >> "$case_root/preservation.log"
+        docker kill "$fault_update" >/dev/null
+        run php /tools/tools/upgrade/release-fault-lock.php
+        for iteration in {1..100}; do
+            if ! docker container inspect "$fault_lock" >/dev/null 2>&1; then break; fi
+            sleep 0.1
+        done
+    fi
+    run bash -euc 'set -a; source /rehearsal/updater.env; export EMAILER_UPDATE_SOURCE_VERSION=1.0.5; set +a; operation=$(php /tools/tools/upgrade/observe-native-interruption.php operation); printf "yes\n" | php /rehearsal/target/bin/console emailer:release:update /package/emailer-next-1.0.6.zip --source-package=/native-source/emailer-next-1.0.5.zip --recover-native-operation="$operation"; php /tools/tools/upgrade/observe-native-update.php restored; printf "yes\n" | php /rehearsal/target/bin/console emailer:release:update /package/emailer-next-1.0.6.zip --source-package=/native-source/emailer-next-1.0.5.zip --recover-native-operation="$operation"; php /tools/tools/upgrade/observe-native-update.php restored; printf "yes\n" | php /rehearsal/target/bin/console emailer:release:update /package/emailer-next-1.0.6.zip --source-package=/native-source/emailer-next-1.0.5.zip; php /tools/tools/upgrade/observe-native-update.php after; if printf "yes\n" | php /rehearsal/target/bin/console emailer:release:update /package/emailer-next-1.0.6.zip --source-package=/native-source/emailer-next-1.0.5.zip --recover-native-operation="$operation"; then exit 1; fi; php /tools/tools/upgrade/observe-native-update.php after' > "$case_root/update.log" 2>&1
     printf 'Actual native interruption, checked recovery and forward retry completed: %s\n' "$case_root"
     exit 0
 fi

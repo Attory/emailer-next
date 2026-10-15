@@ -155,3 +155,18 @@ Protected operation custody and latest-operation checks now reject that replay;
 the packaged interruption harness attempts the old recovery again after the
 successful forward update and verifies the target remains unchanged. This code
 requires the next exact-commit independent review and matrix run.
+
+## Exact native-recovery review and writer-fencing repairs
+
+Claude's read-only review of `1b926f34d0a541bf1fd11cd39ae83dea7adadfbd`
+confirmed custody, retry credits and backup control-history handling. It found
+that concurrent native HTTP writes could invalidate the checkpoint fingerprint,
+and that a crash between journal publication and operation-row insertion could
+leave a predecessor-row mismatch. These are confirmed and repaired: native update
+and recovery reuse the dedicated application-account fence, durably record its
+original state and retain it across interruption. Journal-only recovery accepts
+only the protected predecessor as latest history. The rehearsal now covers that
+gap, denied application connections, repeat completed recovery and committed
+partial source restoration interrupted again. The source fixture creates its
+documented prerequisite verified backup before fault injection; Doctor is not
+waived. These repairs require their own exact-head review and matrix.

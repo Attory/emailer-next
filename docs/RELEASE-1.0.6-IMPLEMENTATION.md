@@ -174,3 +174,13 @@ a successfully updated installation. Packaged interruption rehearsals assert
 that refusal after the subsequent forward update. The fresh local dependency
 audit encountered a Packagist network timeout; it is not recorded as a pass.
 Hosted quality jobs run their own locked dependency audit.
+
+Exact 1b926f3 regression passed 311 tests / 10,109 assertions without skips.
+Full artifact/security/public-path checks and updater privilege checks passed.
+A network-enabled locked dependency audit found no security advisories. The
+exact packaged partial-DDL recovery/forward retry and superseded-checkpoint
+refusal passed. The early fault fixture lacked the documented prerequisite
+verified backup; restored-source Doctor correctly rejected it. That fixture is
+corrected without weakening Doctor. The exact review's concurrent-native-writer
+and journal-only crash findings are repaired with persistent account fencing
+and predecessor-bound recovery; the next exact head requires its own evidence.
