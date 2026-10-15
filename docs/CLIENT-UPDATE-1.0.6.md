@@ -265,7 +265,9 @@ archive hash and installation against the original change record.
 ```sh
 sudo systemd-run --unit=emailer-native-recover --wait --collect --pipe \
   --property=User=root --property=Group=root \
-  --property='EnvironmentFile=/etc/emailer/runtime.env /etc/emailer/update.env' \
+  --property=EnvironmentFile=/etc/emailer/runtime.env \
+  --property=EnvironmentFile=/etc/emailer/update.env \
+  --property=WorkingDirectory=/var/lib/emailer-candidate/verified-1.0.6 \
   --property=RuntimeDirectory=emailer-native-recover \
   --property=RuntimeDirectoryMode=0700 \
   --property=NoNewPrivileges=true --property=PrivateTmp=true \

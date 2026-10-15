@@ -27,6 +27,20 @@ foreach (['emailer-native-release-'.substr(hash('sha256', $p['dbname']), 0, 40),
         }
     }
 }
+// The native migration console and scratch cleanup use child connections.
+// Stop only pending mutators on this exact disposable installation/rehearsal DB.
+foreach ($c->fetchFirstColumn("SELECT ID FROM information_schema.PROCESSLIST WHERE ID<>CONNECTION_ID() AND DB IN (?,?) AND INFO REGEXP '^(ALTER|DROP|DELETE|TRUNCATE)[[:space:]]'", [$p['dbname'], $p['dbname'].'_edition_recovery']) as $child) {
+    $c->executeStatement('KILL CONNECTION '.(int) $child);
+    for ($attempt = 0; $attempt < 30; ++$attempt) {
+        if (false === $c->fetchOne('SELECT ID FROM information_schema.PROCESSLIST WHERE ID=?', [$child])) {
+            break;
+        }
+        usleep(100000);
+    }
+    if (false !== $c->fetchOne('SELECT ID FROM information_schema.PROCESSLIST WHERE ID=?', [$child])) {
+        throw new RuntimeException('Killed child mutator is still active; retain the fault lock.');
+    }
+}
 if (is_file('/rehearsal/native-journal-only-observed')) {
     $files = glob('/rehearsal/native-update-recovery/*/native-operation.json');
     if (1 !== count($files)) {

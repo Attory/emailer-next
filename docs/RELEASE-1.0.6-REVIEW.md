@@ -193,3 +193,14 @@ Native partial-restoration observation also asserts the account stays locked.
 The native recovery example now spells out the environment files, root-only cache
 and identical systemd sandbox instead of implying a bare command inherits them.
 These repairs require a new exact-head review and final package/matrix evidence.
+
+Exact 8473582 independent Claude review confirmed all preceding product-code
+ordering repairs and found no new product-code regression. Its documentation
+finding is corrected using separate EnvironmentFile properties and an explicit
+working directory. Disposable fault cleanup now terminates pending child DDL or
+scratch mutators on only the exact guarded case databases. Package rehearsals
+also inject the precise durable-recovered/account-still-locked state, then replay
+recovery and verify original business state plus a subsequent application login.
+This is a synthetic pending-unlock fault, separate from actual process-kill
+rehearsals. Final exact-head matrix and disposable-key package evidence remain
+required; trusted merged release remains blocked by the canonical gate.
