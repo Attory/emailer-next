@@ -34,6 +34,12 @@ if [ -z "$database_id" ] || [ -z "$mailpit_id" ] || ! docker image inspect "$app
     exit 1
 fi
 
+# Preparation runs no application and exposes no credentials; only downloaded
+# package archives are passed into the subsequent egress-disabled test container.
+cache_root="$(mktemp -d /tmp/emailer-historical-downloads-XXXXXX)"
+chmod 0755 "$cache_root"
+bash tools/ci/prepare-historical-download-cache.sh "$app_image" "$cache_root"
+
 docker network connect --alias database "$network_name" "$database_id"
 docker network connect --alias mailpit "$network_name" "$mailpit_id"
 
@@ -52,6 +58,8 @@ docker run --rm \
 docker run --rm \
     --network "$network_name" \
     --volume "$project_root/.git:/accepted-history:ro" \
+    --volume "$cache_root/downloads:/composer-download-cache" \
+    --env COMPOSER_CACHE_DIR=/composer-download-cache \
     --env APP_DEBUG=0 \
     --env APP_ENV=test \
     --env APP_SECRET=phase4-network-isolated-ci-only \

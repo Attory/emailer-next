@@ -1,6 +1,6 @@
 # Emailer Ripe 1.0.6
 
-Engineering candidate: availability awaits final signed-package acceptance.
+Signed-package acceptance is a prerequisite to release availability.
 
 Adds installer-driven conversion from exact Emailer Light 1.0.0 while retaining
 campaign-owned recipients, IDs, password hash, content, history, suppressions,

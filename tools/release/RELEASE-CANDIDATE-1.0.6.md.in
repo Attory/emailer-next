@@ -13,4 +13,4 @@
 - Reproducibility: two independent builds and all five package outputs were byte-identical
 - Signature: detached Ed25519 signature verified against the separately supplied pinned public key
 - Update evidence: production updates require the exact retained signed predecessor package and original sidecars; disposable-key source-derived CI fixtures are not historical operator outputs
-- Publication/deployment: not performed
+- At package build time: not yet published; no production deployment performed

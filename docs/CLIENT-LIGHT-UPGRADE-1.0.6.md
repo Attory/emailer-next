@@ -1,7 +1,7 @@
 # Emailer Light 1.0.0 to Emailer Ripe 1.0.6
 
-Status: engineering candidate; availability requires the exact operator-signed
-release to pass the installation, interruption and recovery rehearsals.
+Availability requires published release evidence that the exact operator-signed
+package passed the installation, interruption and recovery rehearsals.
 
 This is an edition transition using the existing protected CLI installer. It
 accepts only published Light 1.0.0, contract 1.0, schema 20261014000000 and its

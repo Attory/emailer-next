@@ -1,16 +1,15 @@
 # Release
 
-The bounded `1.0.5` update adds installation-wide High and Normal security
-levels. Its signed package contract accepts exactly `1.0.4` at source schema
-`20261008000000` and migrates to `20261013000000`. The one additive migration
-defaults to High and the target declares no code-pointer rollback after that
-migration. Local candidate checks use a disposable test signing key. See
-`RELEASE-1.0.5-IMPLEMENTATION.md` and `CLIENT-UPDATE-1.0.5.md`.
+The Ripe `1.0.6` release supports the exact Light `1.0.0` edition transition
+through its installer and the native Ripe `1.0.5` update. Target schema is
+`20261015000000`. Release availability requires green exact-candidate checks,
+independent review, trusted signing from the merged commit and successful
+rehearsals of that exact final package. Publication remains private and is
+separate from any production deployment. Operator commands and recovery custody
+are in [CLIENT-LIGHT-UPGRADE-1.0.6.md](CLIENT-LIGHT-UPGRADE-1.0.6.md) and
+[CLIENT-UPDATE-1.0.6.md](CLIENT-UPDATE-1.0.6.md).
 
-**Status:** Phase 13 `1.0.0` candidate tooling under acceptance. The accepted
-operator-signed `0.4.0` candidate remains unpublished and undeployed. No
-operator-signed `1.0.0` candidate exists until an exact reviewed head receives
-separate signing authorization.
+## Historical build records
 
 The explicitly requested `0.9.x` packages are non-public human-acceptance
 builds of the complete Phase 13 application. `0.9.1` supersedes the first

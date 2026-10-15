@@ -1,6 +1,6 @@
 # Emailer Ripe
 
-Ripe 1.0.6 is an engineering candidate adding installer-driven conversion from
+The Ripe 1.0.6 release scope includes installer-driven conversion from
 exact Emailer Light 1.0.0 and a native update from Ripe 1.0.5. Release availability
 requires the exact signed merged package to pass all isolated acceptance and
 recovery rehearsals. The running Ripe production installation is outside this

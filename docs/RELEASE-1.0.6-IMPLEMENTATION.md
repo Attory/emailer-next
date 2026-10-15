@@ -218,3 +218,24 @@ Published Light and native predecessor archives are unchanged. The earlier local
 full run's one failure was a fixture precondition (database named ripe106_gate_test
 instead of required emailer_test); the correct fresh task-only database is used
 for the complete rerun, without changing that acceptance assertion.
+
+The security-patched local full Composer pipeline passed, including fresh
+16-migration execution, 311 tests / 10,109 assertions, artifact/security/public
+checks and a clean audit. CI installer fixture preparation then exposed an
+offline-cache assumption: the updated image lacks the historical 1.0.5 lockfile's
+7.4.17 archives. A network-disabled reproduction confirmed curl DNS failures
+(exit 100), not migration or security-test suppression. CI now prepares only the
+historical source subtree's locked dependencies with scripts disabled before
+offline artifact construction; no signer or private installation state is
+mounted into that connected preparation container. Application and recovery
+rehearsals remain on internal networks, and target audits remain mandatory.
+Release-facing status wording is conditional on published exact-package evidence
+so it remains accurate before and after actual acceptance/publication.
+
+The same missing historical archives also affected the unchanged full
+egress-disabled regression suite's accepted predecessor builders (10 Phase 8
+failures, exit 100), after the ordinary quality pipeline passed. Its preparation
+now fetches exact accepted lockfile archives with download-only, scripts/plugins
+disabled and no application/signing/private material mounted. Only the package
+download cache is passed to the internal-network test container. No test, source
+archive identity, security audit or egress assertion is skipped or relaxed.

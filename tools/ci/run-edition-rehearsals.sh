@@ -48,10 +48,16 @@ docker run --rm --user root --network none -v "$project_root:/tools:ro" -v "$sta
 # the retained, originally signed and independently verified published archive.
 mkdir -p "$state_root/source105" "$state_root/native105-package"
 git archive 3927f17d73190b9e99861a8e3b34b572226665a1 | tar -x -C "$state_root/source105"
+# Fetch the historical lockfile's dependencies before offline fixture building.
+# Only this source subtree is mounted: no signing keys, runtime/private state or
+# application execution is exposed to the connected preparation container.
+docker run --rm --user root --network bridge -v "$state_root/source105:/source105" "$app_image" bash -euc '
+    cp -a /opt/emailer-vendor /source105/vendor
+    cp -a /app/assets/vendor /source105/assets/vendor
+    composer --working-dir=/source105 install --prefer-dist --no-scripts --no-interaction --no-progress
+'
 docker run --rm --user root --network none -v "$project_root:/tools:ro" -v "$state_root:/rehearsals" "$app_image" bash -euc '
-    cp -a /opt/emailer-vendor /rehearsals/source105/vendor
-    cp -a /app/assets/vendor /rehearsals/source105/assets/vendor
-    bash /rehearsals/source105/tools/artifact/build.sh > /rehearsals/native105-build.log 2>&1
+    bash /rehearsals/source105/tools/artifact/build.sh > /rehearsals/native105-build.log 2>&1 || { tail -n 100 /rehearsals/native105-build.log; exit 1; }
     php /tools/tools/release/build-package.php --artifact=/rehearsals/source105/build/artifact --output=/rehearsals/native105-package --version=1.0.5 --source=3927f17d73190b9e99861a8e3b34b572226665a1 --minimum-source=1.0.5 --supported-sources=1.0.5 --minimum-schema=20261013000000 --schema=20261013000000 --rollback-schema-compatible=false --signing-key=/rehearsals/test-keys/signing.key --source-date-epoch="$1" > /dev/null
 ' bash "$source_epoch"
 export EMAILER_REHEARSAL_NETWORK="$network"
