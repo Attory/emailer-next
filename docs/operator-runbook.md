@@ -442,3 +442,13 @@ creates a public recipient endpoint.
    workflow on a disposable server profile. Do not use production SMTP or DNS.
 5. Stop after acceptance evidence. Publication, tag, deployment, client change,
    and production provider testing require separate authorization.
+
+## Ripe 1.0.6 edition compatibility
+
+The bounded Light 1.0.0 transition and native Ripe 1.0.5 update are documented
+in [CLIENT-LIGHT-UPGRADE-1.0.6.md](CLIENT-LIGHT-UPGRADE-1.0.6.md) and
+[RELEASE-1.0.6-IMPLEMENTATION.md](RELEASE-1.0.6-IMPLEMENTATION.md). The existing
+`emailer:setup:install` CLI supports read-only inspection, execution, unfinished
+recovery, acceptance and isolated old-Light-backup export. No HTTP update or
+restore route is introduced. Contacts/lists remain independent of campaign-owned
+Light recipients. Delivery remains held until explicit accepted readiness/resume.

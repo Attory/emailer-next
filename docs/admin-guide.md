@@ -200,3 +200,13 @@ the same form. Cancel clears only confirmation credentials and leaves unsaved
 SMTP fields on the page. Without JavaScript, confirmation fields appear in the
 form. The dialog is always present, and its expiry hint is checked on Store
 click so an expired grant can be renewed without leaving the form. SMTP passwords remain write-only and storage does not contact a provider.
+
+## Ripe 1.0.6 edition compatibility
+
+The bounded Light 1.0.0 transition and native Ripe 1.0.5 update are documented
+in [CLIENT-LIGHT-UPGRADE-1.0.6.md](CLIENT-LIGHT-UPGRADE-1.0.6.md) and
+[RELEASE-1.0.6-IMPLEMENTATION.md](RELEASE-1.0.6-IMPLEMENTATION.md). The existing
+`emailer:setup:install` CLI supports read-only inspection, execution, unfinished
+recovery, acceptance and isolated old-Light-backup export. No HTTP update or
+restore route is introduced. Contacts/lists remain independent of campaign-owned
+Light recipients. Delivery remains held until explicit accepted readiness/resume.

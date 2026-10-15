@@ -165,3 +165,41 @@ state roots, supplied through `EMAILER_BACKUP_DESTINATION_DIR`; no path is
 stored in the database or projected in UI/logs. At least the newest verified
 backup is retained by automatic pruning. Operators still set RPO/RTO and legal
 policy outside Git and must perform supervised isolated restore drills.
+
+## Ripe 1.0.6 edition compatibility
+
+The bounded Light 1.0.0 transition and native Ripe 1.0.5 update are documented
+in [CLIENT-LIGHT-UPGRADE-1.0.6.md](CLIENT-LIGHT-UPGRADE-1.0.6.md) and
+[RELEASE-1.0.6-IMPLEMENTATION.md](RELEASE-1.0.6-IMPLEMENTATION.md). The existing
+`emailer:setup:install` CLI supports read-only inspection, execution, unfinished
+recovery, acceptance and isolated old-Light-backup export. No HTTP update or
+restore route is introduced. Contacts/lists remain independent of campaign-owned
+Light recipients. Delivery remains held until explicit accepted readiness/resume.
+# Ripe 1.0.6 edition provenance
+
+Native Ripe backups created after a Light conversion include campaign-owned
+audiences, nullable contact provenance, explicit secret/token editions, the
+transition receipt and mapped product identity. Their authenticated restoration
+drill verifies every restored row and asset. Delivery remains quiesced after
+restoration. The conversion-created Ripe backup has been rehearsed with the
+packaged Ripe command and original Light URLs were verified again afterwards.
+
+Native and Light-derived 1.0.6 installations have separately verified physical
+schema baselines. Restore a backup into its matching baseline; table-inventory
+checks reject an incompatible baseline before mutation. Retain the complete
+edition recovery set to reconstruct the Light-derived baseline in disaster
+recovery. Do not infer schema portability from the shared version number.
+Retained pre-upgrade Light backups require the unchanged Light runtime, matching
+original installation lock and original key in an isolated Light schema; see
+[the exact recovery procedure](CLIENT-LIGHT-UPGRADE-1.0.6.md).
+
+### Authoritative release-operation history
+
+A business-backup restore merges archived release-operation IDs with live
+completion/recovery evidence, preferring the live row on an existing ID. A
+snapshot taken during an update cannot resurrect that update as `started` after
+it has failed or completed. Every restored business row/asset still participates
+in drill verification; the explicitly overlaid control history is checked against
+its preserved live rows and recorded by `backup.release_history_preserved`.
+Complete unfinished-update recovery sets remain a separate, exact source restore
+and are followed by checked operation closure.

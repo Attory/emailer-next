@@ -8,7 +8,7 @@ final class DeliveryTransportFailure extends \RuntimeException
 {
     public readonly bool $affectsCircuit;
 
-    public function __construct(public readonly string $classification, string $safeMessage = 'Delivery transport failed.', ?\Throwable $previous = null, ?bool $affectsCircuit = null)
+    public function __construct(public readonly string $classification, string $safeMessage = 'Delivery transport failed.', ?\Throwable $previous = null, ?bool $affectsCircuit = null, public readonly bool $knownUnsent = false)
     {
         if (!\in_array($classification, ['transient', 'permanent', 'ambiguous'], true)) {
             throw new \InvalidArgumentException('Delivery failure classification is invalid.');

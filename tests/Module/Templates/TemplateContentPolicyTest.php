@@ -45,6 +45,16 @@ final class TemplateContentPolicyTest extends TestCase
         self::assertSame('<p>&lt;img src=x onerror=alert(1)&gt;</p>', $rendered);
     }
 
+    public function testPublishedLightRecipientFieldsRemainValidAndEscapedWithoutContentRewriting(): void
+    {
+        $policy = new TemplateContentPolicy();
+        $html = '<p>{{ recipient.first_name }} / {{ recipient.display_name }}</p>';
+        $prepared = $policy->prepare('Hello {{ recipient.first_name }}', '', $html, 'Text');
+        self::assertSame($html, $prepared['html']);
+        self::assertEqualsCanonicalizing(['recipient.first_name', 'recipient.display_name'], $prepared['fields']);
+        self::assertSame('<p>Synthetic / &lt;unsafe&gt;</p>', $policy->renderHtml($html, ['recipient.first_name' => 'Synthetic', 'recipient.display_name' => '<unsafe>']));
+    }
+
     #[DataProvider('unsafeTemplates')]
     public function testUnsafeTemplateConstructsAreRejected(string $subject, string $html): void
     {

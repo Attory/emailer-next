@@ -242,3 +242,19 @@ and contains no personal records. Existing user create/update/delete POST routes
 retain Administrator/Owner authorization and CSRF; expired user-management
 confirmation now invokes inline current-password/MFA verification, with a
 422 form on failure and no secret retention.
+
+## Ripe 1.0.6 edition compatibility
+
+The bounded Light 1.0.0 transition and native Ripe 1.0.5 update are documented
+in [CLIENT-LIGHT-UPGRADE-1.0.6.md](CLIENT-LIGHT-UPGRADE-1.0.6.md) and
+[RELEASE-1.0.6-IMPLEMENTATION.md](RELEASE-1.0.6-IMPLEMENTATION.md). The existing
+`emailer:setup:install` CLI supports read-only inspection, execution, unfinished
+recovery, acceptance and isolated old-Light-backup export. No HTTP update or
+restore route is introduced. Contacts/lists remain independent of campaign-owned
+Light recipients. Delivery remains held until explicit accepted readiness/resume.
+
+The existing `emailer:release:update` command also accepts
+`--recover-native-operation=<UUID>` with the same exact target/source packages.
+It recovers only a bound unfinished native 1.0.5 operation, verifies the source
+before closing its control record, retains delivery hold and refuses completed
+update downgrades. See CLIENT-UPDATE-1.0.6.md for the full command/prerequisites.

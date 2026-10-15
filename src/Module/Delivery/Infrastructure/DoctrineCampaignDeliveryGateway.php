@@ -37,14 +37,14 @@ final readonly class DoctrineCampaignDeliveryGateway implements CampaignDelivery
             if (false === $state || 'queueing' !== $state['state'] || $operationVersion !== $this->intValue($state['operation_version'])) {
                 return;
             }
-            $audience = $this->connection->fetchAllAssociative('SELECT contact_id FROM campaign_audience_recipient WHERE campaign_id = ? ORDER BY contact_id', [$campaignId]);
+            $audience = $this->connection->fetchAllAssociative('SELECT recipient_id, contact_id FROM campaign_audience_recipient WHERE campaign_id = ? ORDER BY recipient_id', [$campaignId]);
             foreach ($audience as $recipient) {
-                if (!\is_string($recipient['contact_id'])) {
+                if (!\is_string($recipient['recipient_id'])) {
                     throw new \UnexpectedValueException('Campaign audience identity is invalid.');
                 }
                 $id = Identity::uuidV7();
-                $messageId = hash_hmac('sha256', $campaignId."\0".$recipient['contact_id'], $configuration['installation_id']).'@emailer-next.invalid';
-                $this->connection->executeStatement('INSERT IGNORE INTO campaign_recipient (id, campaign_id, contact_id, state, attempt_count, next_attempt_at, claimed_at, accepted_at, terminal_at, message_id, operation_version, last_failure_class, updated_at) VALUES (?, ?, ?, ?, 0, ?, NULL, NULL, NULL, ?, ?, NULL, ?)', [$id, $campaignId, $recipient['contact_id'], 'pending', Identity::now(), $messageId, $operationVersion, Identity::now()]);
+                $messageId = hash_hmac('sha256', $campaignId."\0".$recipient['recipient_id'], $configuration['installation_id']).'@emailer-next.invalid';
+                $this->connection->executeStatement('INSERT IGNORE INTO campaign_recipient (id, campaign_id, recipient_id, contact_id, state, attempt_count, next_attempt_at, claimed_at, accepted_at, terminal_at, message_id, operation_version, last_failure_class, updated_at) VALUES (?, ?, ?, ?, ?, 0, ?, NULL, NULL, NULL, ?, ?, NULL, ?)', [$id, $campaignId, $recipient['recipient_id'], $recipient['contact_id'], 'pending', Identity::now(), $messageId, $operationVersion, Identity::now()]);
             }
             $this->connection->update('campaign', ['state' => 'sending', 'updated_at' => Identity::now()], ['id' => $campaignId]);
         });

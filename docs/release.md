@@ -1,16 +1,15 @@
 # Release
 
-The bounded `1.0.5` update adds installation-wide High and Normal security
-levels. Its signed package contract accepts exactly `1.0.4` at source schema
-`20261008000000` and migrates to `20261013000000`. The one additive migration
-defaults to High and the target declares no code-pointer rollback after that
-migration. Local candidate checks use a disposable test signing key. See
-`RELEASE-1.0.5-IMPLEMENTATION.md` and `CLIENT-UPDATE-1.0.5.md`.
+The Ripe `1.0.6` release supports the exact Light `1.0.0` edition transition
+through its installer and the native Ripe `1.0.5` update. Target schema is
+`20261015000000`. Release availability requires green exact-candidate checks,
+independent review, trusted signing from the merged commit and successful
+rehearsals of that exact final package. Publication remains private and is
+separate from any production deployment. Operator commands and recovery custody
+are in [CLIENT-LIGHT-UPGRADE-1.0.6.md](CLIENT-LIGHT-UPGRADE-1.0.6.md) and
+[CLIENT-UPDATE-1.0.6.md](CLIENT-UPDATE-1.0.6.md).
 
-**Status:** Phase 13 `1.0.0` candidate tooling under acceptance. The accepted
-operator-signed `0.4.0` candidate remains unpublished and undeployed. No
-operator-signed `1.0.0` candidate exists until an exact reviewed head receives
-separate signing authorization.
+## Historical build records
 
 The explicitly requested `0.9.x` packages are non-public human-acceptance
 builds of the complete Phase 13 application. `0.9.1` supersedes the first
@@ -151,3 +150,13 @@ publication. The Phase 9 builder remains available to reproduce `0.1.0`.
 `tools/release/build-0.3.0-candidate.sh` applies the same deterministic signed
 workflow for schema `20260827000000`, declares minimum source `0.2.0`, and
 includes `CLIENT-UPDATE-0.3.0.md` beside the downloadable candidate files.
+
+## Ripe 1.0.6 edition compatibility
+
+The bounded Light 1.0.0 transition and native Ripe 1.0.5 update are documented
+in [CLIENT-LIGHT-UPGRADE-1.0.6.md](CLIENT-LIGHT-UPGRADE-1.0.6.md) and
+[RELEASE-1.0.6-IMPLEMENTATION.md](RELEASE-1.0.6-IMPLEMENTATION.md). The existing
+`emailer:setup:install` CLI supports read-only inspection, execution, unfinished
+recovery, acceptance and isolated old-Light-backup export. No HTTP update or
+restore route is introduced. Contacts/lists remain independent of campaign-owned
+Light recipients. Delivery remains held until explicit accepted readiness/resume.

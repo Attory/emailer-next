@@ -13,8 +13,9 @@ final readonly class SecretContext
         public string $recordType,
         public string $recordId,
         public int $schemaVersion = self::SCHEMA_VERSION,
+        public string $edition = 'emailer-next',
     ) {
-        if ('' === $installationId || '' === $recordType || '' === $recordId || 1 > $schemaVersion) {
+        if (!\in_array($edition, ['emailer-next', 'emailer-light'], true) || '' === $installationId || '' === $recordType || '' === $recordId || 1 > $schemaVersion) {
             throw new \InvalidArgumentException('Secret context is invalid.');
         }
     }

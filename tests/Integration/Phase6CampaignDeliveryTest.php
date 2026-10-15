@@ -73,6 +73,37 @@ final class Phase6CampaignDeliveryTest extends KernelTestCase
         }
     }
 
+    public function testCampaignOwnedDraftApprovesAndMaterializesWithoutCreatingAddressBookData(): void
+    {
+        self::bootKernel();
+        $connection = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($connection);
+        $actor = $this->createPhase4User($connection, 'owned-draft@example.test', 'synthetic-owned-password-'.bin2hex(random_bytes(8)));
+        [$manager, $nativeCampaign] = $this->campaign($connection, $actor);
+        $campaign = $connection->fetchAssociative('SELECT * FROM campaign WHERE id = ?', [$nativeCampaign]);
+        self::assertIsArray($campaign);
+        $ownedCampaign = Identity::uuidV7();
+        $campaign['id'] = $ownedCampaign;
+        $campaign['audience_model'] = 'campaign_owned';
+        $connection->insert('campaign', $campaign);
+        $recipient = Identity::uuidV7();
+        $connection->insert('campaign_audience_recipient', ['campaign_id' => $ownedCampaign, 'recipient_id' => $recipient, 'contact_id' => null, 'email_canonical' => 'owned-recipient@example.test', 'profile_json' => '{"first_name":"Legacy","display_name":"Synthetic owned recipient"}']);
+        $contactsBefore = $connection->fetchOne('SELECT COUNT(*) FROM contact');
+        $listsBefore = $connection->fetchOne('SELECT COUNT(*) FROM contact_list');
+        $manager->submitForReview($actor, $ownedCampaign);
+        $manager->approve($actor, $ownedCampaign, $this->phase4Int($manager->detail($actor, $ownedCampaign)['operation_version']), true);
+        self::assertSame(1, $this->phase4Int($connection->fetchOne('SELECT recipient_count FROM campaign_audience_snapshot WHERE campaign_id = ?', [$ownedCampaign])));
+        $this->transport()->reset();
+        $manager->queue($actor, $ownedCampaign);
+        $delivery = $connection->fetchAssociative('SELECT recipient_id,contact_id FROM campaign_recipient WHERE campaign_id = ?', [$ownedCampaign]);
+        self::assertIsArray($delivery);
+        self::assertSame($recipient, $delivery['recipient_id']);
+        self::assertNull($delivery['contact_id']);
+        self::assertSame($contactsBefore, $connection->fetchOne('SELECT COUNT(*) FROM contact'));
+        self::assertSame($listsBefore, $connection->fetchOne('SELECT COUNT(*) FROM contact_list'));
+        self::assertSame(0, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM campaign_list_selection WHERE campaign_id = ?', [$ownedCampaign])));
+    }
+
     public function testQueuedTestAndRecipientMessagesContainIdentifiersOnlyAndMailpitAccepts(): void
     {
         self::bootKernel();
@@ -163,6 +194,60 @@ final class Phase6CampaignDeliveryTest extends KernelTestCase
         self::assertSame('accepted', $connection->fetchOne('SELECT state FROM campaign_recipient WHERE id = ?', [$queued->recipientId]));
         self::assertSame('closed', $connection->fetchOne("SELECT circuit_state FROM delivery_runtime WHERE singleton_key = '1'"));
         self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT circuit_failures FROM delivery_runtime WHERE singleton_key = '1'")));
+    }
+
+    public function testKnownUnsentHoldAtRetryLimitPreservesAttemptWithoutAmbiguousOutcome(): void
+    {
+        self::bootKernel();
+        $connection = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($connection);
+        $actor = $this->createPhase4User($connection, 'held-at-limit@example.test', 'synthetic-held-password-'.bin2hex(random_bytes(8)));
+        [$campaigns, $campaignId] = $this->campaign($connection, $actor);
+        $campaigns->submitForReview($actor, $campaignId);
+        $campaigns->approve($actor, $campaignId, $this->phase4Int($campaigns->detail($actor, $campaignId)['operation_version']), true);
+        $this->transport()->reset();
+        $campaigns->queue($actor, $campaignId);
+        $queued = $this->transport()->getSent()[0]->getMessage();
+        self::assertInstanceOf(DeliverCampaignRecipient::class, $queued);
+        $messageId = $connection->fetchOne('SELECT message_id FROM campaign_recipient WHERE id=?', [$queued->recipientId]);
+        $connection->executeStatement("UPDATE delivery_policy SET retry_limit=1 WHERE singleton_key='1'");
+        ($this->faultHandler($connection, 'transient', true))($queued);
+        self::assertSame('retry', $connection->fetchOne('SELECT state FROM campaign_recipient WHERE id=?', [$queued->recipientId]));
+        self::assertSame(1, $this->phase4Int($connection->fetchOne('SELECT attempt_count FROM campaign_recipient WHERE id=?', [$queued->recipientId])));
+        self::assertSame(1, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM delivery_attempt WHERE campaign_recipient_id=?', [$queued->recipientId])));
+        self::assertSame('transient', $connection->fetchOne('SELECT state FROM delivery_attempt WHERE campaign_recipient_id=?', [$queued->recipientId]));
+        self::assertNotNull($connection->fetchOne('SELECT finished_at FROM delivery_attempt WHERE campaign_recipient_id=?', [$queued->recipientId]));
+        self::assertSame($messageId, $connection->fetchOne('SELECT message_id FROM campaign_recipient WHERE id=?', [$queued->recipientId]));
+        self::assertSame('sending', $connection->fetchOne('SELECT state FROM campaign WHERE id=?', [$campaignId]));
+        self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT active_claims FROM delivery_runtime WHERE singleton_key='1'")));
+        self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT circuit_failures FROM delivery_runtime WHERE singleton_key='1'")));
+    }
+
+    public function testKnownUnsentAttemptDoesNotConsumeTheSubsequentSmtpRetryBudget(): void
+    {
+        self::bootKernel();
+        $connection = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($connection);
+        $actor = $this->createPhase4User($connection, 'held-budget@example.test', 'synthetic-held-budget-'.bin2hex(random_bytes(8)));
+        [$campaigns, $campaignId] = $this->campaign($connection, $actor);
+        $campaigns->submitForReview($actor, $campaignId);
+        $campaigns->approve($actor, $campaignId, $this->phase4Int($campaigns->detail($actor, $campaignId)['operation_version']), true);
+        $this->transport()->reset();
+        $campaigns->queue($actor, $campaignId);
+        $queued = $this->transport()->getSent()[0]->getMessage();
+        self::assertInstanceOf(DeliverCampaignRecipient::class, $queued);
+        $connection->executeStatement("UPDATE delivery_policy SET retry_limit=2 WHERE singleton_key='1'");
+        ($this->faultHandler($connection, 'transient', true))($queued);
+        ($this->faultHandler($connection, 'transient'))($queued);
+        self::assertSame('retry', $connection->fetchOne('SELECT state FROM campaign_recipient WHERE id=?', [$queued->recipientId]));
+        try {
+            ($this->faultHandler($connection, 'transient'))($queued);
+            self::fail('Two genuine SMTP failures did not exhaust the configured budget.');
+        } catch (UnrecoverableMessageHandlingException) {
+            self::assertSame('ambiguous', $connection->fetchOne('SELECT state FROM campaign_recipient WHERE id=?', [$queued->recipientId]));
+        }
+        self::assertSame(3, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM delivery_attempt WHERE campaign_recipient_id=?', [$queued->recipientId])));
+        self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action='delivery.edition_hold_no_smtp' AND target_id=?", [$queued->recipientId])));
     }
 
     public function testInterruptedHalfOpenProbeReopensCircuitForBoundedRecovery(): void
@@ -683,13 +768,13 @@ final class Phase6CampaignDeliveryTest extends KernelTestCase
         return $transport;
     }
 
-    private function faultHandler(Connection $connection, string $outcome): DeliverCampaignRecipientHandler
+    private function faultHandler(Connection $connection, string $outcome, bool $knownUnsent = false): DeliverCampaignRecipientHandler
     {
         return new DeliverCampaignRecipientHandler(
             $connection,
             $this->phase4Service(DeliveryConfiguration::class),
             $this->phase4Service(SuppressionLookup::class),
-            new Phase6FaultTransport($outcome),
+            new Phase6FaultTransport($outcome, $knownUnsent),
             $this->phase4Service(CampaignDeliveryGateway::class),
             $this->phase4Service(RecipientUnsubscribeLinks::class),
             $this->phase4Service(AuditSink::class),
@@ -700,7 +785,7 @@ final class Phase6CampaignDeliveryTest extends KernelTestCase
 
 final readonly class Phase6FaultTransport implements DeliveryTransport
 {
-    public function __construct(private string $outcome)
+    public function __construct(private string $outcome, private bool $knownUnsent = false)
     {
     }
 
@@ -709,7 +794,7 @@ final readonly class Phase6FaultTransport implements DeliveryTransport
         if ('accepted' === $this->outcome) {
             return $message->messageId;
         }
-        throw new DeliveryTransportFailure($this->outcome);
+        throw new DeliveryTransportFailure($this->outcome, affectsCircuit: $this->knownUnsent ? false : null, knownUnsent: $this->knownUnsent);
     }
 }
 

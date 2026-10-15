@@ -27,13 +27,13 @@ final readonly class SuppressionManager implements SuppressionLookup, RecipientS
 
     public function isSuppressed(string $canonicalEmail): bool
     {
-        return false !== $this->connection->fetchOne('SELECT 1 FROM suppression WHERE email_canonical = ?', [$canonicalEmail]);
+        return false !== $this->connection->fetchOne('SELECT 1 FROM suppression_match WHERE email_match_key = LOWER(?)', [$canonicalEmail]);
     }
 
     public function preserve(AdministrativeActor $actor, string $previousAddress, string $newAddress): void
     {
         $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'suppression.preserve');
-        $reason = $this->connection->fetchOne('SELECT reason FROM suppression WHERE email_canonical = ? FOR UPDATE', [$previousAddress]);
+        $reason = $this->connection->fetchOne('SELECT s.reason FROM suppression_match m JOIN suppression s ON s.id = m.suppression_id WHERE m.email_match_key = LOWER(?) FOR UPDATE', [$previousAddress]);
         if (\is_string($reason)) {
             $this->add($actor, $newAddress, $reason, 'contact_address_correction');
         }
@@ -52,8 +52,11 @@ final readonly class SuppressionManager implements SuppressionLookup, RecipientS
         }
         $id = Identity::uuidV7();
         $this->connection->transactional(function () use ($actor, $address, $reason, $source, &$id): void {
-            $this->connection->executeStatement('INSERT IGNORE INTO suppression (id, email_canonical, reason, source, created_at) VALUES (?, ?, ?, ?, ?)', [$id, $address->canonical, $reason, $source, Identity::now()]);
-            $storedId = $this->connection->fetchOne('SELECT id FROM suppression WHERE email_canonical = ? FOR UPDATE', [$address->canonical]);
+            $inserted = $this->connection->executeStatement('INSERT IGNORE INTO suppression (id, email_canonical, reason, source, created_at) VALUES (?, ?, ?, ?, ?)', [$id, $address->canonical, $reason, $source, Identity::now()]);
+            $storedId = $this->connection->fetchOne('SELECT suppression_id FROM suppression_match WHERE email_match_key = LOWER(?) FOR UPDATE', [$address->canonical]);
+            if (1 === $inserted && $id !== $storedId) {
+                $this->connection->delete('suppression', ['id' => $id]);
+            }
             if (!\is_string($storedId)) {
                 throw new \UnexpectedValueException('Suppression identity is invalid.');
             }
@@ -69,8 +72,11 @@ final readonly class SuppressionManager implements SuppressionLookup, RecipientS
         $address = new EmailAddress($email);
         $id = Identity::uuidV7();
         $this->connection->transactional(function () use ($address, &$id): void {
-            $this->connection->executeStatement('INSERT IGNORE INTO suppression (id, email_canonical, reason, source, created_at) VALUES (?, ?, ?, ?, ?)', [$id, $address->canonical, 'unsubscribe', 'recipient_action', Identity::now()]);
-            $storedId = $this->connection->fetchOne('SELECT id FROM suppression WHERE email_canonical = ? FOR UPDATE', [$address->canonical]);
+            $inserted = $this->connection->executeStatement('INSERT IGNORE INTO suppression (id, email_canonical, reason, source, created_at) VALUES (?, ?, ?, ?, ?)', [$id, $address->canonical, 'unsubscribe', 'recipient_action', Identity::now()]);
+            $storedId = $this->connection->fetchOne('SELECT suppression_id FROM suppression_match WHERE email_match_key = LOWER(?) FOR UPDATE', [$address->canonical]);
+            if (1 === $inserted && $id !== $storedId) {
+                $this->connection->delete('suppression', ['id' => $id]);
+            }
             if (!\is_string($storedId)) {
                 throw new \UnexpectedValueException('Suppression identity is invalid.');
             }

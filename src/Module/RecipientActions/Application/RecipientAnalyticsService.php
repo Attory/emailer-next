@@ -56,7 +56,7 @@ final readonly class RecipientAnalyticsService implements RecipientAnalyticsLink
         $runtime = $this->configuration->current();
         try {
             $secret = $this->secret($this->vault->reveal($row['secret_id'], self::SECRET_TYPE, $runtime['installation_id']));
-            $valid = $this->codec->verify($token, $this->integer($row['key_version']), $this->string($row['handle']), $purpose, $this->string($row['campaign_id']), $this->string($row['campaign_recipient_id']), $this->string($row['contact_id']), $row['expires_at'], $secret);
+            $valid = $this->codec->verify($token, $this->integer($row['key_version']), $this->string($row['handle']), $purpose, $this->string($row['campaign_id']), $this->string($row['campaign_recipient_id']), $this->string($row['recipient_id']), $row['expires_at'], $secret, $this->string($row['codec_edition']));
         } catch (\Throwable) {
             throw new RecipientTokenInvalid();
         } finally {
@@ -153,7 +153,7 @@ final readonly class RecipientAnalyticsService implements RecipientAnalyticsLink
     public function browserContent(string $token): string
     {
         $tokenRow = $this->verify($token, 'view');
-        $row = $this->connection->fetchAssociative('SELECT c.id campaign_id, c.name, s.html_body, s.unsubscribe_footer, s.rsvp_enabled, r.id recipient_id, r.contact_id, a.email_canonical, a.profile_json FROM campaign_recipient r INNER JOIN campaign c ON c.id = r.campaign_id INNER JOIN campaign_content_snapshot s ON s.campaign_id = c.id INNER JOIN campaign_audience_recipient a ON a.campaign_id = r.campaign_id AND a.contact_id = r.contact_id WHERE r.id = ?', [$this->string($tokenRow['campaign_recipient_id'])]);
+        $row = $this->connection->fetchAssociative('SELECT c.id campaign_id, c.name, s.html_body, s.unsubscribe_footer, s.rsvp_enabled, r.id recipient_id, r.recipient_id scope_id, a.email_canonical, a.profile_json FROM campaign_recipient r INNER JOIN campaign c ON c.id = r.campaign_id INNER JOIN campaign_content_snapshot s ON s.campaign_id = c.id INNER JOIN campaign_audience_recipient a ON a.campaign_id = r.campaign_id AND a.recipient_id = r.recipient_id WHERE r.id = ?', [$this->string($tokenRow['campaign_recipient_id'])]);
         if (false === $row) {
             throw new RecipientTokenInvalid();
         }
@@ -161,10 +161,12 @@ final readonly class RecipientAnalyticsService implements RecipientAnalyticsLink
         if (!\is_array($profile)) {
             throw new RecipientTokenInvalid();
         }
-        $unsubscribe = $this->unsubscribe->issue($this->string($row['campaign_id']), $this->string($row['recipient_id']), $this->string($row['contact_id']), $this->string($row['email_canonical']));
+        $unsubscribe = $this->unsubscribe->issue($this->string($row['campaign_id']), $this->string($row['recipient_id']), $this->string($row['scope_id']), $this->string($row['email_canonical']));
         $runtime = $this->configuration->current();
-        $rsvp = 1 === $this->integer($row['rsvp_enabled']) ? $this->issueRsvp($this->string($row['campaign_id']), $this->string($row['recipient_id']), $this->string($row['contact_id']), $this->string($row['email_canonical'])) : '';
+        $rsvp = 1 === $this->integer($row['rsvp_enabled']) ? $this->issueRsvp($this->string($row['campaign_id']), $this->string($row['recipient_id']), $this->string($row['scope_id']), $this->string($row['email_canonical'])) : '';
         $values = ['contact.first_name' => \is_string($profile['first_name'] ?? null) ? $profile['first_name'] : '', 'contact.display_name' => \is_string($profile['display_name'] ?? null) ? $profile['display_name'] : '', 'campaign.name' => $this->string($row['name']), 'unsubscribe_url' => $unsubscribe, 'view_in_browser_url' => $runtime['canonical_origin'].'/r/'.rawurlencode($token).'/view', 'rsvp_url' => $rsvp];
+        $values['recipient.first_name'] = $values['contact.first_name'];
+        $values['recipient.display_name'] = $values['contact.display_name'];
         $html = $this->string($row['html_body']);
         foreach ($values as $field => $value) {
             $html = preg_replace('/\{\{\s*'.preg_quote($field, '/').'\s*\}\}/', htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8'), $html) ?? $html;
@@ -212,10 +214,10 @@ final readonly class RecipientAnalyticsService implements RecipientAnalyticsLink
             if (false === $row) {
                 $expires = (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->modify('+'.self::LIFETIME)->format('Y-m-d H:i:s.u');
                 $handle = sodium_bin2base64(random_bytes(32), SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING);
-                $this->connection->insert('recipient_token', ['id' => Identity::uuidV7(), 'handle' => $handle, 'campaign_id' => $campaignId, 'campaign_recipient_id' => $recipientId, 'contact_id' => $contactId, 'email_canonical' => null, 'purpose' => $purpose, 'key_version' => $version, 'issued_at' => Identity::now(), 'expires_at' => $expires, 'revoked_at' => null, 'last_used_at' => null, 'use_count' => 0]);
+                $this->connection->insert('recipient_token', ['id' => Identity::uuidV7(), 'handle' => $handle, 'campaign_id' => $campaignId, 'campaign_recipient_id' => $recipientId, 'contact_id' => $this->connection->fetchOne('SELECT contact_id FROM campaign_recipient WHERE id = ? AND campaign_id = ? AND recipient_id = ?', [$recipientId, $campaignId, $contactId]), 'recipient_id' => $contactId, 'email_canonical' => null, 'purpose' => $purpose, 'key_version' => $version, 'issued_at' => Identity::now(), 'expires_at' => $expires, 'revoked_at' => null, 'last_used_at' => null, 'use_count' => 0]);
                 $row = $this->connection->fetchAssociative('SELECT * FROM recipient_token WHERE campaign_recipient_id = ? AND purpose = ? FOR UPDATE', [$recipientId, $purpose]);
             }
-            if (false === $row || $row['campaign_id'] !== $campaignId || $row['contact_id'] !== $contactId || null !== $row['email_canonical']) {
+            if (false === $row || $row['campaign_id'] !== $campaignId || $row['recipient_id'] !== $contactId || null !== $row['email_canonical']) {
                 throw new \RuntimeException('Recipient analytics token scope does not match.');
             }
             $storedVersion = $this->integer($row['key_version']);
@@ -225,7 +227,7 @@ final readonly class RecipientAnalyticsService implements RecipientAnalyticsLink
             }
             $secret = $this->secret($this->vault->reveal($key, self::SECRET_TYPE, $installationId));
             try {
-                return $this->codec->encode($storedVersion, $this->string($row['handle']), $purpose, $campaignId, $recipientId, $contactId, $this->string($row['expires_at']), $secret);
+                return $this->codec->encode($storedVersion, $this->string($row['handle']), $purpose, $campaignId, $recipientId, $contactId, $this->string($row['expires_at']), $secret, $this->string($row['codec_edition']));
             } finally {
                 sodium_memzero($secret);
             }

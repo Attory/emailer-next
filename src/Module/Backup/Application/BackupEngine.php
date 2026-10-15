@@ -279,13 +279,23 @@ final readonly class BackupEngine implements BackupOperations
                 if ($drill) {
                     $this->evidence();
                 }
+                // Release completion/recovery evidence is authoritative. An old
+                // snapshot must not resurrect a live operation as "started".
+                $releaseHistory = $this->connection->fetchAllAssociative('SELECT * FROM release_operation');
                 $safety = $this->create();
                 try {
-                    $this->apply($path);
+                    $this->apply($path, $releaseHistory);
                     if ($drill) {
-                        $checked = $this->validateRestoredSnapshot($path);
+                        $checked = $this->validateRestoredSnapshot($path, $releaseHistory);
                     }
                     $this->recordVerified($path, $manifest);
+                    if ([] !== $releaseHistory) {
+                        $backupId = $manifest['backup_id'] ?? null;
+                        if (!\is_string($backupId)) {
+                            throw new \RuntimeException('Verified backup has no stable identity.');
+                        }
+                        $this->audit?->append(new AuditRecord(null, 'backup.release_history_preserved', $backupId, 'success', ['authoritative_operations' => \count($releaseHistory)]));
+                    }
                     if ($drill) {
                         $receipt = $this->evidence()->issue([
                             'format' => 'emailer-next-restore-drill-v1',
@@ -302,7 +312,7 @@ final readonly class BackupEngine implements BackupOperations
                 } catch (\Throwable $exception) {
                     try {
                         $safetyManifest = $this->verify($safety['path']);
-                        $this->apply($safety['path']);
+                        $this->apply($safety['path'], $releaseHistory);
                         $this->recordVerified($safety['path'], $safetyManifest, false);
                     } catch (\Throwable $rollback) {
                         throw new \RuntimeException('Restore failed and automatic rollback also failed; keep delivery quiesced.', previous: $rollback);
@@ -338,8 +348,12 @@ final readonly class BackupEngine implements BackupOperations
         }
     }
 
-    /** @return array{tables: int, assets: int} */
-    private function validateRestoredSnapshot(string $path): array
+    /**
+     * @param list<array<string, mixed>> $releaseHistory
+     *
+     * @return array{tables: int, assets: int}
+     */
+    private function validateRestoredSnapshot(string $path, array $releaseHistory = []): array
     {
         $plain = tempnam($this->backupDirectory, '.drill-verify-');
         if (false === $plain) {
@@ -362,7 +376,8 @@ final readonly class BackupEngine implements BackupOperations
                     $rows = 0;
                     $batch = [];
                     $batchBytes = 0;
-                    foreach ($this->rows($zip, $table) as $expected) {
+                    $expectedRows = 'release_operation' === $table ? $this->releaseHistoryRows($zip, $releaseHistory) : $this->rows($zip, $table);
+                    foreach ($expectedRows as $expected) {
                         $batch[] = $expected;
                         $batchBytes += \strlen(json_encode($expected, JSON_THROW_ON_ERROR));
                         if (200 <= \count($batch) || 8388608 <= $batchBytes) {
@@ -520,7 +535,10 @@ final readonly class BackupEngine implements BackupOperations
     /** @return list<array<string, mixed>> */
     public function recentRecords(): array
     {
-        return $this->connection->fetchAllAssociative('SELECT id, format_version, byte_size, schema_version, source_version, status, created_at, verified_at, restored_at, deleted_at FROM backup_record ORDER BY created_at DESC LIMIT 20');
+        $columns = $this->connection->createSchemaManager()->listTableColumns('backup_record');
+        $edition = isset($columns['source_edition']) ? 'source_edition' : "'emailer-ripe' AS source_edition";
+
+        return $this->connection->fetchAllAssociative('SELECT id, format_version, byte_size, schema_version, source_version, '.$edition.', status, created_at, verified_at, restored_at, deleted_at FROM backup_record ORDER BY created_at DESC LIMIT 20');
     }
 
     /** @return list<array<string, mixed>> */
@@ -652,6 +670,9 @@ final readonly class BackupEngine implements BackupOperations
         try {
             $prefix = fread($in, \strlen(self::FORMAT) + 1);
             $header = fread($in, SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_HEADERBYTES);
+            if (\is_string($prefix) && str_starts_with($prefix, 'emailer-light-backup-v1')) {
+                throw new \RuntimeException('Retained Emailer Light backups require the unchanged Light runtime and original key in an isolated Light schema; use the documented Light recovery path.');
+            }
             if (self::FORMAT."\0" !== $prefix || false === $header || SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_HEADERBYTES !== \strlen($header)) {
                 throw new \RuntimeException('Backup envelope is invalid.');
             }
@@ -706,7 +727,8 @@ final readonly class BackupEngine implements BackupOperations
         }
     }
 
-    private function apply(string $path): void
+    /** @param list<array<string, mixed>> $releaseHistory */
+    private function apply(string $path, array $releaseHistory = []): void
     {
         $plain = tempnam($this->backupDirectory, '.backup-restore-');
         if (false === $plain) {
@@ -730,8 +752,16 @@ final readonly class BackupEngine implements BackupOperations
                     $this->connection->executeStatement('TRUNCATE TABLE `'.$table.'`');
                 }
                 foreach ($tables as $table) {
-                    foreach ($this->rows($zip, $table) as $row) {
-                        $this->connection->insert($table, $row);
+                    $restoredRows = 'release_operation' === $table ? $this->releaseHistoryRows($zip, $releaseHistory) : $this->rows($zip, $table);
+                    foreach ($restoredRows as $row) {
+                        if ('suppression' === $table) {
+                            unset($row['email_match_key']);
+                        }
+                        if ('suppression_match' === $table) {
+                            $this->connection->executeStatement('INSERT INTO suppression_match (email_match_key,suppression_id) VALUES (?,?) ON DUPLICATE KEY UPDATE suppression_id = VALUES(suppression_id)', [$row['email_match_key'], $row['suppression_id']]);
+                        } else {
+                            $this->connection->insert($table, $row);
+                        }
                     }
                 }
                 $this->restoreAssets($zip);
@@ -742,6 +772,32 @@ final readonly class BackupEngine implements BackupOperations
         } finally {
             @unlink($plain);
         }
+    }
+
+    /**
+     * @param list<array<string, mixed>> $authoritative
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function releaseHistoryRows(\ZipArchive $zip, array $authoritative): array
+    {
+        $rows = [];
+        foreach ($authoritative as $row) {
+            $id = $row['id'] ?? null;
+            if (!\is_string($id)) {
+                throw new \RuntimeException('Authoritative release history has no stable identity.');
+            }
+            $rows[$id] = $row;
+        }
+        foreach ($this->rows($zip, 'release_operation') as $row) {
+            $id = $row['id'] ?? null;
+            if (!\is_string($id)) {
+                throw new \RuntimeException('Restored release history has no stable identity.');
+            }
+            $rows[$id] ??= $row;
+        }
+
+        return array_values($rows);
     }
 
     private function assertQuiesced(): void
@@ -915,7 +971,7 @@ final readonly class BackupEngine implements BackupOperations
 
     private function schemaVersion(): string
     {
-        $version = $this->connection->fetchOne('SELECT version FROM doctrine_migration_versions ORDER BY executed_at DESC, version DESC LIMIT 1');
+        $version = $this->connection->fetchOne('SELECT version FROM doctrine_migration_versions ORDER BY version DESC LIMIT 1');
 
         return \is_string($version) ? substr($version, -14) : 'unknown';
     }

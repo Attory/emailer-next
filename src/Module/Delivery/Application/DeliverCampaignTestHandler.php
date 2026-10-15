@@ -62,6 +62,8 @@ final readonly class DeliverCampaignTestHandler
                 throw new \UnexpectedValueException('Campaign RSVP state is invalid.');
             }
             $values = ['contact.first_name' => 'Test', 'contact.display_name' => 'Test Recipient', 'campaign.name' => $row['name'], 'unsubscribe_url' => 'https://example.test/r/test-only/unsubscribe', 'view_in_browser_url' => 'https://example.test/r/test-only/view', 'rsvp_url' => 1 === (int) $row['rsvp_enabled'] ? 'https://example.test/r/test-only/rsvp' : ''];
+            $values['recipient.first_name'] = $values['contact.first_name'];
+            $values['recipient.display_name'] = $values['contact.display_name'];
             $render = static function (string $content, bool $html) use ($values): string {
                 foreach ($values as $field => $value) {
                     $content = preg_replace('/\{\{\s*'.preg_quote($field, '/').'\s*\}\}/', $html ? htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML5, 'UTF-8') : $value, $content) ?? $content;

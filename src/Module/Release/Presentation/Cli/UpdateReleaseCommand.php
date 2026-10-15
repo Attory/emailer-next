@@ -27,6 +27,7 @@ final class UpdateReleaseCommand extends Command
         $this->addArgument('package', InputArgument::REQUIRED);
         $this->addOption('source-package', null, InputOption::VALUE_REQUIRED, 'Signed package for the exact installed predecessor release.');
         $this->addOption('approved-target', null, InputOption::VALUE_REQUIRED, 'Exact separately approved target version for a non-interactive supervised update.');
+        $this->addOption('recover-native-operation', null, InputOption::VALUE_REQUIRED, 'Verify and recover the exact retained unfinished native 1.0.5 update operation UUID. Never a completed-update downgrade.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
@@ -42,9 +43,11 @@ final class UpdateReleaseCommand extends Command
             return Command::FAILURE;
         }
         $approvedTarget = $input->getOption('approved-target');
+        $recoveryOperation = $input->getOption('recover-native-operation');
         if ($input->isInteractive()) {
             $helper = $this->getHelper('question');
-            if (!$helper instanceof QuestionHelper || true !== $helper->ask($input, $output, new ConfirmationQuestion('Apply this verified update with maintenance and backup? [y/N] ', false))) {
+            $question = \is_string($recoveryOperation) ? 'Recover the exact retained native source snapshot? Source/target processes must be stopped; delivery remains held [y/N] ' : 'Apply this verified update with maintenance and backup? [y/N] ';
+            if (!$helper instanceof QuestionHelper || true !== $helper->ask($input, $output, new ConfirmationQuestion($question, false))) {
                 return Command::FAILURE;
             }
         } elseif (!\is_string($approvedTarget) || 1 !== preg_match('/^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/D', $approvedTarget)) {
@@ -59,6 +62,12 @@ final class UpdateReleaseCommand extends Command
 
                 return Command::FAILURE;
             }
+        }
+        if (\is_string($recoveryOperation)) {
+            $this->releases->recoverNativeUpdate($recoveryOperation, $package, $sourcePackage);
+            $output->writeln('<info>Native source recovery verified. Delivery remains quiesced; rerun the authenticated update or verify source Doctor before explicit resume.</info>');
+
+            return Command::SUCCESS;
         }
         $this->releases->update($package, $sourcePackage);
         $output->writeln('<info>Update completed and passed maintenance Doctor. Delivery remains quiesced; restart supervised worker/scheduler services, then run emailer:delivery:resume.</info>');

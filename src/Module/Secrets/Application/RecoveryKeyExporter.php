@@ -7,10 +7,25 @@ namespace App\Module\Secrets\Application;
 use App\Module\Secrets\Application\Contract\MasterKey;
 use App\Module\Secrets\Application\Contract\RecoveryKeyVerifier;
 
-final readonly class RecoveryKeyExporter implements RecoveryKeyVerifier
+final readonly class RecoveryKeyExporter implements RecoveryKeyVerifier, Contract\RipeRecoveryKeyProvisioning
 {
     public function __construct(private MasterKey $masterKey, private string $outputFile)
     {
+    }
+
+    public function prepareRipeRecovery(string $passphrase): void
+    {
+        if (!file_exists($this->outputFile)) {
+            $this->export($passphrase);
+        }
+        $master = $this->masterKey->load();
+        try {
+            if (!$this->verifiesKey($passphrase, $master)) {
+                throw new \RuntimeException('Ripe recovery package does not authenticate this installation key; retain any Light package and select a separate Ripe destination.');
+            }
+        } finally {
+            sodium_memzero($master);
+        }
     }
 
     public function export(string $passphrase): string

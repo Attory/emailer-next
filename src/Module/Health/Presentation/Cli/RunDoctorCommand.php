@@ -21,13 +21,14 @@ final class RunDoctorCommand extends Command
 
     protected function configure(): void
     {
+        $this->addOption('read-only', null, InputOption::VALUE_NONE, 'Inspect without changing historical health records.');
         $this->addOption('json', null, InputOption::VALUE_NONE, 'Emit a redacted machine-readable report.');
         $this->addOption('maintenance-verification', null, InputOption::VALUE_NONE, 'Keep the known delivery maintenance state visible as a warning during a supervised update.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $result = $this->doctor->run(true, true === $input->getOption('maintenance-verification'));
+        $result = $this->doctor->run(true !== $input->getOption('read-only'), true === $input->getOption('maintenance-verification'));
         if (true === $input->getOption('json')) {
             $output->writeln(json_encode($result, JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
         } else {

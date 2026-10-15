@@ -71,6 +71,7 @@ final readonly class DoctrineSecretVault implements SecretVault
             'key_version' => SecretCipher::KEY_VERSION,
             'schema_version' => SecretContext::SCHEMA_VERSION,
             'rotated_at' => self::now(),
+            'cipher_edition' => 'emailer-next',
         ], ['id' => $recordId])) {
             throw new \RuntimeException('Encrypted secret replacement failed.');
         }
@@ -79,7 +80,7 @@ final readonly class DoctrineSecretVault implements SecretVault
     public function reveal(string $recordId, string $recordType, string $installationId): string
     {
         $record = $this->connection->fetchAssociative(
-            'SELECT envelope, key_version, schema_version, record_type FROM encrypted_secret WHERE id = ?',
+            'SELECT envelope, key_version, schema_version, record_type, cipher_edition FROM encrypted_secret WHERE id = ?',
             [$recordId],
         );
 
@@ -89,6 +90,7 @@ final readonly class DoctrineSecretVault implements SecretVault
             || !is_numeric($record['schema_version'])
             || SecretCipher::KEY_VERSION !== (int) $record['key_version']
             || SecretContext::SCHEMA_VERSION !== (int) $record['schema_version']
+            || !\is_string($record['cipher_edition'])
             || !\is_string($record['envelope'])
         ) {
             throw new \RuntimeException('Encrypted secret authentication failed.');
@@ -101,6 +103,7 @@ final readonly class DoctrineSecretVault implements SecretVault
                 $recordType,
                 $recordId,
                 (int) $record['schema_version'],
+                $record['cipher_edition'],
             ));
         } finally {
             sodium_memzero($key);

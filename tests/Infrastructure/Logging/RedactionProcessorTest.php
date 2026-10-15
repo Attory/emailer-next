@@ -50,4 +50,13 @@ final class RedactionProcessorTest extends TestCase
         self::assertSame(3, $nestedContext['safe_count']);
         self::assertSame('synthetic-correlation-id', $processed->extra['correlation_id']);
     }
+
+    public function testRecipientWireTokensAreRedactedInsideOriginalUrlContextAndMessages(): void
+    {
+        $token = 'v1.'.str_repeat('A', 43).'.'.str_repeat('_', 43);
+        $record = new LogRecord(new \DateTimeImmutable(), 'request', Level::Info, 'GET /r/'.$token.'/unsubscribe', ['request_uri' => 'https://example.test/r/'.$token.'/open.gif']);
+        $redacted = (new RedactionProcessor())($record);
+        self::assertStringNotContainsString($token, $redacted->message);
+        self::assertSame('https://example.test/r/[REDACTED]/open.gif', $redacted->context['request_uri']);
+    }
 }

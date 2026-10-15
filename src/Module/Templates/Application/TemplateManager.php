@@ -18,6 +18,8 @@ final readonly class TemplateManager implements CampaignTemplatePreparation
     private const SYNTHETIC = [
         'contact.first_name' => 'Alex',
         'contact.display_name' => 'Alex Example',
+        'recipient.first_name' => 'Alex',
+        'recipient.display_name' => 'Alex Example',
         'campaign.name' => 'Synthetic campaign',
         'unsubscribe_url' => 'https://example.test/r/synthetic/unsubscribe',
         'view_in_browser_url' => 'https://example.test/r/synthetic/view',

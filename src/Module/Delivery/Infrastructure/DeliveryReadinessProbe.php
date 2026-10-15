@@ -10,13 +10,16 @@ use Doctrine\DBAL\Connection;
 
 final readonly class DeliveryReadinessProbe implements LightweightReadinessProbe, SendingGateReadinessProbe
 {
-    public function __construct(private Connection $connection, private string $environment)
+    public function __construct(private Connection $connection, private string $environment, private ?\App\Shared\EditionDeliveryHold $editionHold = null)
     {
     }
 
     public function findings(): array
     {
         $findings = [];
+        if (true === $this->editionHold?->active()) {
+            $findings[] = $this->critical('edition_delivery_hold', 'Edition transition requires acceptance or recovery.', 'Complete the installer operation before accepting and explicitly resuming delivery.');
+        }
         $runtime = $this->connection->fetchAssociative("SELECT schema_version, accepting_work, circuit_state, circuit_open_until FROM delivery_runtime WHERE singleton_key = '1'");
         if (false === $runtime || 1 !== $this->integer($runtime['schema_version'])) {
             $findings[] = $this->critical('delivery_schema', 'Delivery runtime compatibility is unavailable.', 'Apply the reviewed compatible schema before sending.');

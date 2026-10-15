@@ -19,6 +19,28 @@ final class Phase13RestoreDrillTest extends KernelTestCase
 {
     use Phase4State;
 
+    public function testRestoringASafetySnapshotCannotResurrectACompletedReleaseAsStarted(): void
+    {
+        self::bootKernel();
+        $connection = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($connection);
+        $operation = Identity::uuidV7();
+        $connection->insert('release_operation', ['id' => $operation, 'operation' => 'update', 'source_version' => '1.0.5', 'target_version' => '1.0.6', 'package_sha256' => str_repeat('a', 64), 'status' => 'started', 'detail_code' => 'verified', 'started_at' => Identity::now(), 'finished_at' => null]);
+        $overlaysBefore = $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action='backup.release_history_preserved'"));
+        $engine = $this->phase4Service(BackupEngine::class);
+        $backup = $engine->create();
+        $connection->update('release_operation', ['status' => 'failed', 'detail_code' => 'update_failed', 'finished_at' => Identity::now()], ['id' => $operation]);
+        $connection->executeStatement("UPDATE delivery_runtime SET accepting_work=0,active_claims=0 WHERE singleton_key='1'");
+        $engine->restoreForDrill($backup['path']);
+        self::assertSame('failed', $connection->fetchOne('SELECT status FROM release_operation WHERE id=?', [$operation]));
+        self::assertSame('update_failed', $connection->fetchOne('SELECT detail_code FROM release_operation WHERE id=?', [$operation]));
+        self::assertSame($overlaysBefore + 1, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action='backup.release_history_preserved'")));
+        $gate = $this->createMock(\App\Module\Delivery\Application\Contract\SendingGate::class);
+        $gate->expects(self::once())->method('assertMaintenanceReady');
+        (new \App\Module\Delivery\Application\DeliveryResumer($connection, $gate, $this->phase4Service(\App\Shared\MaintenanceOperationLock::class)))->resume();
+        self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key='1'")));
+    }
+
     protected function tearDown(): void
     {
         if (null !== self::$kernel) {
@@ -52,7 +74,7 @@ final class Phase13RestoreDrillTest extends KernelTestCase
         self::assertSame('synthetic asset bytes', file_get_contents($assetRoot.'/synthetic.png'));
         $receipt = (string) file_get_contents($receiptPath);
         $payload = $this->phase4Service(RestoreDrillEvidence::class)->authenticate($receipt);
-        self::assertSame(49, $payload['checked_tables']);
+        self::assertSame(51, $payload['checked_tables']);
         self::assertSame(1, $payload['checked_assets']);
 
         // Model the originating database's state, which was never restored.

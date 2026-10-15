@@ -85,6 +85,7 @@ final class RedactionProcessor
 
     private function sanitizeText(string $value): string
     {
+        $value = $this->replace('/\bv[1-9][0-9]{0,4}\.[A-Za-z0-9_-]{43}\.[A-Za-z0-9_-]{43}(?![A-Za-z0-9_-])/', self::REDACTED, $value);
         $value = $this->replace(
             '/[A-Z0-9.!#$%&\'*+\/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9.-]{0,251}[A-Z0-9])?/i',
             self::REDACTED_EMAIL,
