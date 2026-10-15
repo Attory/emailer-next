@@ -223,6 +223,33 @@ final class Phase6CampaignDeliveryTest extends KernelTestCase
         self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT circuit_failures FROM delivery_runtime WHERE singleton_key='1'")));
     }
 
+    public function testKnownUnsentAttemptDoesNotConsumeTheSubsequentSmtpRetryBudget(): void
+    {
+        self::bootKernel();
+        $connection = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($connection);
+        $actor = $this->createPhase4User($connection, 'held-budget@example.test', 'synthetic-held-budget-'.bin2hex(random_bytes(8)));
+        [$campaigns, $campaignId] = $this->campaign($connection, $actor);
+        $campaigns->submitForReview($actor, $campaignId);
+        $campaigns->approve($actor, $campaignId, $this->phase4Int($campaigns->detail($actor, $campaignId)['operation_version']), true);
+        $this->transport()->reset();
+        $campaigns->queue($actor, $campaignId);
+        $queued = $this->transport()->getSent()[0]->getMessage();
+        self::assertInstanceOf(DeliverCampaignRecipient::class, $queued);
+        $connection->executeStatement("UPDATE delivery_policy SET retry_limit=2 WHERE singleton_key='1'");
+        ($this->faultHandler($connection, 'transient', true))($queued);
+        ($this->faultHandler($connection, 'transient'))($queued);
+        self::assertSame('retry', $connection->fetchOne('SELECT state FROM campaign_recipient WHERE id=?', [$queued->recipientId]));
+        try {
+            ($this->faultHandler($connection, 'transient'))($queued);
+            self::fail('Two genuine SMTP failures did not exhaust the configured budget.');
+        } catch (UnrecoverableMessageHandlingException) {
+            self::assertSame('ambiguous', $connection->fetchOne('SELECT state FROM campaign_recipient WHERE id=?', [$queued->recipientId]));
+        }
+        self::assertSame(3, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM delivery_attempt WHERE campaign_recipient_id=?', [$queued->recipientId])));
+        self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action='delivery.edition_hold_no_smtp' AND target_id=?", [$queued->recipientId])));
+    }
+
     public function testInterruptedHalfOpenProbeReopensCircuitForBoundedRecovery(): void
     {
         self::bootKernel();

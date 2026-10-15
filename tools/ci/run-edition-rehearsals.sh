@@ -59,6 +59,9 @@ export EMAILER_REHEARSAL_APP_IMAGE="$app_image"
 bash tools/upgrade/run-fresh-ripe-rehearsal.sh "$state_root/target-package/emailer-next-1.0.6.zip" "$state_root/target-package/ripe.pub" "$state_root" "$source_commit"
 bash tools/upgrade/run-native-update-rehearsal.sh "$state_root/target-package/emailer-next-1.0.6.zip" "$state_root/target-package/ripe.pub" "$state_root/native105-package/emailer-next-1.0.5.zip" "$state_root" "$source_commit"
 EMAILER_REHEARSAL_NATIVE_FAULT=1 bash tools/upgrade/run-native-update-rehearsal.sh "$state_root/target-package/emailer-next-1.0.6.zip" "$state_root/target-package/ripe.pub" "$state_root/native105-package/emailer-next-1.0.5.zip" "$state_root" "$source_commit"
+for phase in preparing migrating; do
+    EMAILER_REHEARSAL_NATIVE_INTERRUPT="$phase" bash tools/upgrade/run-native-update-rehearsal.sh "$state_root/target-package/emailer-next-1.0.6.zip" "$state_root/target-package/ripe.pub" "$state_root/native105-package/emailer-next-1.0.5.zip" "$state_root" "$source_commit"
+done
 bash tools/upgrade/run-light-rehearsal.sh "$state_root/target-package/emailer-next-1.0.6.zip" "$state_root/target-package/ripe.pub" "$state_root/published-light/emailer-light-1.0.0.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit"
 EMAILER_REHEARSAL_MINIMAL=1 bash tools/upgrade/run-light-rehearsal.sh "$state_root/target-package/emailer-next-1.0.6.zip" "$state_root/target-package/ripe.pub" "$state_root/published-light/emailer-light-1.0.0.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit"
 printf 'Independent signed-package edition rehearsals passed on this PHP/MariaDB matrix member.\n'

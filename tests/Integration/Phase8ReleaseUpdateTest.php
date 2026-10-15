@@ -78,6 +78,34 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key = '1'")));
     }
 
+    public function testDatabaseScopedReleaseLockSerializesDifferentProcessLockStores(): void
+    {
+        [$connection, $manager, $backups, $archive] = $this->fixture(0);
+        $this->publishPreviousRelease();
+        $url = getenv('DATABASE_URL');
+        self::assertIsString($url);
+        $parameters = (new \Doctrine\DBAL\Tools\DsnParser(['mysql' => 'pdo_mysql']))->parse($url);
+        $other = \Doctrine\DBAL\DriverManager::getConnection($parameters);
+        $database = $connection->getDatabase();
+        self::assertIsString($database);
+        $name = 'emailer-native-release-'.substr(hash('sha256', $database), 0, 40);
+        self::assertSame(1, $this->phase4Int($other->fetchOne('SELECT GET_LOCK(?,0)', [$name])));
+        try {
+            try {
+                $manager->update($archive, $this->sourceArchive);
+                self::fail('A separate process could enter a database-owned release operation.');
+            } catch (\RuntimeException $exception) {
+                self::assertStringContainsString('database-scoped native release operation', $exception->getMessage());
+            }
+            self::assertSame(0, $backups->created);
+            self::assertSame(0, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM release_operation')));
+            self::assertSame(1, $this->phase4Int($connection->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key='1'")));
+        } finally {
+            $other->fetchOne('SELECT RELEASE_LOCK(?)', [$name]);
+            $other->close();
+        }
+    }
+
     #[DataProvider('unsafeSourceStates')]
     public function testUnfinishedUpdateCannotCheckpointPartialDdlAsANewSource(string $status, string $detail): void
     {

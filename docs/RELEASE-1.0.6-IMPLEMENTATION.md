@@ -67,7 +67,7 @@ recovered as an edition downgrade.
 ## Validation and remaining release gates
 
 Local PHP 8.4.24 / MariaDB 10.11.19 full suite passed as the application
-identity: 308 tests, 10,049 assertions, no skips after independent-review repairs. An initial root-run suite failed
+identity: 311 tests, 10,108 assertions, no skips after independent-review repairs. An initial root-run suite failed
 the existing non-root production-owner assertion and skipped the intended
 permission-failure test; rerunning under the correct identity resolved both.
 Composer validation, locked advisory audit and the 85-package production license
@@ -148,3 +148,29 @@ rehearsals now cover active-claim refusal without worker-stop intent, recovery
 scratch cleanup, interrupted acceptance cleanup and overdue scheduled source
 work. The next commit's exact-head hosted run and read-only review are the
 remaining candidate checks before the unchanged platform release blocker.
+
+Checked native recovery is now executable through the existing update command's
+`--recover-native-operation=<UUID>` option. Actual packaged tests killed the
+updater before checkpoint creation and after partial committed DDL, then performed
+checked source recovery and a normal forward retry without SQL edits. Full local
+regression at this stage passed 309 tests / 10,056 assertions. A final additional
+retry-budget regression accounts for known-unsent holds through append-only audit
+evidence, retaining every attempt and preserving subsequent real SMTP retries.
+The final commit requires fresh read-only review and hosted matrix evidence.
+
+Final executable-recovery code passed the full local suite: 311 tests / 10,108
+assertions, no skips. Strict static/architectural checks passed. Native updater
+and checked recovery also serialize through a server advisory lock, preserving
+safety across separate process/Systemd PrivateTmp lock stores. The cross-session
+regression proves refusal before an operation row, checkpoint or quiescence.
+Known-unsent hold attempts keep append-only credits, preserving subsequent SMTP
+retry budget and backoff without deleting any attempt. Final affected artifact
+and privacy/security checks and exact-head review/matrix are recorded in PR #22.
+The canonical nontransactional-DDL gate remains unchanged and blocked.
+
+Native checkpoint custody is also bound to the latest operation and protected
+operation chain. Recovery of a superseded checkpoint is refused before changing
+a successfully updated installation. Packaged interruption rehearsals assert
+that refusal after the subsequent forward update. The fresh local dependency
+audit encountered a Packagist network timeout; it is not recorded as a pass.
+Hosted quality jobs run their own locked dependency audit.

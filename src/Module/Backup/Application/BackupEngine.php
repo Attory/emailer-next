@@ -279,13 +279,23 @@ final readonly class BackupEngine implements BackupOperations
                 if ($drill) {
                     $this->evidence();
                 }
+                // Release completion/recovery evidence is authoritative. An old
+                // snapshot must not resurrect a live operation as "started".
+                $releaseHistory = $this->connection->fetchAllAssociative('SELECT * FROM release_operation');
                 $safety = $this->create();
                 try {
-                    $this->apply($path);
+                    $this->apply($path, $releaseHistory);
                     if ($drill) {
-                        $checked = $this->validateRestoredSnapshot($path);
+                        $checked = $this->validateRestoredSnapshot($path, $releaseHistory);
                     }
                     $this->recordVerified($path, $manifest);
+                    if ([] !== $releaseHistory) {
+                        $backupId = $manifest['backup_id'] ?? null;
+                        if (!\is_string($backupId)) {
+                            throw new \RuntimeException('Verified backup has no stable identity.');
+                        }
+                        $this->audit?->append(new AuditRecord(null, 'backup.release_history_preserved', $backupId, 'success', ['authoritative_operations' => \count($releaseHistory)]));
+                    }
                     if ($drill) {
                         $receipt = $this->evidence()->issue([
                             'format' => 'emailer-next-restore-drill-v1',
@@ -302,7 +312,7 @@ final readonly class BackupEngine implements BackupOperations
                 } catch (\Throwable $exception) {
                     try {
                         $safetyManifest = $this->verify($safety['path']);
-                        $this->apply($safety['path']);
+                        $this->apply($safety['path'], $releaseHistory);
                         $this->recordVerified($safety['path'], $safetyManifest, false);
                     } catch (\Throwable $rollback) {
                         throw new \RuntimeException('Restore failed and automatic rollback also failed; keep delivery quiesced.', previous: $rollback);
@@ -338,8 +348,12 @@ final readonly class BackupEngine implements BackupOperations
         }
     }
 
-    /** @return array{tables: int, assets: int} */
-    private function validateRestoredSnapshot(string $path): array
+    /**
+     * @param list<array<string, mixed>> $releaseHistory
+     *
+     * @return array{tables: int, assets: int}
+     */
+    private function validateRestoredSnapshot(string $path, array $releaseHistory = []): array
     {
         $plain = tempnam($this->backupDirectory, '.drill-verify-');
         if (false === $plain) {
@@ -362,7 +376,8 @@ final readonly class BackupEngine implements BackupOperations
                     $rows = 0;
                     $batch = [];
                     $batchBytes = 0;
-                    foreach ($this->rows($zip, $table) as $expected) {
+                    $expectedRows = 'release_operation' === $table ? $this->releaseHistoryRows($zip, $releaseHistory) : $this->rows($zip, $table);
+                    foreach ($expectedRows as $expected) {
                         $batch[] = $expected;
                         $batchBytes += \strlen(json_encode($expected, JSON_THROW_ON_ERROR));
                         if (200 <= \count($batch) || 8388608 <= $batchBytes) {
@@ -712,7 +727,8 @@ final readonly class BackupEngine implements BackupOperations
         }
     }
 
-    private function apply(string $path): void
+    /** @param list<array<string, mixed>> $releaseHistory */
+    private function apply(string $path, array $releaseHistory = []): void
     {
         $plain = tempnam($this->backupDirectory, '.backup-restore-');
         if (false === $plain) {
@@ -736,7 +752,8 @@ final readonly class BackupEngine implements BackupOperations
                     $this->connection->executeStatement('TRUNCATE TABLE `'.$table.'`');
                 }
                 foreach ($tables as $table) {
-                    foreach ($this->rows($zip, $table) as $row) {
+                    $restoredRows = 'release_operation' === $table ? $this->releaseHistoryRows($zip, $releaseHistory) : $this->rows($zip, $table);
+                    foreach ($restoredRows as $row) {
                         if ('suppression' === $table) {
                             unset($row['email_match_key']);
                         }
@@ -755,6 +772,32 @@ final readonly class BackupEngine implements BackupOperations
         } finally {
             @unlink($plain);
         }
+    }
+
+    /**
+     * @param list<array<string, mixed>> $authoritative
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function releaseHistoryRows(\ZipArchive $zip, array $authoritative): array
+    {
+        $rows = [];
+        foreach ($authoritative as $row) {
+            $id = $row['id'] ?? null;
+            if (!\is_string($id)) {
+                throw new \RuntimeException('Authoritative release history has no stable identity.');
+            }
+            $rows[$id] = $row;
+        }
+        foreach ($this->rows($zip, 'release_operation') as $row) {
+            $id = $row['id'] ?? null;
+            if (!\is_string($id)) {
+                throw new \RuntimeException('Restored release history has no stable identity.');
+            }
+            $rows[$id] ??= $row;
+        }
+
+        return array_values($rows);
     }
 
     private function assertQuiesced(): void

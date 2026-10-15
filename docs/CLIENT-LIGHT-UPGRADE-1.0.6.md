@@ -188,3 +188,21 @@ and does not reset claims. Before schema mutation, recovery can verify unchanged
 Light and restore the original application account while retaining its durable
 no-new-work state; existing in-flight evidence stays intact. Do not fabricate
 idleness or resume delivery to make inspection pass.
+
+### Explicitly abandoning an unfinished conversion
+
+After successful verified recovery only, if the operator deliberately chooses to
+keep Light, confirm `current` resolves to the unchanged `1.0.0` release, the
+protected receipt says `recovered`, the original Light schema/keys/configuration
+are restored, and Light maintenance Doctor has no unexplained critical finding.
+Review work that became due. Restart only the original Light processes using its
+original protected environment, then explicitly run:
+
+```sh
+"$PHP_CLI" <UNCHANGED-LIGHT-RELEASE>/bin/console emailer:delivery:resume
+```
+
+This is a deliberate return to normal Light operation after an unfinished failed
+attempt, not an incidental recovery action. Retain the recovered receipt and all
+recovery assets; do not delete the hold marker to evade package binding. This
+procedure is prohibited after acceptance or while Ripe is current.

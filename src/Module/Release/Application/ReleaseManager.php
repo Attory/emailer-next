@@ -115,8 +115,15 @@ final readonly class ReleaseManager
         $manifest = [];
         $sourceSchemaFingerprint = null;
         $completeCheckpoint = null;
+        $nativeJournal = null;
+        $databaseLockAcquired = false;
         try {
-            $lastUpdate = $this->connection->fetchAssociative("SELECT status, detail_code FROM release_operation WHERE operation = 'update' ORDER BY started_at DESC, id DESC LIMIT 1");
+            if (1 !== EditionData::integer($this->connection->fetchOne('SELECT GET_LOCK(?,0)', [$this->nativeLockName()]))) {
+                throw new \RuntimeException('Another database-scoped native release operation is active.');
+            }
+            $databaseLockAcquired = true;
+            $this->assertNativeOperationOwnership();
+            $lastUpdate = $this->connection->fetchAssociative("SELECT id, status, detail_code FROM release_operation WHERE operation = 'update' ORDER BY started_at DESC, id DESC LIMIT 1");
             if (false !== $this->connection->fetchOne("SELECT 1 FROM release_operation WHERE status = 'started' LIMIT 1") || false !== $lastUpdate && 'failed' === $lastUpdate['status'] && 'rollback_failed' === $lastUpdate['detail_code']) {
                 $this->connection->executeStatement("UPDATE delivery_runtime SET accepting_work = 0 WHERE singleton_key = '1'");
                 throw new \RuntimeException('An unfinished release operation requires supervised recovery from its retained checkpoint before another update. Delivery must remain quiesced.');
@@ -137,6 +144,15 @@ final readonly class ReleaseManager
             $this->assertDiskCapacity($archive, $manifest);
             $sourceSchemaFingerprint = $this->schemaFingerprint();
             $operationId = Identity::uuidV7();
+            if ('1.0.6' === $targetVersion && '1.0.5' === $this->currentVersion && null !== $this->completeRecovery) {
+                if ('' === $this->privateDirectory || '' === $this->masterKeyFile) {
+                    throw new \RuntimeException('Native update requires complete recovery configuration.');
+                }
+                $completeCheckpoint = \dirname($this->privateDirectory).'/native-update-recovery/'.$operationId;
+                EditionRecoverySet::directory($completeCheckpoint);
+                $nativeJournal = ['format' => 'emailer-native-update-recovery-v1', 'operation_id' => $operationId, 'previous_operation_id' => false === $lastUpdate ? null : $lastUpdate['id'], 'phase' => 'preparing', 'database_binding' => $this->nativeDatabaseBinding(), 'private_directory' => $this->privateDirectory, 'source_root' => $previous, 'source_version' => $this->currentVersion, 'target_version' => $targetVersion, 'target_archive_sha256' => hash_file('sha256', $archive), 'source_archive_sha256' => hash_file('sha256', $sourceArchive), 'source_schema_fingerprint' => $sourceSchemaFingerprint, 'source_master_sha256' => hash_file('sha256', $this->masterKeyFile), 'installation_uuid' => $this->connection->fetchOne("SELECT installation_uuid FROM installation_state WHERE singleton_key='1'")];
+                $this->nativeJournal(EditionData::text($completeCheckpoint), $nativeJournal);
+            }
             $this->connection->insert('release_operation', ['id' => $operationId, 'operation' => 'update', 'source_version' => $this->currentVersion, 'target_version' => $manifest['version'], 'package_sha256' => hash_file('sha256', $archive), 'status' => 'started', 'detail_code' => 'verified', 'started_at' => Identity::now(), 'finished_at' => null]);
             $this->connection->executeStatement("UPDATE delivery_runtime SET accepting_work = 0, updated_at = ? WHERE singleton_key = '1'", [Identity::now()]);
             $this->recovery->recover();
@@ -153,7 +169,6 @@ final readonly class ReleaseManager
                 if ('' === $this->privateDirectory || '' === $this->masterKeyFile) {
                     throw new \RuntimeException('Native 1.0.6 update requires complete private-state recovery configuration.');
                 }
-                $completeCheckpoint = \dirname($this->privateDirectory).'/native-update-recovery/'.$operationId;
                 $roots = ['private' => $this->privateDirectory, 'master_key' => $this->masterKeyFile];
                 if ('' !== $this->runtimeConfigurationFile) {
                     $roots['runtime_configuration'] = $this->runtimeConfigurationFile;
@@ -162,24 +177,49 @@ final readonly class ReleaseManager
                         $roots['ripe_recovery_key'] = $runtime['EMAILER_RECOVERY_KEY_FILE'];
                     }
                 }
-                $this->completeRecovery->create($completeCheckpoint, $roots);
-                $this->completeRecovery->verify($completeCheckpoint);
+                $this->completeRecovery->create(EditionData::text($completeCheckpoint), $roots);
+                $this->completeRecovery->verify(EditionData::text($completeCheckpoint));
+                $nativeJournal['source_data_fingerprint'] = $this->nativeDataFingerprint(EditionData::text($completeCheckpoint));
+                $nativeJournal['phase'] = 'checkpointed';
+                $this->nativeJournal(EditionData::text($completeCheckpoint), $nativeJournal);
             }
             $target = $this->install($archive, false);
+            if (null !== $nativeJournal) {
+                $nativeJournal['phase'] = 'migrating';
+                $this->nativeJournal(EditionData::text($completeCheckpoint), $nativeJournal);
+            }
             $this->runConsole($target, ['doctrine:migrations:migrate', '--no-interaction'], [0]);
             $migrationApplied = true;
             $this->switchPointer($target);
             $pointerSwitched = true;
+            if (null !== $nativeJournal) {
+                $nativeJournal['phase'] = 'activated';
+                $this->nativeJournal(EditionData::text($completeCheckpoint), $nativeJournal);
+            }
             $this->runConsole($target, ['emailer:doctor:run', '--json', '--maintenance-verification'], [0, 1]);
             $this->connection->update('release_operation', ['status' => 'succeeded', 'detail_code' => 'health_passed', 'finished_at' => Identity::now()], ['id' => $operationId]);
+            if (null !== $nativeJournal) {
+                $nativeJournal['phase'] = 'completed';
+                $this->nativeJournal(EditionData::text($completeCheckpoint), $nativeJournal);
+            }
         } catch (\Throwable $exception) {
             if (null !== $safety) {
                 try {
-                    if (null !== $completeCheckpoint && null !== $this->completeRecovery) {
+                    if (null !== $nativeJournal && 'preparing' === $nativeJournal['phase']) {
+                        // No staging/migration/private activation can precede the
+                        // durable checkpointed phase. Do not introduce a data
+                        // restore merely because backup preparation failed.
+                        if (null === $sourceSchemaFingerprint || !hash_equals($sourceSchemaFingerprint, $this->schemaFingerprint()) || !hash_equals(EditionData::text($nativeJournal['source_master_sha256']), EditionData::text(hash_file('sha256', $this->masterKeyFile)))) {
+                            throw new \RuntimeException('Uncheckpointed native source no longer matches its preparation proof.');
+                        }
+                    } elseif (null !== $completeCheckpoint && null !== $this->completeRecovery && null !== $nativeJournal) {
                         $this->completeRecovery->restore($completeCheckpoint, $this->connection, true);
                         $this->connection->executeStatement("UPDATE delivery_runtime SET accepting_work = 0 WHERE singleton_key = '1'");
                         if (null === $sourceSchemaFingerprint || !hash_equals($sourceSchemaFingerprint, $this->schemaFingerprint())) {
                             throw new \RuntimeException('Complete native source schema verification failed after recovery.');
+                        }
+                        if (!hash_equals(EditionData::text($nativeJournal['source_data_fingerprint'] ?? null), $this->nativeDataFingerprint(EditionData::text($completeCheckpoint)))) {
+                            throw new \RuntimeException('Complete native source data verification failed after recovery.');
                         }
                         if (false !== $previous) {
                             $this->switchPointer($previous);
@@ -205,13 +245,210 @@ final readonly class ReleaseManager
             if (null !== $operationId) {
                 $this->recordFailedOperation($operationId, $archive, $manifest, 'update_failed');
             }
+            if (null !== $nativeJournal) {
+                $nativeJournal['phase'] = 'recovered';
+                $this->nativeJournal(EditionData::text($completeCheckpoint), $nativeJournal);
+            }
             if (null !== $target) {
                 $this->removeFailedRelease($target);
             }
             throw $exception;
         } finally {
-            $lock->release();
+            try {
+                if ($databaseLockAcquired) {
+                    $this->connection->fetchOne('SELECT RELEASE_LOCK(?)', [$this->nativeLockName()]);
+                }
+            } finally {
+                $lock->release();
+            }
         }
+    }
+
+    public function recoverNativeUpdate(string $operationId, string $archive, string $sourceArchive): void
+    {
+        if (1 !== preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/D', $operationId) || '1.0.5' !== $this->currentVersion || null === $this->completeRecovery) {
+            throw new \RuntimeException('Native recovery requires the recorded 1.0.5 source launcher and exact operation UUID.');
+        }
+        $directory = \dirname($this->privateDirectory).'/native-update-recovery/'.$operationId;
+        EditionRecoverySet::safe($directory, true);
+        EditionRecoverySet::safe($directory.'/native-operation.json', false);
+        $this->maintenance->acquire();
+        $lock = $this->locks->createLock('emailer-release-update', 900.0);
+        $databaseLockAcquired = false;
+        try {
+            if (!$lock->acquire()) {
+                throw new \RuntimeException('Another release operation is active.');
+            }
+            if (1 !== EditionData::integer($this->connection->fetchOne('SELECT GET_LOCK(?,0)', [$this->nativeLockName()]))) {
+                throw new \RuntimeException('Another database-scoped native release operation is active.');
+            }
+            $databaseLockAcquired = true;
+            $journal = EditionData::read($directory.'/native-operation.json');
+            $manifest = $this->inspector->inspect($archive);
+            $sourceManifest = $this->inspector->inspectInstalledSource($sourceArchive);
+            $source = $this->releasesDirectory.'/1.0.5';
+            if ('emailer-native-update-recovery-v1' !== ($journal['format'] ?? null) || $operationId !== ($journal['operation_id'] ?? null) || '1.0.6' !== ($journal['target_version'] ?? null) || '1.0.5' !== ($journal['source_version'] ?? null) || '1.0.6' !== ($manifest['version'] ?? null) || $this->privateDirectory !== ($journal['private_directory'] ?? null) || $source !== ($journal['source_root'] ?? null) || $this->nativeDatabaseBinding() !== ($journal['database_binding'] ?? null) || !hash_equals(EditionData::text($journal['target_archive_sha256']), EditionData::text(hash_file('sha256', $archive))) || !hash_equals(EditionData::text($journal['source_archive_sha256']), EditionData::text(hash_file('sha256', $sourceArchive)))) {
+                throw new \RuntimeException('Native recovery identity, installation or authenticated package does not match.');
+            }
+            $this->assertPublishedOwnership($source);
+            $this->assertInstalledReleaseMatchesManifest($source, $sourceManifest);
+            $current = realpath($this->releasesDirectory.'/current');
+            if (!\in_array($current, [$source, $this->releasesDirectory.'/1.0.6'], true) || 'completed' === ($journal['phase'] ?? null)) {
+                throw new \RuntimeException('Completed native updates cannot be downgraded by recovery.');
+            }
+            $live = $this->connection->createSchemaManager()->tablesExist(['release_operation']) ? $this->connection->fetchAssociative('SELECT status,detail_code FROM release_operation WHERE id=?', [$operationId]) : false;
+            $this->assertNativeOperationOwnership($operationId);
+            $latest = $this->connection->createSchemaManager()->tablesExist(['release_operation']) ? $this->connection->fetchOne("SELECT id FROM release_operation WHERE operation='update' ORDER BY started_at DESC,id DESC LIMIT 1") : false;
+            if (false !== $latest && $latest !== $operationId) {
+                throw new \RuntimeException('Native recovery must select the latest operation; later update history cannot be rolled back.');
+            }
+            if (false !== $live && 'succeeded' === $live['status']) {
+                throw new \RuntimeException('A successful native update cannot be recovered as a downgrade.');
+            }
+            $phase = EditionData::text($journal['phase']);
+            if (!\in_array($phase, ['preparing', 'checkpointed', 'migrating', 'activated', 'recovering', 'recovered'], true)) {
+                throw new \RuntimeException('Native recovery journal phase is unsupported.');
+            }
+            $runtimeExists = $this->connection->createSchemaManager()->tablesExist(['delivery_runtime']);
+            if ($runtimeExists) {
+                if (0 !== EditionData::integer($this->connection->fetchOne("SELECT active_claims FROM delivery_runtime WHERE singleton_key='1'"))) {
+                    throw new \RuntimeException('Active claims prevent native recovery; no claim is reset.');
+                }
+                $this->connection->executeStatement("UPDATE delivery_runtime SET accepting_work=0 WHERE singleton_key='1'");
+            } elseif ('recovering' !== $phase) {
+                throw new \RuntimeException('Native runtime cannot establish safe recovery quiescence.');
+            }
+            if ('recovered' === $phase && false !== $live && 'failed' === $live['status'] && 'rollback_failed' !== $live['detail_code'] && $current === $source && hash_equals(EditionData::text($journal['source_schema_fingerprint']), $this->schemaFingerprint()) && is_file($this->masterKeyFile) && hash_equals(EditionData::text($journal['source_master_sha256']), EditionData::text(hash_file('sha256', $this->masterKeyFile))) && $journal['installation_uuid'] === $this->connection->fetchOne("SELECT installation_uuid FROM installation_state WHERE singleton_key='1'")) {
+                return;
+            }
+            $restore = 'recovering' === $phase ? ($journal['restore_required'] ?? true) : isset($journal['source_data_fingerprint']);
+            if (!\is_bool($restore)) {
+                throw new \RuntimeException('Native restoration decision is malformed.');
+            }
+            $journal['restore_required'] = $restore;
+            $journal['phase'] = 'recovering';
+            $this->nativeJournal($directory, $journal);
+            if ($restore) {
+                $checkpoint = $this->completeRecovery->verify($directory);
+                if (($checkpoint['roots']['private'] ?? null) !== $this->privateDirectory || ($checkpoint['roots']['master_key'] ?? null) !== $this->masterKeyFile) {
+                    throw new \RuntimeException('Native checkpoint private roots disagree with this installation.');
+                }
+                $this->completeRecovery->restore($directory, $this->connection, true);
+                if (!hash_equals(EditionData::text($journal['source_data_fingerprint']), $this->nativeDataFingerprint($directory))) {
+                    throw new \RuntimeException('Restored native data fingerprints differ from the original checkpoint.');
+                }
+            } elseif ($current !== $source) {
+                throw new \RuntimeException('Uncheckpointed native recovery cannot switch an activated release.');
+            }
+            if (!hash_equals(EditionData::text($journal['source_schema_fingerprint']), $this->schemaFingerprint()) || !hash_equals(EditionData::text($journal['source_master_sha256']), EditionData::text(hash_file('sha256', $this->masterKeyFile))) || $journal['installation_uuid'] !== $this->connection->fetchOne("SELECT installation_uuid FROM installation_state WHERE singleton_key='1'")) {
+                throw new \RuntimeException('Native source schema, key or installation recovery proof failed.');
+            }
+            EditionIntegrity::assertForeignKeys($this->connection);
+            $this->connection->executeStatement("UPDATE delivery_runtime SET accepting_work=0 WHERE singleton_key='1'");
+            $this->switchPointer($source);
+            $runtime = $directory.'/source-validation';
+            EditionRecoverySet::directory($runtime);
+            $this->runConsole($source, ['about', '--no-interaction'], [0], $runtime);
+            $this->runConsole($source, ['doctrine:schema:validate', '--skip-sync', '--no-interaction'], [0], $runtime);
+            $this->runConsole($source, ['emailer:doctor:run', '--json', '--maintenance-verification'], [0, 1], $runtime);
+            if (is_dir($this->releasesDirectory.'/1.0.6')) {
+                $this->assertInstalledReleaseMatchesManifest($this->releasesDirectory.'/1.0.6', $manifest, '1.0.6');
+                $this->removeFailedRelease($this->releasesDirectory.'/1.0.6');
+            }
+            $this->recordFailedOperation($operationId, $archive, $manifest, $restore ? 'verified_source_recovered' : 'interrupted_before_mutation');
+            $journal['phase'] = 'recovered';
+            $this->nativeJournal($directory, $journal);
+        } catch (\Throwable $failure) {
+            EditionRecoverySet::write($directory.'/native-recovery-failure.json', json_encode(['exception_class' => $failure::class, 'message' => $failure->getMessage()], JSON_THROW_ON_ERROR));
+            throw new \RuntimeException('Native recovery did not complete. Keep delivery and source/target processes quiesced; protected operation diagnostics identify the failed proof.');
+        } finally {
+            try {
+                if ($databaseLockAcquired) {
+                    $this->connection->fetchOne('SELECT RELEASE_LOCK(?)', [$this->nativeLockName()]);
+                }
+            } finally {
+                $lock->release();
+                $this->maintenance->release();
+            }
+        }
+    }
+
+    /** @param array<string, mixed> $journal */
+    private function nativeJournal(string $directory, array $journal): void
+    {
+        EditionRecoverySet::write($directory.'/native-operation.json', json_encode($journal, JSON_THROW_ON_ERROR));
+    }
+
+    private function nativeDatabaseBinding(): string
+    {
+        $p = $this->connection->getParams();
+
+        return hash('sha256', serialize([$p['host'] ?? '', $p['port'] ?? 3306, $p['unix_socket'] ?? '', $this->connection->getDatabase()]));
+    }
+
+    private function nativeLockName(): string
+    {
+        return 'emailer-native-release-'.substr(hash('sha256', EditionData::text($this->connection->getDatabase())), 0, 40);
+    }
+
+    private function assertNativeOperationOwnership(?string $selected = null): void
+    {
+        if ('1.0.5' !== $this->currentVersion || null === $this->completeRecovery || '' === $this->privateDirectory) {
+            return;
+        }
+        $files = glob(\dirname($this->privateDirectory).'/native-update-recovery/*/native-operation.json');
+        if (false === $files) {
+            throw new \RuntimeException('Native operation custody cannot be inspected.');
+        }
+        foreach ($files as $file) {
+            EditionRecoverySet::safe($file, false);
+            $other = EditionData::read($file);
+            if (($other['private_directory'] ?? null) !== $this->privateDirectory || ($other['database_binding'] ?? null) !== $this->nativeDatabaseBinding() || 'emailer-native-update-recovery-v1' !== ($other['format'] ?? null)) {
+                throw new \RuntimeException('Retained native operation belongs to a different installation or database.');
+            }
+            if (($other['operation_id'] ?? null) === $selected) {
+                continue;
+            }
+            if (!\in_array($other['phase'] ?? null, ['completed', 'recovered'], true)) {
+                if ($this->connection->createSchemaManager()->tablesExist(['delivery_runtime'])) {
+                    $this->connection->executeStatement("UPDATE delivery_runtime SET accepting_work=0 WHERE singleton_key='1'");
+                }
+                throw new \RuntimeException('Another retained native operation owns recovery.');
+            }
+            if (null !== $selected && ($other['previous_operation_id'] ?? null) === $selected) {
+                throw new \RuntimeException('Another retained native operation owns recovery, or a later operation supersedes the selected checkpoint.');
+            }
+        }
+    }
+
+    private function nativeDataFingerprint(string $directory): string
+    {
+        EditionRecoverySet::safe($directory.'/recovery.key', false);
+        $checkpointKey = EditionData::text(file_get_contents($directory.'/recovery.key'));
+        $key = hash_hkdf('sha256', $checkpointKey, 32, 'emailer-ripe/native-update-data-fingerprint-v1');
+        sodium_memzero($checkpointKey);
+        $hash = hash_init('sha256', HASH_HMAC, $key);
+        foreach ($this->connection->createSchemaManager()->listTableNames() as $table) {
+            $primary = $this->connection->createSchemaManager()->introspectTable($table)->getPrimaryKey();
+            if (null === $primary) {
+                throw new \RuntimeException('Native checkpoint table has no stable identity.');
+            }
+            hash_update($hash, $table."\0");
+            $order = array_map($this->connection->quoteSingleIdentifier(...), $primary->getColumns());
+            foreach ($this->connection->iterateAssociative('SELECT * FROM '.$this->connection->quoteSingleIdentifier($table).' ORDER BY '.implode(',', $order)) as $row) {
+                $values = [];
+                foreach ($row as $column => $value) {
+                    if (null !== $value && !\is_scalar($value)) {
+                        throw new \RuntimeException('Native recovery value cannot be fingerprinted safely.');
+                    }
+                    $values[$column] = null === $value ? null : (string) $value;
+                }
+                hash_update($hash, serialize($values));
+            }
+        }
+        sodium_memzero($key);
+
+        return hash_final($hash);
     }
 
     private function schemaFingerprint(): string
@@ -282,11 +519,11 @@ final readonly class ReleaseManager
     }
 
     /** @param array<string, mixed> $manifest */
-    private function assertInstalledReleaseMatchesManifest(string $release, array $manifest): void
+    private function assertInstalledReleaseMatchesManifest(string $release, array $manifest, ?string $expectedVersion = null): void
     {
         $version = $manifest['version'] ?? null;
         $files = $manifest['files'] ?? null;
-        if (!\is_string($version) || !hash_equals($this->currentVersion, $version) || !\is_array($files)) {
+        if (!\is_string($version) || !hash_equals($expectedVersion ?? $this->currentVersion, $version) || !\is_array($files)) {
             throw new \RuntimeException('Signed predecessor package identity does not match the recorded update source.');
         }
         $expected = $this->stringMap($files);
@@ -331,11 +568,12 @@ final readonly class ReleaseManager
     /** @param list<string> $arguments
      * @param list<int> $acceptedStatuses
      */
-    private function runConsole(string $release, array $arguments, array $acceptedStatuses): void
+    private function runConsole(string $release, array $arguments, array $acceptedStatuses, string $runtime = ''): void
     {
         $command = array_merge([PHP_BINARY, $release.'/bin/console'], $arguments);
         $pipes = [];
-        $process = proc_open($command, [['file', '/dev/null', 'r'], ['file', '/dev/null', 'w'], ['file', '/dev/null', 'w']], $pipes, $release);
+        $environment = '' === $runtime ? null : array_replace(getenv(), ['EMAILER_RUNTIME_DIR' => $runtime]);
+        $process = proc_open($command, [['file', '/dev/null', 'r'], ['file', '/dev/null', 'w'], ['file', '/dev/null', 'w']], $pipes, $release, $environment);
         if (!\is_resource($process)) {
             throw new \RuntimeException('Release command could not start.');
         }

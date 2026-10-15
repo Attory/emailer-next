@@ -222,28 +222,51 @@ fault rehearsal with exact source schema, historical rows, key and pointer
 restored and no emitted messages. An older data-only restore cannot reverse
 these DDL changes.
 
-If a process or host interruption leaves a `release_operation` marked `started`,
-another update is refused before creating a new checkpoint. Recover the exact
-source schema, ledger, rows and private state from the original retained
-checkpoint under supervision; never turn the partial schema into a new source
-baseline or clear the operation merely to suppress this refusal.
+## Checked native interruption recovery
 
-If complete recovery itself fails, retain all checkpoints, packages and failure
-evidence, keep delivery stopped and obtain supervised recovery of source DDL,
-ledger, rows and private state. Never delete a migration row or force a pointer
-to disguise an advanced schema. Once complete recovery is independently
-verified, repair the cause and rerun the same authenticated target update with
-a fresh protected updater cache. Resume delivery only after a successful update
-and normal readiness checks.
+Keep source/target workers, schedulers and HTTP processes stopped or quiesced.
+Retain both authenticated packages, all sidecars, the pinned Ripe key and the
+original protected updater configuration with `EMAILER_UPDATE_SOURCE_VERSION=1.0.5`.
+Use the operation UUID recorded in the protected
+`native-update-recovery/<OPERATION-ID>/native-operation.json`; verify its target
+archive hash and installation against the original change record.
 
-The exact operator-signed 1.0.5 predecessor archive, all four sidecars, pinned
-public key, source commit and archive SHA-256 must come from its retained
-installation record. No production installation was inspected by this release
-job. Production deployment is outside this engineering and release task.
+```sh
+"$PHP_CLI" <VERIFIED-TARGET>/bin/console emailer:release:update \
+  /var/lib/emailer-candidate/emailer-next-1.0.6.zip \
+  --source-package=/var/lib/emailer-candidate/emailer-next-1.0.5.zip \
+  --recover-native-operation=<EXACT-OPERATION-UUID>
+```
 
-The authenticated 1.0.6 target launcher refuses both another update and explicit
-delivery resume while an operation is unfinished or latest recovery failed.
-Keep using that launcher for recovery checks; do not invoke an older release's
-resume command on a partially changed schema. Retain and verify the complete
-original checkpoint under supervision before recording recovery. No unchecked
-command to clear an operation or downgrade a completed update is supplied.
+The same root-controlled target launcher obtains explicit terminal confirmation.
+For an already approved non-interactive isolated workflow, the existing
+`--approved-target=1.0.6 --no-interaction` binding also applies. No SQL edits or
+operation-row deletion are required.
+
+A durable `preparing` journal precedes the backup, so an interruption before a
+checkpoint exists is recoverable. The command proves the original immutable
+source package, database binding, schema/ledger, installation UUID and master
+key; it does not restore data that the updater never mutated. It append-closes
+the failed operation as `interrupted_before_mutation` only after source boot,
+mapping and maintenance Doctor validation.
+
+Once a verified checkpoint exists, recovery authenticates it, restores complete
+DDL/data/private state, compares every table's keyed original-row fingerprint,
+checks schema/ledger, keys and foreign keys, restores the original pointer and
+validates the unchanged source before closing the operation as verified recovery.
+A persistent `recovering` decision supports another interruption during restore.
+Active claims are refused and never reset. Delivery remains quiesced; failures
+retain protected diagnostics and cannot be hidden by another update or resume.
+
+After verified recovery, fix the original cause and rerun the same authenticated
+target update normally. Recovery is idempotent and retains its checkpoint.
+Successful completed updates are explicitly rejected by this action; it is not
+a general downgrade. Application-backup restoration preserves authoritative live
+release-operation completion/recovery evidence over older snapshot states, with
+an explicit audit event for that control-history overlay.
+
+If a proof cannot complete, keep all processes and delivery quiesced and repair
+the stated protected diagnostic before retrying this command. Do not clear an
+operation or migration row merely to suppress a refusal. The exact operator-signed
+predecessor archive and source record remain required. No production installation
+was inspected by this engineering job.

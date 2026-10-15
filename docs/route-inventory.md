@@ -252,3 +252,9 @@ in [CLIENT-LIGHT-UPGRADE-1.0.6.md](CLIENT-LIGHT-UPGRADE-1.0.6.md) and
 recovery, acceptance and isolated old-Light-backup export. No HTTP update or
 restore route is introduced. Contacts/lists remain independent of campaign-owned
 Light recipients. Delivery remains held until explicit accepted readiness/resume.
+
+The existing `emailer:release:update` command also accepts
+`--recover-native-operation=<UUID>` with the same exact target/source packages.
+It recovers only a bound unfinished native 1.0.5 operation, verifies the source
+before closing its control record, retains delivery hold and refuses completed
+update downgrades. See CLIENT-UPDATE-1.0.6.md for the full command/prerequisites.

@@ -121,3 +121,37 @@ New regressions cover latest failed recovery, resume refusal, unchanged claims,
 known-unsent retry-limit outcomes, active-claim preparation refusal, and actual
 partial-cleanup replay. New-head review/CI and the final merged trusted-key
 release gates remain required; the canonical gate is unchanged.
+
+## Final f2a8865 assessment and native operability follow-through
+
+The exact read-only review of `f2a88651c3ac310fcb49cae0538fff668841b57e` found no
+new Light release blocker and verified the hold/claim/preparation/cleanup fixes.
+All three installer/recovery jobs in run 38666964800 passed; local exact-package
+rehearsal also passed active-claim refusal and interrupted acceptance cleanup.
+Three quality jobs remained blocked by the unchanged canonical migration gate.
+
+The review confirmed two native operability gaps, which are repaired rather than
+left as an unsupported manual database edit: durable progress now precedes backup
+creation, and the existing update command has a package/operation/install-bound
+checked recovery action. It verifies unmodified source when no checkpoint exists,
+or restores and fingerprints the complete verified checkpoint after mutation,
+then validates source boot/mappings/Doctor and append-closes the failed operation.
+Partial recovery is replayable, active claims stay intact, and completed update
+downgrades are refused. Pre-checkpoint interruption plus checked recovery/forward
+retry passed with an actual disposable signed package. Partial-DDL interruption
+plus complete fingerprinted recovery/forward retry also passed.
+
+Business-backup restore now preserves authoritative live release history over
+older snapshot state and audits that overlay; its every-row/asset drill accounts
+for the explicit control-history policy. A regression restores a snapshot with
+`started` after live `update_failed` and proves completion evidence and normal
+resume are retained. The review's optional retry-budget observation is also repaired: append-only
+known-unsent hold evidence retains attempts while preserving the later real SMTP
+retry budget and backoff, including after attempt-detail retention. New native code requires its
+own final exact-head review and matrix run.
+
+A separate local review identified checkpoint replay after a later native update.
+Protected operation custody and latest-operation checks now reject that replay;
+the packaged interruption harness attempts the old recovery again after the
+successful forward update and verifies the target remains unchanged. This code
+requires the next exact-commit independent review and matrix run.

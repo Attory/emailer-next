@@ -192,3 +192,14 @@ recovery. Do not infer schema portability from the shared version number.
 Retained pre-upgrade Light backups require the unchanged Light runtime, matching
 original installation lock and original key in an isolated Light schema; see
 [the exact recovery procedure](CLIENT-LIGHT-UPGRADE-1.0.6.md).
+
+### Authoritative release-operation history
+
+A business-backup restore merges archived release-operation IDs with live
+completion/recovery evidence, preferring the live row on an existing ID. A
+snapshot taken during an update cannot resurrect that update as `started` after
+it has failed or completed. Every restored business row/asset still participates
+in drill verification; the explicitly overlaid control history is checked against
+its preserved live rows and recorded by `backup.release_history_preserved`.
+Complete unfinished-update recovery sets remain a separate, exact source restore
+and are followed by checked operation closure.

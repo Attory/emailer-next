@@ -283,16 +283,24 @@ final readonly class DeliverCampaignRecipientHandler
     private function finishFailure(string $recipientId, string $attemptId, int $attemptNumber, int $operationVersion, string $classification, int $retryLimit, bool $affectsCircuit, bool $knownUnsent = false): ?int
     {
         return $this->connection->transactional(function () use ($recipientId, $attemptId, $attemptNumber, $operationVersion, $classification, $retryLimit, $affectsCircuit, $knownUnsent): ?int {
+            $heldCredits = $this->intValue($this->connection->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action='delivery.edition_hold_no_smtp' AND target_id=? AND result='success'", [$recipientId])) + ($knownUnsent ? 1 : 0);
+            $externalAttemptNumber = max(0, $attemptNumber - $heldCredits);
             // Preserve the claimed attempt and its accurate transient outcome.
             // A hold before any SMTP connection cannot become an ambiguous send,
             // even at the retry limit. The durable hold still blocks dispatch.
-            $retry = 'transient' === $classification && ($knownUnsent || $attemptNumber < $retryLimit);
-            $delay = $retry ? min(3_600_000, (2 ** min(10, $attemptNumber - 1)) * 60_000 + $this->jitter($recipientId, $attemptNumber)) : null;
+            $retry = 'transient' === $classification && ($knownUnsent || $externalAttemptNumber < $retryLimit);
+            $budgetAttempt = max(1, $externalAttemptNumber);
+            $delay = $retry ? min(3_600_000, (2 ** min(10, $budgetAttempt - 1)) * 60_000 + $this->jitter($recipientId, $budgetAttempt)) : null;
             $state = $retry ? 'retry' : ('permanent' === $classification ? 'permanent_failure' : 'ambiguous');
             $next = null === $delay ? null : (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->modify('+'.$delay.' milliseconds')->format('Y-m-d H:i:s.u');
             $this->connection->update('delivery_attempt', ['state' => $classification, 'failure_class' => $classification, 'finished_at' => Identity::now()], ['id' => $attemptId, 'state' => 'started']);
             if (1 !== $this->connection->update('campaign_recipient', ['state' => $state, 'next_attempt_at' => $next, 'claimed_at' => null, 'terminal_at' => $retry ? null : Identity::now(), 'last_failure_class' => $classification, 'operation_version' => $operationVersion, 'updated_at' => Identity::now()], ['id' => $recipientId, 'state' => 'processing'])) {
                 return null;
+            }
+            if ($knownUnsent) {
+                // Durable append-only evidence keeps budget credits even when
+                // ordinary attempt-detail retention later removes old rows.
+                $this->audit->append(new AuditRecord(null, 'delivery.edition_hold_no_smtp', $recipientId, 'success', ['attempt_id' => $attemptId, 'attempt_number' => $attemptNumber]));
             }
             $this->releaseRuntime(false, $affectsCircuit);
             if (!$retry) {
