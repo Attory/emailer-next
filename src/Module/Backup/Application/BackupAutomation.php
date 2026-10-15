@@ -40,7 +40,7 @@ final readonly class BackupAutomation implements AutomatedBackupOperations, Back
             throw new \InvalidArgumentException('Backup retention is outside safe bounds.');
         }
         $cutoff = (new \DateTimeImmutable('now', new \DateTimeZone('UTC')))->modify('-'.$retentionDays.' days')->format('Y-m-d H:i:s.u');
-        $rows = $this->connection->fetchAllAssociative("SELECT id, filename FROM backup_record WHERE deleted_at IS NULL AND created_at < ? AND id <> COALESCE((SELECT latest.id FROM (SELECT id FROM backup_record WHERE status = 'verified' AND deleted_at IS NULL ORDER BY verified_at DESC LIMIT 1) latest), '') ORDER BY created_at LIMIT ".self::BATCH, [$cutoff]);
+        $rows = $this->connection->fetchAllAssociative("SELECT id, filename FROM backup_record WHERE source_edition = 'emailer-ripe' AND deleted_at IS NULL AND created_at < ? AND id <> COALESCE((SELECT latest.id FROM (SELECT id FROM backup_record WHERE status = 'verified' AND deleted_at IS NULL ORDER BY verified_at DESC LIMIT 1) latest), '') ORDER BY created_at LIMIT ".self::BATCH, [$cutoff]);
         if ($dryRun) {
             return \count($rows);
         }

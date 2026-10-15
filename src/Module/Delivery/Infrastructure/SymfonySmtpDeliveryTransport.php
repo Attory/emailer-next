@@ -20,7 +20,11 @@ final readonly class SymfonySmtpDeliveryTransport implements DeliveryTransport
 
     public function send(OutboundMessage $message): string
     {
-        $this->editionHold?->assertSendingAllowed();
+        try {
+            $this->editionHold?->assertSendingAllowed();
+        } catch (\DomainException $exception) {
+            throw new DeliveryTransportFailure('transient', 'Delivery remains held before SMTP connection.', $exception, false);
+        }
         $configuration = $this->configuration->current();
         $local = \in_array($configuration['host'], ['mailpit', '127.0.0.1', '::1'], true) && 1025 === $configuration['port'] && 'none' === $configuration['encryption'] && null === $configuration['username'] && null === $configuration['credential_id'] && !$configuration['verify_peer'];
         if (\in_array($this->environment, ['dev', 'test'], true) && !$local) {

@@ -116,6 +116,9 @@ final readonly class ReleaseManager
         $sourceSchemaFingerprint = null;
         $completeCheckpoint = null;
         try {
+            if (false !== $this->connection->fetchOne("SELECT 1 FROM release_operation WHERE status = 'started' LIMIT 1")) {
+                throw new \RuntimeException('An unfinished release operation requires supervised recovery from its retained checkpoint before another update. Delivery must remain quiesced.');
+            }
             $previous = realpath($this->releasesDirectory.'/current');
             if (false === $previous || !is_dir($previous) || !hash_equals($this->currentVersion, basename($previous))) {
                 throw new \RuntimeException('Recorded update source does not match the immutable current release.');

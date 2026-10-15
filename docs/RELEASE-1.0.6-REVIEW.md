@@ -48,3 +48,42 @@ route parameter was redacted. Ripe redaction now removes the exact token wire
 shape from arbitrary log text, with regression coverage. Synthetic diagnostic
 copies have been redacted; original URL material stays in protected fixture
 state for compatibility testing.
+
+## Exact first candidate review and bounded repairs
+
+Claude reviewed `86c9784eeaa013eb9ff5075cdadcd39a9a28eda2` read-only with
+Read/Grep/Glob only, no commands, writes or paths outside this repository. It
+found no new Light conversion blocker and independently verified the preceding
+Doctor, hold, crypto, session, permission, quarantine and path repairs. Release
+approval remained blocked by the canonical migration gate and pending final
+merged trusted-key rehearsals.
+
+Independently assessed findings:
+
+- Native crash rerun: confirmed. An unfinished `release_operation` now refuses
+  another update before any new checkpoint, preserving the original complete
+  checkpoint for supervised recovery. The regression models committed partial
+  DDL and verifies no backup, restore, pointer or completion-status change.
+- Old backup retention: confirmed. Automatic pruning excludes Light provenance
+  for both local and transferred copies. Explicit operator custody/retention
+  decisions remain separate; the recovery set is not automatically pruned.
+- Scratch privacy: confirmed. Acceptance verifies the protected installation
+  lease and source inventory, then removes the temporary rehearsal tables.
+  Partial cleanup can be repeated; protected encrypted recovery assets remain.
+- Hold classification race: confirmed. The transport reports a transient failure
+  without circuit impact before reading configuration, credentials or opening
+  SMTP; it does not claim an ambiguous external send.
+- Preparation failure: confirmed safe but inconvenient. The installer now
+  restores the original account after verifying unchanged source where possible,
+  retains the hold and protected diagnostics, and names explicit recovery if
+  preparation recovery cannot complete.
+- Recovered-operation package pin: intentional. Recovery and rerun retain the
+  exact authenticated operation package; a different same-version package is
+  refused. Published version artifacts are never replaced, and the operator
+  must not manually delete a hold to evade this binding.
+- CI source public key: checksum now pinned in addition to both source archives.
+- MariaDB variant uncertainty: all three first-candidate installer/recovery
+  matrix jobs passed, including MariaDB 11.8.9 and PHP 8.5.9.
+
+Repairs require new-head tests, matrix CI and read-only review. The unchanged
+canonical migration gate remains a separate release blocker.

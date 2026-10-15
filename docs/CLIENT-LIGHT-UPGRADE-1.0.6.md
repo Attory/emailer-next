@@ -98,6 +98,11 @@ records and the complete target schema, establishes the verified Ripe baseline,
 creates a native Ripe backup, validates boot/mappings/Doctor, atomically changes
 the current pointer and validates again. The application account remains fenced
 until acceptance. Campaign states remain unchanged and delivery remains held.
+Acceptance removes the separately scoped rehearsal database's owned tables
+after checking its protected installation lease and source inventory. Cleanup
+can be repeated after interruption. The encrypted recovery set is retained.
+Automatic Ripe backup pruning excludes retained Light backup provenance;
+operators must make any later Light-backup disposal decision explicitly.
 
 ## Acceptance and delivery hold
 

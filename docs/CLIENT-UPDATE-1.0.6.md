@@ -222,6 +222,12 @@ fault rehearsal with exact source schema, historical rows, key and pointer
 restored and no emitted messages. An older data-only restore cannot reverse
 these DDL changes.
 
+If a process or host interruption leaves a `release_operation` marked `started`,
+another update is refused before creating a new checkpoint. Recover the exact
+source schema, ledger, rows and private state from the original retained
+checkpoint under supervision; never turn the partial schema into a new source
+baseline or clear the operation merely to suppress this refusal.
+
 If complete recovery itself fails, retain all checkpoints, packages and failure
 evidence, keep delivery stopped and obtain supervised recovery of source DDL,
 ledger, rows and private state. Never delete a migration row or force a pointer

@@ -84,6 +84,12 @@ for iteration in {1..100}; do
     sleep 0.1
 done
 run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /rehearsal/target/bin/console emailer:setup:install --upgrade-light --edition-action=inspect --target-package=/package/emailer-next-1.0.6.zip --source-package=/published-light/emailer-light-1.0.0.zip --recovery-directory=/rehearsal/recovery' > "$case_root/inspection.log" 2>&1
+run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /tools/tools/upgrade/conflict-rehearsal-database.php prepare'
+if run bash -euc 'set -a; source /rehearsal/updater.env; set +a; printf "%s\n%s\n" "Synthetic recovery rehearsal passphrase only" "Synthetic recovery rehearsal passphrase only" | php /rehearsal/target/bin/console emailer:setup:install --upgrade-light --edition-action=execute --target-package=/package/emailer-next-1.0.6.zip --source-package=/published-light/emailer-light-1.0.0.zip --recovery-directory=/rehearsal/recovery' >> "$case_root/rejections.log" 2>&1; then
+    printf 'An unowned nonempty rehearsal database was accepted.\n' >&2
+    exit 1
+fi
+run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /tools/tools/upgrade/conflict-rehearsal-database.php cleanup; php /tools/tools/upgrade/observe-light-rehearsal.php restored' >> "$case_root/rejections.log" 2>&1
 run bash -euc 'set -a; source /rehearsal/updater.env; set +a; printf "%s\n%s\n" "Synthetic recovery rehearsal passphrase only" "Synthetic recovery rehearsal passphrase only" | php /rehearsal/target/bin/console emailer:setup:install --upgrade-light --edition-action=execute --target-package=/package/emailer-next-1.0.6.zip --source-package=/published-light/emailer-light-1.0.0.zip --recovery-directory=/rehearsal/recovery' > "$case_root/transition.log" 2>&1
 run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /tools/tools/upgrade/observe-light-rehearsal.php after' >> "$case_root/preservation.log"
 # Recover after atomic activation, preserving the same signed operation package.
@@ -146,6 +152,7 @@ run bash -euc 'set -a; source /rehearsal/updater.env; set +a; printf "%s\n%s\n" 
 # Explicit operator acceptance unlocks the scoped application account but keeps
 # the durable hold. HTTP checks are separate from conversion/recovery evidence.
 run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /rehearsal/target/bin/console emailer:setup:install --upgrade-light --edition-action=accept --target-package=/package/emailer-next-1.0.6.zip --source-package=/published-light/emailer-light-1.0.0.zip --recovery-directory=/rehearsal/recovery' > "$case_root/acceptance.log" 2>&1
+run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /tools/tools/upgrade/verify-scratch-cleanup.php' >> "$case_root/acceptance.log" 2>&1
 if [ "${EMAILER_REHEARSAL_MINIMAL:-0}" != 1 ]; then
     run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /tools/tools/upgrade/verify-retained-queue.php' >> "$case_root/preservation.log" 2>&1
     run bash -euc 'set -a; source /rehearsal/runtime.env; export EMAILER_RUNTIME_DIR=/rehearsal/http-runtime; set +a; php /tools/tools/upgrade/verify-old-links.php' > "$case_root/old-links.log" 2>&1

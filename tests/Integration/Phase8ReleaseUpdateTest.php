@@ -78,6 +78,30 @@ final class Phase8ReleaseUpdateTest extends KernelTestCase
         self::assertSame(0, $this->phase4Int($connection->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key = '1'")));
     }
 
+    public function testUnfinishedUpdateCannotCheckpointPartialDdlAsANewSource(): void
+    {
+        [$connection, $manager, $backups, $archive] = $this->fixture(0);
+        $this->publishPreviousRelease();
+        $operation = Identity::uuidV7();
+        $connection->insert('release_operation', ['id' => $operation, 'operation' => 'update', 'source_version' => '0.3.0', 'target_version' => '0.4.0', 'package_sha256' => hash_file('sha256', $archive), 'status' => 'started', 'detail_code' => 'verified', 'started_at' => Identity::now(), 'finished_at' => null]);
+        $connection->executeStatement('ALTER TABLE campaign ADD interrupted_ddl_marker INT DEFAULT NULL');
+        try {
+            try {
+                $manager->update($archive, $this->sourceArchive);
+                self::fail('An interrupted update became a new recovery baseline.');
+            } catch (\RuntimeException $exception) {
+                self::assertStringContainsString('unfinished release operation', $exception->getMessage());
+            }
+            self::assertSame(0, $backups->created);
+            self::assertSame(0, $backups->restored);
+            self::assertSame('started', $connection->fetchOne('SELECT status FROM release_operation WHERE id = ?', [$operation]));
+            self::assertSame($this->directory.'/releases/0.3.0', realpath($this->directory.'/releases/current'));
+            self::assertTrue($connection->createSchemaManager()->introspectTable('campaign')->hasColumn('interrupted_ddl_marker'));
+        } finally {
+            $connection->executeStatement('ALTER TABLE campaign DROP COLUMN interrupted_ddl_marker');
+        }
+    }
+
     public function testFailedProductionOwnershipAssertionRemovesPublishedTarget(): void
     {
         [$connection, , $backups, $archive, $inspector, $locks] = $this->fixture(0);

@@ -15,6 +15,34 @@ final class Ripe106DeliveryHoldTest extends KernelTestCase
 {
     use Phase4State;
 
+    public function testTransportHoldIsTransientBeforeConfigurationSecretsOrSmtpAreUsed(): void
+    {
+        self::bootKernel();
+        $connection = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($connection);
+        $private = self::getContainer()->getParameter('emailer.private_dir');
+        self::assertIsString($private);
+        $file = $private.'/edition-delivery-hold.json';
+        file_put_contents($file, '{"phase":"quiescing"}');
+        $configuration = $this->createMock(\App\Module\Configuration\Application\Contract\DeliveryConfiguration::class);
+        $configuration->expects(self::never())->method('current');
+        $vault = $this->createMock(\App\Module\Secrets\Application\Contract\SecretVault::class);
+        $vault->expects(self::never())->method('reveal');
+        $transport = new \App\Module\Delivery\Infrastructure\SymfonySmtpDeliveryTransport($configuration, $vault, new \App\Module\Delivery\Infrastructure\OutboundMimeMessageFactory(), 'test', new EditionDeliveryHold($private));
+        try {
+            try {
+                $transport->send(new \App\Module\Delivery\Application\Contract\OutboundMessage('recipient@example.test', 'sender@example.test', 'Synthetic', null, 'Synthetic', '<p>synthetic</p>', 'synthetic', 'synthetic@example.test'));
+                self::fail('A held transport reached SMTP.');
+            } catch (\App\Module\Delivery\Application\Contract\DeliveryTransportFailure $failure) {
+                self::assertSame('transient', $failure->classification);
+                self::assertFalse($failure->affectsCircuit);
+            }
+        } finally {
+            unlink($file);
+            $this->removePhase4Files();
+        }
+    }
+
     public function testAcceptedHoldStillBlocksClaimsAndFailedRemovalCannotEnableDelivery(): void
     {
         self::bootKernel();

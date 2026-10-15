@@ -67,7 +67,7 @@ recovered as an edition downgrade.
 ## Validation and remaining release gates
 
 Local PHP 8.4.24 / MariaDB 10.11.19 full suite passed as the application
-identity: 301 tests, 9,942 assertions, no skips. An initial root-run suite failed
+identity: 304 tests, 9,981 assertions, no skips after independent-review repairs. An initial root-run suite failed
 the existing non-root production-owner assertion and skipped the intended
 permission-failure test; rerunning under the correct identity resolved both.
 Composer validation, locked advisory audit and the 85-package production license
@@ -112,3 +112,18 @@ pending concerning nontransactional MariaDB DDL and verified recovery gates.
 
 No production connection or operation has occurred. Light's checkout and
 published artifacts remain unchanged. No later release phase is implemented.
+
+## First hosted candidate and review follow-through
+
+Candidate `86c9784eeaa013eb9ff5075cdadcd39a9a28eda2`, PR #22, hosted CI run
+38662141095: all three installer/recovery matrix jobs passed (PHP 8.4.24 /
+MariaDB 10.11.19; PHP 8.4.24 / MariaDB 11.8.9; PHP 8.5.9 / MariaDB 10.11.19).
+All three existing quality jobs failed at the unchanged canonical migration gate.
+The read-only exact-candidate Claude review found no new Light conversion blocker
+and recommended native unfinished-update refusal plus smaller preservation,
+privacy, classification and preparation repairs; see the independent review
+record. Those repairs add meaningful partial-DDL, retained-backup and pre-SMTP
+hold regressions. Full local suite after repairs passed 304 tests / 9,981
+assertions. A new exact-head review and matrix run are required for the repaired
+candidate. Final merged trusted-key signing/rehearsals remain blocked by the
+canonical gate; there is no released 1.0.6 upgrade at this point.

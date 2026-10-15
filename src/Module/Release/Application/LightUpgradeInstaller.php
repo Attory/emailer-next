@@ -76,6 +76,7 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
                     throw new \RuntimeException('Acceptance requires the exact validated Ripe release to remain active.');
                 }
                 if ('accepted' === ($receipt['phase'] ?? null)) {
+                    $this->clearRehearsalDatabase($receipt);
                     $this->fence->restore(SourceDatabaseFence::account($receipt['database_account']));
 
                     return ['status' => 'already_accepted', 'delivery' => 'held_until_emailer_delivery_resume'];
@@ -84,6 +85,7 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
                     throw new \RuntimeException('Only a validated, activated transition can be accepted.');
                 }
                 $this->console($this->releasesDirectory.'/1.0.6', ['emailer:doctor:run', '--json', '--maintenance-verification', '--read-only'], [0, 1, 2]);
+                $this->clearRehearsalDatabase($receipt);
                 $this->record(array_replace($receipt, ['phase' => 'accepted']));
                 $this->fence->restore(SourceDatabaseFence::account($receipt['database_account']));
 
@@ -213,6 +215,18 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
                 }
                 throw new \RuntimeException('Edition transition failed; verified Light recovery completed. Delivery remains held. Detailed diagnostics remain protected in the recovery set.');
             }
+        } catch (\Throwable $failure) {
+            $pending = $this->receipt(false);
+            if ($databaseLockAcquired && 'execute' === $action && \in_array($pending['phase'] ?? null, ['quiescing', 'backing_up'], true)) {
+                try {
+                    EditionRecoverySet::write(EditionData::text($pending['recovery_directory']).'/transition-failure.json', json_encode(['exception_class' => $failure::class, 'message' => $failure->getMessage()], JSON_THROW_ON_ERROR));
+                    $this->recover($recoveryDirectory, $sourceRoot);
+                } catch (\Throwable) {
+                    throw new \RuntimeException('Edition preparation failed. Delivery remains held; rerun the exact authenticated installer with --edition-action=recover after repairing the preparation failure.');
+                }
+                throw new \RuntimeException('Edition preparation failed; unchanged Light was verified and its account restored. Delivery remains held. Protected recovery diagnostics identify the preparation failure; repair it before rerunning the exact installer.');
+            }
+            throw $failure;
         } finally {
             try {
                 if ($databaseLockAcquired) {
@@ -221,6 +235,34 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
             } finally {
                 $this->maintenance->release();
             }
+        }
+    }
+
+    /** @param array<string, mixed> $receipt */
+    private function clearRehearsalDatabase(array $receipt): void
+    {
+        $scratch = $this->scratch();
+        $leaseFile = EditionData::text($receipt['recovery_base']).'/scratch-owner.json';
+        EditionRecoverySet::safe($leaseFile, false);
+        $lease = ['format' => 'emailer-edition-scratch-v1', 'installation_uuid' => $receipt['installation_uuid'], 'database' => $scratch->getDatabase(), 'target_package_sha256' => $receipt['target_package_sha256']];
+        if (EditionData::read($leaseFile) !== $lease) {
+            throw new \RuntimeException('Recovery rehearsal cleanup requires the original installation ownership receipt.');
+        }
+        $tables = $scratch->createSchemaManager()->listTableNames();
+        $source = EditionData::object(EditionData::read($this->projectDirectory.'/config/upgrade/light-schema-details-1.0.0.json')['tables'] ?? null);
+        if ([] !== array_diff($tables, array_keys($source)) || false !== $scratch->fetchOne("SELECT 1 FROM information_schema.TABLES WHERE TABLE_SCHEMA = DATABASE() AND TABLE_TYPE = 'VIEW' LIMIT 1")) {
+            throw new \RuntimeException('Recovery rehearsal cleanup refuses an unexpected database inventory.');
+        }
+        // A partial cleanup is replayable: every remaining table must still be
+        // owned by the verified lease and the published source inventory.
+        $scratch->executeStatement('SET FOREIGN_KEY_CHECKS = 0');
+        try {
+            foreach ($tables as $table) {
+                $scratch->executeStatement('DROP TABLE '.$scratch->quoteSingleIdentifier($table));
+            }
+        } finally {
+            $scratch->executeStatement('SET FOREIGN_KEY_CHECKS = 1');
+            $scratch->close();
         }
     }
 
