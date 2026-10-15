@@ -184,3 +184,23 @@ verified backup; restored-source Doctor correctly rejected it. That fixture is
 corrected without weakening Doctor. The exact review's concurrent-native-writer
 and journal-only crash findings are repaired with persistent account fencing
 and predecessor-bound recovery; the next exact head requires its own evidence.
+
+## Explicitly approved MariaDB migration-gate correction
+
+Anton explicitly approved the exact command-line flag patch after reviewing the
+blocked candidate. Existing terminal CI logs confirm all three quality failures
+were Doctrine MigrationConfigurationConflict: all-or-nothing was requested while
+Version20261015000000 truthfully declares its MariaDB DDL nontransactional.
+Effective installed Doctrine configuration is all_or_nothing=false and
+transactional=true. Removing only the CLI override therefore resolves the
+incompatibility without globally disabling transactions. Historical migrations,
+per-migration transaction defaults and application data transactions are unchanged.
+MariaDB implicitly commits DDL; verified complete checkpoints, full schema/ledger
+and row/relationship proofs and crash-recovery rehearsals cover that boundary.
+
+The approved patch retains --no-interaction, migration-up-to-date and mapping
+validation. schema:validate --skip-sync validates Doctrine mappings only; it is
+not a full database/schema comparison. Separate exact physical-schema/foreign-key
+and mapped-data checks in native/Light package rehearsals remain mandatory, as
+do backup, failure-recovery, zero-send and supported matrix gates. New exact-head
+review and all quality/installer CI must pass before merge and trusted signing.

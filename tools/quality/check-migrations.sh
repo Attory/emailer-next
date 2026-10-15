@@ -8,7 +8,6 @@ cd "$project_root"
 php bin/console doctrine:migrations:migrate \
     --env=test \
     --no-debug \
-    --no-interaction \
-    --all-or-nothing
+    --no-interaction
 php bin/console doctrine:migrations:up-to-date --env=test --no-debug
 php bin/console doctrine:schema:validate --env=test --no-debug --skip-sync
