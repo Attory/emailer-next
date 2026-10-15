@@ -336,6 +336,9 @@ final readonly class ReleaseManager
 
                 return;
             }
+            if ('recovered' === $phase) {
+                throw new \RuntimeException('A completed native recovery has drifted; its old checkpoint cannot overwrite subsequent source state.');
+            }
             $fence->lock($account);
             $restore = 'recovering' === $phase ? ($journal['restore_required'] ?? true) : isset($journal['source_data_fingerprint']);
             if (!\is_bool($restore)) {

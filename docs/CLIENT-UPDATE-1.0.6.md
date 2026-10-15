@@ -116,8 +116,14 @@ Install the authenticated target tree's
 `deployment/emailer-update@.service.example` as root-owned
 `/etc/systemd/system/emailer-update@.service`. Review it against the client
 installation record. Create `/etc/emailer/update.env` as `root:root` mode
-`0600` containing only the exact recorded predecessor, for example
-`EMAILER_UPDATE_SOURCE_VERSION=1.0.5`. Verify that the basename resolved by
+`0600` containing `EMAILER_UPDATE_SOURCE_VERSION=1.0.5`,
+`EMAILER_RUNTIME_CONFIGURATION_FILE=/etc/emailer/runtime.env`, and a `DATABASE_URL`
+override for the separate privileged maintenance identity. Keep that URL only in
+this protected file; do not print it or place it in command arguments. The
+maintenance identity needs complete DDL/data/trigger access to this installation,
+`CREATE USER` authority for account locking, `CONNECTION ADMIN` for terminating
+the dedicated application sessions, and read access to `mysql.global_priv`.
+The application account must retain only its installation-scoped grants. Verify that the basename resolved by
 `/srv/emailer/releases/current` is exactly the same version. The target updater
 rejects a mismatch. Reload systemd only after these checks.
 
@@ -125,6 +131,7 @@ rejects a mismatch. Reload systemd only after these checks.
 sudo install -o root -g root -m 0644 /var/lib/emailer-candidate/verified-1.0.6/deployment/emailer-update@.service.example /etc/systemd/system/emailer-update@.service
 sudo sed -i "s#/usr/bin/php #${PHP_CLI} #g" /etc/systemd/system/emailer-update@.service
 sudo grep '^ExecStart=' /etc/systemd/system/emailer-update@.service
+sudo install -d -o root -g root -m 0700 /var/lib/emailer/native-update-recovery
 sudo install -o root -g root -m 0600 /dev/null /etc/emailer/update.env
 sudoedit /etc/emailer/update.env
 readlink -f /srv/emailer/releases/current
@@ -143,6 +150,19 @@ from colliding with or changing ownership of the ordinary service cache. Its
 `ExecStart` applies that override through `/usr/bin/env` after systemd has read
 both protected environment files: `EnvironmentFile` would override a plain
 `Environment=EMAILER_RUNTIME_DIR=...` assignment.
+
+Stop the recorded PHP-FPM/HTTP application processes, workers, schedulers and
+operations timers before starting the updater, and keep them stopped until the
+new current code is warmed and verified. The account fence covers database
+writers during checkpointing; it does not replace stopping stale application
+processes before that fence is released after validation.
+
+The reviewed unit grants the root-only updater write access to the recovery
+root and the protected key/configuration directories because complete recovery
+uses durable atomic file replacement there. The candidate and pinned signing
+public key remain read-only; `ProtectSystem=strict`, `NoNewPrivileges` and
+root/service ownership boundaries remain enforced. Review every path against
+the recorded installation, including custom key/configuration locations.
 
 Run the supervised update through the root-controlled unit:
 

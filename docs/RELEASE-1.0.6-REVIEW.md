@@ -170,3 +170,12 @@ gap, denied application connections, repeat completed recovery and committed
 partial source restoration interrupted again. The source fixture creates its
 documented prerequisite verified backup before fault injection; Doctor is not
 waived. These repairs require their own exact-head review and matrix.
+
+The b4abf53 follow-up confirmed F1/F2 fixed and found no accidental failed-proof
+unlock. Its B1 fault-lock issue is repaired with a read lock; the restoration
+observer now waits for an actually dropped source table. Its B2 launcher guidance
+is corrected to supply the maintenance URL and original runtime path/privileges.
+An already recovered checkpoint now refuses drift rather than destructively
+restoring again. Separate review also aligned the root-only systemd example's
+writable recovery/key/configuration roots with actual atomic restoration; the
+trusted public key/candidate stay read-only. No installed service was changed.
