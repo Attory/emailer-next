@@ -448,3 +448,28 @@ purpose is introduced.
 - MariaDB additive DDL can survive interrupted update rollback. The migration
   is repeatable; release recovery still requires the verified backup and exact
   signed predecessor, with delivery quiesced until acceptance.
+# Ripe 1.0.6 edition-transition addendum
+
+An edition label is insufficient source authority. The installer binds published
+archive bytes, immutable installed code, full schema/trigger inventory, source
+ledger, protected lock and installation UUID. Unexpected drift fails before
+conversion. A package-provided key is not independently trusted; the pinned Ripe
+key must also differ from the authenticated Light release key.
+
+Account fencing and a database advisory lock prevent application writers and
+parallel updaters from racing the transition. Persistent holds block transport
+and readiness after process or host restart. Quiescence rejects active claims
+and attempts rather than clearing them. Root-controlled process replacement and
+HTTP maintenance are operator prerequisites; the application does not claim to
+replace an arbitrary reverse proxy or PHP process manager.
+
+Recovery assets contain confidential complete installation state. Directories
+are protected, payloads are authenticated/encrypted, and keys remain separately
+protected within retained operator custody. Loss of either prevents recovery.
+Do not delete recovery assets before acceptance. Recovery excludes the durable
+hold journal and quarantines target-only private files. A recovery failure leaves
+delivery held and requires repair using retained evidence, never automatic send.
+
+See [ADR 0014](adr/0014-light-recipient-provenance-and-edition-recovery.md) and the
+[operator procedure](CLIENT-LIGHT-UPGRADE-1.0.6.md). This candidate is not a
+production deployment authorization.

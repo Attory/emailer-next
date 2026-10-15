@@ -470,3 +470,20 @@ or invalid confirmation produces an actionable 422 form without mutation. Only
 creation email/role may be retained; initial/current passwords and codes are
 never redisplayed or saved as pending actions. Role/last-Owner safeguards remain
 server-side. The guide is authenticated and private/no-store.
+# Ripe 1.0.6 compatibility addendum
+
+Campaign-owned recipient provenance never grants address-book membership.
+Nullable contact references are valid only with the campaign's immutable
+recipient model and matching composite delivery/token scope. Suppression lookup
+uses one case-insensitive match identity while preserving historical suppression
+rows and IDs.
+
+Secret envelopes and recipient tokens select an explicit source edition; no
+arbitrary decryption fallback is permitted. The unchanged Light password hash
+maps to Owner with High security and no MFA configuration. Source sessions are
+revoked, and no recent High grant or recovery code is inherited. Normal MFA
+enrollment and all ordinary High gates continue to apply.
+
+See [ADR 0014](adr/0014-light-recipient-provenance-and-edition-recovery.md) for
+recovery and serialization controls and the operator procedure for custody of
+retained Light backups and original keys.

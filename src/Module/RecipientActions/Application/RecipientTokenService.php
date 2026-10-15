@@ -52,13 +52,13 @@ final readonly class RecipientTokenService implements RecipientUnsubscribeLinks
                 $id = Identity::uuidV7();
                 $handle = sodium_bin2base64(random_bytes(32), SODIUM_BASE64_VARIANT_URLSAFE_NO_PADDING);
                 $expiresAt = $now->modify('+'.self::TOKEN_LIFETIME)->format('Y-m-d H:i:s.u');
-                $this->connection->executeStatement('INSERT IGNORE INTO recipient_token (id, handle, campaign_id, campaign_recipient_id, contact_id, email_canonical, purpose, key_version, issued_at, expires_at, revoked_at, last_used_at, use_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, 0)', [$id, $handle, $campaignId, $campaignRecipientId, $contactId, $address->canonical, self::PURPOSE, $version, Identity::now(), $expiresAt]);
+                $this->connection->executeStatement('INSERT IGNORE INTO recipient_token (id, handle, campaign_id, campaign_recipient_id, recipient_id, contact_id, email_canonical, purpose, key_version, issued_at, expires_at, revoked_at, last_used_at, use_count) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, NULL, 0)', [$id, $handle, $campaignId, $campaignRecipientId, $contactId, $this->connection->fetchOne('SELECT contact_id FROM campaign_recipient WHERE id = ? AND campaign_id = ? AND recipient_id = ?', [$campaignRecipientId, $campaignId, $contactId]), $address->canonical, self::PURPOSE, $version, Identity::now(), $expiresAt]);
                 $row = $this->connection->fetchAssociative('SELECT * FROM recipient_token WHERE campaign_recipient_id = ? AND purpose = ? FOR UPDATE', [$campaignRecipientId, self::PURPOSE]);
             }
-            if (false === $row || !\is_string($row['handle']) || !\is_string($row['expires_at']) || !\is_string($row['campaign_id']) || !\is_string($row['campaign_recipient_id']) || !\is_string($row['contact_id']) || !is_numeric($row['key_version'])) {
+            if (false === $row || !\is_string($row['handle']) || !\is_string($row['expires_at']) || !\is_string($row['campaign_id']) || !\is_string($row['campaign_recipient_id']) || !\is_string($row['recipient_id']) || !is_numeric($row['key_version'])) {
                 throw new \RuntimeException('Recipient token could not be issued.');
             }
-            if ($row['email_canonical'] !== $address->canonical || $row['campaign_id'] !== $campaignId || $row['contact_id'] !== $contactId) {
+            if ($row['email_canonical'] !== $address->canonical || $row['campaign_id'] !== $campaignId || $row['recipient_id'] !== $contactId) {
                 throw new \RuntimeException('Recipient token scope does not match.');
             }
             $storedVersion = (int) $row['key_version'];
@@ -71,7 +71,7 @@ final readonly class RecipientTokenService implements RecipientUnsubscribeLinks
             }
             $secret = $this->decodeSecret($this->vault->reveal($secretId, self::SECRET_TYPE, $runtime['installation_id']));
             try {
-                $token = $this->codec->encode($storedVersion, $row['handle'], self::PURPOSE, $row['campaign_id'], $row['campaign_recipient_id'], $row['contact_id'], $row['expires_at'], $secret);
+                $token = $this->codec->encode($storedVersion, $row['handle'], self::PURPOSE, $row['campaign_id'], $row['campaign_recipient_id'], $row['recipient_id'], $row['expires_at'], $secret, $this->stringValue($row['codec_edition']));
             } finally {
                 sodium_memzero($secret);
             }
@@ -158,7 +158,7 @@ final readonly class RecipientTokenService implements RecipientUnsubscribeLinks
         $runtime = $this->configuration->current();
         try {
             $secret = $this->decodeSecret($this->vault->reveal($row['secret_id'], self::SECRET_TYPE, $runtime['installation_id']));
-            $valid = $this->codec->verify($token, (int) $row['key_version'], $this->stringValue($row['handle']), self::PURPOSE, $this->stringValue($row['campaign_id']), $this->stringValue($row['campaign_recipient_id']), $this->stringValue($row['contact_id']), $row['expires_at'], $secret);
+            $valid = $this->codec->verify($token, (int) $row['key_version'], $this->stringValue($row['handle']), self::PURPOSE, $this->stringValue($row['campaign_id']), $this->stringValue($row['campaign_recipient_id']), $this->stringValue($row['recipient_id']), $row['expires_at'], $secret, $this->stringValue($row['codec_edition']));
         } catch (\Throwable) {
             throw new RecipientTokenInvalid();
         } finally {

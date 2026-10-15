@@ -520,7 +520,10 @@ final readonly class BackupEngine implements BackupOperations
     /** @return list<array<string, mixed>> */
     public function recentRecords(): array
     {
-        return $this->connection->fetchAllAssociative('SELECT id, format_version, byte_size, schema_version, source_version, status, created_at, verified_at, restored_at, deleted_at FROM backup_record ORDER BY created_at DESC LIMIT 20');
+        $columns = $this->connection->createSchemaManager()->listTableColumns('backup_record');
+        $edition = isset($columns['source_edition']) ? 'source_edition' : "'emailer-ripe' AS source_edition";
+
+        return $this->connection->fetchAllAssociative('SELECT id, format_version, byte_size, schema_version, source_version, '.$edition.', status, created_at, verified_at, restored_at, deleted_at FROM backup_record ORDER BY created_at DESC LIMIT 20');
     }
 
     /** @return list<array<string, mixed>> */
@@ -652,6 +655,9 @@ final readonly class BackupEngine implements BackupOperations
         try {
             $prefix = fread($in, \strlen(self::FORMAT) + 1);
             $header = fread($in, SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_HEADERBYTES);
+            if (\is_string($prefix) && str_starts_with($prefix, 'emailer-light-backup-v1')) {
+                throw new \RuntimeException('Retained Emailer Light backups require the unchanged Light runtime and original key in an isolated Light schema; use the documented Light recovery path.');
+            }
             if (self::FORMAT."\0" !== $prefix || false === $header || SODIUM_CRYPTO_SECRETSTREAM_XCHACHA20POLY1305_HEADERBYTES !== \strlen($header)) {
                 throw new \RuntimeException('Backup envelope is invalid.');
             }
@@ -731,7 +737,14 @@ final readonly class BackupEngine implements BackupOperations
                 }
                 foreach ($tables as $table) {
                     foreach ($this->rows($zip, $table) as $row) {
-                        $this->connection->insert($table, $row);
+                        if ('suppression' === $table) {
+                            unset($row['email_match_key']);
+                        }
+                        if ('suppression_match' === $table) {
+                            $this->connection->executeStatement('INSERT INTO suppression_match (email_match_key,suppression_id) VALUES (?,?) ON DUPLICATE KEY UPDATE suppression_id = VALUES(suppression_id)', [$row['email_match_key'], $row['suppression_id']]);
+                        } else {
+                            $this->connection->insert($table, $row);
+                        }
                     }
                 }
                 $this->restoreAssets($zip);
@@ -915,7 +928,7 @@ final readonly class BackupEngine implements BackupOperations
 
     private function schemaVersion(): string
     {
-        $version = $this->connection->fetchOne('SELECT version FROM doctrine_migration_versions ORDER BY executed_at DESC, version DESC LIMIT 1');
+        $version = $this->connection->fetchOne('SELECT version FROM doctrine_migration_versions ORDER BY version DESC LIMIT 1');
 
         return \is_string($version) ? substr($version, -14) : 'unknown';
     }

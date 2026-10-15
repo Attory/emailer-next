@@ -66,7 +66,7 @@ final class Phase13FreshDatabaseSetupTest extends KernelTestCase
             $setup->configure($input);
             self::assertTrue($connection->createSchemaManager()->tablesExist(['doctrine_migration_versions', 'installation_state', 'backup_record']));
             $versions = $connection->fetchAllAssociative('SELECT version FROM doctrine_migration_versions ORDER BY version');
-            self::assertCount(15, $versions);
+            self::assertCount(16, $versions);
             // CLI setup initializes the key in this same process immediately after DDL.
             $key = new FilesystemMasterKey($directory.'/master.key', \dirname(__DIR__, 2).'/public', \dirname(__DIR__, 2), 'test');
             $state = new DoctrineSetupState($connection, $key, $lifecycle);

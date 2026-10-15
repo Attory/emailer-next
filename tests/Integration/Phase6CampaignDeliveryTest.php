@@ -73,6 +73,37 @@ final class Phase6CampaignDeliveryTest extends KernelTestCase
         }
     }
 
+    public function testCampaignOwnedDraftApprovesAndMaterializesWithoutCreatingAddressBookData(): void
+    {
+        self::bootKernel();
+        $connection = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($connection);
+        $actor = $this->createPhase4User($connection, 'owned-draft@example.test', 'synthetic-owned-password-'.bin2hex(random_bytes(8)));
+        [$manager, $nativeCampaign] = $this->campaign($connection, $actor);
+        $campaign = $connection->fetchAssociative('SELECT * FROM campaign WHERE id = ?', [$nativeCampaign]);
+        self::assertIsArray($campaign);
+        $ownedCampaign = Identity::uuidV7();
+        $campaign['id'] = $ownedCampaign;
+        $campaign['audience_model'] = 'campaign_owned';
+        $connection->insert('campaign', $campaign);
+        $recipient = Identity::uuidV7();
+        $connection->insert('campaign_audience_recipient', ['campaign_id' => $ownedCampaign, 'recipient_id' => $recipient, 'contact_id' => null, 'email_canonical' => 'owned-recipient@example.test', 'profile_json' => '{"first_name":"Legacy","display_name":"Synthetic owned recipient"}']);
+        $contactsBefore = $connection->fetchOne('SELECT COUNT(*) FROM contact');
+        $listsBefore = $connection->fetchOne('SELECT COUNT(*) FROM contact_list');
+        $manager->submitForReview($actor, $ownedCampaign);
+        $manager->approve($actor, $ownedCampaign, $this->phase4Int($manager->detail($actor, $ownedCampaign)['operation_version']), true);
+        self::assertSame(1, $this->phase4Int($connection->fetchOne('SELECT recipient_count FROM campaign_audience_snapshot WHERE campaign_id = ?', [$ownedCampaign])));
+        $this->transport()->reset();
+        $manager->queue($actor, $ownedCampaign);
+        $delivery = $connection->fetchAssociative('SELECT recipient_id,contact_id FROM campaign_recipient WHERE campaign_id = ?', [$ownedCampaign]);
+        self::assertIsArray($delivery);
+        self::assertSame($recipient, $delivery['recipient_id']);
+        self::assertNull($delivery['contact_id']);
+        self::assertSame($contactsBefore, $connection->fetchOne('SELECT COUNT(*) FROM contact'));
+        self::assertSame($listsBefore, $connection->fetchOne('SELECT COUNT(*) FROM contact_list'));
+        self::assertSame(0, $this->phase4Int($connection->fetchOne('SELECT COUNT(*) FROM campaign_list_selection WHERE campaign_id = ?', [$ownedCampaign])));
+    }
+
     public function testQueuedTestAndRecipientMessagesContainIdentifiersOnlyAndMailpitAccepts(): void
     {
         self::bootKernel();

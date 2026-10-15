@@ -17,7 +17,7 @@ final class SecretCipher
             $plaintext,
             $context->associatedData(),
             $nonce,
-            $this->deriveKey($masterKey, $context->recordType, self::KEY_VERSION),
+            $this->deriveKey($masterKey, $context->recordType, self::KEY_VERSION, $context->edition),
         );
 
         return json_encode([
@@ -64,7 +64,7 @@ final class SecretCipher
             $ciphertext,
             $context->associatedData(),
             $nonce,
-            $this->deriveKey($masterKey, $context->recordType, self::KEY_VERSION),
+            $this->deriveKey($masterKey, $context->recordType, self::KEY_VERSION, $context->edition),
         );
 
         if (false === $plaintext) {
@@ -74,11 +74,11 @@ final class SecretCipher
         return $plaintext;
     }
 
-    private function deriveKey(string $masterKey, string $recordType, int $keyVersion): string
+    private function deriveKey(string $masterKey, string $recordType, int $keyVersion, string $edition): string
     {
-        $context = \sprintf('emailer-next/encrypted-record/%s/v%d', $recordType, $keyVersion);
+        $context = \sprintf('%s/encrypted-record/%s/v%d', $edition, $recordType, $keyVersion);
 
-        return hash_hkdf('sha256', $masterKey, SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_KEYBYTES, $context, 'emailer-next');
+        return hash_hkdf('sha256', $masterKey, SODIUM_CRYPTO_AEAD_XCHACHA20POLY1305_IETF_KEYBYTES, $context, $edition);
     }
 
     private function assertMasterKey(string $masterKey): void

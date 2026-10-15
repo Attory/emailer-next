@@ -95,7 +95,7 @@ final readonly class DeliverCampaignRecipientHandler
     private function claim(DeliverCampaignRecipient $message, array $configuration): ?DeliveryClaim
     {
         return $this->connection->transactional(function () use ($message, $configuration): ?DeliveryClaim {
-            $row = $this->connection->fetchAssociative("SELECT r.state, r.attempt_count, r.operation_version, c.id campaign_id, c.messages_per_minute, c.rate_window_started_at campaign_window_started_at, c.rate_window_count campaign_window_count, a.email_canonical, a.profile_json FROM campaign_recipient r INNER JOIN campaign c ON c.id = r.campaign_id INNER JOIN campaign_audience_recipient a ON a.campaign_id = r.campaign_id AND a.contact_id = r.contact_id WHERE r.id = ? AND c.state = 'sending' FOR UPDATE", [$message->recipientId]);
+            $row = $this->connection->fetchAssociative("SELECT r.state, r.attempt_count, r.operation_version, c.id campaign_id, c.messages_per_minute, c.rate_window_started_at campaign_window_started_at, c.rate_window_count campaign_window_count, a.email_canonical, a.profile_json FROM campaign_recipient r INNER JOIN campaign c ON c.id = r.campaign_id INNER JOIN campaign_audience_recipient a ON a.campaign_id = r.campaign_id AND a.recipient_id = r.recipient_id WHERE r.id = ? AND c.state = 'sending' FOR UPDATE", [$message->recipientId]);
             if (false === $row || $message->operationVersion !== $this->intValue($row['operation_version']) || !\in_array($row['state'], ['pending', 'retry'], true) || !\is_string($row['email_canonical']) || !\is_string($row['profile_json'])) {
                 return null;
             }
@@ -194,7 +194,7 @@ final readonly class DeliverCampaignRecipientHandler
 
     private function outbound(string $recipientId, string $email, string $profileJson): OutboundMessage
     {
-        $row = $this->connection->fetchAssociative("SELECT c.id campaign_id, c.name, s.subject, s.html_body, s.text_body, s.unsubscribe_footer, s.one_click_dkim_confirmed, s.sender_address, s.sender_name, s.reply_to_address, s.link_manifest_json, s.open_tracking, s.click_tracking, s.rsvp_enabled, r.contact_id, r.message_id FROM campaign_recipient r INNER JOIN campaign c ON c.id = r.campaign_id INNER JOIN campaign_content_snapshot s ON s.campaign_id = c.id WHERE r.id = ? AND r.state = 'processing'", [$recipientId]);
+        $row = $this->connection->fetchAssociative("SELECT c.id campaign_id, c.name, s.subject, s.html_body, s.text_body, s.unsubscribe_footer, s.one_click_dkim_confirmed, s.sender_address, s.sender_name, s.reply_to_address, s.link_manifest_json, s.open_tracking, s.click_tracking, s.rsvp_enabled, r.recipient_id scope_id, r.message_id FROM campaign_recipient r INNER JOIN campaign c ON c.id = r.campaign_id INNER JOIN campaign_content_snapshot s ON s.campaign_id = c.id WHERE r.id = ? AND r.state = 'processing'", [$recipientId]);
         if (false === $row) {
             throw new \RuntimeException('Claimed campaign content is unavailable.');
         }
@@ -204,16 +204,18 @@ final readonly class DeliverCampaignRecipientHandler
         }
         $firstName = $profile['first_name'] ?? '';
         $displayName = $profile['display_name'] ?? '';
-        $unsubscribeUrl = $this->unsubscribeLinks->issue($this->stringValue($row['campaign_id']), $recipientId, $this->stringValue($row['contact_id']), $email);
-        $links = null === $this->analyticsLinks ? ['view' => '', 'open' => null, 'click' => null] : $this->analyticsLinks->issue($this->stringValue($row['campaign_id']), $recipientId, $this->stringValue($row['contact_id']), $email, 1 === $this->intValue($row['open_tracking']), 1 === $this->intValue($row['click_tracking']));
+        $unsubscribeUrl = $this->unsubscribeLinks->issue($this->stringValue($row['campaign_id']), $recipientId, $this->stringValue($row['scope_id']), $email);
+        $links = null === $this->analyticsLinks ? ['view' => '', 'open' => null, 'click' => null] : $this->analyticsLinks->issue($this->stringValue($row['campaign_id']), $recipientId, $this->stringValue($row['scope_id']), $email, 1 === $this->intValue($row['open_tracking']), 1 === $this->intValue($row['click_tracking']));
         $rsvpUrl = '';
         if (1 === $this->intValue($row['rsvp_enabled'])) {
             if (null === $this->rsvpLinks) {
                 throw new \RuntimeException('RSVP link service is unavailable.');
             }
-            $rsvpUrl = $this->rsvpLinks->issueRsvp($this->stringValue($row['campaign_id']), $recipientId, $this->stringValue($row['contact_id']), $email);
+            $rsvpUrl = $this->rsvpLinks->issueRsvp($this->stringValue($row['campaign_id']), $recipientId, $this->stringValue($row['scope_id']), $email);
         }
         $values = ['contact.first_name' => \is_string($firstName) ? $firstName : '', 'contact.display_name' => \is_string($displayName) ? $displayName : '', 'campaign.name' => $this->stringValue($row['name']), 'unsubscribe_url' => $unsubscribeUrl, 'view_in_browser_url' => $links['view'], 'rsvp_url' => $rsvpUrl];
+        $values['recipient.first_name'] = $values['contact.first_name'];
+        $values['recipient.display_name'] = $values['contact.display_name'];
         $subject = $this->render($this->stringValue($row['subject']), $values, false);
         $html = $this->render($this->stringValue($row['html_body']), $values, true);
         $text = $this->render($this->stringValue($row['text_body']), $values, false);

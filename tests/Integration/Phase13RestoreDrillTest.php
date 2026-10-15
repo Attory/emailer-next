@@ -52,7 +52,7 @@ final class Phase13RestoreDrillTest extends KernelTestCase
         self::assertSame('synthetic asset bytes', file_get_contents($assetRoot.'/synthetic.png'));
         $receipt = (string) file_get_contents($receiptPath);
         $payload = $this->phase4Service(RestoreDrillEvidence::class)->authenticate($receipt);
-        self::assertSame(49, $payload['checked_tables']);
+        self::assertSame(51, $payload['checked_tables']);
         self::assertSame(1, $payload['checked_assets']);
 
         // Model the originating database's state, which was never restored.

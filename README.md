@@ -1,17 +1,14 @@
-# Emailer Next
+# Emailer Ripe
 
-Emailer Next is the clean-room successor to Emailer: a self-hosted email
-campaign application for exactly one organisation per installation. The
-repository is preparing the bounded `1.0.5` installation security-level update
-with schema `20261013000000`. The completed Phase 13 work added Version-1
-acceptance tooling, a protected interactive CLI installer, transactional
-master-key rotation, license and browser/accessibility policy, and client-grade
-`1.0.0` installation/update manuals.
+Ripe 1.0.6 is an engineering candidate adding installer-driven conversion from
+exact Emailer Light 1.0.0 and a native update from Ripe 1.0.5. Release availability
+requires the exact signed merged package to pass all isolated acceptance and
+recovery rehearsals. The running Ripe production installation is outside this
+engineering job.
 
-The Hatha Yoga Space installation currently points to `1.0.4`. The `1.0.5`
-change defaults new and upgraded installations to High security. An Owner can
-select Normal to remove extra administrative reauthentication prompts while
-login, configured MFA, roles, CSRF and auditing remain enforced.
+See [the Light upgrade guide](docs/CLIENT-LIGHT-UPGRADE-1.0.6.md),
+[the implementation record](docs/RELEASE-1.0.6-IMPLEMENTATION.md), and
+[release notes](docs/RELEASE-NOTES-1.0.6.md).
 
 ## Safe local bootstrap
 

@@ -18,9 +18,14 @@ parameters:
     emailer.release_public_key_file: '%env(default:emailer.default_release_public_key_file:EMAILER_RELEASE_PUBLIC_KEY_FILE)%'
     emailer.default_releases_dir: ''
     emailer.releases_dir: '%env(default:emailer.default_releases_dir:EMAILER_RELEASES_DIR)%'
-    emailer.app_version: '1.0.5'
+    emailer.default_runtime_configuration_file: ''
+    emailer.runtime_configuration_file: '%env(default:emailer.default_runtime_configuration_file:EMAILER_RUNTIME_CONFIGURATION_FILE)%'
+    emailer.default_transition_recovery_url: ''
+    emailer.transition_recovery_url: '%env(default:emailer.default_transition_recovery_url:EMAILER_TRANSITION_RECOVERY_DATABASE_URL)%'
+    emailer.product_id: 'emailer-ripe'
+    emailer.app_version: '1.0.6'
     emailer.update_source_version: '%env(default:emailer.app_version:EMAILER_UPDATE_SOURCE_VERSION)%'
-    emailer.schema_version: '20261013000000'
+    emailer.schema_version: '20261015000000'
     emailer.default_uri: '%env(DEFAULT_URI)%'
     emailer.default_master_key_file: ''
     emailer.master_key_file: '%env(default:emailer.default_master_key_file:EMAILER_SECRET_KEY_FILE)%'
@@ -128,6 +133,11 @@ services:
     App\Module\Housekeeping\Application\Contract\RetentionOperations: '@App\Module\Housekeeping\Application\Housekeeper'
     App\Module\Operations\Application\Contract\OperationsPolicyReader: '@App\Module\Operations\Application\OperationsPolicy'
     App\Module\Operations\Application\Contract\OperationsPolicyWriter: '@App\Module\Operations\Application\OperationsPolicy'
+    App\Module\Setup\Infrastructure\DoctrineInstallationFinalizer:
+        arguments:
+            $productVersion: '%emailer.app_version%'
+            $productSchema: '%emailer.schema_version%'
+
     App\Module\Setup\Application\Contract\InstallationFinalizer: '@App\Module\Setup\Infrastructure\DoctrineInstallationFinalizer'
     App\Module\Audit\Application\Contract\AuditSink: '@App\Module\Audit\Infrastructure\DoctrineAuditSink'
     App\Module\Identity\Application\Contract\AdministrativeAuthorization: '@App\Module\Identity\Application\AuthorizationService'
@@ -156,7 +166,7 @@ services:
         arguments:
             $contributors: !tagged_iterator emailer.backup_contributor
             $backupDirectory: '%emailer.backup_dir%'
-            $sourceVersion: '%emailer.app_version%'
+            $sourceVersion: '%emailer.update_source_version%'
             $drillEvidence: '@App\Module\Backup\Application\RestoreDrillEvidence'
             $audit: '@App\Module\Audit\Application\Contract\AuditSink'
 
@@ -233,6 +243,9 @@ services:
 
     App\Module\Release\Application\ReleaseManager:
         arguments:
+            $privateDirectory: '%emailer.private_dir%'
+            $masterKeyFile: '%emailer.master_key_file%'
+            $runtimeConfigurationFile: '%emailer.runtime_configuration_file%'
             $releasesDirectory: '%emailer.releases_dir%'
             $currentVersion: '%emailer.update_source_version%'
             $environment: '%kernel.environment%'
@@ -287,3 +300,39 @@ services:
     App\Module\Suppression\Application\Contract\AddressCorrectionSuppression: '@App\Module\Suppression\Application\SuppressionManager'
     App\Module\Templates\Application\Contract\CampaignTemplatePreparation: '@App\Module\Templates\Application\TemplateManager'
     App\Module\Contacts\Application\Contract\CampaignAudiencePreparation: '@App\Module\Contacts\Application\CampaignAudiencePreparation'
+
+    App\Shared\EditionDeliveryHold:
+        arguments:
+            $privateDirectory: '%emailer.private_dir%'
+
+    App\Module\Release\Application\LightSourceInspection:
+        arguments:
+            $projectDirectory: '%kernel.project_dir%'
+            $privateDirectory: '%emailer.private_dir%'
+            $masterKeyFile: '%emailer.master_key_file%'
+
+    App\Module\Release\Application\LightSchemaTransition:
+        arguments:
+            $projectDirectory: '%kernel.project_dir%'
+
+    App\Module\Release\Application\Contract\EditionUpgrade: '@App\Module\Release\Application\LightUpgradeInstaller'
+
+    App\Module\Release\Application\LightUpgradeInstaller:
+        arguments:
+            $projectDirectory: '%kernel.project_dir%'
+            $privateDirectory: '%emailer.private_dir%'
+            $masterKeyFile: '%emailer.master_key_file%'
+            $releasesDirectory: '%emailer.releases_dir%'
+            $recoveryDatabaseUrl: '%emailer.transition_recovery_url%'
+            $runtimeConfigurationFile: '%emailer.runtime_configuration_file%'
+            $ripePublicKeyFile: '%emailer.release_public_key_file%'
+            $ripeRecoveryKeyFile: '%emailer.recovery_key_file%'
+            $environment: '%kernel.environment%'
+
+    App\Module\Secrets\Application\Contract\LightSecretInspection: '@App\Module\Secrets\Application\LightSecretVerifier'
+
+    App\Module\Secrets\Application\Contract\RipeRecoveryKeyProvisioning: '@App\Module\Secrets\Application\RecoveryKeyExporter'
+
+    App\Module\Release\Application\SourceDatabaseFence:
+        arguments:
+            $runtimeConfigurationFile: '%emailer.runtime_configuration_file%'

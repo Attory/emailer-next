@@ -6,18 +6,21 @@ namespace App\Module\RecipientActions\Application;
 
 final class RecipientTokenCodec
 {
-    public function encode(int $version, string $handle, string $purpose, string $campaignId, string $recipientId, string $contactId, string $expiresAt, string $key): string
+    public function encode(int $version, string $handle, string $purpose, string $campaignId, string $recipientId, string $contactId, string $expiresAt, string $key, string $edition = 'emailer-next'): string
     {
         $this->assertInputs($version, $handle, $key);
-        $mac = hash_hmac('sha256', $this->payload($version, $handle, $purpose, $campaignId, $recipientId, $contactId, $expiresAt), $key, true);
+        if (!\in_array($edition, ['emailer-next', 'emailer-light'], true)) {
+            throw new \InvalidArgumentException('Recipient token edition is invalid.');
+        }
+        $mac = hash_hmac('sha256', $this->payload($version, $handle, $purpose, $campaignId, $recipientId, $contactId, $expiresAt, $edition), $key, true);
 
         return 'v'.$version.'.'.$handle.'.'.$this->base64Url($mac);
     }
 
-    public function verify(string $token, int $version, string $handle, string $purpose, string $campaignId, string $recipientId, string $contactId, string $expiresAt, string $key): bool
+    public function verify(string $token, int $version, string $handle, string $purpose, string $campaignId, string $recipientId, string $contactId, string $expiresAt, string $key, string $edition = 'emailer-next'): bool
     {
         try {
-            $expected = $this->encode($version, $handle, $purpose, $campaignId, $recipientId, $contactId, $expiresAt, $key);
+            $expected = $this->encode($version, $handle, $purpose, $campaignId, $recipientId, $contactId, $expiresAt, $key, $edition);
         } catch (\Throwable) {
             return false;
         }
@@ -35,12 +38,12 @@ final class RecipientTokenCodec
         return ['version' => (int) $matches[1], 'handle' => $matches[2]];
     }
 
-    private function payload(int $version, string $handle, string $purpose, string $campaignId, string $recipientId, string $contactId, string $expiresAt): string
+    private function payload(int $version, string $handle, string $purpose, string $campaignId, string $recipientId, string $contactId, string $expiresAt, string $edition): string
     {
-        return implode("\0", ['emailer-next-recipient-token', (string) $version, $handle, $purpose, $campaignId, $recipientId, $contactId, $expiresAt]);
+        return implode("\0", [$edition.'-recipient-token', (string) $version, $handle, $purpose, $campaignId, $recipientId, $contactId, $expiresAt]);
     }
 
-    private function assertInputs(int $version, string $handle, string $key): void
+    private function assertInputs(int $version, string $handle, string $key, string $edition = 'emailer-next'): void
     {
         if (1 > $version || 65_535 < $version || 1 !== preg_match('/^[A-Za-z0-9_-]{43}$/D', $handle) || 32 !== \strlen($key)) {
             throw new \InvalidArgumentException('Recipient token material is invalid.');

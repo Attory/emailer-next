@@ -12,6 +12,8 @@ final readonly class TemplateContentPolicy
     private const MERGE_FIELDS = [
         'contact.first_name',
         'contact.display_name',
+        'recipient.first_name',
+        'recipient.display_name',
         'campaign.name',
         'unsubscribe_url',
         'view_in_browser_url',

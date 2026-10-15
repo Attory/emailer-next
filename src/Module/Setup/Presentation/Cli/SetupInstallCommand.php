@@ -44,18 +44,67 @@ final class SetupInstallCommand extends Command
         private readonly ?ConfigurationSetup $configurationSetup = null,
         private readonly ?OwnerSetup $ownerSetup = null,
         private readonly ?InstallationFinalizer $finalizer = null,
+        private readonly ?\App\Module\Release\Application\Contract\EditionUpgrade $editionUpgrade = null,
     ) {
         parent::__construct();
     }
 
     protected function configure(): void
     {
+        $this->addOption('upgrade-light', null, InputOption::VALUE_NONE, 'Inspect or perform the supported Light 1.0.0 to Ripe 1.0.6 edition transition.');
+        $this->addOption('edition-action', null, InputOption::VALUE_REQUIRED, 'inspect, execute, recover, accept or export-light-recovery.', 'inspect');
+        $this->addOption('target-package', null, InputOption::VALUE_REQUIRED, 'Authenticated Ripe target package.');
+        $this->addOption('source-package', null, InputOption::VALUE_REQUIRED, 'Exact published Light source package.');
+        $this->addOption('light-recovery-export-directory', null, InputOption::VALUE_REQUIRED, 'Separate empty protected tree for isolated old-Light-backup recovery.');
+        $this->addOption('recovery-directory', null, InputOption::VALUE_REQUIRED, 'Protected complete recovery destination outside private storage.');
         $this->addOption('complete', null, InputOption::VALUE_NONE, 'Continue through the interactive full installation after preflight.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
+        if (true === $input->getOption('upgrade-light')) {
+            if (null === $this->editionUpgrade) {
+                throw new \RuntimeException('Edition installer is unavailable.');
+            }
+            $options = [];
+            foreach (['edition-action', 'target-package', 'source-package', 'recovery-directory'] as $name) {
+                $value = $input->getOption($name);
+                if (!\is_string($value) || '' === $value) {
+                    throw new \InvalidArgumentException('Missing edition installer option: '.$name);
+                }
+                $options[$name] = $value;
+            }
+            $passphrase = null;
+            if ('execute' === $options['edition-action']) {
+                if (!$input->isInteractive()) {
+                    throw new \RuntimeException('Edition execution requires a protected interactive terminal. Inspection remains read-only and noninteractive.');
+                }
+                $io->note('This installer transitions Emailer Light 1.0.0 to Emailer Ripe 1.0.6. It preserves your account password, leaves MFA unconfigured, and keeps delivery held. A separately configured Ripe recovery-key destination must retain the existing Light package.');
+                $helper = $this->getHelper('question');
+                if (!$helper instanceof QuestionHelper) {
+                    throw new \RuntimeException('Protected edition input is unavailable.');
+                }
+                $passphrase = $this->askSecret($helper, $input, $output, 'Ripe master-key recovery passphrase: ');
+                $confirmation = $this->askSecret($helper, $input, $output, 'Confirm Ripe recovery passphrase: ');
+                if (!hash_equals($passphrase, $confirmation)) {
+                    sodium_memzero($passphrase);
+                    sodium_memzero($confirmation);
+                    throw new \InvalidArgumentException('Ripe recovery passphrases did not match.');
+                }
+                sodium_memzero($confirmation);
+            }
+            try {
+                $result = $this->editionUpgrade->run($options['edition-action'], $options['target-package'], $options['source-package'], $options['recovery-directory'], $passphrase, \is_string($input->getOption('light-recovery-export-directory')) ? $input->getOption('light-recovery-export-directory') : null);
+                $output->writeln(json_encode($result, JSON_THROW_ON_ERROR));
+            } finally {
+                if (null !== $passphrase) {
+                    sodium_memzero($passphrase);
+                }
+            }
+
+            return self::SUCCESS;
+        }
 
         if ($this->installationLock->exists()) {
             $io->error('Setup is permanently locked for this installation.');

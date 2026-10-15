@@ -69,7 +69,10 @@ final readonly class CampaignManager
         if (\is_array($row['latest_test'])) {
             $row['latest_test']['current_revision'] = !\in_array($row['state'], ['draft', 'review'], true) || $this->intValue($row['latest_test']['draft_version']) === $this->intValue($row['operation_version']);
         }
-        $audience = $this->connection->fetchAssociative("SELECT COUNT(DISTINCT c.id) selected_count, COUNT(DISTINCT CASE WHEN s.id IS NOT NULL THEN c.id END) suppressed_count FROM campaign_list_selection x INNER JOIN contact_list l ON l.id = x.list_id AND l.archived_at IS NULL INNER JOIN list_membership m ON m.list_id = x.list_id INNER JOIN contact c ON c.id = m.contact_id AND c.status = 'active' AND c.archived_at IS NULL LEFT JOIN suppression s ON s.email_canonical = c.email_canonical WHERE x.campaign_id = ?", [$id]);
+        $audience = $this->connection->fetchAssociative("SELECT COUNT(DISTINCT c.id) selected_count, COUNT(DISTINCT CASE WHEN s.suppression_id IS NOT NULL THEN c.id END) suppressed_count FROM campaign_list_selection x INNER JOIN contact_list l ON l.id = x.list_id AND l.archived_at IS NULL INNER JOIN list_membership m ON m.list_id = x.list_id INNER JOIN contact c ON c.id = m.contact_id AND c.status = 'active' AND c.archived_at IS NULL LEFT JOIN suppression_match s ON s.email_match_key = LOWER(c.email_canonical) WHERE x.campaign_id = ?", [$id]);
+        if ('campaign_owned' === $row['audience_model']) {
+            $audience = $this->connection->fetchAssociative('SELECT COUNT(a.recipient_id) selected_count, COUNT(s.suppression_id) suppressed_count FROM campaign_audience_recipient a LEFT JOIN suppression_match s ON s.email_match_key = LOWER(a.email_canonical) WHERE a.campaign_id = ?', [$id]);
+        }
         $selected = false === $audience ? 0 : $this->intValue($audience['selected_count']);
         $suppressed = false === $audience ? 0 : $this->intValue($audience['suppressed_count']);
         $configuration = $this->configuration->current();
@@ -158,7 +161,7 @@ final readonly class CampaignManager
         }
         $listIds = array_values(array_unique($listIds));
         $this->connection->transactional(function () use ($actor, $id, $name, $versionId, $listIds, $rate): void {
-            $draft = $this->connection->fetchAssociative('SELECT state, template_version_id FROM campaign WHERE id = ? FOR UPDATE', [$id]);
+            $draft = $this->connection->fetchAssociative('SELECT state, template_version_id, audience_model FROM campaign WHERE id = ? FOR UPDATE', [$id]);
             if (false === $draft || !\in_array($draft['state'], ['draft', 'review'], true)) {
                 throw new \DomainException('Only unapproved drafts can be edited.');
             }
@@ -166,7 +169,13 @@ final readonly class CampaignManager
                 $this->preparation->publishForDraft($actor, $versionId);
             }
             $this->templates->get($versionId);
-            $this->audiences->snapshot($listIds);
+            if ('campaign_owned' === $draft['audience_model']) {
+                if ([] !== $listIds) {
+                    throw new \DomainException('Campaign-owned recipients cannot be replaced with reusable lists.');
+                }
+            } else {
+                $this->audiences->snapshot($listIds);
+            }
             $this->connection->delete('campaign_list_selection', ['campaign_id' => $id]);
             foreach ($listIds as $listId) {
                 $this->connection->insert('campaign_list_selection', ['campaign_id' => $id, 'list_id' => $listId]);
@@ -305,7 +314,7 @@ final readonly class CampaignManager
         $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Administrator, 'campaign.approve');
         $this->uuid($id);
         $this->connection->transactional(function () use ($actor, $id, $reviewedRevision, $waiveTest): void {
-            $campaign = $this->connection->fetchAssociative('SELECT state, template_version_id, rsvp_enabled, operation_version FROM campaign WHERE id = ? FOR UPDATE', [$id]);
+            $campaign = $this->connection->fetchAssociative('SELECT state, template_version_id, rsvp_enabled, operation_version, audience_model FROM campaign WHERE id = ? FOR UPDATE', [$id]);
             if (false === $campaign || $reviewedRevision !== $this->intValue($campaign['operation_version']) || 'review' !== $campaign['state'] || !\is_string($campaign['template_version_id'])) {
                 throw new \DomainException('Campaign is not awaiting approval.');
             }
@@ -320,7 +329,9 @@ final readonly class CampaignManager
                     $listIds[] = $storedListId;
                 }
             }
-            $recipients = $this->audiences->snapshot($listIds);
+            $ownedAudience = 'campaign_owned' === $campaign['audience_model'];
+            $ownedRows = $ownedAudience ? $this->connection->fetchAllAssociative('SELECT recipient_id, email_canonical, profile_json FROM campaign_audience_recipient WHERE campaign_id = ? ORDER BY email_canonical', [$id]) : [];
+            $recipients = $ownedAudience ? [] : $this->audiences->snapshot($listIds);
             $configuration = $this->configuration->current();
             $rsvpEnabled = 1 === $this->intValue($campaign['rsvp_enabled']);
             $templateUsesRsvp = \in_array('rsvp_url', $template['merge_fields'], true);
@@ -330,7 +341,7 @@ final readonly class CampaignManager
             if ($rsvpEnabled !== $templateUsesRsvp) {
                 throw new \DomainException('Campaign RSVP selection and template must agree.');
             }
-            if ([] === $recipients || \count($recipients) > $configuration['max_campaign_size']) {
+            if (($ownedAudience && ([] === $ownedRows || \count($ownedRows) > $configuration['max_campaign_size'])) || (!$ownedAudience && ([] === $recipients || \count($recipients) > $configuration['max_campaign_size']))) {
                 throw new \DomainException('Campaign audience size is outside the configured limit.');
             }
             $now = Identity::now();
@@ -340,9 +351,13 @@ final readonly class CampaignManager
                 $digestParts[] = $recipient['contact_id'].'\0'.$recipient['email'];
                 $this->connection->insert('campaign_audience_recipient', ['campaign_id' => $id, 'contact_id' => $recipient['contact_id'], 'email_canonical' => $recipient['email'], 'profile_json' => json_encode($recipient['profile'], JSON_THROW_ON_ERROR)]);
             }
-            $this->connection->insert('campaign_audience_snapshot', ['campaign_id' => $id, 'recipient_count' => \count($recipients), 'audience_sha256' => hash('sha256', implode("\n", $digestParts)), 'created_at' => $now]);
+            foreach ($ownedRows as $recipient) {
+                $digestParts[] = $this->stringValue($recipient['recipient_id'])."\0".$this->stringValue($recipient['email_canonical'])."\0".$this->stringValue($recipient['profile_json']);
+            }
+            $recipientCount = $ownedAudience ? \count($ownedRows) : \count($recipients);
+            $this->connection->insert('campaign_audience_snapshot', ['campaign_id' => $id, 'recipient_count' => $recipientCount, 'audience_sha256' => hash('sha256', implode("\n", $digestParts)), 'created_at' => $now]);
             $this->connection->update('campaign', ['state' => 'approved', 'approved_at' => $now, 'approved_by' => $actor->id(), 'approval_waived_test' => $waiveTest ? 1 : 0, 'operation_version' => 1 + $this->intValue($campaign['operation_version']), 'updated_at' => $now], ['id' => $id]);
-            $this->audit->append(new AuditRecord($actor->id(), 'campaign.approved', $id, 'success', ['recipient_count' => \count($recipients), 'test_waived' => $waiveTest, 'reviewed_revision' => $reviewedRevision]));
+            $this->audit->append(new AuditRecord($actor->id(), 'campaign.approved', $id, 'success', ['recipient_count' => $recipientCount, 'test_waived' => $waiveTest, 'reviewed_revision' => $reviewedRevision]));
         });
     }
 
@@ -459,5 +474,14 @@ final readonly class CampaignManager
         }
 
         return (int) $value;
+    }
+
+    private function stringValue(mixed $value): string
+    {
+        if (!\is_string($value)) {
+            throw new \UnexpectedValueException('Campaign audience value is invalid.');
+        }
+
+        return $value;
     }
 }

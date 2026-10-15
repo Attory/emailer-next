@@ -151,3 +151,13 @@ publication. The Phase 9 builder remains available to reproduce `0.1.0`.
 `tools/release/build-0.3.0-candidate.sh` applies the same deterministic signed
 workflow for schema `20260827000000`, declares minimum source `0.2.0`, and
 includes `CLIENT-UPDATE-0.3.0.md` beside the downloadable candidate files.
+
+## Ripe 1.0.6 edition compatibility
+
+The bounded Light 1.0.0 transition and native Ripe 1.0.5 update are documented
+in [CLIENT-LIGHT-UPGRADE-1.0.6.md](CLIENT-LIGHT-UPGRADE-1.0.6.md) and
+[RELEASE-1.0.6-IMPLEMENTATION.md](RELEASE-1.0.6-IMPLEMENTATION.md). The existing
+`emailer:setup:install` CLI supports read-only inspection, execution, unfinished
+recovery, acceptance and isolated old-Light-backup export. No HTTP update or
+restore route is introduced. Contacts/lists remain independent of campaign-owned
+Light recipients. Delivery remains held until explicit accepted readiness/resume.

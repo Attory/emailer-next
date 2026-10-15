@@ -13,7 +13,7 @@ use Symfony\Component\Lock\LockFactory;
 
 final readonly class ReleaseManager
 {
-    public function __construct(private PackageInspector $inspector, private BackupOperations $backups, private Connection $connection, private LockFactory $locks, private MaintenanceOperationLock $maintenance, private InterruptedDeliveryRecovery $recovery, private string $releasesDirectory, private string $currentVersion, private int $rollbackReserveBytes = 536870912, private string $environment = 'test')
+    public function __construct(private PackageInspector $inspector, private BackupOperations $backups, private Connection $connection, private LockFactory $locks, private MaintenanceOperationLock $maintenance, private InterruptedDeliveryRecovery $recovery, private string $releasesDirectory, private string $currentVersion, private int $rollbackReserveBytes = 536870912, private string $environment = 'test', private ?EditionRecoverySet $completeRecovery = null, private string $privateDirectory = '', private string $masterKeyFile = '', private string $runtimeConfigurationFile = '')
     {
     }
 
@@ -114,6 +114,7 @@ final readonly class ReleaseManager
         $target = null;
         $manifest = [];
         $sourceSchemaFingerprint = null;
+        $completeCheckpoint = null;
         try {
             $previous = realpath($this->releasesDirectory.'/current');
             if (false === $previous || !is_dir($previous) || !hash_equals($this->currentVersion, basename($previous))) {
@@ -143,6 +144,22 @@ final readonly class ReleaseManager
             }
             $safety = $this->backups->create();
             $this->transferSafetyBackupToServiceOwner($safety['path']);
+            if ('1.0.6' === $targetVersion && '1.0.5' === $this->currentVersion && null !== $this->completeRecovery) {
+                if ('' === $this->privateDirectory || '' === $this->masterKeyFile) {
+                    throw new \RuntimeException('Native 1.0.6 update requires complete private-state recovery configuration.');
+                }
+                $completeCheckpoint = \dirname($this->privateDirectory).'/native-update-recovery/'.$operationId;
+                $roots = ['private' => $this->privateDirectory, 'master_key' => $this->masterKeyFile];
+                if ('' !== $this->runtimeConfigurationFile) {
+                    $roots['runtime_configuration'] = $this->runtimeConfigurationFile;
+                    $runtime = EditionData::strings((new \Symfony\Component\Dotenv\Dotenv())->parse(EditionData::text(file_get_contents($this->runtimeConfigurationFile))));
+                    if (isset($runtime['EMAILER_RECOVERY_KEY_FILE']) && is_file($runtime['EMAILER_RECOVERY_KEY_FILE'])) {
+                        $roots['ripe_recovery_key'] = $runtime['EMAILER_RECOVERY_KEY_FILE'];
+                    }
+                }
+                $this->completeRecovery->create($completeCheckpoint, $roots);
+                $this->completeRecovery->verify($completeCheckpoint);
+            }
             $target = $this->install($archive, false);
             $this->runConsole($target, ['doctrine:migrations:migrate', '--no-interaction'], [0]);
             $migrationApplied = true;
@@ -153,7 +170,16 @@ final readonly class ReleaseManager
         } catch (\Throwable $exception) {
             if (null !== $safety) {
                 try {
-                    if ($pointerSwitched && $migrationApplied && true === ($manifest['rollback_schema_compatible'] ?? false) && false !== $previous) {
+                    if (null !== $completeCheckpoint && null !== $this->completeRecovery) {
+                        $this->completeRecovery->restore($completeCheckpoint, $this->connection, true);
+                        $this->connection->executeStatement("UPDATE delivery_runtime SET accepting_work = 0 WHERE singleton_key = '1'");
+                        if (null === $sourceSchemaFingerprint || !hash_equals($sourceSchemaFingerprint, $this->schemaFingerprint())) {
+                            throw new \RuntimeException('Complete native source schema verification failed after recovery.');
+                        }
+                        if (false !== $previous) {
+                            $this->switchPointer($previous);
+                        }
+                    } elseif ($pointerSwitched && $migrationApplied && true === ($manifest['rollback_schema_compatible'] ?? false) && false !== $previous) {
                         $this->switchPointer($previous);
                     } else {
                         $this->backups->restore($safety['path']);
@@ -222,7 +248,7 @@ final readonly class ReleaseManager
     {
         $minimumSchema = $manifest['minimum_schema_version'] ?? null;
         $targetSchema = $manifest['schema_version'] ?? null;
-        $currentSchema = $this->connection->fetchOne('SELECT version FROM doctrine_migration_versions ORDER BY executed_at DESC, version DESC LIMIT 1');
+        $currentSchema = $this->connection->fetchOne('SELECT version FROM doctrine_migration_versions ORDER BY version DESC LIMIT 1');
         $currentSchema = \is_string($currentSchema) ? substr($currentSchema, -14) : null;
         if (!\is_string($minimumSchema) || !\is_string($targetSchema) || !\is_string($currentSchema) || 1 !== preg_match('/^[0-9]{14}$/', $minimumSchema) || 1 !== preg_match('/^[0-9]{14}$/', $targetSchema) || $currentSchema < $minimumSchema || $targetSchema < $currentSchema) {
             throw new \RuntimeException('Release database schema compatibility check failed.');

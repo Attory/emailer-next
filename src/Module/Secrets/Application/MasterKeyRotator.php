@@ -55,7 +55,7 @@ final readonly class MasterKeyRotator
                     $this->assertDeliveryQuiesced(true);
 
                     $records = $this->connection->fetchAllAssociative(
-                        'SELECT id, record_type, envelope, key_version, schema_version FROM encrypted_secret ORDER BY id FOR UPDATE',
+                        'SELECT id, record_type, envelope, key_version, schema_version, cipher_edition FROM encrypted_secret ORDER BY id FOR UPDATE',
                     );
                     foreach ($records as $record) {
                         $id = $record['id'] ?? null;
@@ -64,6 +64,7 @@ final readonly class MasterKeyRotator
                         if (!\is_string($id)
                             || !\is_string($recordType)
                             || !\is_string($envelope)
+                            || !\is_string($record['cipher_edition'])
                             || !is_numeric($record['key_version'] ?? null)
                             || !is_numeric($record['schema_version'] ?? null)
                             || SecretCipher::KEY_VERSION !== (int) $record['key_version']
@@ -71,7 +72,7 @@ final readonly class MasterKeyRotator
                         ) {
                             throw new \RuntimeException('Encrypted secret inventory is incompatible with rotation.');
                         }
-                        $context = new SecretContext($installationId, $recordType, $id, (int) $record['schema_version']);
+                        $context = new SecretContext($installationId, $recordType, $id, (int) $record['schema_version'], $record['cipher_edition']);
                         $plaintext = $this->cipher->decrypt($envelope, $oldKey, $context);
                         try {
                             $replacement = $this->cipher->encrypt($plaintext, $newKey, $context);

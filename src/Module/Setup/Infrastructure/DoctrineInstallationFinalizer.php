@@ -17,6 +17,8 @@ final readonly class DoctrineInstallationFinalizer implements InstallationFinali
         private InstallationLock $installationLock,
         private SetupDoctor $doctor,
         private SetupLifecycle $lifecycle,
+        private string $productVersion = '1.0.6',
+        private string $productSchema = '20261015000000',
     ) {
     }
 
@@ -72,7 +74,9 @@ final readonly class DoctrineInstallationFinalizer implements InstallationFinali
                     'version' => 1,
                     'installation_uuid' => $installationId,
                     'completed_at' => $completedAt,
-                    'schema_version' => 1,
+                    'product_id' => 'emailer-ripe',
+                    'product_version' => $this->productVersion,
+                    'schema_version' => $this->productSchema,
                 ]);
             } catch (\Throwable $exception) {
                 $this->connection->transactional(function (Connection $connection): void {

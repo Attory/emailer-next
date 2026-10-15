@@ -14,7 +14,7 @@ use Doctrine\DBAL\Connection;
 final readonly class Doctor implements ScheduledHealthOperations
 {
     /** @param iterable<ReadinessProbe> $probes */
-    public function __construct(private iterable $probes, private Connection $connection)
+    public function __construct(private iterable $probes, private Connection $connection, private ?\App\Shared\EditionDeliveryHold $editionHold = null)
     {
     }
 
@@ -42,12 +42,12 @@ final readonly class Doctor implements ScheduledHealthOperations
         }
         if ($maintenanceVerification) {
             foreach ($findings as &$finding) {
-                if ('delivery_quiesced' === $finding['code'] && 'critical' === $finding['severity']) {
+                if ((\in_array($finding['code'], ['delivery_quiesced', 'edition_delivery_hold'], true) || (true === $this->editionHold?->needsOfflineVerification() && \in_array($finding['code'], ['worker_heartbeat', 'scheduler_heartbeat'], true))) && 'critical' === $finding['severity']) {
                     $finding['severity'] = 'warning';
                     $finding['summary'] = 'Delivery is safely quiesced for a supervised maintenance verification.';
                     $finding['risk'] = 'Delivery cannot progress until the supervised maintenance window ends.';
                     $finding['remediation'] = 'Resume delivery only after this verification succeeds.';
-                    $finding['sending_blocked'] = false;
+                    $finding['sending_blocked'] = 'edition_delivery_hold' === $finding['code'];
                 }
             }
             unset($finding);
