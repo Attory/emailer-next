@@ -204,3 +204,17 @@ not a full database/schema comparison. Separate exact physical-schema/foreign-ke
 and mapped-data checks in native/Light package rehearsals remain mandatory, as
 do backup, failure-recovery, zero-send and supported matrix gates. New exact-head
 review and all quality/installer CI must pass before merge and trusted signing.
+
+## Routine security maintenance discovered during the approved rerun
+
+The next full dependency audit reported PKSA-xmwy-rmx5-m7h4 /
+CVE-2026-108082 in symfony/http-foundation and PKSA-xz3r-9gp4-4m1z /
+CVE-2026-109413 in symfony/yaml, both previously locked at 7.4.17. All six
+hosted jobs stopped at the image's unchanged Composer audit, before migrations.
+The bounded lockfile update moves only those two components to 7.4.21, with zero
+new/removed packages and unchanged constraints. Composer audit then reports no
+advisories. Audit/install checks and all security controls remain enabled.
+Published Light and native predecessor archives are unchanged. The earlier local
+full run's one failure was a fixture precondition (database named ripe106_gate_test
+instead of required emailer_test); the correct fresh task-only database is used
+for the complete rerun, without changing that acceptance assertion.

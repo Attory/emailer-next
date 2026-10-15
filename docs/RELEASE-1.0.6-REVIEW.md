@@ -204,3 +204,15 @@ recovery and verify original business state plus a subsequent application login.
 This is a synthetic pending-unlock fault, separate from actual process-kill
 rehearsals. Final exact-head matrix and disposable-key package evidence remain
 required; trusted merged release remains blocked by the canonical gate.
+
+## Approved migration-gate correction and security rerun
+
+Exact candidate 9b37bf46767c6d9a2ed523ccc9b32bb403669cb3 received a read-only
+Claude review finding no blockers in the explicitly approved flag removal.
+Effective all_or_nothing=false / transactional=true and successful fresh
+16-migration execution were verified independently. Mapping validation is not
+physical-schema synchronization; separate package integrity gates are retained.
+The first new matrix (38712604238) failed all six jobs at unchanged Composer
+audit on newly reported HTTP Foundation/YAML advisories. Only those two Symfony
+7.4 patch dependencies are updated, with no audit suppression. The repaired
+exact head requires fresh review, complete local checks and all six matrix jobs.

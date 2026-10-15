@@ -15,3 +15,8 @@ Edition conversion is serialized, fenced and protected by verified complete
 recovery. Activation leaves delivery held until explicit acceptance and normal
 readiness/resume. Interrupted unfinished conversion supports recovery; accepted
 Ripe to Light downgrade is prohibited. See CLIENT-LIGHT-UPGRADE-1.0.6.md.
+
+Security maintenance updates Symfony HTTP Foundation and YAML from 7.4.17 to
+7.4.21 to resolve the advisories found by the release audit. No dependency is
+added or removed. MariaDB migration checks retain per-migration transactions
+while no longer demanding one transaction across nontransactional DDL.
