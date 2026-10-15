@@ -28,7 +28,7 @@ while (microtime(true) < $deadline) {
             echo "Committed partial native source restoration independently observed.\n";
             exit;
         }
-        if ($argv[1] === ($journal['phase'] ?? null) && 'started' === $c->fetchOne('SELECT status FROM release_operation WHERE id=?', [$journal['operation_id']])) {
+        if ('recovering' !== $argv[1] && $argv[1] === ($journal['phase'] ?? null) && 'started' === $c->fetchOne('SELECT status FROM release_operation WHERE id=?', [$journal['operation_id']])) {
             if ('migrating' === $argv[1]) {
                 $audience = $c->fetchOne("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='campaign' AND COLUMN_NAME='audience_model'");
                 $cipher = $c->fetchOne("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='encrypted_secret' AND COLUMN_NAME='cipher_edition'");

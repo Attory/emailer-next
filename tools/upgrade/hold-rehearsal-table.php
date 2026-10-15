@@ -15,7 +15,7 @@ if ('database' !== ($p['host'] ?? null) || !str_starts_with($p['dbname'] ?? '', 
     throw new RuntimeException('Fault injector refuses non-harness database access.');
 }
 $c = Doctrine\DBAL\DriverManager::getConnection($p);
-$c->executeStatement('LOCK TABLES '.$c->quoteSingleIdentifier($argv[1]).('encrypted_secret' === $argv[1] ? ' READ' : ' WRITE'));
+$c->executeStatement('LOCK TABLES '.$c->quoteSingleIdentifier($argv[1]).('backup_record' === $argv[1] ? ' WRITE' : ' READ'));
 file_put_contents('/rehearsal/fault-lock-ready', 'locked');
 chmod('/rehearsal/fault-lock-ready', 0o600);
 while (!file_exists('/rehearsal/release-fault-lock')) {
