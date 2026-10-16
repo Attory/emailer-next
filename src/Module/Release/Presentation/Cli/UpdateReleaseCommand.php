@@ -27,6 +27,7 @@ final class UpdateReleaseCommand extends Command
         $this->addArgument('package', InputArgument::REQUIRED);
         $this->addOption('source-package', null, InputOption::VALUE_REQUIRED, 'Signed package for the exact installed predecessor release.');
         $this->addOption('approved-target', null, InputOption::VALUE_REQUIRED, 'Exact separately approved target version for a non-interactive supervised update.');
+        $this->addOption('finish-native-operation', null, InputOption::VALUE_REQUIRED, 'Finish only the recorded committed operation account-restoration receipt; never replay data recovery.');
         $this->addOption('recover-native-operation', null, InputOption::VALUE_REQUIRED, 'Verify and recover the exact retained unfinished native 1.0.5 update operation UUID. Never a completed-update downgrade.');
     }
 
@@ -44,6 +45,7 @@ final class UpdateReleaseCommand extends Command
         }
         $approvedTarget = $input->getOption('approved-target');
         $recoveryOperation = $input->getOption('recover-native-operation');
+        $finishOperation = $input->getOption('finish-native-operation');
         if ($input->isInteractive()) {
             $helper = $this->getHelper('question');
             $question = \is_string($recoveryOperation) ? 'Recover the exact retained native source snapshot? Source/target processes must be stopped; delivery remains held [y/N] ' : 'Apply this verified update with maintenance and backup? [y/N] ';
@@ -62,6 +64,12 @@ final class UpdateReleaseCommand extends Command
 
                 return Command::FAILURE;
             }
+        }
+        if (\is_string($finishOperation)) {
+            $this->releases->finishCommittedNativeUpdate($finishOperation, $package, $sourcePackage);
+            $output->writeln('<info>The committed update completion receipt is verified. No application data was restored.</info>');
+
+            return Command::SUCCESS;
         }
         if (\is_string($recoveryOperation)) {
             $this->releases->recoverNativeUpdate($recoveryOperation, $package, $sourcePackage);

@@ -14,8 +14,6 @@ use Doctrine\DBAL\Tools\DsnParser;
 /** Edition orchestration is deliberately separate from native Ripe version updates. */
 final readonly class LightUpgradeInstaller implements EditionUpgrade
 {
-    private const SOURCE_HASH = 'cfd9afb133c3bbfe7da6053aa2d121d325200c46f4db51e784699356d28d0e77';
-
     public function __construct(private Connection $connection, private \App\Module\Audit\Application\Contract\AuditSink $audit, private PackageInspector $packages, private ReleaseManager $releases, private LightSourceInspection $source, private LightSchemaTransition $schema, private EditionRecoverySet $recovery, private MaintenanceOperationLock $maintenance, private string $projectDirectory, private string $privateDirectory, private string $masterKeyFile, private string $releasesDirectory, private string $recoveryDatabaseUrl, private string $environment, private SourceDatabaseFence $fence, private string $runtimeConfigurationFile, private string $ripePublicKeyFile, private string $ripeRecoveryKeyFile, private \App\Module\Secrets\Application\Contract\RipeRecoveryKeyProvisioning $recoveryKeys, private \App\Module\Backup\Application\Contract\BackupOperations $backups)
     {
     }
@@ -30,8 +28,8 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
             $this->assertIsolatedPath($exportDirectory);
         }
         $manifest = $this->packages->inspect($targetPackage);
-        if ('1.0.6' !== $manifest['version'] || '20261015000000' !== $manifest['schema_version']) {
-            throw new \RuntimeException('Only the authenticated Ripe 1.0.6 target is supported.');
+        if ('1.1.0' !== $manifest['version'] || '20261015000000' !== $manifest['schema_version']) {
+            throw new \RuntimeException('Only the authenticated Ripe 1.1.0 target is supported.');
         }
         if ('export-light-recovery' === $action) {
             if (null === $exportDirectory || str_starts_with($exportDirectory.'/', $this->privateDirectory.'/') || str_starts_with($exportDirectory.'/', $this->releasesDirectory.'/')) {
@@ -42,8 +40,9 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
             return ['status' => 'isolated_light_recovery_files_exported', 'active_installation_changed' => false];
         }
         $sourceRoot = $this->sourceRoot();
-        if (!hash_equals(self::SOURCE_HASH, (string) hash_file('sha256', $sourcePackage))) {
-            throw new \RuntimeException('Source package is not the published Light 1.0.0 archive.');
+        $sourceVersion = LightSourcePackage::authenticate($sourcePackage);
+        if (basename($sourceRoot) !== $sourceVersion) {
+            throw new \RuntimeException('The authenticated Light package differs from the installed source version.');
         }
         $this->verifyInstalled($sourceRoot, $sourcePackage);
         $this->validateSourceConfiguration($sourceRoot);
@@ -54,7 +53,7 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
         if ('inspect' === $action) {
             $source = $this->source->inspect(false);
 
-            return ['format' => 'emailer-ripe-edition-inspection-v1', 'source' => 'emailer-light/1.0.0', 'target' => 'emailer-ripe/1.0.6', 'installation_uuid' => EditionData::text($source['identity']['installation_uuid']), 'mutation' => false, 'delivery' => 'explicit_hold_and_acceptance_required'];
+            return ['format' => 'emailer-ripe-edition-inspection-v1', 'source' => 'emailer-light/'.$sourceVersion, 'target' => 'emailer-ripe/1.1.0', 'installation_uuid' => EditionData::text($source['identity']['installation_uuid']), 'mutation' => false, 'delivery' => 'explicit_hold_and_acceptance_required'];
         }
         $this->maintenance->acquire();
         $databaseLock = 'emailer-edition-'.substr(hash('sha256', EditionData::text($this->connection->getDatabase())), 0, 48);
@@ -71,8 +70,8 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
             }
             if ('accept' === $action) {
                 $receipt = $this->receipt();
-                $this->verifyInstalled($this->releasesDirectory.'/1.0.6', $targetPackage);
-                if (realpath($this->releasesDirectory.'/current') !== $this->releasesDirectory.'/1.0.6') {
+                $this->verifyInstalled($this->releasesDirectory.'/ripe-1.1.0', $targetPackage);
+                if (realpath($this->releasesDirectory.'/current') !== $this->releasesDirectory.'/ripe-1.1.0') {
                     throw new \RuntimeException('Acceptance requires the exact validated Ripe release to remain active.');
                 }
                 if ('accepted' === ($receipt['phase'] ?? null)) {
@@ -84,7 +83,7 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
                 if ('activated' !== ($receipt['phase'] ?? null)) {
                     throw new \RuntimeException('Only a validated, activated transition can be accepted.');
                 }
-                $this->console($this->releasesDirectory.'/1.0.6', ['emailer:doctor:run', '--json', '--maintenance-verification', '--read-only'], [0, 1, 2]);
+                $this->console($this->releasesDirectory.'/ripe-1.1.0', ['emailer:health:verify-runtime', '--offline-maintenance'], [0]);
                 $this->clearRehearsalDatabase($receipt);
                 $this->record(array_replace($receipt, ['phase' => 'accepted']));
                 $this->fence->restore(SourceDatabaseFence::account($receipt['database_account']));
@@ -99,7 +98,7 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
                 $this->recover($recoveryDirectory, $sourceRoot);
             }
             $source = $this->source->inspect(false);
-            $receipt = ['format' => 'emailer-ripe-edition-transition-v1', 'operation_id' => Identity::uuidV7(), 'installation_uuid' => EditionData::text($source['identity']['installation_uuid']), 'phase' => 'quiescing', 'source_worker_mode' => EditionData::text($this->connection->fetchOne("SELECT worker_mode FROM delivery_policy WHERE singleton_key = '1'")), 'recovery_directory' => $recoveryDirectory, 'source_root' => $sourceRoot, 'target_package_sha256' => $manifest['_verified_archive_sha256']];
+            $receipt = ['format' => 'emailer-ripe-edition-transition-v1', 'operation_id' => Identity::uuidV7(), 'installation_uuid' => EditionData::text($source['identity']['installation_uuid']), 'phase' => 'quiescing', 'source_worker_mode' => EditionData::text($this->connection->fetchOne("SELECT worker_mode FROM delivery_policy WHERE singleton_key = '1'")), 'recovery_directory' => $recoveryDirectory, 'source_root' => $sourceRoot, 'smtp_deferred' => 0 === EditionData::integer($this->connection->fetchOne('SELECT COUNT(*) FROM sender_identity')), 'target_package_sha256' => $manifest['_verified_archive_sha256']];
             EditionRecoverySet::directory($recoveryDirectory);
             $receipt['recovery_base'] = $recoveryDirectory;
             $recoveryDirectory .= '/'.$receipt['operation_id'];
@@ -155,11 +154,11 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
             if ($before !== $this->fingerprints($scratch) || EditionSchemaProof::capture($this->connection) !== EditionSchemaProof::capture($scratch)) {
                 throw new \RuntimeException('Complete recovery rehearsal did not preserve database fingerprints.');
             }
-            $target = $this->releasesDirectory.'/1.0.6';
+            $target = $this->releasesDirectory.'/ripe-1.1.0';
             if (is_dir($target)) {
                 $this->verifyInstalled($target, $targetPackage);
             } else {
-                $target = $this->releases->install($targetPackage, false);
+                $target = $this->releases->install($targetPackage, false, true);
             }
             $receipt['phase'] = 'mutating';
             $this->record($receipt);
@@ -168,6 +167,13 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
                     throw new \RuntimeException('Protected interactive Ripe recovery-package verification is required.');
                 }
                 $this->recoveryKeys->prepareRipeRecovery($recoveryPassphrase);
+                if ('prod' === $this->environment) {
+                    $owner = stat($this->masterKeyFile);
+                    $package = lstat($this->ripeRecoveryKeyFile);
+                    if (!\is_array($owner) || !\is_array($package) || 0 === $owner['uid'] || !\in_array($package['uid'], [0, $owner['uid']], true) || !chown($this->ripeRecoveryKeyFile, $owner['uid']) || !chgrp($this->ripeRecoveryKeyFile, $owner['gid'])) {
+                        throw new \RuntimeException('The verified Ripe recovery package cannot be assigned to its dedicated application account.');
+                    }
+                }
                 $this->schema->apply();
                 $this->verifyMappedRows($before);
                 // Active Light sessions retain their records and payloads but lose login authority.
@@ -175,17 +181,17 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
                 $this->verifyTargetShape();
                 $sourceSchema = $this->recovery->verify($recoveryDirectory)['schema'];
                 $preservationHash = hash('sha256', json_encode($before, JSON_THROW_ON_ERROR));
-                $this->connection->insert('ripe_edition_transition', ['installation_uuid' => EditionData::text($source['identity']['installation_uuid']), 'source_identity_json' => json_encode($source['identity'], JSON_THROW_ON_ERROR), 'source_product_id' => $source['identity']['product_id'], 'source_product_version' => $source['identity']['product_version'], 'source_schema_version' => $source['identity']['schema_version'], 'source_contract_version' => $source['identity']['upgrade_contract_version'], 'source_created_at' => $source['identity']['created_at'], 'source_updated_at' => $source['identity']['updated_at'], 'source_migration_version' => $source['migration']['version'], 'source_migration_executed_at' => $source['migration']['executed_at'], 'source_migration_execution_time' => $source['migration']['execution_time'], 'source_migration_json' => json_encode($source['migration'], JSON_THROW_ON_ERROR), 'source_schema_sha256' => hash('sha256', json_encode($sourceSchema, JSON_THROW_ON_ERROR)), 'preservation_sha256' => $preservationHash, 'target_version' => '1.0.6', 'target_schema' => '20261015000000', 'completed_at' => Identity::now()]);
+                $this->connection->insert('ripe_edition_transition', ['installation_uuid' => EditionData::text($source['identity']['installation_uuid']), 'source_identity_json' => json_encode($source['identity'], JSON_THROW_ON_ERROR), 'source_product_id' => $source['identity']['product_id'], 'source_product_version' => $source['identity']['product_version'], 'source_schema_version' => $source['identity']['schema_version'], 'source_contract_version' => $source['identity']['upgrade_contract_version'], 'source_created_at' => $source['identity']['created_at'], 'source_updated_at' => $source['identity']['updated_at'], 'source_migration_version' => $source['migration']['version'], 'source_migration_executed_at' => $source['migration']['executed_at'], 'source_migration_execution_time' => $source['migration']['execution_time'], 'source_migration_json' => json_encode($source['migration'], JSON_THROW_ON_ERROR), 'source_schema_sha256' => hash('sha256', json_encode($sourceSchema, JSON_THROW_ON_ERROR)), 'preservation_sha256' => $preservationHash, 'target_version' => '1.1.0', 'target_schema' => '20261015000000', 'completed_at' => Identity::now()]);
                 // Baseline records are established only AFTER every native structure and mapped row is verified.
                 $this->connection->executeStatement('DELETE FROM doctrine_migration_versions');
                 $migrationFiles = glob($this->projectDirectory.'/migrations/Version*.php');
                 foreach (false === $migrationFiles ? [] : $migrationFiles as $migration) {
                     $this->connection->insert('doctrine_migration_versions', ['version' => 'DoctrineMigrations\\'.basename($migration, '.php'), 'executed_at' => Identity::now(), 'execution_time' => 0]);
                 }
-                $this->connection->update('product_identity', ['product_id' => 'emailer-ripe', 'product_version' => '1.0.6', 'schema_version' => '20261015000000', 'updated_at' => Identity::now()], ['singleton_key' => '1']);
+                $this->connection->update('product_identity', ['product_id' => 'emailer-ripe', 'product_version' => '1.1.0', 'schema_version' => '20261015000000', 'updated_at' => Identity::now()], ['singleton_key' => '1']);
                 $lock = EditionData::read($this->privateDirectory.'/install.lock');
                 $lock['product_id'] = 'emailer-ripe';
-                $lock['product_version'] = '1.0.6';
+                $lock['product_version'] = '1.1.0';
                 $lock['schema_version'] = '20261015000000';
                 EditionRecoverySet::write($this->privateDirectory.'/install.lock', json_encode($lock, JSON_THROW_ON_ERROR), true);
                 $this->updateRuntimeConfiguration();
@@ -193,12 +199,12 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
                 $this->backups->create();
                 $this->console($target, ['doctrine:migrations:up-to-date']);
                 $this->console($target, ['doctrine:schema:validate', '--skip-sync']);
-                $this->console($target, ['emailer:doctor:run', '--json', '--maintenance-verification', '--read-only'], [0, 1, 2]);
+                $this->console($target, ['emailer:health:verify-runtime', '--offline-maintenance'], [0]);
                 $receipt['phase'] = 'validated';
                 $this->record($receipt);
                 $this->switchPointer($target);
-                $this->console($target, ['emailer:doctor:run', '--json', '--maintenance-verification', '--read-only'], [0, 1, 2]);
-                $this->audit->append(new \App\Module\Audit\Application\Contract\AuditRecord(null, 'edition.light_to_ripe.completed', EditionData::text($source['identity']['installation_uuid']), 'success', ['source_version' => '1.0.0', 'target_version' => '1.0.6', 'revoked_login_count' => $invalidated]));
+                $this->console($target, ['emailer:health:verify-runtime', '--offline-maintenance'], [0]);
+                $this->audit->append(new \App\Module\Audit\Application\Contract\AuditRecord(null, 'edition.light_to_ripe.completed', EditionData::text($source['identity']['installation_uuid']), 'success', ['source_version' => $sourceVersion, 'target_version' => '1.1.0', 'revoked_login_count' => $invalidated]));
                 $receipt['phase'] = 'activated';
                 $receipt['invalidated_session_count'] = $invalidated;
                 $receipt['preservation_sha256'] = $preservationHash;
@@ -394,13 +400,13 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
         }
         $journal = $this->receipt(false);
         if (isset($journal['source_root']) && \is_string($journal['source_root'])) {
-            if (\dirname($journal['source_root']) !== realpath($this->releasesDirectory) || '1.0.0' !== basename($journal['source_root']) || !\in_array($root, [$journal['source_root'], $this->releasesDirectory.'/1.0.6'], true)) {
+            if (\dirname($journal['source_root']) !== realpath($this->releasesDirectory) || !\in_array(basename($journal['source_root']), ['1.0.0', '1.1.0'], true) || !\in_array($root, [$journal['source_root'], $this->releasesDirectory.'/ripe-1.1.0'], true)) {
                 throw new \RuntimeException('Durable edition journal and current installation roots disagree.');
             }
 
             return $journal['source_root'];
         }
-        if ('1.0.0' !== basename($root)) {
+        if (!\in_array(basename($root), ['1.0.0', '1.1.0'], true)) {
             throw new \RuntimeException('Current release is not Light 1.0.0; edition downgrade or repeated conversion is prohibited.');
         }
 
@@ -633,7 +639,9 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
             // only this offline edition validation recognizes the expected enrollment step.
             foreach ($findings as $finding) {
                 $finding = EditionData::object($finding);
-                if ('critical' === ($finding['severity'] ?? null) && ('owner_mfa' !== ($finding['code'] ?? null) || false !== ($finding['sending_blocked'] ?? null))) {
+                $expectedMfa = 'owner_mfa' === ($finding['code'] ?? null) && false === ($finding['sending_blocked'] ?? null);
+                $deferredMail = true === ($receipt['smtp_deferred'] ?? false) && 'sender_identity' === ($finding['code'] ?? null) && 0 === EditionData::integer($this->connection->fetchOne('SELECT COUNT(*) FROM sender_identity'));
+                if ('critical' === ($finding['severity'] ?? null) && !$expectedMfa && !$deferredMail) {
                     throw new \RuntimeException('Target Doctor reported an unexpected critical readiness finding.');
                 }
             }
@@ -684,9 +692,9 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
         if (\is_string($directory) && is_dir($directory)) {
             $public = array_intersect_key($receipt, array_flip(['format', 'operation_id', 'installation_uuid', 'phase', 'target_package_sha256', 'invalidated_session_count', 'preservation_sha256']));
             $public['source_edition'] = 'emailer-light';
-            $public['source_version'] = '1.0.0';
+            $public['source_version'] = basename(EditionData::text($receipt['source_root']));
             $public['target_edition'] = 'emailer-ripe';
-            $public['target_version'] = '1.0.6';
+            $public['target_version'] = '1.1.0';
             EditionRecoverySet::write($directory.'/transition-receipt.json', json_encode($public, JSON_THROW_ON_ERROR));
         }
     }

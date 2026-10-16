@@ -23,12 +23,14 @@ parameters:
     emailer.default_transition_recovery_url: ''
     emailer.transition_recovery_url: '%env(default:emailer.default_transition_recovery_url:EMAILER_TRANSITION_RECOVERY_DATABASE_URL)%'
     emailer.product_id: 'emailer-ripe'
-    emailer.app_version: '1.0.6'
+    emailer.app_version: '1.1.0'
     emailer.update_source_version: '%env(default:emailer.app_version:EMAILER_UPDATE_SOURCE_VERSION)%'
     emailer.schema_version: '20261015000000'
     emailer.default_uri: '%env(DEFAULT_URI)%'
     emailer.default_master_key_file: ''
     emailer.master_key_file: '%env(default:emailer.default_master_key_file:EMAILER_SECRET_KEY_FILE)%'
+    emailer.default_http_mode: 'proxy'
+    emailer.http_mode: '%env(default:emailer.default_http_mode:EMAILER_HTTP_MODE)%'
     emailer.default_trusted_proxies: '127.0.0.1,::1'
     emailer.trusted_proxies: '%env(default:emailer.default_trusted_proxies:TRUSTED_PROXIES)%'
     emailer.default_trusted_hosts: '^(localhost|127\.0\.0\.1|\[::1\])$'
@@ -193,6 +195,8 @@ services:
         arguments:
             $backupDirectory: '%emailer.backup_dir%'
 
+    App\Module\Health\Application\Contract\RuntimeVerification: '@App\Module\Health\Application\Doctor'
+
     App\Module\Health\Infrastructure\SystemReadinessProbe:
         arguments:
             $privateDirectory: '%emailer.private_dir%'
@@ -200,6 +204,7 @@ services:
             $canonicalUri: '%emailer.default_uri%'
             $environment: '%kernel.environment%'
             $trustedProxies: '%emailer.trusted_proxies%'
+            $httpMode: '%emailer.http_mode%'
             $trustedHosts: '%emailer.trusted_hosts%'
             $expectedSchemaVersion: '%emailer.schema_version%'
             $releasesDirectory: '%emailer.releases_dir%'
@@ -295,6 +300,8 @@ services:
     App\Module\Setup\Presentation\Cli\SetupInstallCommand:
         arguments:
             $publicDirectory: '%kernel.project_dir%/public'
+            $canonicalUri: '%emailer.default_uri%'
+            $backupDestinationDirectory: '%emailer.backup_destination_dir%'
 
     App\Module\Identity\Application\Contract\SensitiveActionAuthorizer: '@App\Module\Identity\Application\ReauthenticationService'
     App\Module\Suppression\Application\Contract\AddressCorrectionSuppression: '@App\Module\Suppression\Application\SuppressionManager'
@@ -336,3 +343,9 @@ services:
     App\Module\Release\Application\SourceDatabaseFence:
         arguments:
             $runtimeConfigurationFile: '%emailer.runtime_configuration_file%'
+
+    App\Module\Configuration\Application\Contract\MailProbe: '@App\Module\Configuration\Infrastructure\SmtpMailProbe'
+
+    App\Module\Configuration\Infrastructure\SmtpMailProbe:
+        arguments:
+            $environment: '%kernel.environment%'

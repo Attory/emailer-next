@@ -66,7 +66,9 @@ final readonly class Phase3SetupDoctor implements SetupDoctor
             ) {
                 $failures[] = 'owner_mfa';
             }
-            if (1 !== $this->count(<<<'SQL'
+            // An absent transport with a recorded mail decision means explicitly deferred SMTP.
+            // Normal sending readiness still requires a secure, configured transport.
+            if (0 !== $this->count('SELECT COUNT(*) FROM sender_identity') && 1 !== $this->count(<<<'SQL'
 SELECT COUNT(*) FROM sender_identity
 WHERE singleton_key = '1'
   AND smtp_host IN ('mailpit', '127.0.0.1', '::1')
