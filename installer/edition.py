@@ -1,10 +1,23 @@
 """Private edition orchestration; never included in the public Light repository."""
 import json
 import os
+import re
 from pathlib import Path
 import secrets
 import urllib.parse
 from manage import Manager, ManagementError, protected, dispatch as common_dispatch, read_environment
+
+
+def installation_address(values):
+    value = values.get('DEFAULT_URI', '')
+    try:
+        uri = urllib.parse.urlsplit(value)
+        port = uri.port
+    except ValueError:
+        raise ManagementError('The recorded application address is malformed. No installation was selected.') from None
+    if uri.scheme != 'https' or uri.username or uri.password or port or uri.path not in ('', '/') or uri.query or uri.fragment or not uri.hostname or not re.fullmatch(r'[a-z0-9.-]+', uri.hostname):
+        raise ManagementError('The recorded application address is outside the supported dedicated HTTPS hosting profile. No installation was selected.')
+    return 'https://' + uri.hostname
 
 
 class EditionManager(Manager):
@@ -78,7 +91,10 @@ class EditionManager(Manager):
         source_version = self.record.get('transition_source', self.source_version)
         if source_version not in ('1.0.0', '1.1.0'):
             raise ManagementError('Only Light 1.0.0 and Light 1.1.0 are supported sources.')
-        print('\nLight → Ripe upgrade. Your account password, campaigns, recipient snapshots, delivery history and existing links are retained.')
+        print(f'\nLight {source_version} → Ripe {self.installer.version}')
+        print('Application address: ' + installation_address(self.values))
+        print('Protected settings: ' + str(self.configuration))
+        print('Your account password, campaigns, recipient snapshots, delivery history and existing links are retained.')
         print('Your administrator becomes an Owner. Ripe requires MFA enrollment. Delivery remains held until you accept the upgrade and explicitly resume it.')
         print('1. Upgrade with verified recovery material\n2. Recover an interrupted upgrade\n3. Accept a validated upgrade\n4. Check the upgraded application\n5. Resume delivery after reviewing readiness\n0. Exit')
         choice = input('Choose an action [0]: ').strip() or '0'
@@ -203,7 +219,7 @@ def dispatch(installer, error_type):
         identity = json.loads((Path(values['EMAILER_PRIVATE_DIR']) / 'install.lock').read_text())
         light_source = identity.get('product_id') == 'emailer-light'
     if light_source and not installer.journal.exists():
-        print('An existing Light installation was found.\n1. Upgrade this Light installation to Ripe\n2. Install a separate fresh Ripe application\n0. Exit')
+        print('An existing Light installation was found at ' + installation_address(values) + '.\n1. Upgrade this Light installation to Ripe\n2. Install a separate fresh Ripe application\n0. Exit')
         choice = input('Choose an installation [0]: ').strip() or '0'
         if choice == '0':
             return True
@@ -214,7 +230,7 @@ def dispatch(installer, error_type):
     if len(existing) > 1:
         print('Choose the installation to manage:')
         for number, path in enumerate(existing, 1):
-            print(str(number) + '. ' + str(path.parent))
+            print(str(number) + '. ' + installation_address(read_environment(path)) + ' (' + str(path.parent) + ')')
         choice = input('Installation number: ').strip()
         if not choice.isdigit() or not 1 <= int(choice) <= len(existing):
             raise error_type('No installation was selected. Nothing was changed.')

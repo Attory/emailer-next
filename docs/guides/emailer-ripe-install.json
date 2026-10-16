@@ -64,14 +64,18 @@
     },
     {
       "type": "p",
+      "text": "If setup finds an existing Light installation, choose <b>Install a separate fresh Ripe application</b> for this fresh-install guide. Choose its upgrade option only when you intend to convert Light, following the separate upgrade guide. The fresh Ripe site needs a different dedicated hostname."
+    },
+    {
+      "type": "p",
       "text": "sudo may ask for your server account password once. Setup needs host permission to install services; the application itself runs under a dedicated account. Keep the terminal open. Password entry is hidden, so no letters or dots may appear."
     },
     {
       "type": "ol",
       "items": [
         "Enter <b>Application hostname</b> if asked: just your dedicated address, without https://, a port or a path. Setup does not assume the machine's name is a public website.",
-        "Enter <b>Administrator email</b>. This becomes your sign-in name.",
-        "Enter a strong <b>Administrator password</b> and enter it again. Use 15-256 characters.",
+        "Enter <b>Owner email</b>. This becomes your sign-in name.",
+        "Enter a strong <b>Owner password</b> and enter it again. Use 15-256 characters.",
         "If the existing database requires its own administrator sign-in, enter those details only at the hidden prompt. A standard local MariaDB setup normally needs no database details."
       ]
     },

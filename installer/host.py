@@ -209,8 +209,51 @@ server {{
             self.m.save()
         try:
             self.secure_runtime_metadata()
+            self.prepare_release_lock()
         except OSError:
             self.fail('A generated cache or lock path became unsafe or unavailable. Keep the saved operation and choose Recover before a deliberate retry.')
+
+    def prepare_release_lock(self):
+        # Symfony FlockStore chmods newly created files 0666 regardless of umask.
+        # Prime only this known updater lock, under its existing private lock
+        # directory, so the exact private-state checkpoint never sees an unsafe
+        # newly created file. Existing lock inodes and bytes are left unchanged.
+        m = self.m
+        setting = m.source_values.get('LOCK_DSN', '')
+        if not setting.startswith('flock://'):
+            return
+        root = Path(setting.removeprefix('flock://'))
+        if root != m.private / 'locks':
+            self.fail('The updater lock directory is outside this installation. It was preserved.')
+        flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | os.O_CLOEXEC
+        parent = os.open('/', flags)
+        try:
+            for part in root.parts[1:]:
+                child = os.open(part, flags, dir_fd=parent)
+                os.close(parent)
+                parent = child
+            key = 'emailer-release-update'
+            suffix = base64.b64encode(hashlib.sha256(key.encode()).digest()).decode()[:7].replace('/', '_')
+            name = 'sf.' + key + '.' + suffix + '.lock'
+            reservation = self.state.setdefault('created_updater_locks', {})
+            try:
+                descriptor = os.open(name, os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW | os.O_CLOEXEC, 0o600, dir_fd=parent)
+            except FileExistsError:
+                return
+            try:
+                os.fchown(descriptor, m.account.pw_uid, m.account.pw_gid)
+                os.fchmod(descriptor, 0o600)
+                metadata = os.fstat(descriptor)
+                if not stat.S_ISREG(metadata.st_mode) or metadata.st_nlink != 1:
+                    self.fail('The new updater lock is unsafe. Keep the recovery material.')
+                os.fsync(descriptor)
+                os.fsync(parent)
+                reservation[name] = {'device': metadata.st_dev, 'inode': metadata.st_ino}
+                m.save()
+            finally:
+                os.close(descriptor)
+        finally:
+            os.close(parent)
 
     def secure_runtime_metadata(self):
         m = self.m

@@ -208,6 +208,25 @@ class PrivateRuntimePermissionContract(unittest.TestCase):
         handoff = HostHandoff(manager)
         return manager, handoff
 
+    def test_new_updater_lock_is_private_and_an_existing_inode_is_never_replaced(self):
+        with tempfile.TemporaryDirectory() as directory:
+            manager, handoff = self.instance(Path(directory))
+            locks = manager.private / 'locks'
+            locks.mkdir(mode=0o700)
+            manager.save = lambda: None
+            handoff.prepare_release_lock()
+            entries = list(locks.iterdir())
+            self.assertEqual(1, len(entries))
+            lock = entries[0]
+            self.assertEqual('sf.emailer-release-update.xfoK2jY.lock', lock.name)
+            original = lock.stat()
+            self.assertEqual(0o600, original.st_mode & 0o777)
+            self.assertEqual(manager.account.pw_uid, original.st_uid)
+            handoff.prepare_release_lock()
+            self.assertEqual(original.st_ino, lock.stat().st_ino)
+            self.assertEqual(b'', lock.read_bytes())
+            self.assertEqual(1, len(handoff.state['created_updater_locks']))
+
     def test_generated_files_are_secured_after_receipt_without_replacing_locks_or_data(self):
         with tempfile.TemporaryDirectory() as directory:
             manager, handoff = self.instance(Path(directory))

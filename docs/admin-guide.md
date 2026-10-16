@@ -1,7 +1,14 @@
 # Administrator guide
 
-**Status:** Phase 13 Version-1 administration and operations guide under final
-acceptance.
+For setup and everyday use, start with the [1.1.0 user manual](guides/emailer-ripe-manual.md).
+Fresh setup uses administrator email as the Owner login and can defer SMTP.
+The signed native setup file installs required services and recovery material.
+Use Mail settings to store encrypted provider settings, test TLS/sign-in without
+sending, or explicitly send one test to a shown address. Upgrades retain identity,
+password hashes and security policy; Light upgrades start at High with MFA enrollment
+required. Delivery resumes only through the explicit readiness-checked installer action.
+
+The following role and feature reference supplements that manual.
 
 Emailer Next has one organisation per installation and individual
 administrator accounts. There is no self-registration, shared global password,
