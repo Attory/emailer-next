@@ -5,7 +5,7 @@ declare(strict_types=1);
 if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL')) {
     throw new RuntimeException('Source session issuance is isolated-only.');
 }
-require '/rehearsal/source-releases/1.0.0/vendor/autoload.php';
+require '/rehearsal/source-releases/current/vendor/autoload.php';
 $loader = new Composer\Autoload\ClassLoader();
 foreach (['BrowserKit', 'DomCrawler', 'CssSelector'] as $component) {
     $loader->addPsr4('Symfony\\Component\\'.$component.'\\', '/opt/emailer-vendor/symfony/'.strtolower(preg_replace('/(?<!^)[A-Z]/', '-$0', $component)));

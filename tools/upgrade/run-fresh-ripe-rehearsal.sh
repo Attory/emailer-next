@@ -24,8 +24,8 @@ run() {
         -e "MARIADB_SERVER_VERSION=${MARIADB_SERVER_VERSION:-10.11.19-MariaDB}" \
         "$app_image" "$@"
 }
-run php /tools/tools/release/verify-package.php --archive=/package/emailer-next-1.0.6.zip --public-key=/pinned-ripe.pub --current-version=1.0.6 --expected-version=1.0.6 --expected-source="$expected_commit" > "$case_root/verification.log"
-run php /tools/tools/upgrade/prepare-ripe-rehearsal.php "ripe106_${iteration}_fresh" /package/emailer-next-1.0.6.zip /pinned-ripe.pub 1.0.6
-rehearsal_user=1000 run bash -euc 'set -a; source /rehearsal/runtime.env; set +a; php /rehearsal/source-releases/1.0.6/bin/console emailer:setup:install --complete < /rehearsal/install-input' > "$case_root/installation.log" 2>&1
+run php /tools/tools/release/verify-package.php --archive=/package/emailer-next-1.1.0.zip --public-key=/pinned-ripe.pub --current-version=1.1.0 --expected-version=1.1.0 --expected-source="$expected_commit" > "$case_root/verification.log"
+run php /tools/tools/upgrade/prepare-ripe-rehearsal.php "ripe106_${iteration}_fresh" /package/emailer-next-1.1.0.zip /pinned-ripe.pub 1.1.0
+rehearsal_user=1000 run bash -euc 'set -a; source /rehearsal/runtime.env; set +a; php /rehearsal/source-releases/1.1.0/bin/console emailer:setup:install --complete < /rehearsal/install-input' > "$case_root/installation.log" 2>&1
 run bash -euc 'set -a; source /rehearsal/runtime.env; set +a; php /tools/tools/upgrade/verify-fresh-ripe.php' >> "$case_root/verification.log"
 printf 'Actual signed fresh Ripe installation completed: %s\n' "$case_root"

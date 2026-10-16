@@ -6,7 +6,7 @@ declare(strict_types=1);
 if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL')) {
     throw new RuntimeException('Synthetic fixture seeding requires the isolated rehearsal harness.');
 }
-require '/rehearsal/source-releases/1.0.0/vendor/autoload.php';
+require '/rehearsal/source-releases/current/vendor/autoload.php';
 $url = getenv('DATABASE_URL');
 if (!is_string($url)) {
     throw new RuntimeException('Isolated source URL is required.');
@@ -95,7 +95,7 @@ chgrp($d, 1000);
 chown($d.'/'.$assetFilename, 1000);
 chgrp($d.'/'.$assetFilename, 1000);
 $c->insert('template_asset', ['id' => $a, 'filename' => $assetFilename, 'media_type' => 'image/png', 'byte_size' => strlen($b), 'width' => 1, 'height' => 1, 'content_sha256' => hash('sha256', $b), 'created_by' => $u, 'created_at' => $n]);
-$m = new App\Module\Secrets\Infrastructure\FilesystemMasterKey('/rehearsal/keys/master.key', '/rehearsal/source-releases/1.0.0/public', '/rehearsal/source-releases/1.0.0', 'dev');
+$m = new App\Module\Secrets\Infrastructure\FilesystemMasterKey('/rehearsal/keys/master.key', '/rehearsal/source-releases/current/public', '/rehearsal/source-releases/current', 'dev');
 $vault = new App\Module\Secrets\Infrastructure\DoctrineSecretVault($c, $m, new App\Module\Secrets\Application\SecretCipher());
 $s = $vault->store('smtp.credential', $f['smtp']['password'], $i);
 $c->update('sender_identity', ['smtp_host' => $f['smtp']['host'], 'smtp_port' => 587, 'encryption_mode' => 'starttls', 'smtp_username' => $f['smtp']['username'], 'credential_secret_id' => $s, 'tls_peer_verification' => 1], ['singleton_key' => '1']);

@@ -22,7 +22,7 @@ if ('prepare' === $argv[1]) {
 }
 $receipt = json_decode((string) file_get_contents('/rehearsal/private/edition-delivery-hold.json'), true, 512, JSON_THROW_ON_ERROR);
 $runtime = $c->fetchAssociative("SELECT accepting_work,active_claims FROM delivery_runtime WHERE singleton_key='1'");
-if ('recovered' !== ($receipt['phase'] ?? null) || true === ($receipt['services_stopped'] ?? false) || 0 !== (int) $runtime['accepting_work'] || 1 !== (int) $runtime['active_claims'] || '/rehearsal/source-releases/1.0.0' !== realpath('/rehearsal/source-releases/current')) {
+if ('recovered' !== ($receipt['phase'] ?? null) || true === ($receipt['services_stopped'] ?? false) || 0 !== (int) $runtime['accepting_work'] || 1 !== (int) $runtime['active_claims'] || ('/rehearsal/source-releases/'.(getenv('EMAILER_REHEARSAL_LIGHT_VERSION') ?: '1.0.0')) !== realpath('/rehearsal/source-releases/current')) {
     throw new RuntimeException('Active refusal stopped services, erased a claim or changed the source.');
 }
 echo json_encode(['active_claim_refused_and_preserved' => true, 'source_services_not_stopped' => true, 'unchanged_light_recovered_without_idle_fabrication' => true, 'delivery_quiesced' => true], JSON_THROW_ON_ERROR)."\n";

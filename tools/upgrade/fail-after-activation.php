@@ -8,7 +8,7 @@ if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL')) {
 $deadline = microtime(true) + 45;
 while (microtime(true) < $deadline) {
     clearstatcache(true);
-    if ('/rehearsal/source-releases/1.0.6' === realpath('/rehearsal/source-releases/current')) {
+    if (in_array(realpath('/rehearsal/source-releases/current'), ['/rehearsal/source-releases/1.1.0', '/rehearsal/source-releases/ripe-1.1.0'], true)) {
         if (!rename('/rehearsal/keys/master.key', '/rehearsal/activation-fault-retained-master.key')) {
             throw new RuntimeException('Synthetic activation fault could not be injected.');
         }

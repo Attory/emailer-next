@@ -24,7 +24,7 @@ if ('unsupported_version' === $argv[1]) {
     chmod('/rehearsal/runtime.env.before-root-rejection', 0o600);
     file_put_contents('/rehearsal/runtime.env', str_replace('/rehearsal/private', '/rehearsal/unsupported-private', (string) file_get_contents('/rehearsal/runtime.env')));
 } else {
-    $c->executeStatement("UPDATE product_identity SET product_version = '1.0.0' WHERE singleton_key = '1'");
+    $c->executeStatement("UPDATE product_identity SET product_version = ? WHERE singleton_key = '1'", [getenv('EMAILER_REHEARSAL_LIGHT_VERSION') ?: '1.0.0']);
     if (isset($c->createSchemaManager()->listTableColumns('sender_identity')['synthetic_drift'])) {
         $c->executeStatement('ALTER TABLE sender_identity DROP COLUMN synthetic_drift');
     }
