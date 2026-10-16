@@ -157,7 +157,7 @@ final readonly class LightSourceInspection
         if (false === $runtime || 0 !== EditionData::integer($runtime['accepting_work']) || 0 !== EditionData::integer($runtime['active_claims'])) {
             throw new \RuntimeException('Delivery is not safely quiesced.');
         }
-        foreach (["SELECT COUNT(*) FROM campaign_recipient WHERE state = 'processing' OR claimed_at IS NOT NULL", "SELECT COUNT(*) FROM campaign_test_delivery WHERE state = 'processing'", "SELECT COUNT(*) FROM delivery_attempt WHERE state = 'started'", 'SELECT COUNT(*) FROM messenger_messages WHERE delivered_at IS NOT NULL', "SELECT COUNT(*) FROM release_operation WHERE status = 'started'", 'SELECT COUNT(*) FROM worker_heartbeat WHERE stopped_at IS NULL AND heartbeat_at > UTC_TIMESTAMP(6) - INTERVAL 5 MINUTE', "SELECT COUNT(*) FROM operations_run WHERE status = 'started'"] as $sql) {
+        foreach (["SELECT COUNT(*) FROM campaign_recipient WHERE state = 'processing' OR claimed_at IS NOT NULL", "SELECT COUNT(*) FROM campaign_test_delivery WHERE state = 'processing'", "SELECT COUNT(*) FROM delivery_attempt WHERE state = 'started'", 'SELECT COUNT(*) FROM messenger_messages WHERE delivered_at IS NOT NULL', "SELECT COUNT(*) FROM release_operation WHERE status = 'started'", "SELECT COUNT(*) FROM worker_heartbeat WHERE worker_kind = 'worker' AND stopped_at IS NULL AND heartbeat_at > UTC_TIMESTAMP(6) - INTERVAL 5 MINUTE", "SELECT COUNT(*) FROM operations_run WHERE status = 'started'"] as $sql) {
             if (0 !== EditionData::integer($this->connection->fetchOne($sql))) {
                 throw new \RuntimeException('Active delivery claim, lease, worker or conflicting operation prevents transition.');
             }
