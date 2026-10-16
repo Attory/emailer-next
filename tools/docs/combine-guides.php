@@ -49,9 +49,12 @@ if ('emailer-light' !== ($identity['product'] ?? null) || '1.1.0' !== ($identity
 }
 $runtime = $argv[1].'/emailer-light-1.1.0.zip';
 $runtimeStat = lstat($runtime);
+if (!is_array($runtimeStat) || 0o100000 !== ($runtimeStat['mode'] & 0o170000)) {
+    throw new RuntimeException('The Light runtime must be an unlinked regular release file.');
+}
 $runtimeHash = hash_file('sha256', $runtime);
 $runtimeManifest = json_decode($public('emailer-light-1.1.0.zip.manifest.json'), true, 64, JSON_THROW_ON_ERROR);
-if (!is_array($runtimeStat) || 0o100000 !== ($runtimeStat['mode'] & 0o170000) || !is_string($runtimeHash)
+if (!is_string($runtimeHash)
     || !isset($inventory['emailer-light-1.1.0.zip']) || !hash_equals($inventory['emailer-light-1.1.0.zip'], $runtimeHash)
     || 'emailer-light-release-v1' !== ($runtimeManifest['format'] ?? null) || '1.1.0' !== ($runtimeManifest['version'] ?? null)
     || $identity['source_commit'] !== ($runtimeManifest['source_commit'] ?? null)) {
