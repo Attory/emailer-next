@@ -17,6 +17,10 @@ manifest is checked by `tools/docs/verify-built-guides.php`.
 original public pin, new output directory and authenticated predecessor directory.
 Set `EMAILER_RELEASE_DOCUMENTATION_DIR` to the rendered private guide directory
 and `EMAILER_LIGHT_RELEASE_ASSETS_DIR` to the unchanged final public Light assets.
+Set `EMAILER_LIGHT_DOCUMENTATION_ASSETS_DIR` to the separately signed
+`docs-v1.1.0-r1` Light guide assets. This documentation-only correction leaves the
+original application runtime and source unchanged. Its original-key signed identity
+binds the corrected guide source to that exact runtime source and SHA256.
 The predecessor directory must contain that exact final Light runtime and
 verification sidecars, the original Light 1.0.0 package and original Ripe 1.0.6.
 
