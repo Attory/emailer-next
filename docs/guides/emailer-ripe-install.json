@@ -86,7 +86,7 @@
     {
       "type": "image",
       "file": "emailer-ripe-setup.png",
-      "caption": "Actual Ripe setup completion. The example address belongs to the acceptance environment; use the login address printed by your installation."
+      "caption": "Actual Ripe setup completion. Use the login address printed by your own installation."
     },
     {
       "type": "h2",

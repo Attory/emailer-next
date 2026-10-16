@@ -41,6 +41,10 @@
     },
     {
       "type": "p",
+      "text": "The native Debian VM acceptance used PHP 8.4.26, Nginx 1.26.3 and MariaDB 11.8.6. Application CI also tests PHP 8.4.24 and 8.5.9 against MariaDB 10.11.19 and 11.8.9. Native provisioning selects the supported Debian PHP 8.4 packages; the PHP 8.5 application test does not claim a native PHP 8.5 hosting profile."
+    },
+    {
+      "type": "p",
       "text": "Shared hosting is unsupported because persistent workers, system timers, isolated service identity and private key storage are required. No file-upload compatibility is claimed. The native installer does not require Docker or Composer on the customer server."
     },
     {
