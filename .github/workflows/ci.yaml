@@ -50,6 +50,8 @@ jobs:
           PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests/Installer
           sudo env PYTHONDONTWRITEBYTECODE=1 python3 -m unittest discover -s tests/Installer
           python3 tools/docs/check-guides.py
+          sudo apt-get --error-on=any update
+          sudo apt-get install --yes --no-install-recommends ripgrep
           python3 tools/security/check-private-data-pattern.py
 
       - name: Prepare writable generated-output directories
