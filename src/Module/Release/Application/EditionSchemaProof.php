@@ -37,7 +37,7 @@ final class EditionSchemaProof
     {
         $sql = self::normalize($sql);
         if ('doctrine_migration_versions' === $table) {
-            $sql = preg_replace('/COLLATE=utf8mb4_(?:general_ci|unicode_ci|bin)\\b/', 'COLLATE=utf8mb4_bin', $sql) ?? $sql;
+            $sql = preg_replace('/COLLATE=utf8mb4_(?:general_ci|unicode_ci|bin|uca1400_ai_ci)\\b/', 'COLLATE=utf8mb4_bin', $sql) ?? $sql;
         }
 
         return $sql;

@@ -52,6 +52,12 @@ for version in 105 106; do
     esac
     mkdir -p "$state_root/source$version" "$state_root/native$version-package"
     git archive "$historical_commit" | tar -x -C "$state_root/source$version"
+    # Release archives exclude tests. The historical rehearsal tools still need
+    # their own exact fixture; never substitute today's fixture into old code.
+    if [ "$version" = 106 ]; then
+        mkdir -p "$state_root/source$version/tests/Fixtures"
+        git show "$historical_commit:tests/Fixtures/upgrade-light-1.0.0.json" >"$state_root/source$version/tests/Fixtures/upgrade-light-1.0.0.json"
+    fi
     # Connected preparation sees only historical public dependencies, no keys or runtime state.
     docker run --rm --user root --network bridge -v "$state_root/source$version:/source" "$app_image" bash -euc '
         cp -a /opt/emailer-vendor /source/vendor
