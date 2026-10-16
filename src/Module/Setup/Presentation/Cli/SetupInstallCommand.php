@@ -67,6 +67,20 @@ final class SetupInstallCommand extends Command
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
+        try {
+            return $this->perform($input, $output);
+        } catch (\Throwable $error) {
+            if ('1' !== getenv('EMAILER_INSTALLER_DIAGNOSTICS')) {
+                throw $error;
+            }
+            $output->writeln(json_encode(\App\Shared\InstallerFailure::report($error), JSON_THROW_ON_ERROR));
+
+            return Command::FAILURE;
+        }
+    }
+
+    private function perform(InputInterface $input, OutputInterface $output): int
+    {
         $io = new SymfonyStyle($input, $output);
         if (true === $input->getOption('upgrade-light')) {
             if (null === $this->editionUpgrade) {
