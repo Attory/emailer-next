@@ -696,7 +696,7 @@ final readonly class ReleaseManager
     {
         $command = array_merge([PHP_BINARY, $release.'/bin/console'], $arguments);
         $pipes = [];
-        $environment = '' === $runtime ? null : array_replace(getenv(), ['EMAILER_RUNTIME_DIR' => $runtime]);
+        $environment = LegacyDatabaseEnvironment::forRelease($release, '' === $runtime ? getenv() : array_replace(getenv(), ['EMAILER_RUNTIME_DIR' => $runtime]));
         $process = proc_open($command, [['file', '/dev/null', 'r'], ['file', '/dev/null', 'w'], ['file', '/dev/null', 'w']], $pipes, $release, $environment);
         if (!\is_resource($process)) {
             throw new \RuntimeException('Release command could not start.');

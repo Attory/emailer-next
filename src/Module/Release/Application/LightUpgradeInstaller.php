@@ -652,7 +652,7 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
         $runtime = EditionData::text($receipt['recovery_directory']).'/validation-'.hash('sha256', $release);
         EditionRecoverySet::directory($runtime);
         $log = $runtime.'/validation-'.str_replace(':', '-', $arguments[0]).'.log';
-        $this->process(array_merge([PHP_BINARY, $release.'/bin/console'], $arguments), $accepted, ['EMAILER_RUNTIME_DIR' => $runtime], $log);
+        $this->process(array_merge([PHP_BINARY, $release.'/bin/console'], $arguments), $accepted, LegacyDatabaseEnvironment::forRelease($release, ['DATABASE_URL' => EditionData::text(getenv('DATABASE_URL')), 'EMAILER_RUNTIME_DIR' => $runtime]), $log);
         if ('emailer:doctor:run' === $arguments[0]) {
             $report = EditionData::read($log);
             $findings = $report['findings'] ?? null;
