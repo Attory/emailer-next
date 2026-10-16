@@ -1,4 +1,9 @@
-# Emailer Next — Basic newsletter manual
+# Emailer Ripe - Basic newsletter manual
+
+The complete [1.1.0 user manual](guides/emailer-ripe-manual.md) covers installation defaults, deferred SMTP, secure provider checks, MFA, updates and delivery holds. Download HTML/PDF from the [documentation index](guides/README.md).
+
+Fresh installations can prepare templates and drafts without SMTP. Add the provider under Settings & tools > Mail settings when ready; connection testing sends no message. An actual test email requires an explicit shown destination.
+
 
 **Prepare → Test → Approve → Send.** Saving a draft sends nothing.
 

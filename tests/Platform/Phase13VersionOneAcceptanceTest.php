@@ -12,16 +12,16 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
     {
         $root = \dirname(__DIR__, 2);
         $services = (string) file_get_contents($root.'/config/services.yaml');
-        self::assertStringContainsString("emailer.app_version: '1.0.6'", $services);
+        self::assertStringContainsString("emailer.app_version: '1.1.0'", $services);
         self::assertStringContainsString("emailer.schema_version: '20261015000000'", $services);
 
         $tooling = (string) file_get_contents($root.'/tools/release/check-candidate-tooling.sh');
-        self::assertStringContainsString('--version=1.0.6', $tooling);
-        self::assertStringContainsString('--minimum-source=1.0.5', $tooling);
-        self::assertStringContainsString('--supported-sources=1.0.5', $tooling);
-        self::assertStringContainsString('--minimum-schema=20261013000000', $tooling);
+        self::assertStringContainsString('--version=1.1.0', $tooling);
+        self::assertStringContainsString('--minimum-source=1.0.6', $tooling);
+        self::assertStringContainsString('--supported-sources=1.0.6', $tooling);
+        self::assertStringContainsString('--minimum-schema=20261015000000', $tooling);
         self::assertStringContainsString('--schema=20261015000000', $tooling);
-        self::assertStringContainsString('for supported_source in 1.0.5', $tooling);
+        self::assertStringContainsString('for supported_source in 1.0.6', $tooling);
         self::assertStringContainsString('EMAILER_UPDATE_SOURCE_VERSION="$supported_source"', $tooling);
         self::assertStringContainsString('build/artifact/bin/console" emailer:release:inspect', $tooling);
     }
@@ -32,7 +32,8 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
         $isolated = (string) file_get_contents($root.'/tools/ci/run-network-isolated-tests.sh');
         $dockerIgnore = (string) file_get_contents($root.'/.dockerignore');
 
-        self::assertStringContainsString('--volume "$project_root/.git:/accepted-history:ro"', $isolated);
+        self::assertStringContainsString('git -C "$project_root" rev-parse --path-format=absolute --git-common-dir', $isolated);
+        self::assertStringContainsString('--volume "$accepted_history:/accepted-history:ro"', $isolated);
         self::assertStringContainsString('--env EMAILER_ACCEPTED_HISTORY_GIT_DIR=/accepted-history', $isolated);
         self::assertMatchesRegularExpression('/^\.git$/m', $dockerIgnore);
     }
@@ -128,7 +129,7 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
     {
         $root = \dirname(__DIR__, 2);
         $command = (string) file_get_contents($root.'/src/Module/Setup/Presentation/Cli/SetupInstallCommand.php');
-        $summary = strpos($command, "section('Non-secret installation summary')");
+        $summary = strpos($command, "section(\$guided ? 'Your installation' : 'Non-secret installation summary')");
         $confirmation = strpos($command, 'Permanently lock setup and complete this installation?');
         self::assertIsInt($summary);
         self::assertIsInt($confirmation);

@@ -23,14 +23,26 @@ parameters:
     emailer.default_transition_recovery_url: ''
     emailer.transition_recovery_url: '%env(default:emailer.default_transition_recovery_url:EMAILER_TRANSITION_RECOVERY_DATABASE_URL)%'
     emailer.product_id: 'emailer-ripe'
-    emailer.app_version: '1.0.6'
+    emailer.app_version: '1.1.0'
     emailer.update_source_version: '%env(default:emailer.app_version:EMAILER_UPDATE_SOURCE_VERSION)%'
     emailer.schema_version: '20261015000000'
     emailer.default_uri: '%env(DEFAULT_URI)%'
     emailer.default_master_key_file: ''
     emailer.master_key_file: '%env(default:emailer.default_master_key_file:EMAILER_SECRET_KEY_FILE)%'
-    emailer.default_trusted_proxies: '127.0.0.1,::1'
-    emailer.trusted_proxies: '%env(default:emailer.default_trusted_proxies:TRUSTED_PROXIES)%'
+    emailer.default_edition_operation_file: ''
+    emailer.edition_operation_file: '%env(default:emailer.default_edition_operation_file:EMAILER_INSTALLER_EDITION_OPERATION_FILE)%'
+    emailer.default_source_service_prefix: 'emailer-light'
+    emailer.source_service_prefix: '%env(default:emailer.default_source_service_prefix:EMAILER_INSTALLER_SOURCE_SERVICE_PREFIX)%'
+    emailer.default_installer_hold: ''
+    emailer.installer_hold: '%env(default:emailer.default_installer_hold:EMAILER_INSTALLER_HOLD_FILE)%'
+    emailer.default_replacement_runtime: ''
+    emailer.replacement_runtime: '%env(default:emailer.default_replacement_runtime:EMAILER_INSTALLER_REPLACEMENT_RUNTIME)%'
+    emailer.default_installer_fence: '0'
+    emailer.installer_fence: '%env(bool:default:emailer.default_installer_fence:EMAILER_INSTALLER_RETAIN_SOURCE_FENCE)%'
+    emailer.default_http_mode: 'proxy'
+    emailer.http_mode: '%env(default:emailer.default_http_mode:EMAILER_HTTP_MODE)%'
+    env(TRUSTED_PROXIES): '127.0.0.1,::1'
+    emailer.trusted_proxies: '%env(TRUSTED_PROXIES)%'
     emailer.default_trusted_hosts: '^(localhost|127\.0\.0\.1|\[::1\])$'
     emailer.trusted_hosts: '%env(default:emailer.default_trusted_hosts:TRUSTED_HOSTS)%'
 
@@ -193,6 +205,8 @@ services:
         arguments:
             $backupDirectory: '%emailer.backup_dir%'
 
+    App\Module\Health\Application\Contract\RuntimeVerification: '@App\Module\Health\Application\Doctor'
+
     App\Module\Health\Infrastructure\SystemReadinessProbe:
         arguments:
             $privateDirectory: '%emailer.private_dir%'
@@ -200,6 +214,7 @@ services:
             $canonicalUri: '%emailer.default_uri%'
             $environment: '%kernel.environment%'
             $trustedProxies: '%emailer.trusted_proxies%'
+            $httpMode: '%emailer.http_mode%'
             $trustedHosts: '%emailer.trusted_hosts%'
             $expectedSchemaVersion: '%emailer.schema_version%'
             $releasesDirectory: '%emailer.releases_dir%'
@@ -243,6 +258,8 @@ services:
 
     App\Module\Release\Application\ReleaseManager:
         arguments:
+            $replacementRuntimeFile: '%emailer.replacement_runtime%'
+            $retainSourceFence: '%emailer.installer_fence%'
             $privateDirectory: '%emailer.private_dir%'
             $masterKeyFile: '%emailer.master_key_file%'
             $runtimeConfigurationFile: '%emailer.runtime_configuration_file%'
@@ -295,6 +312,8 @@ services:
     App\Module\Setup\Presentation\Cli\SetupInstallCommand:
         arguments:
             $publicDirectory: '%kernel.project_dir%/public'
+            $canonicalUri: '%emailer.default_uri%'
+            $backupDestinationDirectory: '%emailer.backup_destination_dir%'
 
     App\Module\Identity\Application\Contract\SensitiveActionAuthorizer: '@App\Module\Identity\Application\ReauthenticationService'
     App\Module\Suppression\Application\Contract\AddressCorrectionSuppression: '@App\Module\Suppression\Application\SuppressionManager'
@@ -319,6 +338,9 @@ services:
 
     App\Module\Release\Application\LightUpgradeInstaller:
         arguments:
+            $sourceServicePrefix: '%emailer.source_service_prefix%'
+            $operationReceiptFile: '%emailer.edition_operation_file%'
+            $retainSourceFence: '%emailer.installer_fence%'
             $projectDirectory: '%kernel.project_dir%'
             $privateDirectory: '%emailer.private_dir%'
             $masterKeyFile: '%emailer.master_key_file%'
@@ -335,4 +357,15 @@ services:
 
     App\Module\Release\Application\SourceDatabaseFence:
         arguments:
+            $replacementRuntimeFile: '%emailer.replacement_runtime%'
             $runtimeConfigurationFile: '%emailer.runtime_configuration_file%'
+
+    App\Module\Configuration\Application\Contract\MailProbe: '@App\Module\Configuration\Infrastructure\SmtpMailProbe'
+
+    App\Module\Configuration\Infrastructure\SmtpMailProbe:
+        arguments:
+            $environment: '%kernel.environment%'
+
+    App\Shared\InstallerDeliveryHold:
+        arguments:
+            $holdFile: '%emailer.installer_hold%'

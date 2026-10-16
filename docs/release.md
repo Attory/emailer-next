@@ -1,5 +1,37 @@
 # Release
 
+## Current 1.1.0 installation release
+
+Build final packages only from a clean reviewed merge commit. The installer and
+application use the existing Ripe signing identity; do not generate replacement
+keys. Keep the original public pin non-writable by group/others in the build
+worktree. First finish and publish the compatible public Light 1.1.0 release.
+
+Render the four reviewed screenshot-backed guides outside this repository using
+the pinned `tools/docs/requirements.txt` toolchain and
+`tools/docs/build-guides.py OUTPUT_DIRECTORY`. Inspect every rendered PDF page
+and the HTML, links, selectable commands and screenshots. The source-bound
+manifest is checked by `tools/docs/verify-built-guides.php`.
+
+`tools/release/build-1.1.0-candidate.sh` takes the existing private key path,
+original public pin, new output directory and authenticated predecessor directory.
+Set `EMAILER_RELEASE_DOCUMENTATION_DIR` to the rendered private guide directory
+and `EMAILER_LIGHT_RELEASE_ASSETS_DIR` to the unchanged final public Light assets.
+The predecessor directory must contain that exact final Light runtime and
+verification sidecars, the original Light 1.0.0 package and original Ripe 1.0.6.
+
+The builder compares two runtime/setup builds, verifies release identity and
+signatures, includes source/SBOM/notices and individual HTML/PDF guides, and
+creates both Ripe-only and complete private seven-guide documentation ZIPs.
+The complete ZIP authenticates Light's signed checksum inventory and binds its
+runtime hash/manifest source to its document identity. It must never be uploaded
+to the public Light repository. All assets are covered by the original Ripe
+identity's signed SHA256SUMS. Test those exact final installer/runtime artifacts
+before publishing the immutable version tag; do not modify published assets.
+
+The older release procedures below are historical operator evidence.
+
+
 The Ripe `1.0.6` release supports the exact Light `1.0.0` edition transition
 through its installer and the native Ripe `1.0.5` update. Target schema is
 `20261015000000`. Release availability requires green exact-candidate checks,

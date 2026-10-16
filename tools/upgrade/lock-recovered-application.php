@@ -24,6 +24,11 @@ $journal = App\Module\Release\Application\EditionData::read($file);
 if ('recovered' !== ($journal['phase'] ?? null)) {
     throw new RuntimeException('Only a durably recovered operation may simulate pending unlock.');
 }
+// Reproduce the real crash window: recovered data is durable, but the
+// account-restoration receipt has not yet committed. A fully completed
+// receipt followed by an unrelated later account lock is a different state.
+$journal['fence_restored'] = false;
+App\Module\Release\Application\EditionRecoverySet::write($file, json_encode($journal, JSON_THROW_ON_ERROR), true);
 $c = Doctrine\DBAL\DriverManager::getConnection($p);
 (new App\Module\Release\Application\SourceDatabaseFence($c, '/rehearsal/runtime.env'))->lock(App\Module\Release\Application\SourceDatabaseFence::account($journal['database_account']));
 echo "Recovered receipt with pending account unlock injected; business state unchanged.\n";

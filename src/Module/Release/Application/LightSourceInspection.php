@@ -21,7 +21,7 @@ final readonly class LightSourceInspection
             throw new \RuntimeException('Light transition requires supported MariaDB 10.11 or 11.8.');
         }
         $identity = $this->connection->fetchAssociative("SELECT * FROM product_identity WHERE singleton_key = '1'");
-        if (false === $identity || 'emailer-light' !== ($identity['product_id'] ?? null) || '1.0.0' !== ($identity['product_version'] ?? null) || '20261014000000' !== ($identity['schema_version'] ?? null) || '1.0' !== ($identity['upgrade_contract_version'] ?? null) || 1 !== EditionData::integer($this->connection->fetchOne('SELECT COUNT(*) FROM product_identity'))) {
+        if (false === $identity || 'emailer-light' !== ($identity['product_id'] ?? null) || !\in_array($identity['product_version'] ?? null, ['1.0.0', '1.1.0'], true) || '20261014000000' !== ($identity['schema_version'] ?? null) || '1.0' !== ($identity['upgrade_contract_version'] ?? null) || 1 !== EditionData::integer($this->connection->fetchOne('SELECT COUNT(*) FROM product_identity'))) {
             throw new \RuntimeException('Unsupported or malformed Light product identity.');
         }
         $installation = $this->connection->fetchAssociative("SELECT installation_uuid, completed_at FROM installation_state WHERE singleton_key = '1'");
@@ -132,7 +132,7 @@ final readonly class LightSourceInspection
         $expected = EditionData::read($this->projectDirectory.'/config/upgrade/light-schema-details-1.0.0.json');
         foreach (EditionData::strings($expected['tables']) as $table => $ddl) {
             $actual = $this->connection->fetchAssociative('SHOW CREATE TABLE '.$this->connection->quoteSingleIdentifier($table));
-            if (false === $actual || self::normalize($ddl) !== self::normalize(EditionData::text($actual['Create Table']))) {
+            if (false === $actual || EditionSchemaProof::baselineTable($table, $ddl) !== EditionSchemaProof::baselineTable($table, EditionData::text($actual['Create Table']))) {
                 throw new \RuntimeException('Source check, default, generated-column or schema definition drift.');
             }
         }
@@ -157,7 +157,7 @@ final readonly class LightSourceInspection
         if (false === $runtime || 0 !== EditionData::integer($runtime['accepting_work']) || 0 !== EditionData::integer($runtime['active_claims'])) {
             throw new \RuntimeException('Delivery is not safely quiesced.');
         }
-        foreach (["SELECT COUNT(*) FROM campaign_recipient WHERE state = 'processing' OR claimed_at IS NOT NULL", "SELECT COUNT(*) FROM campaign_test_delivery WHERE state = 'processing'", "SELECT COUNT(*) FROM delivery_attempt WHERE state = 'started'", 'SELECT COUNT(*) FROM messenger_messages WHERE delivered_at IS NOT NULL', "SELECT COUNT(*) FROM release_operation WHERE status = 'started'", 'SELECT COUNT(*) FROM worker_heartbeat WHERE stopped_at IS NULL AND heartbeat_at > UTC_TIMESTAMP(6) - INTERVAL 5 MINUTE', "SELECT COUNT(*) FROM operations_run WHERE status = 'started'"] as $sql) {
+        foreach (["SELECT COUNT(*) FROM campaign_recipient WHERE state = 'processing' OR claimed_at IS NOT NULL", "SELECT COUNT(*) FROM campaign_test_delivery WHERE state = 'processing'", "SELECT COUNT(*) FROM delivery_attempt WHERE state = 'started'", 'SELECT COUNT(*) FROM messenger_messages WHERE delivered_at IS NOT NULL', "SELECT COUNT(*) FROM release_operation WHERE status = 'started'", "SELECT COUNT(*) FROM worker_heartbeat WHERE worker_kind = 'worker' AND stopped_at IS NULL AND heartbeat_at > UTC_TIMESTAMP(6) - INTERVAL 5 MINUTE", "SELECT COUNT(*) FROM operations_run WHERE status = 'started'"] as $sql) {
             if (0 !== EditionData::integer($this->connection->fetchOne($sql))) {
                 throw new \RuntimeException('Active delivery claim, lease, worker or conflicting operation prevents transition.');
             }

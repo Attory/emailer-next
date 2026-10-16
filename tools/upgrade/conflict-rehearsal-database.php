@@ -29,7 +29,7 @@ if (['unrelated_rehearsal_marker'] !== $scratch->createSchemaManager()->listTabl
     throw new RuntimeException('Unowned rehearsal database was changed by the installer.');
 }
 $receipt = json_decode((string) file_get_contents('/rehearsal/private/edition-delivery-hold.json'), true, 512, JSON_THROW_ON_ERROR);
-if ('recovered' !== ($receipt['phase'] ?? null) || '/rehearsal/source-releases/1.0.0' !== realpath('/rehearsal/source-releases/current')) {
+if ('recovered' !== ($receipt['phase'] ?? null) || ('/rehearsal/source-releases/'.(getenv('EMAILER_REHEARSAL_LIGHT_VERSION') ?: '1.0.0')) !== realpath('/rehearsal/source-releases/current')) {
     throw new RuntimeException('Pre-mutation failure did not recover unchanged Light.');
 }
 $normal = (new Symfony\Component\Dotenv\Dotenv())->parse((string) file_get_contents('/rehearsal/runtime.env'));

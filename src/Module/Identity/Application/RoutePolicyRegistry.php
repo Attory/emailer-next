@@ -98,6 +98,8 @@ final class RoutePolicyRegistry
         'admin_rsvp_export' => ['role' => AdministrativeRole::Administrator, 'methods' => ['POST'], 'sensitive' => true],
         'admin_mail_settings' => ['role' => AdministrativeRole::Administrator, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
         'admin_mail_settings_update' => ['role' => AdministrativeRole::Owner, 'methods' => ['POST'], 'sensitive' => true],
+        'admin_mail_test_connection' => ['role' => AdministrativeRole::Owner, 'methods' => ['POST'], 'sensitive' => true],
+        'admin_mail_send_test' => ['role' => AdministrativeRole::Owner, 'methods' => ['POST'], 'sensitive' => true],
         'admin_delivery_settings' => ['role' => AdministrativeRole::Administrator, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
         'admin_delivery_settings_update' => ['role' => AdministrativeRole::Owner, 'methods' => ['POST'], 'sensitive' => true],
     ];

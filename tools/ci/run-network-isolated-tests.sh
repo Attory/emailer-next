@@ -4,6 +4,7 @@ set -euo pipefail
 
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$project_root"
+accepted_history="$(git -C "$project_root" rev-parse --path-format=absolute --git-common-dir)"
 
 network_name="${COMPOSE_PROJECT_NAME:-emailer_next_ci}_isolated"
 
@@ -57,7 +58,7 @@ docker run --rm \
 
 docker run --rm \
     --network "$network_name" \
-    --volume "$project_root/.git:/accepted-history:ro" \
+    --volume "$accepted_history:/accepted-history:ro" \
     --volume "$cache_root/downloads:/composer-download-cache" \
     --env COMPOSER_CACHE_DIR=/composer-download-cache \
     --env APP_DEBUG=0 \

@@ -9,7 +9,7 @@ use Doctrine\DBAL\Connection;
 final class EditionSchemaProof
 {
     /** @return array{tables: array<string, string>, triggers: array<string, string>} */
-    public static function capture(Connection $connection): array
+    public static function capture(Connection $connection, bool $canonicalMetadata = false): array
     {
         $tables = [];
         foreach ($connection->createSchemaManager()->listTableNames() as $table) {
@@ -17,7 +17,7 @@ final class EditionSchemaProof
             if (false === $row) {
                 throw new \RuntimeException('Edition schema proof is unavailable.');
             }
-            $tables[$table] = self::normalize(EditionData::text($row['Create Table']));
+            $tables[$table] = $canonicalMetadata ? self::baselineTable($table, EditionData::text($row['Create Table'])) : self::normalize(EditionData::text($row['Create Table']));
         }
         ksort($tables);
         $triggers = [];
@@ -30,6 +30,17 @@ final class EditionSchemaProof
         }
 
         return ['tables' => $tables, 'triggers' => $triggers];
+    }
+
+    /** Only Doctrine's ASCII version ledger may inherit a tested database default. */
+    public static function baselineTable(string $table, string $sql): string
+    {
+        $sql = self::normalize($sql);
+        if ('doctrine_migration_versions' === $table) {
+            $sql = preg_replace('/COLLATE=utf8mb4_(?:general_ci|unicode_ci|bin|uca1400_ai_ci)\\b/', 'COLLATE=utf8mb4_bin', $sql) ?? $sql;
+        }
+
+        return $sql;
     }
 
     private static function normalize(string $sql): string

@@ -80,7 +80,7 @@ final class SecurityLevelHttpTest extends WebTestCase
         $client->request('GET', '/admin', server: $server);
         self::assertSelectorTextContains('section a[href="/admin/settings/security"]', 'Change security level');
         $crawler = $client->request('GET', '/admin/settings/security', server: $server);
-        self::assertSelectorTextContains('strong', 'Current level: High');
+        self::assertSelectorTextContains('main > p > strong', 'Current level: High');
         $form = $crawler->selectButton('Switch to Normal')->form();
         $csrf = $this->phase4String($form->getValues()['_token']);
 
@@ -283,7 +283,7 @@ final class SecurityLevelHttpTest extends WebTestCase
             self::assertSelectorTextContains('section a[href="/admin/settings/security"]', 'View security settings');
             $client->request('GET', '/admin/settings/security', server: $server);
             self::assertResponseIsSuccessful();
-            self::assertSelectorTextContains('strong', 'Current level: '.ucfirst($level));
+            self::assertSelectorTextContains('main > p > strong', 'Current level: '.ucfirst($level));
             self::assertSelectorNotExists('form[action="/admin/settings/security/update"]');
             $client->request('POST', '/admin/settings/security/update', ['security_level' => 'high', '_token' => 'invalid'], server: $server);
             self::assertResponseStatusCodeSame(403);

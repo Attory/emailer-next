@@ -5,7 +5,7 @@ declare(strict_types=1);
 if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL')) {
     throw new RuntimeException('Retained-backup verification is isolated-only.');
 }
-require '/rehearsal/source-releases/1.0.0/vendor/autoload.php';
+require '/rehearsal/source-releases/current/vendor/autoload.php';
 $p = (new Doctrine\DBAL\Tools\DsnParser(['mysql' => 'pdo_mysql']))->parse((string) getenv('DATABASE_URL'));
 if ('database' !== ($p['host'] ?? null) || !str_starts_with($p['dbname'] ?? '', 'ripe106_')) {
     throw new RuntimeException('Legacy verification refuses non-harness database access.');
@@ -33,7 +33,7 @@ if (0 !== (int) $runtime['accepting_work'] || 0 !== (int) $runtime['active_claim
     throw new RuntimeException('Legacy restoration allowed delivery.');
 }
 $identity = $c->fetchAssociative('SELECT product_id,product_version,schema_version FROM product_identity');
-if (['product_id' => 'emailer-light', 'product_version' => '1.0.0', 'schema_version' => '20261014000000'] !== $identity) {
+if (['product_id' => 'emailer-light', 'product_version' => getenv('EMAILER_REHEARSAL_LIGHT_VERSION') ?: '1.0.0', 'schema_version' => '20261014000000'] !== $identity) {
     throw new RuntimeException('Legacy restore did not use the exact Light schema/edition.');
 }
 if (!hash_equals((string) hash_file('sha256', '/rehearsal/keys/master.key'), (string) hash_file('sha256', '/old-export/keys/master.key'))) {

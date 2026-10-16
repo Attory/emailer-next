@@ -1,16 +1,22 @@
 # Emailer Ripe
 
-The Ripe 1.0.6 release scope includes installer-driven conversion from
-exact Emailer Light 1.0.0 and a native update from Ripe 1.0.5. Release availability
-requires the exact signed merged package to pass all isolated acceptance and
-recovery rehearsals. The running Ripe production installation is outside this
-engineering job.
+Emailer Ripe 1.1.0 includes a guided native Debian 13 VPS installer, ordinary
+Ripe 1.0.6 updates, and Light 1.0.0/1.1.0 upgrades with verified recovery and
+explicit acceptance/resume. SMTP is optional during fresh setup.
 
-See [the Light upgrade guide](docs/CLIENT-LIGHT-UPGRADE-1.0.6.md),
-[the implementation record](docs/RELEASE-1.0.6-IMPLEMENTATION.md), and
-[release notes](docs/RELEASE-NOTES-1.0.6.md).
+- [Beginner installation](docs/guides/emailer-ripe-install.md)
+- [Light to Ripe upgrade](docs/guides/emailer-light-to-ripe-upgrade.md)
+- [User manual](docs/guides/emailer-ripe-manual.md)
+- [Operator and troubleshooting reference](docs/guides/emailer-ripe-operator.md)
+- [HTML/PDF downloads](docs/guides/README.md)
 
-## Safe local bootstrap
+Download the private official `emailer-ripe-1.1.0-setup.run` through an authorized
+channel, upload that one file to the server, then start `sudo sh emailer-ripe-1.1.0-setup.run`.
+The guide explains DNS and host permission. The installer supplies runtime,
+verification, database, secrets, isolated services, HTTPS, backups and launcher.
+Customers do not need Docker, Composer, Mailpit or manual service definitions.
+
+## Maintainer development bootstrap
 
 Docker with the Compose plugin and `curl` are required. From a reviewed clean
 checkout:

@@ -6,10 +6,11 @@
 {% if is_granted('ROLE_ADMINISTRATOR') %}<section><h2>Security settings</h2><p><strong>Current level: {{ security_level|capitalize }}</strong></p><p><a href="{{ path('admin_security_settings') }}">{{ is_granted('ROLE_OWNER') ? 'Change security level' : 'View security settings' }}</a></p></section>{% endif %}
 {% if is_granted('ROLE_OPERATOR') %}<section class="quick-start"><div><h2>What would you like to share?</h2><p>Pick your recipients, choose a template and prepare your next newsletter.</p></div><a class="button" href="{{ path('admin_campaigns') }}#compose">Create newsletter <span aria-hidden="true">→</span></a></section>{% endif %}<div class="section-header"><h2>Installation health</h2><a href="{{ path('admin_doctor') }}">Open Doctor</a></div>
 <div class="dashboard-grid">
+{% set sending_blocked = app.request.attributes.get('doctor_active_findings')|default([])|filter(finding => finding.sending_blocked)|length > 0 %}
 {% for section in app.request.attributes.get('operations_dashboard')|default([]) %}
     <section>
         <h2>{{ section.title }}</h2>
-        <p><strong>Status:</strong> {{ section.status }}</p>
+        <p><strong>Status:</strong> {{ section.key == 'delivery' and sending_blocked ? 'sending blocked - open Doctor' : section.status }}</p>
         <dl>{% for metric in section.metrics %}<dt>{{ metric.label }}</dt><dd>{{ metric.value }}</dd>{% endfor %}</dl>
     </section>
 {% else %}<p>Operational status is unavailable.</p>{% endfor %}

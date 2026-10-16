@@ -1,0 +1,175 @@
+{
+  "title": "Upgrade Emailer Light to Ripe",
+  "subtitle": "Ripe 1.1.0 | Beginner guide for Light 1.0.0 and 1.1.0",
+  "blocks": [
+    {
+      "type": "p",
+      "text": "Upgrade with the private Ripe 1.1.0 setup file. Your Light administrator becomes an Owner and keeps the same password. Delivery remains held until you accept the validated upgrade, check the result and deliberately resume."
+    },
+    {
+      "type": "h2",
+      "text": "Supported sources"
+    },
+    {
+      "type": "table",
+      "head": [
+        "Installed source",
+        "Target and route"
+      ],
+      "rows": [
+        [
+          "Original published Light 1.0.0",
+          "Ripe 1.1.0, direct upgrade."
+        ],
+        [
+          "Official Light 1.1.0",
+          "Ripe 1.1.0, direct upgrade."
+        ],
+        [
+          "Light 1.0.0 updated to Light 1.1.0",
+          "Ripe 1.1.0, same guided edition upgrade."
+        ],
+        [
+          "Ripe 1.0.6",
+          "Ripe 1.1.0, normal Update menu instead."
+        ]
+      ]
+    },
+    {
+      "type": "p",
+      "text": "Do not use Ripe 1.0.6 for Light 1.1.0: it does not know the newly versioned Light release. The historical Light 1.0.0 path is retained, but this guide uses Ripe 1.1.0 for both supported Light versions. There is no general Ripe to Light downgrade."
+    },
+    {
+      "type": "p",
+      "text": "The guided host path uses the verified Debian 13 amd64/systemd/Nginx/PHP 8.4/MariaDB 10.11 or 11.8 profile. It discovers protected standard settings under /etc/emailer-light or /etc/emailer, a dedicated application database account, dedicated private/key storage and an existing HTTPS hostname without a custom port/subfolder. Unsupported customized hosts stop with a specific reason before conversion. Use the operator reference rather than changing grants or paths blindly."
+    },
+    {
+      "type": "h2",
+      "text": "1. Prepare for maintenance"
+    },
+    {
+      "type": "p",
+      "text": "Finish intentional sending and allow a short maintenance period. Keep the current HTTPS address and signing keys. Know the existing administrator login and password. If the database needs a separate administrator sign-in, have it ready for the hidden conditional prompt. Setup itself pauses delivery, waits for in-flight work, backs up and verifies recovery material, and fences the old application account. No migration commands or service files need to be written."
+    },
+    {
+      "type": "h2",
+      "text": "2. Download and start Ripe setup"
+    },
+    {
+      "type": "p",
+      "text": "While signed in with access, download <b>emailer-ripe-1.1.0-setup.run</b> from the <a href=\"https://github.com/Attory/emailer-next/releases/tag/v1.1.0\">official private release</a>, or use an authorized private copy. Upload that one file to the existing server through your provider's file-transfer facility. Do not put a GitHub token in a shell command. In the folder containing the file, run:"
+    },
+    {
+      "type": "code",
+      "text": "sudo sh emailer-ripe-1.1.0-setup.run"
+    },
+    {
+      "type": "p",
+      "text": "Initial trust comes from the official HTTPS or authorized private delivery channel. Embedded established signing identities authenticate the Ripe package and both supported Light predecessor packages. You do not need to assemble verifier source, sidecars, version arguments or commit hashes."
+    },
+    {
+      "type": "h2",
+      "text": "3. Select and upgrade"
+    },
+    {
+      "type": "p",
+      "text": "If asked about an existing Light installation, choose <b>Upgrade this Light installation to Ripe</b>. If several installations are found, select the correct address. Check the displayed Light version and address, then choose <b>Upgrade with verified recovery material</b>. Wait for named progress and validation. Retain the printed recovery location."
+    },
+    {
+      "type": "image",
+      "file": "emailer-ripe-upgrade.png",
+      "caption": "Actual Light to Ripe management menu and successful upgrade output."
+    },
+    {
+      "type": "p",
+      "text": "If interrupted, start the same file and choose <b>Recover an interrupted upgrade</b> before retrying. If the message says conversion committed, follow its Accept instruction. Never delete operation journals or edit migration records to retry."
+    },
+    {
+      "type": "h2",
+      "text": "4. Accept the validated upgrade, then sign in"
+    },
+    {
+      "type": "ol",
+      "items": [
+        "After the automatic validation succeeds, start the same setup file again and choose <b>Accept a validated upgrade</b>. This completes the host handoff and reopens sign-in. The public site stays under maintenance until this action; delivery remains held separately.",
+        "Open the existing HTTPS login address and use your unchanged administrator login and password. Old sessions are revoked; the account is now an Owner.",
+        "Check campaigns, templates, assets, recipient snapshots, delivery/tracking history, suppressions and existing links. Campaign-owned Light recipients remain campaign-owned; no contacts or list memberships are manufactured."
+      ]
+    },
+    {
+      "type": "p",
+      "text": "The transition preserves the password hash, installation identity, SMTP credentials and encryption/token contexts, relevant backups and required audit history. No campaign is approved or newsletter sent as an upgrade side effect. After acceptance, recovery cannot be replayed as a downgrade."
+    },
+    {
+      "type": "h2",
+      "text": "5. Complete security and mail checks"
+    },
+    {
+      "type": "p",
+      "text": "Light upgrades start Ripe at High security with MFA unenrolled. Open Settings &amp; tools &gt; MFA, confirm your credentials, start enrollment, add its setup key to an authenticator app, save the recovery codes privately and confirm a current code. Do not share that secret screen."
+    },
+    {
+      "type": "image",
+      "file": "emailer-ripe-mfa.png",
+      "caption": "MFA enabled after enrollment, without exposing recovery material."
+    },
+    {
+      "type": "p",
+      "text": "Open Mail settings. Existing SMTP settings should be retained. Choose <b>Test connection without sending</b> to validate TLS and sign-in without emailing anyone. If Light never had SMTP configured, you can keep preparing drafts and add it later. A message requires a separate shown destination and explicit Send test email action."
+    },
+    {
+      "type": "h2",
+      "text": "6. Resume when ready"
+    },
+    {
+      "type": "p",
+      "text": "Resolve Doctor's sending blockers and review previously approved or scheduled campaigns: lifting the hold can allow existing due work to continue. Start the same setup file, choose <b>Resume delivery after reviewing readiness</b> and answer yes. All normal sending checks must pass. The action does not approve any draft."
+    },
+    {
+      "type": "image",
+      "file": "emailer-ripe-resume.png",
+      "caption": "Actual explicit Resume action after readiness passes."
+    },
+    {
+      "type": "p",
+      "text": "If you are not ready, exit; drafting remains available. Keep recovery material after acceptance."
+    },
+    {
+      "type": "h2",
+      "text": "If something stops"
+    },
+    {
+      "type": "table",
+      "head": [
+        "Situation",
+        "Action"
+      ],
+      "rows": [
+        [
+          "Delivery still has active work",
+          "Let the current message finish and retry. Never reset claims manually."
+        ],
+        [
+          "Package, version or schema mismatch",
+          "Retain source/recovery files and use the original official package. Do not replace signing keys or migration records."
+        ],
+        [
+          "Interrupted before commit",
+          "Choose Recover, verify the restored source, then retry."
+        ],
+        [
+          "Committed conversion",
+          "Choose Accept a validated upgrade. A completed operation cannot be downgraded by recovery."
+        ],
+        [
+          "Resume blocked",
+          "Open Doctor, complete MFA/mail settings and resolve the named finding, then retry Resume."
+        ]
+      ]
+    },
+    {
+      "type": "p",
+      "text": "Continue with the <a href=\"emailer-ripe-manual.html\">Ripe manual</a>. Use the <a href=\"emailer-ripe-operator.html\">operator reference</a> for exceptional host and recovery cases."
+    }
+  ]
+}

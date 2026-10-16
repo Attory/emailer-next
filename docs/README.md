@@ -5,13 +5,13 @@ explain why a choice was locked; operational documents explain how that choice
 is implemented and verified. A later phase may refine a document but may not
 silently contradict the master specification or an accepted ADR.
 
-**Current implementation boundary:** Phase 13 Version-1 hardening and acceptance
-on the authorized development branch. The accepted operator-signed `0.4.0`
-candidate remains unpublished and undeployed. The `1.0.0` candidate remains
-pending complete gates, review, operator signing, CI, and exact-head approval;
-it is not tagged, published, deployed, or installed on a client server.
-The approved roadmap targets a client-installable MVP at Phase 9, followed by
-installable feature/operations updates through Version 1 at Phase 13.
+## Current customer documentation
+
+Use the finished 1.1.0 [documentation set](guides/README.md): beginner fresh
+installation, Light upgrade, user manual, and advanced operator/troubleshooting
+reference, in browser-readable HTML and inspected PDF. Older version-numbered
+walkthroughs and phase reports below are historical engineering evidence, not
+current installation prerequisites.
 
 ## Design and evidence
 

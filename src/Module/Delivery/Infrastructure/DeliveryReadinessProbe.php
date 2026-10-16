@@ -8,17 +8,43 @@ use App\Module\Health\Application\Contract\LightweightReadinessProbe;
 use App\Module\Health\Application\Contract\SendingGateReadinessProbe;
 use Doctrine\DBAL\Connection;
 
-final readonly class DeliveryReadinessProbe implements LightweightReadinessProbe, SendingGateReadinessProbe
+final readonly class DeliveryReadinessProbe implements LightweightReadinessProbe, SendingGateReadinessProbe, \App\Module\Health\Application\Contract\MaintenanceReadinessProbe
 {
-    public function __construct(private Connection $connection, private string $environment, private ?\App\Shared\EditionDeliveryHold $editionHold = null)
+    public function __construct(private Connection $connection, private string $environment, private ?\App\Shared\EditionDeliveryHold $editionHold = null, private ?\App\Shared\InstallerDeliveryHold $installerHold = null)
     {
+    }
+
+    public function offlineVerificationReady(): bool
+    {
+        $runtime = $this->connection->fetchAssociative("SELECT accepting_work, active_claims FROM delivery_runtime WHERE singleton_key = '1'");
+
+        return false !== $runtime && 0 === $this->integer($runtime['accepting_work']) && 0 === $this->integer($runtime['active_claims']);
+    }
+
+    public function maintenanceFindings(): array
+    {
+        $runtime = $this->connection->fetchAssociative("SELECT accepting_work, active_claims FROM delivery_runtime WHERE singleton_key = '1'");
+        if (false === $runtime || 0 !== $this->integer($runtime['accepting_work']) || 0 !== $this->integer($runtime['active_claims'])) {
+            return [];
+        }
+
+        // Caller must explicitly select offline maintenance. Live runtime checks
+        // still require current supervised-worker heartbeats.
+        $installation = $this->connection->fetchOne("SELECT installation_uuid FROM installation_state WHERE singleton_key='1'");
+
+        return array_merge(['delivery_quiesced', 'edition_delivery_hold', 'worker_heartbeat', 'scheduler_heartbeat'], \is_string($installation) && true === $this->installerHold?->permitsOfflineVerification($installation) ? ['installer_delivery_hold'] : []);
     }
 
     public function findings(): array
     {
         $findings = [];
+        if (true === $this->installerHold?->active()) {
+            $findings[] = $this->critical('installer_delivery_hold', 'Installation host setup is unfinished.', 'Start the same verified setup package and choose Finish before resuming delivery.');
+        }
         if (true === $this->editionHold?->active()) {
-            $findings[] = $this->critical('edition_delivery_hold', 'Edition transition requires acceptance or recovery.', 'Complete the installer operation before accepting and explicitly resuming delivery.');
+            $findings[] = true === $this->editionHold->accepted()
+                ? $this->critical('edition_delivery_hold', 'The upgrade is accepted; delivery is still held.', 'Complete mail settings and Owner MFA, then start the setup package and choose Resume delivery. Normal sending checks must pass.')
+                : $this->critical('edition_delivery_hold', 'Edition transition requires acceptance or recovery.', 'Complete the installer operation before accepting and explicitly resuming delivery.');
         }
         $runtime = $this->connection->fetchAssociative("SELECT schema_version, accepting_work, circuit_state, circuit_open_until FROM delivery_runtime WHERE singleton_key = '1'");
         if (false === $runtime || 1 !== $this->integer($runtime['schema_version'])) {

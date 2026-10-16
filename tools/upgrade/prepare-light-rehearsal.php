@@ -6,10 +6,11 @@ if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL') || 4 !== $argc) {
     throw new RuntimeException('Isolated prepare expects a disposable database, source archive and pinned Ripe public key.');
 }
 [$script, $database, $sourceArchive, $ripePublicKey] = $argv;
-if (1 !== preg_match('/^ripe106_[a-z0-9_]{1,40}$/D', $database) || !hash_equals('cfd9afb133c3bbfe7da6053aa2d121d325200c46f4db51e784699356d28d0e77', (string) hash_file('sha256', $sourceArchive))) {
+require '/tools/vendor/autoload.php';
+if (1 !== preg_match('/^ripe106_[a-z0-9_]{1,40}$/D', $database)) {
     throw new RuntimeException('Disposable source identity is invalid.');
 }
-require '/tools/vendor/autoload.php';
+$sourceVersion = App\Module\Release\Application\LightSourcePackage::authenticate($sourceArchive);
 $serverVersion = getenv('MARIADB_SERVER_VERSION') ?: '10.11.19-MariaDB';
 $admin = Doctrine\DBAL\DriverManager::getConnection(['driver' => 'pdo_mysql', 'host' => 'database', 'user' => 'root', 'password' => 'local-root-only']);
 if (false !== $admin->fetchOne('SELECT SCHEMA_NAME FROM information_schema.SCHEMATA WHERE SCHEMA_NAME = ?', [$database])) {
@@ -20,7 +21,7 @@ $service = $database.'_app';
 $admin->executeStatement('CREATE USER '.$admin->quote($service)."@'%' IDENTIFIED BY 'isolated-source-only'");
 $admin->executeStatement('GRANT ALL PRIVILEGES ON '.$admin->quoteSingleIdentifier($database).'.* TO '.$admin->quote($service)."@'%'");
 chown('/rehearsal', 0);
-foreach (['private', 'keys', 'source-runtime', 'updater-runtime', 'source-releases', 'source-releases/1.0.0'] as $relative) {
+foreach (['private', 'keys', 'source-runtime', 'updater-runtime', 'source-releases', 'source-releases/'.$sourceVersion] as $relative) {
     if (!mkdir('/rehearsal/'.$relative, 0o700, true)) {
         throw new RuntimeException('Disposable protected state could not be prepared.');
     }
@@ -32,11 +33,11 @@ foreach (['private', 'keys', 'source-runtime', 'updater-runtime', 'source-releas
     }
 }
 $zip = new ZipArchive();
-if (true !== $zip->open($sourceArchive) || !$zip->extractTo('/rehearsal/source-releases/1.0.0')) {
+if (true !== $zip->open($sourceArchive) || !$zip->extractTo('/rehearsal/source-releases/'.$sourceVersion)) {
     throw new RuntimeException('Published source could not be staged.');
 }
 $zip->close();
-symlink('/rehearsal/source-releases/1.0.0', '/rehearsal/source-releases/current');
+symlink('/rehearsal/source-releases/'.$sourceVersion, '/rehearsal/source-releases/current');
 $normalUrl = 'mysql://'.$service.':isolated-source-only@database:3306/'.$database.'?serverVersion='.$serverVersion.'&charset=utf8mb4';
 $operatorUrl = 'mysql://root:local-root-only@database:3306/'.$database.'?serverVersion='.$serverVersion.'&charset=utf8mb4';
 $common = [

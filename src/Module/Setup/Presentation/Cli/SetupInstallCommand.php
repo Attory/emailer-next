@@ -39,6 +39,9 @@ final class SetupInstallCommand extends Command
         private readonly CliSetupState $cliSetupStateStore,
         private readonly Clock $clock,
         private readonly string $publicDirectory,
+        private readonly string $canonicalUri = '',
+        private readonly string $backupDestinationDirectory = '',
+        private readonly ?\App\Module\Operations\Application\Contract\OperationsPolicyWriter $operationsPolicy = null,
         private readonly ?DatabaseSetup $databaseSetup = null,
         private readonly ?SetupState $setupState = null,
         private readonly ?ConfigurationSetup $configurationSetup = null,
@@ -51,16 +54,32 @@ final class SetupInstallCommand extends Command
 
     protected function configure(): void
     {
-        $this->addOption('upgrade-light', null, InputOption::VALUE_NONE, 'Inspect or perform the supported Light 1.0.0 to Ripe 1.0.6 edition transition.');
+        $this->addOption('recovery-passphrase-stdin', null, InputOption::VALUE_NONE, 'Read two protected recovery-passphrase lines from the automated host installer.');
+        $this->addOption('upgrade-light', null, InputOption::VALUE_NONE, 'Inspect or perform the supported Light 1.0.0/1.1.0 to Ripe 1.1.0 edition transition.');
         $this->addOption('edition-action', null, InputOption::VALUE_REQUIRED, 'inspect, execute, recover, accept or export-light-recovery.', 'inspect');
         $this->addOption('target-package', null, InputOption::VALUE_REQUIRED, 'Authenticated Ripe target package.');
         $this->addOption('source-package', null, InputOption::VALUE_REQUIRED, 'Exact published Light source package.');
         $this->addOption('light-recovery-export-directory', null, InputOption::VALUE_REQUIRED, 'Separate empty protected tree for isolated old-Light-backup recovery.');
         $this->addOption('recovery-directory', null, InputOption::VALUE_REQUIRED, 'Protected complete recovery destination outside private storage.');
+        $this->addOption('guided', null, InputOption::VALUE_NONE, 'Use provisioned hosting settings and defer SMTP; ask only for the first administrator account.');
         $this->addOption('complete', null, InputOption::VALUE_NONE, 'Continue through the interactive full installation after preflight.');
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
+    {
+        try {
+            return $this->perform($input, $output);
+        } catch (\Throwable $error) {
+            if ('1' !== getenv('EMAILER_INSTALLER_DIAGNOSTICS')) {
+                throw $error;
+            }
+            $output->writeln(json_encode(\App\Module\Release\Application\Contract\InstallerFailure::report($error), JSON_THROW_ON_ERROR));
+
+            return Command::FAILURE;
+        }
+    }
+
+    private function perform(InputInterface $input, OutputInterface $output): int
     {
         $io = new SymfonyStyle($input, $output);
         if (true === $input->getOption('upgrade-light')) {
@@ -77,16 +96,26 @@ final class SetupInstallCommand extends Command
             }
             $passphrase = null;
             if ('execute' === $options['edition-action']) {
-                if (!$input->isInteractive()) {
-                    throw new \RuntimeException('Edition execution requires a protected interactive terminal. Inspection remains read-only and noninteractive.');
+                if (!$input->isInteractive() && true !== $input->getOption('recovery-passphrase-stdin')) {
+                    throw new \RuntimeException('Edition execution requires protected terminal or installer standard input. Inspection remains read-only and noninteractive.');
                 }
-                $io->note('This installer transitions Emailer Light 1.0.0 to Emailer Ripe 1.0.6. It preserves your account password, leaves MFA unconfigured, and keeps delivery held. A separately configured Ripe recovery-key destination must retain the existing Light package.');
+                $io->note('This installer transitions supported Emailer Light 1.0.0 or 1.1.0 to Emailer Ripe 1.1.0. It preserves your account password, leaves MFA unconfigured, and keeps delivery held. A separately configured Ripe recovery-key destination must retain the existing Light package.');
                 $helper = $this->getHelper('question');
                 if (!$helper instanceof QuestionHelper) {
                     throw new \RuntimeException('Protected edition input is unavailable.');
                 }
-                $passphrase = $this->askSecret($helper, $input, $output, 'Ripe master-key recovery passphrase: ');
-                $confirmation = $this->askSecret($helper, $input, $output, 'Confirm Ripe recovery passphrase: ');
+                if (true === $input->getOption('recovery-passphrase-stdin')) {
+                    $first = fgets(STDIN, 4098);
+                    $second = fgets(STDIN, 4098);
+                    if (!\is_string($first) || !\is_string($second)) {
+                        throw new \RuntimeException('Protected recovery input is incomplete.');
+                    }
+                    $passphrase = rtrim($first, "\r\n");
+                    $confirmation = rtrim($second, "\r\n");
+                } else {
+                    $passphrase = $this->askSecret($helper, $input, $output, 'Ripe master-key recovery passphrase: ');
+                    $confirmation = $this->askSecret($helper, $input, $output, 'Confirm Ripe recovery passphrase: ');
+                }
                 if (!hash_equals($passphrase, $confirmation)) {
                     sodium_memzero($passphrase);
                     sodium_memzero($confirmation);
@@ -121,7 +150,11 @@ final class SetupInstallCommand extends Command
             $passed = $passed && $check->passed;
         }
 
-        $io->table(['Check', 'Result', 'Guidance'], $rows);
+        if (true !== $input->getOption('guided') || !$passed) {
+            $io->table(['Check', 'Result', 'Guidance'], $rows);
+        } else {
+            $io->text('Server and protected-storage checks passed.');
+        }
 
         if (!$passed) {
             $io->error('Correct the failed preflight checks before continuing setup.');
@@ -130,7 +163,7 @@ final class SetupInstallCommand extends Command
         }
 
         $this->cliSetupStateStore->recordOwnershipVerified($this->clock->now());
-        if (true !== $input->getOption('complete')) {
+        if (true !== $input->getOption('complete') && true !== $input->getOption('guided')) {
             $io->success('CLI ownership and preflight are verified. Re-run with --complete in a protected interactive terminal to finish installation.');
 
             return self::SUCCESS;
@@ -157,7 +190,7 @@ final class SetupInstallCommand extends Command
 
             return self::FAILURE;
         } catch (\RuntimeException) {
-            $io->error('Installation state validation failed. Verify key/private-path ownership, Mailpit isolation, setup progress, and Doctor results before retrying.');
+            $io->error('Installation state validation failed. Verify key/private-path ownership, mail configuration, setup progress, and Doctor results before retrying.');
 
             return self::FAILURE;
         } catch (\Throwable) {
@@ -183,28 +216,42 @@ final class SetupInstallCommand extends Command
         }
         $summaryRows = [];
 
-        $io->section('Database and installation key');
-        $host = $this->ask($helper, $input, $output, 'MariaDB host: ');
-        $port = $this->askInt($helper, $input, $output, 'MariaDB port [3306]: ', 3306);
-        $database = $this->ask($helper, $input, $output, 'MariaDB database: ');
-        $username = $this->ask($helper, $input, $output, 'MariaDB runtime username: ');
-        $databasePassword = $this->askSecret($helper, $input, $output, 'MariaDB password: ');
-        try {
-            $databaseSetup->configure(new DatabaseInput($host, $port, $database, $username, $databasePassword));
-        } finally {
-            sodium_memzero($databasePassword);
+        $guided = true === $input->getOption('guided');
+        if ($guided) {
+            $io->section('Preparing your application');
+            $databaseSetup->configureRuntime();
+            $summaryRows[] = ['Database', 'Dedicated protected hosting configuration verified'];
+        } else {
+            $io->section('Database and installation key');
+            $host = $this->ask($helper, $input, $output, 'MariaDB host: ');
+            $port = $this->askInt($helper, $input, $output, 'MariaDB port [3306]: ', 3306);
+            $database = $this->ask($helper, $input, $output, 'MariaDB database: ');
+            $username = $this->ask($helper, $input, $output, 'MariaDB runtime username: ');
+            $databasePassword = $this->askSecret($helper, $input, $output, 'MariaDB password: ');
+            try {
+                $databaseSetup->configure(new DatabaseInput($host, $port, $database, $username, $databasePassword));
+            } finally {
+                sodium_memzero($databasePassword);
+            }
+            $summaryRows[] = ['Database', $host.':'.$port.'/'.$database.' as '.$username];
         }
-        $summaryRows[] = ['Database', $host.':'.$port.'/'.$database.' as '.$username];
         $installationId = $setupState->initializeKey();
         $summaryRows[] = ['Installation key', 'External service-owned key initialized and validated'];
 
         $progress = $setupState->progress();
         if (!$progress->organisationReady) {
             $io->section('Organisation');
-            $organisation = $this->ask($helper, $input, $output, 'Organisation display name: ');
-            $baseUrl = $this->ask($helper, $input, $output, 'Canonical HTTPS base URL: ');
-            $locale = $this->ask($helper, $input, $output, 'Locale [en_AU]: ', 'en_AU');
-            $timeZone = $this->ask($helper, $input, $output, 'Time zone [Australia/Sydney]: ', 'Australia/Sydney');
+            if ($guided) {
+                $organisation = 'Emailer';
+                $baseUrl = $this->canonicalUri;
+                $locale = 'en_GB';
+                $timeZone = 'UTC';
+            } else {
+                $organisation = $this->ask($helper, $input, $output, 'Organisation display name: ');
+                $baseUrl = $this->ask($helper, $input, $output, 'Canonical HTTPS base URL: ');
+                $locale = $this->ask($helper, $input, $output, 'Locale [en_AU]: ', 'en_AU');
+                $timeZone = $this->ask($helper, $input, $output, 'Time zone [Australia/Sydney]: ', 'Australia/Sydney');
+            }
             $configurationSetup->saveOrganisation($installationId, new OrganisationInput($organisation, $baseUrl, $locale, $timeZone));
             $setupState->mark('organisation');
             $summaryRows[] = ['Organisation', $organisation.' | '.$baseUrl.' | '.$locale.' | '.$timeZone];
@@ -215,52 +262,70 @@ final class SetupInstallCommand extends Command
         $progress = $setupState->progress();
         if (!$progress->ownerReady) {
             $io->section('Initial Owner');
-            $login = $this->ask($helper, $input, $output, 'Owner email: ');
-            $ownerPassword = $this->askSecret($helper, $input, $output, 'Owner password (minimum 15 characters): ');
-            $confirmation = $this->askSecret($helper, $input, $output, 'Confirm Owner password: ');
-            try {
-                if (!hash_equals($ownerPassword, $confirmation)) {
-                    throw new \InvalidArgumentException('Owner passwords did not match.');
+            $io->text($guided ? 'Use your email address to sign in. Choose a password of 15–256 characters; a few unrelated words are easier to remember.' : '');
+            $login = $guided ? $this->askEmail($helper, $input, $output, 'Owner email: ') : $this->ask($helper, $input, $output, 'Owner email: ');
+            while (true) {
+                $ownerPassword = $this->askSecret($helper, $input, $output, 'Owner password (minimum 15 characters): ');
+                $confirmation = $this->askSecret($helper, $input, $output, 'Confirm Owner password: ');
+                try {
+                    if (!hash_equals($ownerPassword, $confirmation)) {
+                        if (!$guided) {
+                            throw new \InvalidArgumentException('Passwords did not match.');
+                        }
+                        $io->error('The passwords did not match. Please enter both again.');
+                        continue;
+                    }
+                    $ownerId = $ownerSetup->create($login, $ownerPassword);
+                    $ownerSetup->skipMfa($ownerId);
+                    break;
+                } catch (\InvalidArgumentException $rejected) {
+                    if (!$guided) {
+                        throw $rejected;
+                    }
+                    $io->error('Choose 15–256 characters. Avoid common passwords, repeated characters and your full email address. Then enter it twice again.');
+                } finally {
+                    sodium_memzero($ownerPassword);
+                    sodium_memzero($confirmation);
                 }
-                $ownerId = $ownerSetup->create($login, $ownerPassword);
-                $ownerSetup->skipMfa($ownerId);
-            } finally {
-                sodium_memzero($ownerPassword);
-                sodium_memzero($confirmation);
             }
             $setupState->mark('owner');
             $summaryRows[] = ['Initial Owner', $login.' | MFA enrollment required after HTTPS sign-in'];
-            $io->note('MFA was not enrolled because the CLI installer never prints enrollment secrets. Enrol TOTP from the authenticated HTTPS administration UI before production use.');
+            $io->note($guided ? 'After signing in, open Settings & tools > MFA to connect your authenticator app and save your recovery codes.' : 'MFA was not enrolled because the CLI installer never prints enrollment secrets. Enrol TOTP from the authenticated HTTPS administration UI before production use.');
         } else {
             $summaryRows[] = ['Initial Owner', 'Previously completed; verify identity and MFA state in the protected administration UI'];
         }
 
         $progress = $setupState->progress();
         if (!$progress->mailReady) {
-            $io->section('Isolated setup mail probe');
-            $mailHost = $this->ask($helper, $input, $output, 'Local Mailpit host [mailpit]: ', 'mailpit');
-            $mailPort = $this->askInt($helper, $input, $output, 'Local Mailpit SMTP port [1025]: ', 1025);
-            $senderAddress = $this->ask($helper, $input, $output, 'Synthetic sender address: ');
-            $senderName = $this->ask($helper, $input, $output, 'Synthetic sender name [Emailer Next Test]: ', 'Emailer Next Test');
-            $configurationSetup->testAndSaveMail($installationId, new MailInput(
-                $mailHost,
-                $mailPort,
-                'none',
-                '',
-                '',
-                $senderAddress,
-                $senderName,
-                '',
-            ));
+            if ($guided) {
+                $io->note('Email delivery is not configured. You can sign in and prepare templates and campaigns; add SMTP in Mail settings when ready.');
+                $summaryRows[] = ['Email delivery', 'Not configured; sending remains unavailable'];
+            } else {
+                $io->section('Isolated setup mail probe');
+                $mailHost = $this->ask($helper, $input, $output, 'Local Mailpit host [mailpit]: ', 'mailpit');
+                $mailPort = $this->askInt($helper, $input, $output, 'Local Mailpit SMTP port [1025]: ', 1025);
+                $senderAddress = $this->ask($helper, $input, $output, 'Synthetic sender address: ');
+                $senderName = $this->ask($helper, $input, $output, 'Synthetic sender name [Emailer Next Test]: ', 'Emailer Next Test');
+                $configurationSetup->testAndSaveMail($installationId, new MailInput(
+                    $mailHost,
+                    $mailPort,
+                    'none',
+                    '',
+                    '',
+                    $senderAddress,
+                    $senderName,
+                    '',
+                ));
+                $summaryRows[] = ['Setup mail', $mailHost.':'.$mailPort.' | '.$senderAddress.' | '.$senderName.' | no TLS/auth'];
+            }
             $setupState->mark('mail');
-            $summaryRows[] = ['Setup mail', $mailHost.':'.$mailPort.' | '.$senderAddress.' | '.$senderName.' | no TLS/auth'];
         } else {
             $summaryRows[] = ['Setup mail', 'Previously completed; production SMTP remains prohibited until authenticated reconfiguration'];
         }
 
         $progress = $setupState->progress();
         if (!$progress->policyReady || !$progress->capabilityReady) {
-            $workerMode = $this->ask($helper, $input, $output, 'Worker mode, supervised or cron [supervised]: ', 'supervised');
+            $workerMode = $guided ? 'supervised' : $this->ask($helper, $input, $output, 'Worker mode, supervised or cron [supervised]: ', 'supervised');
             $configurationSetup->savePolicies(new PolicyInput(
                 60,
                 1,
@@ -273,6 +338,10 @@ final class SetupInstallCommand extends Command
                 'You are receiving this message from the configured organisation. An unsubscribe link is included below.',
                 $workerMode,
             ));
+            if ($guided && '' !== $this->backupDestinationDirectory && null !== $this->operationsPolicy) {
+                $this->operationsPolicy->updateBackup(['backup_automation_enabled' => true, 'backup_interval_hours' => 24, 'backup_retention_days' => 30, 'restore_drill_interval_days' => 30, 'backup_destination_type' => 'filesystem']);
+                $summaryRows[] = ['Backups', 'Daily encrypted local backup; 30-day retention'];
+            }
             $setupState->mark('policy');
             $setupState->mark('capability');
             $summaryRows[] = ['Worker policy', $workerMode];
@@ -280,11 +349,14 @@ final class SetupInstallCommand extends Command
             $summaryRows[] = ['Worker policy', 'Previously completed; verify supervised/cron ownership in the protected administration UI'];
         }
 
-        $io->section('Non-secret installation summary');
+        $io->section($guided ? 'Your installation' : 'Non-secret installation summary');
+        if ($guided) {
+            $summaryRows = array_values(array_filter($summaryRows, static fn (array $row): bool => !\in_array($row[0], ['Database', 'Installation key', 'Worker policy'], true)));
+        }
         $io->table(['Area', 'Recorded value or state'], $summaryRows);
-        $io->note('Confirm the canonical origin, identities, isolated setup mail, worker ownership, and external key boundary. Secret values are intentionally omitted.');
+        $io->note($guided ? 'Your account and security settings are ready. Email delivery stays unavailable until you configure it in Mail settings. Secret values are never displayed.' : 'Confirm the canonical origin, identities, isolated setup mail, worker ownership, and external key boundary. Secret values are intentionally omitted.');
 
-        if (true !== $helper->ask($input, $output, new ConfirmationQuestion(
+        if (!$guided && true !== $helper->ask($input, $output, new ConfirmationQuestion(
             'Permanently lock setup and complete this installation? [y/N] ',
             false,
         ))) {
@@ -297,9 +369,26 @@ final class SetupInstallCommand extends Command
         if (!hash_equals($installationId, $completedId)) {
             throw new \RuntimeException('Installation identity changed during finalization.');
         }
-        $io->success('Installation completed and setup is permanently locked. Configure production SMTP only through the authenticated HTTPS administration UI.');
+        $io->success($guided ? 'Your account is ready. Setup is now closed to protect it. The server installer will finish background services, HTTPS and your initial backup next.' : 'Installation completed and setup is permanently locked. Configure production SMTP only through the authenticated HTTPS administration UI.');
 
         return self::SUCCESS;
+    }
+
+    private function askEmail(QuestionHelper $helper, InputInterface $input, OutputInterface $output, string $prompt): string
+    {
+        $question = (new Question($prompt))->setValidator(static function (mixed $value): string {
+            if (!\is_string($value) || false === filter_var(trim($value), FILTER_VALIDATE_EMAIL)) {
+                throw new \RuntimeException('Enter a complete email address, such as you@example.com.');
+            }
+
+            return trim($value);
+        });
+        $answer = $helper->ask($input, $output, $question);
+        if (!\is_string($answer)) {
+            throw new \InvalidArgumentException('Administrator email was not provided.');
+        }
+
+        return $answer;
     }
 
     private function ask(QuestionHelper $helper, InputInterface $input, OutputInterface $output, string $prompt, ?string $default = null): string
