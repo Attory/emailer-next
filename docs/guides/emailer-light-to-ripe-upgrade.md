@@ -2,7 +2,7 @@
 
 Ripe 1.1.0 | Beginner guide for Light 1.0.0 and 1.1.0
 
-Upgrade with the private Ripe 1.1.0 setup file. Your Light administrator becomes an Owner and keeps the same password. Delivery remains held until you check the result, accept the upgrade and deliberately resume.
+Upgrade with the private Ripe 1.1.0 setup file. Your Light administrator becomes an Owner and keeps the same password. Delivery remains held until you accept the validated upgrade, check the result and deliberately resume.
 
 ## Supported sources
 
@@ -73,4 +73,4 @@ If you are not ready, exit; drafting remains available. Keep recovery material a
 | Committed conversion | Choose Accept a validated upgrade. A completed operation cannot be downgraded by recovery. |
 | Resume blocked | Open Doctor, complete MFA/mail settings and resolve the named finding, then retry Resume. |
 
-Continue with the [Ripe manual](emailer-ripe-manual.html). Use the [operator reference](emailer-ripe-operator.html) for exceptional host and recovery cases.
+Continue with the [Ripe manual](emailer-ripe-manual.md). Use the [operator reference](emailer-ripe-operator.md) for exceptional host and recovery cases.

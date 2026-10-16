@@ -6,7 +6,7 @@ Prepare, test, approve, then send. Saving a draft sends nothing. A campaign is o
 
 ## Your installed account
 
-The [fresh installer](emailer-ripe-install.html) creates an Owner using your administrator email. Existing accounts keep their identifiers and password hashes. For Light transitions, follow the [upgrade guide](emailer-light-to-ripe-upgrade.html). Fresh organisation defaults are Emailer, English and UTC. The installer installs background services and an initial encrypted backup. You can prepare content and drafts while sending is blocked.
+The [fresh installer](emailer-ripe-install.md) creates an Owner using your administrator email. Existing accounts keep their identifiers and password hashes. For Light transitions, follow the [upgrade guide](emailer-light-to-ripe-upgrade.md). Fresh organisation defaults are Emailer, English and UTC. The installer installs background services and an initial encrypted backup. You can prepare content and drafts while sending is blocked.
 
 ![Actual Ripe dashboard with email delivery deferred.](images/emailer-ripe-dashboard.png)
 
@@ -46,7 +46,7 @@ An Owner or Administrator opens Settings & tools > Users, enters the new account
 
 1. Open Campaigns > Create newsletter. You can also use Send to beside a list or Send beside a template.
 2. Recipients: give the campaign an internal name and choose existing lists, or upload CSV into a new named list and map its email column. This name is not the subject. Only contact people you have permission to email.
-3. Content: choose and preview a saved template, or upload/paste HTML. New content needs a template name, subject and preheader. The preheader is the preview beside the subject in many inboxes.
+3. Content: choose and preview a saved template, or upload/paste HTML. New content needs a template name and subject. The optional preheader is the preview beside the subject in many inboxes.
 4. Sending rate: leave blank to inherit the installation maximum or enter a lower messages-per-minute rate. Domain limits and retries can add time.
 5. Review and save. For uploaded CSV, review counts and choose Add reviewed recipients before testing or approval.
 
@@ -80,4 +80,4 @@ Doctor shows each sending blocker and repair action. Native updates and edition 
 
 Fresh setup enables daily encrypted local backup copies. Under Backups inspect verification and transfer evidence, adjust policy or create and verify an on-demand backup. Keep the recovery-key package and its password separately. Same-server copies do not protect against server loss; arrange an independent backup destination. Restore drills are supervised, never automatic.
 
-For Ripe 1.0.6 to 1.1.0, start the official new setup file, choose Update with a verified backup and follow any Finish instruction. Review Doctor before Resume. A repeated already-installed update does not reset settings. Earlier versions must follow their published supported path to 1.0.6 first. For interruption, retain all recovery material and choose Recover; committed operations need Finish and cannot be downgraded by recovery. See the [operator reference](emailer-ripe-operator.html).
+For Ripe 1.0.6 to 1.1.0, start the official new setup file, choose Update with a verified backup and follow any Finish instruction. Review Doctor before Resume. A repeated already-installed update does not reset settings. Earlier versions must follow their published supported path to 1.0.6 first. For interruption, retain all recovery material and choose Recover; committed operations need Finish and cannot be downgraded by recovery. See the [operator reference](emailer-ripe-operator.md).

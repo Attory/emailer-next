@@ -49,6 +49,13 @@ cp "$documentation/"*.html "$documentation/"*.pdf \
     "$documentation/DOCS-MANIFEST.json" "$documentation/FONT-LICENSE.txt" "$work/first/"
 php -r '$z = new ZipArchive(); if (true !== $z->open($argv[1], ZipArchive::CREATE | ZipArchive::EXCL)) { exit(1); } foreach (glob($argv[2]."/*") as $p) { if (is_file($p)) { $z->addFile($p, basename($p)); $z->setMtimeName(basename($p), (int) $argv[3]); } } if (!$z->close()) { exit(1); }' \
     "$work/first/emailer-ripe-1.1.0-documentation.zip" "$documentation" "$source_epoch"
+light_assets="${EMAILER_LIGHT_RELEASE_ASSETS_DIR:?Use the authenticated final public Light release assets.}"
+cmp "$light_assets/emailer-light-1.1.0.zip" "$predecessors/emailer-light-1.1.0.zip"
+for target in "$work/first" "$work/second"; do
+    php "$project_root/tools/docs/combine-guides.php" "$light_assets" "$documentation" \
+        "$target/emailer-1.1.0-complete-documentation-private.zip" "$source_epoch"
+done
+cmp "$work/first/emailer-1.1.0-complete-documentation-private.zip" "$work/second/emailer-1.1.0-complete-documentation-private.zip"
 printf '{"product":"emailer-ripe","version":"1.1.0","source_commit":"%s","source_epoch":%s,"test_only":%s}\n' \
     "$source_commit" "$source_epoch" "$(if [ "${EMAILER_INSTALLER_TEST_ONLY:-0}" = 1 ]; then printf true; else printf false; fi)" >"$work/first/BUILD-IDENTITY.json"
 (cd "$work/first" && sha256sum -- * >"$work/SHA256SUMS")

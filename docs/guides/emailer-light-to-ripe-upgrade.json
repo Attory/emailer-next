@@ -4,7 +4,7 @@
   "blocks": [
     {
       "type": "p",
-      "text": "Upgrade with the private Ripe 1.1.0 setup file. Your Light administrator becomes an Owner and keeps the same password. Delivery remains held until you check the result, accept the upgrade and deliberately resume."
+      "text": "Upgrade with the private Ripe 1.1.0 setup file. Your Light administrator becomes an Owner and keeps the same password. Delivery remains held until you accept the validated upgrade, check the result and deliberately resume."
     },
     {
       "type": "h2",

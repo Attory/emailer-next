@@ -45,7 +45,7 @@ sudo may ask for your server account password once. Setup needs host permission 
 
 You will see named progress steps for dependencies, package verification, private folders, database and account, services, backup/recovery, HTTPS and health. Organisation name defaults to Emailer; language to English and scheduling timezone to UTC. SMTP details are not required.
 
-![Actual Ripe setup completion. The example address belongs to the acceptance environment; use the login address printed by your installation.](images/emailer-ripe-setup.png)
+![Actual Ripe setup completion. Use the login address printed by your own installation.](images/emailer-ripe-setup.png)
 
 ## 4. Sign in
 
@@ -81,6 +81,6 @@ For a fresh Ripe installation, backups are under `/var/lib/emailer/private/backu
 | Package authenticity or integrity verification failed | Delete only the failed download, obtain a fresh official setup file, and retry. Keep any existing application and recovery files. |
 | Setup interrupted | Run the same action again. It resumes the recorded setup; it does not create another administrator or reset an existing database. |
 
-After successful installation, running the file again opens an installation management menu. **Check the installation** is safe to repeat; an already-installed update leaves settings and delivery state unchanged. For other errors, use the [operator and troubleshooting reference](emailer-ripe-operator.html). Do not delete installer state or database files to retry.
+After successful installation, running the file again opens an installation management menu. **Check the installation** is safe to repeat; an already-installed update leaves settings and delivery state unchanged. For other errors, use the [operator and troubleshooting reference](emailer-ripe-operator.md). Do not delete installer state or database files to retry.
 
-Next: [Ripe user manual](emailer-ripe-manual.html).
+Next: [Ripe user manual](emailer-ripe-manual.md).

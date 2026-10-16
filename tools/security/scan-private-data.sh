@@ -7,7 +7,10 @@ cd "$project_root"
 
 # Match whole address tokens. The exact updater unit is operational syntax,
 # not recipient data; exclude only that known token, including Git history.
-email_pattern='(?<![A-Z0-9.!#$%&*+/=?^_`{|}~-])(?!`?emailer-update@1\.0\.2\.service(?![A-Z0-9.-]))[A-Z0-9.!#$%&*+/=?^_`{|}~-]+@(?!example\.(?:test|invalid|com)\b)[A-Z0-9][A-Z0-9.-]*\.[A-Z]{2,63}'
+# The exact reserved-domain URL below is the published negative credential-URL
+# fixture in test_edition_choices.py, not a recipient. Require its literal URI
+# context and full host boundary; do not exempt its file, commit or other addresses.
+email_pattern='(?<![A-Z0-9.!#$%&*+/=?^_`{|}~-])(?!(?<=https://user:)synthetic-secret@news\.example\.test(?![A-Z0-9.-]))(?!`?emailer-update@1\.0\.2\.service(?![A-Z0-9.-]))[A-Z0-9.!#$%&*+/=?^_`{|}~-]+@(?!example\.(?:test|invalid|com)\b)[A-Z0-9][A-Z0-9.-]*\.[A-Z]{2,63}'
 sensitive_path_pattern='\.(csv|tsv|log|sql|sqlite|sqlite3|dump|backup|bak|p12|pfx|pem|key)$'
 finding=0
 

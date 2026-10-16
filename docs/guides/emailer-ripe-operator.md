@@ -2,7 +2,7 @@
 
 Version 1.1.0 | Exceptional hosting, updates and recovery
 
-This reference covers exceptional hosting, update and recovery work. Start with the [beginner installation guide](emailer-ripe-install.html) for the normal path. The installer supplies the runtime, verifier, launcher, database provisioning, keys, services, backup defaults and HTTPS configuration; customers do not assemble these pieces.
+This reference covers exceptional hosting, update and recovery work. Start with the [beginner installation guide](emailer-ripe-install.md) for the normal path. The installer supplies the runtime, verifier, launcher, database provisioning, keys, services, backup defaults and HTTPS configuration; customers do not assemble these pieces.
 
 ## Supported native profile
 
@@ -13,6 +13,8 @@ This reference covers exceptional hosting, update and recovery work. Start with 
 | Database | Local MariaDB 10.11 or 11.8, existing healthy service reused. Dedicated application database/account, separate privileged maintenance identity. |
 | Network | Official HTTPS package delivery; signed Debian repositories; public DNS to this VPS; inbound 80/443 and outbound HTTPS for certificate issuance. SMTP optional until sending. |
 | Excluded | Ubuntu/ARM/other Linux profiles are unverified. Apache/Caddy coexistence, remote database, custom URL port/subfolder, shared runtime/keys and ordinary file-upload hosting are outside this automated host profile. |
+
+The native Debian VM acceptance used PHP 8.4.26, Nginx 1.26.3 and MariaDB 11.8.6. Application CI also tests PHP 8.4.24 and 8.5.9 against MariaDB 10.11.19 and 11.8.9. Native provisioning selects the supported Debian PHP 8.4 packages; the PHP 8.5 application test does not claim a native PHP 8.5 hosting profile.
 
 Shared hosting is unsupported because persistent workers, system timers, isolated service identity and private key storage are required. No file-upload compatibility is claimed. The native installer does not require Docker or Composer on the customer server.
 
