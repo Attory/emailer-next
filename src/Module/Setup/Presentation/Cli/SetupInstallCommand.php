@@ -136,7 +136,11 @@ final class SetupInstallCommand extends Command
             $passed = $passed && $check->passed;
         }
 
-        $io->table(['Check', 'Result', 'Guidance'], $rows);
+        if (true !== $input->getOption('guided') || !$passed) {
+            $io->table(['Check', 'Result', 'Guidance'], $rows);
+        } else {
+            $io->text('Server and protected-storage checks passed.');
+        }
 
         if (!$passed) {
             $io->error('Correct the failed preflight checks before continuing setup.');
@@ -244,22 +248,35 @@ final class SetupInstallCommand extends Command
         $progress = $setupState->progress();
         if (!$progress->ownerReady) {
             $io->section('Initial Owner');
-            $login = $this->ask($helper, $input, $output, 'Owner email: ');
-            $ownerPassword = $this->askSecret($helper, $input, $output, 'Owner password (minimum 15 characters): ');
-            $confirmation = $this->askSecret($helper, $input, $output, 'Confirm Owner password: ');
-            try {
-                if (!hash_equals($ownerPassword, $confirmation)) {
-                    throw new \InvalidArgumentException('Owner passwords did not match.');
+            $io->text($guided ? 'Use your email address to sign in. Choose a password of 15–256 characters; a few unrelated words are easier to remember.' : '');
+            $login = $guided ? $this->askEmail($helper, $input, $output, 'Owner email: ') : $this->ask($helper, $input, $output, 'Owner email: ');
+            while (true) {
+                $ownerPassword = $this->askSecret($helper, $input, $output, 'Owner password (minimum 15 characters): ');
+                $confirmation = $this->askSecret($helper, $input, $output, 'Confirm Owner password: ');
+                try {
+                    if (!hash_equals($ownerPassword, $confirmation)) {
+                        if (!$guided) {
+                            throw new \InvalidArgumentException('Passwords did not match.');
+                        }
+                        $io->error('The passwords did not match. Please enter both again.');
+                        continue;
+                    }
+                    $ownerId = $ownerSetup->create($login, $ownerPassword);
+                    $ownerSetup->skipMfa($ownerId);
+                    break;
+                } catch (\InvalidArgumentException $rejected) {
+                    if (!$guided) {
+                        throw $rejected;
+                    }
+                    $io->error('Choose 15–256 characters. Avoid common passwords, repeated characters and your full email address. Then enter it twice again.');
+                } finally {
+                    sodium_memzero($ownerPassword);
+                    sodium_memzero($confirmation);
                 }
-                $ownerId = $ownerSetup->create($login, $ownerPassword);
-                $ownerSetup->skipMfa($ownerId);
-            } finally {
-                sodium_memzero($ownerPassword);
-                sodium_memzero($confirmation);
             }
             $setupState->mark('owner');
             $summaryRows[] = ['Initial Owner', $login.' | MFA enrollment required after HTTPS sign-in'];
-            $io->note('MFA was not enrolled because the CLI installer never prints enrollment secrets. Enrol TOTP from the authenticated HTTPS administration UI before production use.');
+            $io->note($guided ? 'After signing in, open Security to connect your authenticator app and save your recovery codes.' : 'MFA was not enrolled because the CLI installer never prints enrollment secrets. Enrol TOTP from the authenticated HTTPS administration UI before production use.');
         } else {
             $summaryRows[] = ['Initial Owner', 'Previously completed; verify identity and MFA state in the protected administration UI'];
         }
@@ -318,7 +335,10 @@ final class SetupInstallCommand extends Command
             $summaryRows[] = ['Worker policy', 'Previously completed; verify supervised/cron ownership in the protected administration UI'];
         }
 
-        $io->section('Non-secret installation summary');
+        $io->section($guided ? 'Your installation' : 'Non-secret installation summary');
+        if ($guided) {
+            $summaryRows = array_values(array_filter($summaryRows, static fn (array $row): bool => !\in_array($row[0], ['Database', 'Installation key', 'Worker policy'], true)));
+        }
         $io->table(['Area', 'Recorded value or state'], $summaryRows);
         $io->note($guided ? 'Your account and security settings are ready. Email delivery stays unavailable until you configure it in Mail settings. Secret values are never displayed.' : 'Confirm the canonical origin, identities, isolated setup mail, worker ownership, and external key boundary. Secret values are intentionally omitted.');
 
@@ -335,9 +355,26 @@ final class SetupInstallCommand extends Command
         if (!hash_equals($installationId, $completedId)) {
             throw new \RuntimeException('Installation identity changed during finalization.');
         }
-        $io->success('Installation completed and setup is permanently locked. Configure production SMTP only through the authenticated HTTPS administration UI.');
+        $io->success($guided ? 'Your account is ready. Setup is now closed to protect it. The server installer will finish background services, HTTPS and your initial backup next.' : 'Installation completed and setup is permanently locked. Configure production SMTP only through the authenticated HTTPS administration UI.');
 
         return self::SUCCESS;
+    }
+
+    private function askEmail(QuestionHelper $helper, InputInterface $input, OutputInterface $output, string $prompt): string
+    {
+        $question = (new Question($prompt))->setValidator(static function (mixed $value): string {
+            if (!\is_string($value) || false === filter_var(trim($value), FILTER_VALIDATE_EMAIL)) {
+                throw new \RuntimeException('Enter a complete email address, such as you@example.com.');
+            }
+
+            return trim($value);
+        });
+        $answer = $helper->ask($input, $output, $question);
+        if (!\is_string($answer)) {
+            throw new \InvalidArgumentException('Administrator email was not provided.');
+        }
+
+        return $answer;
     }
 
     private function ask(QuestionHelper $helper, InputInterface $input, OutputInterface $output, string $prompt, ?string $default = null): string

@@ -29,6 +29,8 @@ parameters:
     emailer.default_uri: '%env(DEFAULT_URI)%'
     emailer.default_master_key_file: ''
     emailer.master_key_file: '%env(default:emailer.default_master_key_file:EMAILER_SECRET_KEY_FILE)%'
+    emailer.default_edition_operation_file: ''
+    emailer.edition_operation_file: '%env(default:emailer.default_edition_operation_file:EMAILER_INSTALLER_EDITION_OPERATION_FILE)%'
     emailer.default_source_service_prefix: 'emailer-light'
     emailer.source_service_prefix: '%env(default:emailer.default_source_service_prefix:EMAILER_INSTALLER_SOURCE_SERVICE_PREFIX)%'
     emailer.default_installer_hold: ''
@@ -337,6 +339,7 @@ services:
     App\Module\Release\Application\LightUpgradeInstaller:
         arguments:
             $sourceServicePrefix: '%emailer.source_service_prefix%'
+            $operationReceiptFile: '%emailer.edition_operation_file%'
             $retainSourceFence: '%emailer.installer_fence%'
             $projectDirectory: '%kernel.project_dir%'
             $privateDirectory: '%emailer.private_dir%'

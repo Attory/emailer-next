@@ -77,9 +77,27 @@ class EditionManager(Manager):
             return
         if choice not in ('1', '2', '3', '4', '5'):
             raise ManagementError('Choose one of the displayed actions.')
+        if choice in ('4', '5') and self.product != 'emailer-ripe':
+            raise ManagementError('The edition upgrade has not completed. Choose Upgrade first; Check and Resume become available afterward.')
+        if choice == '4':
+            self.call(['/usr/local/sbin/' + self.prefix, 'emailer:health:verify-runtime', '--allow-operational-hold'])
+            print('Application structure verified. Complete MFA and mail settings in the application; Doctor shows remaining delivery requirements.')
+            return
+        if choice == '5':
+            if input('Resume delivery if all sending checks pass? [y/N]: ').strip().lower() == 'y':
+                self.call(['/usr/local/sbin/' + self.prefix, 'emailer:delivery:resume', '--no-interaction'])
+                print('Delivery readiness passed and the operational hold was lifted. No campaign was approved.')
+            return
+        if choice in ('1', '3') and self.record.get('host_handoff', {}).get('phase') == 'complete':
+            self.call(['/usr/local/sbin/' + self.prefix, 'emailer:health:verify-runtime', '--allow-operational-hold'])
+            print('This upgrade is already accepted and host setup is complete. No delivery state or service was changed. Sign in: ' + self.values['DEFAULT_URI'] + '/login')
+            return
+        saved = self.directory / 'edition-operation.json'
+        if choice == '1' and saved.exists() and json.loads(protected(saved).read_text()).get('phase') in ('activated', 'accepted'):
+            raise ManagementError('The application upgrade is already validated. Choose Accept to finish host setup; it will not convert your data again.')
         if choice == '2':
-            saved = self.private / 'edition-delivery-hold.json'
-            phase = json.loads(saved.read_text()).get('phase') if saved.exists() and not saved.is_symlink() else None
+            saved = self.directory / 'edition-operation.json'
+            phase = json.loads(protected(saved).read_text()).get('phase') if saved.exists() else None
             if phase == 'accepted' or self.record.get('host_handoff', {}).get('phase') in ('core-accepted', 'complete'):
                 raise ManagementError('This upgrade was accepted. Choose Check or Accept to finish host setup; recovery cannot downgrade it.')
         self.stage()
@@ -98,18 +116,10 @@ class EditionManager(Manager):
         params = urllib.parse.urlsplit(self.environment['DATABASE_URL'])
         scratch = urllib.parse.urlunsplit((params.scheme, params.netloc, '/' + database + '_edition_recovery', params.query, ''))
         self.environment['EMAILER_TRANSITION_RECOVERY_DATABASE_URL'] = scratch
+        self.environment['EMAILER_INSTALLER_EDITION_OPERATION_FILE'] = str(self.directory / 'edition-operation.json')
         recovery = self.directory / 'edition-recovery'
         source = self.package.parent / ('emailer-light-' + source_version + '.zip')
         action = {'1': 'execute', '2': 'recover', '3': 'accept'}.get(choice)
-        if choice == '4':
-            self.call(['/usr/local/sbin/' + self.prefix, 'emailer:health:verify-runtime', '--allow-operational-hold'])
-            print('Application structure verified. Complete MFA and mail settings in the application; Doctor shows remaining delivery requirements.')
-            return
-        if choice == '5':
-            if input('Resume delivery if all sending checks pass? [y/N]: ').strip().lower() == 'y':
-                self.call(['/usr/local/sbin/' + self.prefix, 'emailer:delivery:resume', '--no-interaction'])
-                print('Delivery readiness passed and the operational hold was lifted. No campaign was approved.')
-            return
         self.record['mode'] = 'light-to-ripe'
         self.record['transition_source'] = source_version
         self.save()
@@ -141,6 +151,8 @@ class EditionManager(Manager):
             # The app may read/remove its accepted edition receipt, but cannot remove the host hold.
             receipt = self.private / 'edition-delivery-hold.json'
             account = __import__('pwd').getpwnam(handoff.name)
+            if not receipt.exists():
+                self.installer.durable(receipt, json.dumps({'phase': 'accepted', 'installation_uuid': handoff.state['installation_uuid']}) + '\n')
             os.chown(receipt, account.pw_uid, account.pw_gid)
             handoff.complete()
         if choice in ('2', '3'):

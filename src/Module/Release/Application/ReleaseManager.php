@@ -333,6 +333,9 @@ final readonly class ReleaseManager
                 throw new \RuntimeException('Only the exact latest committed update can finish restoring its recorded account.');
             }
             $this->assertInstalledReleaseMatchesManifest($this->releasesDirectory.'/'.$target, $manifest, $target);
+            if (true === ($journal['retain_source_fence'] ?? false) && true === ($journal['fence_restored'] ?? false) && ($journal['writer_replacement'] ?? null) !== (new SourceDatabaseFence($this->connection, $this->runtimeConfigurationFile, $this->replacementRuntimeFile))->replacement(SourceDatabaseFence::account($journal['database_account'] ?? null))) {
+                throw new \RuntimeException('The completed writer handoff has drifted. Keep delivery held and investigate.');
+            }
             if (true !== ($journal['fence_restored'] ?? false)) {
                 if (($journal['source_master_sha256'] ?? null) !== hash_file('sha256', $this->masterKeyFile) || ($journal['installation_uuid'] ?? null) !== $this->connection->fetchOne("SELECT installation_uuid FROM installation_state WHERE singleton_key='1'")) {
                     throw new \RuntimeException('Committed-update key or installation identity has drifted.');

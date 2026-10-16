@@ -129,7 +129,7 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
     {
         $root = \dirname(__DIR__, 2);
         $command = (string) file_get_contents($root.'/src/Module/Setup/Presentation/Cli/SetupInstallCommand.php');
-        $summary = strpos($command, "section('Non-secret installation summary')");
+        $summary = strpos($command, "section(\$guided ? 'Your installation' : 'Non-secret installation summary')");
         $confirmation = strpos($command, 'Permanently lock setup and complete this installation?');
         self::assertIsInt($summary);
         self::assertIsInt($confirmation);

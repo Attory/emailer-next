@@ -14,7 +14,7 @@ use Doctrine\DBAL\Tools\DsnParser;
 /** Edition orchestration is deliberately separate from native Ripe version updates. */
 final readonly class LightUpgradeInstaller implements EditionUpgrade
 {
-    public function __construct(private Connection $connection, private \App\Module\Audit\Application\Contract\AuditSink $audit, private PackageInspector $packages, private ReleaseManager $releases, private LightSourceInspection $source, private LightSchemaTransition $schema, private EditionRecoverySet $recovery, private MaintenanceOperationLock $maintenance, private string $projectDirectory, private string $privateDirectory, private string $masterKeyFile, private string $releasesDirectory, private string $recoveryDatabaseUrl, private string $environment, private SourceDatabaseFence $fence, private string $runtimeConfigurationFile, private string $ripePublicKeyFile, private string $ripeRecoveryKeyFile, private \App\Module\Secrets\Application\Contract\RipeRecoveryKeyProvisioning $recoveryKeys, private \App\Module\Backup\Application\Contract\BackupOperations $backups, private bool $retainSourceFence = false, private string $sourceServicePrefix = 'emailer-light')
+    public function __construct(private Connection $connection, private \App\Module\Audit\Application\Contract\AuditSink $audit, private PackageInspector $packages, private ReleaseManager $releases, private LightSourceInspection $source, private LightSchemaTransition $schema, private EditionRecoverySet $recovery, private MaintenanceOperationLock $maintenance, private string $projectDirectory, private string $privateDirectory, private string $masterKeyFile, private string $releasesDirectory, private string $recoveryDatabaseUrl, private string $environment, private SourceDatabaseFence $fence, private string $runtimeConfigurationFile, private string $ripePublicKeyFile, private string $ripeRecoveryKeyFile, private \App\Module\Secrets\Application\Contract\RipeRecoveryKeyProvisioning $recoveryKeys, private \App\Module\Backup\Application\Contract\BackupOperations $backups, private bool $retainSourceFence = false, private string $sourceServicePrefix = 'emailer-light', private string $operationReceiptFile = '')
     {
     }
 
@@ -95,7 +95,7 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
 
                 return ['status' => 'accepted', 'delivery' => 'held_until_emailer_delivery_resume'];
             }
-            if (file_exists($this->privateDirectory.'/edition-delivery-hold.json')) {
+            if ([] !== $this->receipt(false)) {
                 $receipt = $this->receipt();
                 if (\in_array($receipt['phase'] ?? null, ['activated', 'accepted'], true)) {
                     throw new \RuntimeException('Edition transition already completed; use explicit acceptance, not conversion.');
@@ -253,6 +253,10 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
     private function finishAcceptedFence(array $receipt): void
     {
         if (true === ($receipt['fence_restored'] ?? false)) {
+            if (true === ($receipt['retain_source_fence'] ?? false) && ($receipt['writer_replacement'] ?? null) !== $this->fence->replacement(SourceDatabaseFence::account($receipt['database_account']))) {
+                throw new \RuntimeException('The accepted writer handoff has drifted. Keep delivery held and investigate.');
+            }
+
             return;
         }
         if (true === ($receipt['retain_source_fence'] ?? false)) {
@@ -691,7 +695,16 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
     /** @return array<string, mixed> */
     private function receipt(bool $required = true): array
     {
-        $path = $this->privateDirectory.'/edition-delivery-hold.json';
+        $path = '' === $this->operationReceiptFile ? $this->privateDirectory.'/edition-delivery-hold.json' : $this->operationReceiptFile;
+        if ('' !== $this->operationReceiptFile) {
+            EditionRecoverySet::directory(\dirname($path));
+            if (file_exists($path)) {
+                $metadata = lstat($path);
+                if (!\is_array($metadata) || 0 !== $metadata['uid']) {
+                    throw new \RuntimeException('The installer edition journal must be root owned.');
+                }
+            }
+        }
         if (!$required && !file_exists($path)) {
             return [];
         }
@@ -707,9 +720,16 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
     /** @param array<string, mixed> $receipt */
     private function record(array $receipt): void
     {
+        if ('' !== $this->operationReceiptFile) {
+            EditionRecoverySet::directory(\dirname($this->operationReceiptFile));
+            EditionRecoverySet::write($this->operationReceiptFile, json_encode($receipt, JSON_THROW_ON_ERROR));
+        }
         EditionRecoverySet::write($this->privateDirectory.'/edition-delivery-hold.json', json_encode($receipt, JSON_THROW_ON_ERROR));
         $directory = $receipt['recovery_directory'] ?? null;
         if (\is_string($directory) && is_dir($directory)) {
+            if ('' !== $this->operationReceiptFile) {
+                EditionRecoverySet::write($directory.'/transition-operation.json', json_encode($receipt, JSON_THROW_ON_ERROR));
+            }
             $public = array_intersect_key($receipt, array_flip(['format', 'operation_id', 'installation_uuid', 'phase', 'target_package_sha256', 'invalidated_session_count', 'preservation_sha256']));
             $public['source_edition'] = 'emailer-light';
             $public['source_version'] = basename(EditionData::text($receipt['source_root']));
