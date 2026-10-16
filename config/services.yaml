@@ -29,6 +29,14 @@ parameters:
     emailer.default_uri: '%env(DEFAULT_URI)%'
     emailer.default_master_key_file: ''
     emailer.master_key_file: '%env(default:emailer.default_master_key_file:EMAILER_SECRET_KEY_FILE)%'
+    emailer.default_source_service_prefix: 'emailer-light'
+    emailer.source_service_prefix: '%env(default:emailer.default_source_service_prefix:EMAILER_INSTALLER_SOURCE_SERVICE_PREFIX)%'
+    emailer.default_installer_hold: ''
+    emailer.installer_hold: '%env(default:emailer.default_installer_hold:EMAILER_INSTALLER_HOLD_FILE)%'
+    emailer.default_replacement_runtime: ''
+    emailer.replacement_runtime: '%env(default:emailer.default_replacement_runtime:EMAILER_INSTALLER_REPLACEMENT_RUNTIME)%'
+    emailer.default_installer_fence: '0'
+    emailer.installer_fence: '%env(bool:default:emailer.default_installer_fence:EMAILER_INSTALLER_RETAIN_SOURCE_FENCE)%'
     emailer.default_http_mode: 'proxy'
     emailer.http_mode: '%env(default:emailer.default_http_mode:EMAILER_HTTP_MODE)%'
     emailer.default_trusted_proxies: '127.0.0.1,::1'
@@ -248,6 +256,8 @@ services:
 
     App\Module\Release\Application\ReleaseManager:
         arguments:
+            $replacementRuntimeFile: '%emailer.replacement_runtime%'
+            $retainSourceFence: '%emailer.installer_fence%'
             $privateDirectory: '%emailer.private_dir%'
             $masterKeyFile: '%emailer.master_key_file%'
             $runtimeConfigurationFile: '%emailer.runtime_configuration_file%'
@@ -326,6 +336,8 @@ services:
 
     App\Module\Release\Application\LightUpgradeInstaller:
         arguments:
+            $sourceServicePrefix: '%emailer.source_service_prefix%'
+            $retainSourceFence: '%emailer.installer_fence%'
             $projectDirectory: '%kernel.project_dir%'
             $privateDirectory: '%emailer.private_dir%'
             $masterKeyFile: '%emailer.master_key_file%'
@@ -342,6 +354,7 @@ services:
 
     App\Module\Release\Application\SourceDatabaseFence:
         arguments:
+            $replacementRuntimeFile: '%emailer.replacement_runtime%'
             $runtimeConfigurationFile: '%emailer.runtime_configuration_file%'
 
     App\Module\Configuration\Application\Contract\MailProbe: '@App\Module\Configuration\Infrastructure\SmtpMailProbe'
@@ -349,3 +362,7 @@ services:
     App\Module\Configuration\Infrastructure\SmtpMailProbe:
         arguments:
             $environment: '%kernel.environment%'
+
+    App\Shared\InstallerDeliveryHold:
+        arguments:
+            $holdFile: '%emailer.installer_hold%'

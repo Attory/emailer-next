@@ -12,7 +12,7 @@ use Symfony\Component\Dotenv\Dotenv;
 /** Persistent source-writer fencing works without changing any published Light code. */
 final readonly class SourceDatabaseFence
 {
-    public function __construct(private Connection $connection, private string $runtimeConfigurationFile)
+    public function __construct(private Connection $connection, private string $runtimeConfigurationFile, private string $replacementRuntimeFile = '')
     {
     }
 
@@ -52,7 +52,7 @@ final readonly class SourceDatabaseFence
                 continue;
             }
             $database = EditionData::text($this->connection->getDatabase());
-            if (!str_contains($grant, ' ON `'.str_replace('`', '``', $database).'`.* TO ')) {
+            if (!str_contains($grant, ' ON `'.str_replace('`', '``', $database).'`.* TO ') || str_contains($grant, 'WITH GRANT OPTION')) {
                 throw new \RuntimeException('The application database account has shared or global privileges; prepare a dedicated account before edition conversion.');
             }
         }
@@ -87,6 +87,34 @@ final readonly class SourceDatabaseFence
     {
         $quoted = $this->connection->quote($account['name']).'@'.$this->connection->quote($account['host']);
         $this->connection->executeStatement('ALTER USER '.$quoted.($account['originally_locked'] ? ' ACCOUNT LOCK' : ' ACCOUNT UNLOCK'));
+    }
+
+    /** @param array{name: string, host: string, originally_locked: bool} $source
+     * @return array{name: string, host: string, originally_locked: bool}
+     */
+    public function replacement(array $source): array
+    {
+        $metadata = @lstat($this->replacementRuntimeFile);
+        if (!\is_array($metadata) || 0 !== $metadata['uid']) {
+            throw new \RuntimeException('Replacement runtime must be root controlled.');
+        }
+        for ($parent = \dirname($this->replacementRuntimeFile);; $parent = \dirname($parent)) {
+            $metadata = @lstat($parent);
+            if (!\is_array($metadata) || is_link($parent) || 0 !== $metadata['uid'] || 0 !== ($metadata['mode'] & 0o022)) {
+                throw new \RuntimeException('Replacement runtime has an unsafe ancestor.');
+            }
+            if ('/' === $parent) {
+                break;
+            }
+        }
+        $replacement = (new self($this->connection, $this->replacementRuntimeFile))->inspect();
+        $quoted = $this->connection->quote($source['name']).'@'.$this->connection->quote($source['host']);
+        $definition = $this->connection->fetchAssociative('SHOW CREATE USER '.$quoted);
+        if ($replacement['name'] === $source['name'] || $replacement['originally_locked'] || false === $definition || !str_contains(EditionData::text(reset($definition)), 'ACCOUNT LOCK')) {
+            throw new \RuntimeException('Finish host provisioning with a new dedicated application database identity while retaining the original writer fence.');
+        }
+
+        return $replacement;
     }
 
     /** @return array{name: string, host: string, originally_locked: bool} */

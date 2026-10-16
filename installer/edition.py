@@ -4,7 +4,7 @@ import os
 from pathlib import Path
 import secrets
 import urllib.parse
-from manage import Manager, ManagementError, protected, dispatch as common_dispatch
+from manage import Manager, ManagementError, protected, dispatch as common_dispatch, read_environment
 
 
 class EditionManager(Manager):
@@ -18,10 +18,17 @@ class EditionManager(Manager):
             raise ManagementError('Use the edition upgrade action for this installation.')
         journals = sorted((self.private.parent / 'native-update-recovery').glob('*/native-operation.json'))
         operation = None
-        if journals:
-            operation = json.loads(protected(journals[-1]).read_text())
+        matches = []
+        for path in journals:
+            journal = json.loads(protected(path).read_text())
+            if journal.get('source_version') == '1.0.6' and journal.get('target_version') == '1.1.0' and journal.get('private_directory') == str(self.private) and journal.get('source_root') == str(self.releases / '1.0.6'):
+                matches.append(journal)
+        if matches:
+            operation = matches[-1]
         if self.source_version == '1.1.0' and choice == '1' and operation is None:
             raise ManagementError('This release is already installed. Choose Check the installation.')
+        if choice == '2' and operation and operation.get('phase') == 'completed':
+            raise ManagementError('This update already succeeded. Choose Check; recovery cannot downgrade it.')
         if choice in ('2', '3') and operation is None:
             raise ManagementError('There is no retained native operation to recover or finish.')
         source_version = operation['source_version'] if operation else self.source_version
@@ -34,10 +41,29 @@ class EditionManager(Manager):
             arguments.append('--recover-native-operation=' + operation['operation_id'])
         elif choice == '3' or self.source_version == '1.1.0':
             arguments.append('--finish-native-operation=' + operation['operation_id'])
-        self.stop_services()
-        self.console(arguments)
-        report = json.loads(self.console(['emailer:health:verify-runtime', '--offline-maintenance']))
-        return {'delivery_held': not report['delivery_ready']}
+        from host import HostHandoff
+        handoff = HostHandoff(self)
+        handoff.prepare()
+        if choice == '2':
+            handoff.stop_target()
+            self.stop_services()
+            self.console(arguments)
+            handoff.recover_host()
+            return {'delivery_held': True}
+        if choice == '1' and self.source_version != '1.1.0':
+            handoff.drain()
+            self.console(arguments)
+        handoff.adopt()
+        # A successful native operation is irreversible. Only finish its writer handoff.
+        journals = sorted((self.private.parent / 'native-update-recovery').glob('*/native-operation.json'))
+        pending = [json.loads(protected(path).read_text()) for path in journals]
+        pending = [item for item in pending if item.get('source_version') == '1.0.6' and item.get('target_version') == '1.1.0' and item.get('private_directory') == str(self.private)]
+        if not pending:
+            raise ManagementError('The committed native operation evidence is missing. Keep delivery held and retain the recovery folder.')
+        operation = pending[-1]
+        self.console(['emailer:release:update', str(self.package), '--source-package=' + str(source), '--approved-target=1.1.0', '--finish-native-operation=' + operation['operation_id'], '--no-interaction'])
+        handoff.complete()
+        return {'delivery_held': True}
 
     def transition_menu(self):
         source_version = self.record.get('transition_source', self.source_version)
@@ -51,10 +77,15 @@ class EditionManager(Manager):
             return
         if choice not in ('1', '2', '3', '4', '5'):
             raise ManagementError('Choose one of the displayed actions.')
+        if choice == '2':
+            saved = self.private / 'edition-delivery-hold.json'
+            phase = json.loads(saved.read_text()).get('phase') if saved.exists() and not saved.is_symlink() else None
+            if phase == 'accepted' or self.record.get('host_handoff', {}).get('phase') in ('core-accepted', 'complete'):
+                raise ManagementError('This upgrade was accepted. Choose Check or Accept to finish host setup; recovery cannot downgrade it.')
         self.stage()
         database = self.maintenance_environment()
         self.environment['EMAILER_UPDATE_SOURCE_VERSION'] = '1.1.0'
-        pin = self.configuration.parent / 'ripe-release-signing.pub'
+        pin = self.root / 'ripe-release-signing.pub'
         official = (self.package.parent / 'release.pub').read_text()
         if pin.exists():
             if protected(pin, public=True).read_text().strip() != official.strip():
@@ -71,12 +102,12 @@ class EditionManager(Manager):
         source = self.package.parent / ('emailer-light-' + source_version + '.zip')
         action = {'1': 'execute', '2': 'recover', '3': 'accept'}.get(choice)
         if choice == '4':
-            self.console(['emailer:health:verify-runtime'])
+            self.call(['/usr/local/sbin/' + self.prefix, 'emailer:health:verify-runtime', '--allow-operational-hold'])
             print('Application structure verified. Complete MFA and mail settings in the application; Doctor shows remaining delivery requirements.')
             return
         if choice == '5':
             if input('Resume delivery if all sending checks pass? [y/N]: ').strip().lower() == 'y':
-                self.console(['emailer:delivery:resume', '--no-interaction'])
+                self.call(['/usr/local/sbin/' + self.prefix, 'emailer:delivery:resume', '--no-interaction'])
                 print('Delivery readiness passed and the operational hold was lifted. No campaign was approved.')
             return
         self.record['mode'] = 'light-to-ripe'
@@ -91,17 +122,35 @@ class EditionManager(Manager):
             phrase = protected(password_path).read_text().strip()
             data = phrase + '\n' + phrase + '\n'
             arguments.append('--recovery-passphrase-stdin')
-            self.stop_services()
+        from host import HostHandoff
+        handoff = HostHandoff(self)
+        handoff.prepare()
+        if choice == '1':
+            handoff.drain()
         elif choice == '2':
+            handoff.stop_target()
             self.stop_services()
+        elif choice == '3':
+            handoff.adopt()
         self.console(arguments, data=data)
+        if choice == '1':
+            handoff.adopt()
+        elif choice == '2':
+            handoff.recover_host()
+        elif choice == '3':
+            # The app may read/remove its accepted edition receipt, but cannot remove the host hold.
+            receipt = self.private / 'edition-delivery-hold.json'
+            account = __import__('pwd').getpwnam(handoff.name)
+            os.chown(receipt, account.pw_uid, account.pw_gid)
+            handoff.complete()
         if choice in ('2', '3'):
-            self.restore_services()
+            if choice == '2':
+                self.restore_services()
             self.record.pop('active_units', None)
             self.save()
         print('Upgrade action verified. Application address: ' + self.values['DEFAULT_URI'] + '/login')
         if choice == '1':
-            print('The upgrade is validated and delivery is held. Start this same package again and choose Accept a validated upgrade to reopen sign-in.')
+            print('The upgrade is validated and delivery is held. Start this same package again and choose Accept a validated upgrade to reopen sign-in. If host setup was interrupted, this same acceptance action also finishes it.')
         elif choice == '3':
             print('Acceptance recorded. Sign in with your existing account and enroll MFA. When Doctor is ready, start this package and choose Resume delivery.')
         else:
@@ -113,7 +162,12 @@ class EditionManager(Manager):
 def dispatch(installer, error_type):
     paths = [Path('/etc/emailer/runtime.env'), Path('/etc/emailer-light/runtime.env')]
     existing = [path for path in paths if path.exists()]
-    if len(existing) == 1 and existing[0].parent.name == 'emailer-light' and not installer.journal.exists():
+    light_source = False
+    if len(existing) == 1 and existing[0].parent.name == 'emailer-light':
+        values = read_environment(existing[0])
+        identity = json.loads((Path(values['EMAILER_PRIVATE_DIR']) / 'install.lock').read_text())
+        light_source = identity.get('product_id') == 'emailer-light'
+    if light_source and not installer.journal.exists():
         print('An existing Light installation was found.\n1. Upgrade this Light installation to Ripe\n2. Install a separate fresh Ripe application\n0. Exit')
         choice = input('Choose an installation [0]: ').strip() or '0'
         if choice == '0':

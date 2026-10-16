@@ -14,7 +14,7 @@ use Doctrine\DBAL\Tools\DsnParser;
 /** Edition orchestration is deliberately separate from native Ripe version updates. */
 final readonly class LightUpgradeInstaller implements EditionUpgrade
 {
-    public function __construct(private Connection $connection, private \App\Module\Audit\Application\Contract\AuditSink $audit, private PackageInspector $packages, private ReleaseManager $releases, private LightSourceInspection $source, private LightSchemaTransition $schema, private EditionRecoverySet $recovery, private MaintenanceOperationLock $maintenance, private string $projectDirectory, private string $privateDirectory, private string $masterKeyFile, private string $releasesDirectory, private string $recoveryDatabaseUrl, private string $environment, private SourceDatabaseFence $fence, private string $runtimeConfigurationFile, private string $ripePublicKeyFile, private string $ripeRecoveryKeyFile, private \App\Module\Secrets\Application\Contract\RipeRecoveryKeyProvisioning $recoveryKeys, private \App\Module\Backup\Application\Contract\BackupOperations $backups)
+    public function __construct(private Connection $connection, private \App\Module\Audit\Application\Contract\AuditSink $audit, private PackageInspector $packages, private ReleaseManager $releases, private LightSourceInspection $source, private LightSchemaTransition $schema, private EditionRecoverySet $recovery, private MaintenanceOperationLock $maintenance, private string $projectDirectory, private string $privateDirectory, private string $masterKeyFile, private string $releasesDirectory, private string $recoveryDatabaseUrl, private string $environment, private SourceDatabaseFence $fence, private string $runtimeConfigurationFile, private string $ripePublicKeyFile, private string $ripeRecoveryKeyFile, private \App\Module\Secrets\Application\Contract\RipeRecoveryKeyProvisioning $recoveryKeys, private \App\Module\Backup\Application\Contract\BackupOperations $backups, private bool $retainSourceFence = false, private string $sourceServicePrefix = 'emailer-light')
     {
     }
 
@@ -76,7 +76,7 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
                 }
                 if ('accepted' === ($receipt['phase'] ?? null)) {
                     $this->clearRehearsalDatabase($receipt);
-                    $this->fence->restore(SourceDatabaseFence::account($receipt['database_account']));
+                    $this->finishAcceptedFence($receipt);
 
                     return ['status' => 'already_accepted', 'delivery' => 'held_until_emailer_delivery_resume'];
                 }
@@ -85,8 +85,13 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
                 }
                 $this->console($this->releasesDirectory.'/ripe-1.1.0', ['emailer:health:verify-runtime', '--offline-maintenance'], [0]);
                 $this->clearRehearsalDatabase($receipt);
-                $this->record(array_replace($receipt, ['phase' => 'accepted']));
-                $this->fence->restore(SourceDatabaseFence::account($receipt['database_account']));
+                // The replacement identity must be proven before acceptance becomes durable.
+                if (true === ($receipt['retain_source_fence'] ?? false)) {
+                    $this->fence->replacement(SourceDatabaseFence::account($receipt['database_account']));
+                }
+                $receipt['phase'] = 'accepted';
+                $this->record($receipt);
+                $this->finishAcceptedFence($receipt);
 
                 return ['status' => 'accepted', 'delivery' => 'held_until_emailer_delivery_resume'];
             }
@@ -98,7 +103,7 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
                 $this->recover($recoveryDirectory, $sourceRoot);
             }
             $source = $this->source->inspect(false);
-            $receipt = ['format' => 'emailer-ripe-edition-transition-v1', 'operation_id' => Identity::uuidV7(), 'installation_uuid' => EditionData::text($source['identity']['installation_uuid']), 'phase' => 'quiescing', 'source_worker_mode' => EditionData::text($this->connection->fetchOne("SELECT worker_mode FROM delivery_policy WHERE singleton_key = '1'")), 'recovery_directory' => $recoveryDirectory, 'source_root' => $sourceRoot, 'smtp_deferred' => 0 === EditionData::integer($this->connection->fetchOne('SELECT COUNT(*) FROM sender_identity')), 'target_package_sha256' => $manifest['_verified_archive_sha256']];
+            $receipt = ['format' => 'emailer-ripe-edition-transition-v1', 'operation_id' => Identity::uuidV7(), 'installation_uuid' => EditionData::text($source['identity']['installation_uuid']), 'phase' => 'quiescing', 'retain_source_fence' => $this->retainSourceFence, 'source_worker_mode' => EditionData::text($this->connection->fetchOne("SELECT worker_mode FROM delivery_policy WHERE singleton_key = '1'")), 'recovery_directory' => $recoveryDirectory, 'source_root' => $sourceRoot, 'smtp_deferred' => 0 === EditionData::integer($this->connection->fetchOne('SELECT COUNT(*) FROM sender_identity')), 'target_package_sha256' => $manifest['_verified_archive_sha256']];
             EditionRecoverySet::directory($recoveryDirectory);
             $receipt['recovery_base'] = $recoveryDirectory;
             $recoveryDirectory .= '/'.$receipt['operation_id'];
@@ -245,6 +250,21 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
     }
 
     /** @param array<string, mixed> $receipt */
+    private function finishAcceptedFence(array $receipt): void
+    {
+        if (true === ($receipt['fence_restored'] ?? false)) {
+            return;
+        }
+        if (true === ($receipt['retain_source_fence'] ?? false)) {
+            $receipt['writer_replacement'] = $this->fence->replacement(SourceDatabaseFence::account($receipt['database_account']));
+        } else {
+            $this->fence->restore(SourceDatabaseFence::account($receipt['database_account']));
+        }
+        $receipt['fence_restored'] = true;
+        $this->record($receipt);
+    }
+
+    /** @param array<string, mixed> $receipt */
     private function clearRehearsalDatabase(array $receipt): void
     {
         $scratch = $this->scratch();
@@ -349,7 +369,7 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
         if ('cron' === $workerMode) {
             return;
         }
-        foreach (['emailer-light-worker.service', 'emailer-light-scheduler.service', 'emailer-light-operations.service'] as $unit) {
+        foreach ([$this->sourceServicePrefix.'-worker.service', $this->sourceServicePrefix.'-scheduler.service', $this->sourceServicePrefix.'-operations.service'] as $unit) {
             $properties = $this->readProcess(['systemctl', 'show', $unit, '--property=LoadState', '--property=WorkingDirectory', '--property=EnvironmentFiles', '--property=ExecStart']);
             if (!str_contains($properties, 'LoadState=loaded') || !str_contains($properties, 'WorkingDirectory='.$this->releasesDirectory.'/current') || !str_contains($properties, $this->runtimeConfigurationFile.' ') || !str_contains($properties, $this->releasesDirectory.'/current/bin/console')) {
                 throw new \RuntimeException('A standard Light delivery service is absent or belongs to a different installation; service handling is refused.');
@@ -577,7 +597,7 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
 
     private function updateRuntimeConfiguration(): void
     {
-        if ('' === $this->runtimeConfigurationFile) {
+        if ($this->retainSourceFence || '' === $this->runtimeConfigurationFile) {
             return;
         }
         $bytes = (string) file_get_contents($this->runtimeConfigurationFile);
@@ -608,7 +628,7 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
         if ('prod' !== $this->environment) {
             return;
         }
-        foreach (['emailer-light-scheduler.timer', 'emailer-light-operations.timer', 'emailer-light-scheduler.service', 'emailer-light-operations.service', 'emailer-light-worker.service'] as $unit) {
+        foreach ([$this->sourceServicePrefix.'-scheduler.timer', $this->sourceServicePrefix.'-operations.timer', $this->sourceServicePrefix.'-scheduler.service', $this->sourceServicePrefix.'-operations.service', $this->sourceServicePrefix.'-worker.service'] as $unit) {
             $state = $this->readProcess(['systemctl', 'show', $unit, '--property=LoadState']);
             if (str_contains($state, 'LoadState=not-found')) {
                 continue;

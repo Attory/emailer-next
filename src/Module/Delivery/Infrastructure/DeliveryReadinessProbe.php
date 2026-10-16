@@ -10,7 +10,7 @@ use Doctrine\DBAL\Connection;
 
 final readonly class DeliveryReadinessProbe implements LightweightReadinessProbe, SendingGateReadinessProbe, \App\Module\Health\Application\Contract\MaintenanceReadinessProbe
 {
-    public function __construct(private Connection $connection, private string $environment, private ?\App\Shared\EditionDeliveryHold $editionHold = null)
+    public function __construct(private Connection $connection, private string $environment, private ?\App\Shared\EditionDeliveryHold $editionHold = null, private ?\App\Shared\InstallerDeliveryHold $installerHold = null)
     {
     }
 
@@ -30,12 +30,17 @@ final readonly class DeliveryReadinessProbe implements LightweightReadinessProbe
 
         // Caller must explicitly select offline maintenance. Live runtime checks
         // still require current supervised-worker heartbeats.
-        return ['delivery_quiesced', 'edition_delivery_hold', 'worker_heartbeat', 'scheduler_heartbeat'];
+        $installation = $this->connection->fetchOne("SELECT installation_uuid FROM installation_state WHERE singleton_key='1'");
+
+        return array_merge(['delivery_quiesced', 'edition_delivery_hold', 'worker_heartbeat', 'scheduler_heartbeat'], \is_string($installation) && true === $this->installerHold?->permitsOfflineVerification($installation) ? ['installer_delivery_hold'] : []);
     }
 
     public function findings(): array
     {
         $findings = [];
+        if (true === $this->installerHold?->active()) {
+            $findings[] = $this->critical('installer_delivery_hold', 'Installation host setup is unfinished.', 'Start the same verified setup package and choose Finish before resuming delivery.');
+        }
         if (true === $this->editionHold?->active()) {
             $findings[] = $this->critical('edition_delivery_hold', 'Edition transition requires acceptance or recovery.', 'Complete the installer operation before accepting and explicitly resuming delivery.');
         }
