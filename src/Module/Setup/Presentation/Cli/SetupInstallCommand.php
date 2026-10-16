@@ -290,7 +290,7 @@ final class SetupInstallCommand extends Command
             }
             $setupState->mark('owner');
             $summaryRows[] = ['Initial Owner', $login.' | MFA enrollment required after HTTPS sign-in'];
-            $io->note($guided ? 'After signing in, open Security to connect your authenticator app and save your recovery codes.' : 'MFA was not enrolled because the CLI installer never prints enrollment secrets. Enrol TOTP from the authenticated HTTPS administration UI before production use.');
+            $io->note($guided ? 'After signing in, open Settings & tools > MFA to connect your authenticator app and save your recovery codes.' : 'MFA was not enrolled because the CLI installer never prints enrollment secrets. Enrol TOTP from the authenticated HTTPS administration UI before production use.');
         } else {
             $summaryRows[] = ['Initial Owner', 'Previously completed; verify identity and MFA state in the protected administration UI'];
         }
