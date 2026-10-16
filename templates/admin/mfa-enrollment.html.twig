@@ -2,7 +2,9 @@
 {% block title %}MFA enrollment — Emailer Next{% endblock %}
 {% block admin_body %}
 <h1>Save MFA recovery material</h1>
-<p>Enter this seed in your authenticator. It is displayed only in this response: <code>{{ enrollment.seed }}</code></p>
+<p>Open your authenticator app, add an account, and choose to enter a setup key. Give the account a name you will recognise, such as your Emailer login, and choose time-based codes.</p>
+<p>Setup key (shown only on this page): <code>{{ enrollment.seed }}</code></p>
+<p>Save the recovery codes below somewhere private, away from this server. Each code works once if you cannot use your authenticator.</p>
 <ul>{% for code in enrollment.recoveryCodes %}<li><code>{{ code }}</code></li>{% endfor %}</ul>
 <form method="post" action="{{ path('admin_mfa_confirm') }}">
     <input type="hidden" name="_token" value="{{ csrf_token('admin-mfa-confirm') }}">

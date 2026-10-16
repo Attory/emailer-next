@@ -95,6 +95,7 @@ class EditionManager(Manager):
         if choice == '5':
             if input('Resume delivery if all sending checks pass? [y/N]: ').strip().lower() == 'y':
                 self.call(['/usr/local/sbin/' + self.prefix, 'emailer:delivery:resume', '--no-interaction'])
+                self.call(['/usr/local/sbin/' + self.prefix, 'emailer:health:verify-runtime', '--record'])
                 print('Delivery readiness passed and the operational hold was lifted. No campaign was approved.')
             return
         if choice in ('1', '3') and self.record.get('host_handoff', {}).get('phase') == 'complete':
