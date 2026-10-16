@@ -42,7 +42,9 @@ final readonly class DeliveryReadinessProbe implements LightweightReadinessProbe
             $findings[] = $this->critical('installer_delivery_hold', 'Installation host setup is unfinished.', 'Start the same verified setup package and choose Finish before resuming delivery.');
         }
         if (true === $this->editionHold?->active()) {
-            $findings[] = $this->critical('edition_delivery_hold', 'Edition transition requires acceptance or recovery.', 'Complete the installer operation before accepting and explicitly resuming delivery.');
+            $findings[] = true === $this->editionHold->accepted()
+                ? $this->critical('edition_delivery_hold', 'The upgrade is accepted; delivery is still held.', 'Complete mail settings and Owner MFA, then start the setup package and choose Resume delivery. Normal sending checks must pass.')
+                : $this->critical('edition_delivery_hold', 'Edition transition requires acceptance or recovery.', 'Complete the installer operation before accepting and explicitly resuming delivery.');
         }
         $runtime = $this->connection->fetchAssociative("SELECT schema_version, accepting_work, circuit_state, circuit_open_until FROM delivery_runtime WHERE singleton_key = '1'");
         if (false === $runtime || 1 !== $this->integer($runtime['schema_version'])) {
