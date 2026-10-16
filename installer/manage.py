@@ -338,7 +338,13 @@ class Manager:
             return result
         if choice == '1':
             handoff.drain()
-            self.console(arguments)
+            try:
+                self.console(arguments)
+            except ManagementError:
+                if not operation.exists():
+                    handoff.recover_host()
+                    self.restore_services()
+                raise
         handoff.adopt()
         result = json.loads(self.console(arguments))
         handoff.complete()

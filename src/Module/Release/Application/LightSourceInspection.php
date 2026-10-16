@@ -132,7 +132,7 @@ final readonly class LightSourceInspection
         $expected = EditionData::read($this->projectDirectory.'/config/upgrade/light-schema-details-1.0.0.json');
         foreach (EditionData::strings($expected['tables']) as $table => $ddl) {
             $actual = $this->connection->fetchAssociative('SHOW CREATE TABLE '.$this->connection->quoteSingleIdentifier($table));
-            if (false === $actual || self::normalize($ddl) !== self::normalize(EditionData::text($actual['Create Table']))) {
+            if (false === $actual || EditionSchemaProof::baselineTable($table, $ddl) !== EditionSchemaProof::baselineTable($table, EditionData::text($actual['Create Table']))) {
                 throw new \RuntimeException('Source check, default, generated-column or schema definition drift.');
             }
         }

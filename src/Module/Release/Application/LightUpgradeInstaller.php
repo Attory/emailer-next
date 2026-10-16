@@ -552,7 +552,7 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
     {
         EditionIntegrity::assertForeignKeys($this->connection);
         $expected = EditionData::read($this->projectDirectory.'/config/upgrade/ripe-light-schema-1.0.6.json');
-        if (EditionSchemaProof::capture($this->connection) !== ['tables' => EditionData::strings($expected['tables'] ?? null), 'triggers' => EditionData::strings($expected['triggers'] ?? null)]) {
+        if (EditionSchemaProof::capture($this->connection, true) !== ['tables' => EditionData::strings($expected['tables'] ?? null), 'triggers' => EditionData::strings($expected['triggers'] ?? null)]) {
             throw new \RuntimeException('Complete target edition schema, constraints, indexes or triggers differ from the verified baseline.');
         }
         $native = EditionData::read($this->projectDirectory.'/config/upgrade/ripe-native-schema-1.0.6.json');

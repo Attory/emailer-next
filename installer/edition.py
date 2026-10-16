@@ -52,7 +52,14 @@ class EditionManager(Manager):
             return {'delivery_held': True}
         if choice == '1' and self.source_version != '1.1.0':
             handoff.drain()
-            self.console(arguments)
+            try:
+                self.console(arguments)
+            except ManagementError:
+                saved_operations = [json.loads(protected(path).read_text()) for path in (self.private.parent / 'native-update-recovery').glob('*/native-operation.json')]
+                if not any(item.get('source_version') == '1.0.6' and item.get('target_version') == '1.1.0' and item.get('private_directory') == str(self.private) for item in saved_operations):
+                    handoff.recover_host()
+                    self.restore_services()
+                raise
         handoff.adopt()
         # A successful native operation is irreversible. Only finish its writer handoff.
         journals = sorted((self.private.parent / 'native-update-recovery').glob('*/native-operation.json'))
@@ -132,6 +139,9 @@ class EditionManager(Manager):
             phrase = protected(password_path).read_text().strip()
             data = phrase + '\n' + phrase + '\n'
             arguments.append('--recovery-passphrase-stdin')
+        if choice == '1':
+            inspection = ['--edition-action=inspect' if argument == '--edition-action=execute' else argument for argument in arguments if argument != '--recovery-passphrase-stdin']
+            self.console(inspection)
         from host import HostHandoff
         handoff = HostHandoff(self)
         handoff.prepare()
@@ -142,7 +152,13 @@ class EditionManager(Manager):
             self.stop_services()
         elif choice == '3':
             handoff.adopt()
-        self.console(arguments, data=data)
+        try:
+            self.console(arguments, data=data)
+        except ManagementError:
+            if choice == '1' and not (self.directory / 'edition-operation.json').exists():
+                handoff.recover_host()
+                self.restore_services()
+            raise
         if choice == '1':
             handoff.adopt()
         elif choice == '2':
