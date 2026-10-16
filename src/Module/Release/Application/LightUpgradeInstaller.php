@@ -684,7 +684,8 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
             EditionRecoverySet::write($privateLog.'.stderr', '');
         }
         $pipes = [];
-        $process = proc_open($command, [['file', '/dev/null', 'r'], ['file', $privateLog ?? '/dev/null', 'a'], ['file', null === $privateLog ? '/dev/null' : $privateLog.'.stderr', 'a']], $pipes, null, array_replace(getenv(), $environmentOverrides));
+        $environment = array_replace(getenv(), $environmentOverrides);
+        $process = proc_open(LegacyDatabaseEnvironment::command($command, $environment), [['file', '/dev/null', 'r'], ['file', $privateLog ?? '/dev/null', 'a'], ['file', null === $privateLog ? '/dev/null' : $privateLog.'.stderr', 'a']], $pipes, null, $environment);
         $exit = \is_resource($process) ? proc_close($process) : -1;
         if (!\in_array($exit, $accepted, true)) {
             $step = $command[2] ?? $command[0];
