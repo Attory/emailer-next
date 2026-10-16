@@ -29,7 +29,9 @@ class EditionManager(Manager):
             raise ManagementError('This release is already installed. Choose Check the installation.')
         if choice == '2' and operation and operation.get('phase') == 'completed':
             raise ManagementError('This update already succeeded. Choose Check; recovery cannot downgrade it.')
-        if choice in ('2', '3') and operation is None:
+        if choice == '2' and operation is None:
+            return self.recover_host_preparation()
+        if choice == '3' and operation is None:
             raise ManagementError('There is no retained native operation to recover or finish.')
         source_version = operation['source_version'] if operation else self.source_version
         if source_version != '1.0.6':
@@ -142,6 +144,10 @@ class EditionManager(Manager):
         if choice == '1':
             inspection = ['--edition-action=inspect' if argument == '--edition-action=execute' else argument for argument in arguments if argument != '--recovery-passphrase-stdin']
             self.console(inspection)
+        if choice == '2' and not (self.directory / 'edition-operation.json').exists():
+            self.recover_host_preparation()
+            print('Hosting preparation recovered. The original Light application is available; delivery remains held.')
+            return
         from host import HostHandoff
         handoff = HostHandoff(self)
         handoff.prepare()

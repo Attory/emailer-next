@@ -26,6 +26,7 @@ run() {
         -v "$(dirname "$archive"):/package:ro" -v "$(dirname "$source_archive"):/native-source:ro" \
         -v "$public_key:/pinned-ripe.pub:ro" \
         -e EMAILER_ISOLATED_REHEARSAL=1 \
+        -e EMAILER_REHEARSAL_NATIVE_TARGET=1 \
         -e "MARIADB_SERVER_VERSION=${MARIADB_SERVER_VERSION:-10.11.19-MariaDB}" \
         "$app_image" "$@"
 }
