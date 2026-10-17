@@ -20,6 +20,18 @@ def installation_address(values):
     return 'https://' + uri.hostname
 
 
+def native_source_root(releases, version, recorded):
+    try:
+        parent = releases.resolve(strict=True)
+        expected = (str(parent / version), str(parent / ('ripe-' + version)))
+        source = Path(recorded) if isinstance(recorded, str) else None
+        if version not in ('1.0.6', '1.1.0') or recorded not in expected or source is None or source.is_symlink() or not source.is_dir() or str(source.resolve(strict=True)) != recorded:
+            raise ValueError()
+    except (OSError, ValueError):
+        raise ManagementError('The retained update source directory changed or is outside this installation. Keep delivery held and retain its recovery record; no release or data was changed.') from None
+    return recorded
+
+
 class EditionManager(Manager):
     def run(self):
         if self.product == 'emailer-light' or self.record.get('mode') == 'light-to-ripe':
@@ -34,11 +46,12 @@ class EditionManager(Manager):
         matches = []
         for path in journals:
             journal = json.loads(protected(path).read_text())
-            if journal.get('source_version') == '1.0.6' and journal.get('target_version') == '1.1.0' and journal.get('private_directory') == str(self.private) and journal.get('source_root') == str(self.releases / '1.0.6'):
+            if journal.get('source_version') in ('1.0.6', '1.1.0') and journal.get('target_version') == self.installer.version and journal.get('private_directory') == str(self.private):
+                native_source_root(self.releases, journal['source_version'], journal.get('source_root'))
                 matches.append(journal)
         if matches:
             operation = matches[-1]
-        if self.source_version == '1.1.0' and choice == '1' and operation is None:
+        if self.source_version == self.installer.version and choice == '1' and operation is None:
             raise ManagementError('This release is already installed. Choose Check the installation.')
         if choice == '2' and operation and operation.get('phase') == 'completed':
             raise ManagementError('This update already succeeded. Choose Check; recovery cannot downgrade it.')
@@ -47,14 +60,14 @@ class EditionManager(Manager):
         if choice == '3' and operation is None:
             raise ManagementError('There is no retained native operation to recover or finish.')
         source_version = operation['source_version'] if operation else self.source_version
-        if source_version != '1.0.6':
-            raise ManagementError('The new installer supports native updates from Ripe 1.0.6. Earlier installations must complete their published supported update path first.')
+        if source_version not in ('1.0.6', '1.1.0'):
+            raise ManagementError('The new installer supports native updates from Ripe 1.0.6 or 1.1.0. Earlier installations must complete their published supported update path first.')
         self.environment['EMAILER_UPDATE_SOURCE_VERSION'] = source_version
         source = self.package.parent / ('emailer-next-' + source_version + '.zip')
-        arguments = ['emailer:release:update', str(self.package), '--source-package=' + str(source), '--approved-target=1.1.0', '--no-interaction']
+        arguments = ['emailer:release:update', str(self.package), '--source-package=' + str(source), '--approved-target=' + self.installer.version, '--no-interaction']
         if choice == '2':
             arguments.append('--recover-native-operation=' + operation['operation_id'])
-        elif choice == '3' or self.source_version == '1.1.0':
+        elif choice == '3' or self.source_version == self.installer.version:
             arguments.append('--finish-native-operation=' + operation['operation_id'])
         from host import HostHandoff
         handoff = HostHandoff(self)
@@ -65,13 +78,13 @@ class EditionManager(Manager):
             self.console(arguments)
             handoff.recover_host()
             return {'delivery_held': True}
-        if choice == '1' and self.source_version != '1.1.0':
+        if choice == '1' and self.source_version != self.installer.version:
             handoff.drain()
             try:
                 self.console(arguments)
             except ManagementError:
                 saved_operations = [json.loads(protected(path).read_text()) for path in (self.private.parent / 'native-update-recovery').glob('*/native-operation.json')]
-                if not any(item.get('source_version') == '1.0.6' and item.get('target_version') == '1.1.0' and item.get('private_directory') == str(self.private) for item in saved_operations):
+                if not any(item.get('source_version') == source_version and item.get('target_version') == self.installer.version and item.get('private_directory') == str(self.private) for item in saved_operations):
                     handoff.recover_host()
                     self.restore_services()
                 raise
@@ -79,18 +92,18 @@ class EditionManager(Manager):
         # A successful native operation is irreversible. Only finish its writer handoff.
         journals = sorted((self.private.parent / 'native-update-recovery').glob('*/native-operation.json'))
         pending = [json.loads(protected(path).read_text()) for path in journals]
-        pending = [item for item in pending if item.get('source_version') == '1.0.6' and item.get('target_version') == '1.1.0' and item.get('private_directory') == str(self.private)]
+        pending = [item for item in pending if item.get('source_version') == source_version and item.get('target_version') == self.installer.version and item.get('private_directory') == str(self.private)]
         if not pending:
             raise ManagementError('The committed native operation evidence is missing. Keep delivery held and retain the recovery folder.')
         operation = pending[-1]
-        self.console(['emailer:release:update', str(self.package), '--source-package=' + str(source), '--approved-target=1.1.0', '--finish-native-operation=' + operation['operation_id'], '--no-interaction'])
+        self.console(['emailer:release:update', str(self.package), '--source-package=' + str(source), '--approved-target=' + self.installer.version, '--finish-native-operation=' + operation['operation_id'], '--no-interaction'])
         handoff.complete()
         return {'delivery_held': True}
 
     def transition_menu(self):
         source_version = self.record.get('transition_source', self.source_version)
-        if source_version not in ('1.0.0', '1.1.0'):
-            raise ManagementError('Only Light 1.0.0 and Light 1.1.0 are supported sources.')
+        if source_version not in ('1.0.0', '1.1.0', '1.2.0', '1.2.1'):
+            raise ManagementError('Only Light 1.0.0, 1.1.0, 1.2.0 and 1.2.1 are supported sources.')
         print(f'\nLight {source_version} → Ripe {self.installer.version}')
         print('Application address: ' + installation_address(self.values))
         print('Protected settings: ' + str(self.configuration))
@@ -128,7 +141,7 @@ class EditionManager(Manager):
                 raise ManagementError('This upgrade was accepted. Choose Check or Accept to finish host setup; recovery cannot downgrade it.')
         self.stage()
         database = self.maintenance_environment()
-        self.environment['EMAILER_UPDATE_SOURCE_VERSION'] = '1.1.0'
+        self.environment['EMAILER_UPDATE_SOURCE_VERSION'] = self.installer.version
         pin = self.root / 'ripe-release-signing.pub'
         official = (self.package.parent / 'release.pub').read_text()
         if pin.exists():

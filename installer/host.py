@@ -18,66 +18,50 @@ class HostHandoff:
     def __init__(self, manager):
         self.m = manager
         self.host = manager.installer
-        self.name = manager.prefix + '-' + manager.installer.product.removeprefix('emailer-') + '-110'
+        self.name = manager.prefix + '-' + manager.installer.product.removeprefix('emailer-') + '-' + getattr(manager.installer, 'version', '1.1.0').replace('.', '')
         self.configuration = Path('/etc') / self.name
         self.runtime = self.configuration / 'runtime.env'
         self.hold = self.configuration / 'installer-hold.json'
         self.state = manager.record.setdefault('host_handoff', {})
 
+    def claims(self):
+        from resources import ResourceClaims
+        return ResourceClaims(self.state.setdefault('resource_claims', {}), self.m.save, self.m.error)
+
     def fail(self, message):
         raise self.m.error(message)
 
     def database(self, action):
-        values = {'action': action, 'bootstrap': str(self.m.bootstrap), 'maintenance_url': self.m.environment['DATABASE_URL']}
+        values = {'action': action, 'bootstrap': str(self.m.bootstrap), 'maintenance_url': self.m.environment['DATABASE_URL'], 'source_url': self.m.source_values['DATABASE_URL']}
         if action != 'drain':
             values.update(self.state['database'])
             values['source_url'] = self.m.source_values['DATABASE_URL']
         return self.m.call(['/usr/bin/php8.4', str(self.m.package.parent / 'host-database.php')], data=json.dumps(values))
 
+    def web(self):
+        from hosting import WebServer
+        return WebServer(self.state.get('web_server', getattr(getattr(self.host, 'web', None), 'kind', 'nginx')), self.m.error)
+
     def site_text(self, *, maintenance):
         state = self.state
-        address = state['hostname']
-        restriction = 'allow 127.0.0.1; allow ::1; deny all;\n    error_page 403 =503 @installing;\n    location @installing { return 503 "Emailer setup is finishing. Please try again shortly."; }' if maintenance else ''
-        return f'''server {{
-    listen 80;
-    server_name {address};
-    access_log off;
-    {''.join(state.get('acme_locations', []))}
-    location / {{ return 301 https://{address}$request_uri; }}
-}}
-server {{
-    listen 443 ssl;
-    server_name {address};
-    ssl_certificate {state['certificate']};
-    ssl_certificate_key {state['certificate_key']};
-    root {self.m.releases}/current/public;
-    index index.php;
-    access_log off;
-    {restriction}
-    location = /index.php {{
-        include fastcgi_params;
-        fastcgi_param SCRIPT_FILENAME $document_root/index.php;
-        fastcgi_param HTTP_PROXY "";
-        fastcgi_param HTTPS on;
-        fastcgi_param REQUEST_SCHEME https;
-        fastcgi_pass unix:/run/{self.name}-fpm/php.sock;
-    }}
-    location / {{ try_files $uri /index.php$is_args$args; }}
-    location ~ \\.php$ {{ return 404; }}
-    location ~ (^|/)\\. {{ return 404; }}
-    location ~* \\.(?:env|log|sql|dump|backup|bak|key|pem|p12|pfx)$ {{ return 404; }}
-}}
-'''
+        acme = state.get('acme_webroot')
+        if not acme:
+            roots = re.findall(r'root\s+(/[A-Za-z0-9_./-]+);', ' '.join(state.get('acme_locations', [])))
+            acme = roots[0] if roots else None
+        return self.web().site(hostname=state['hostname'], name=self.name, public=str(self.m.releases / 'current/public'), webroot=acme,
+                               certificate=state['certificate'], certificate_key=state['certificate_key'], maintenance=maintenance)
 
     def apply_site(self, text):
         path = Path(self.state['site'])
+        self.claims().check_all()
+        self.web().check_assignment(self.state['hostname'], path)
         previous = path.read_bytes()
-        self.host.durable(path, text, 0o644)
-        check = subprocess.run(['nginx', '-t'], capture_output=True)
+        self.claims().write(path, text, 0o644)
+        check = subprocess.run(self.web().check_command, capture_output=True)
         if check.returncode:
-            self.host.durable(path, previous, 0o644)
-            self.fail('The proposed Emailer website failed Nginx validation. Its previous configuration was restored and Nginx was not reloaded. Keep the saved operation and correct the website conflict before Finish.')
-        self.m.call(['systemctl', 'reload', 'nginx'])
+            self.claims().write(path, previous, 0o644)
+            self.fail('The proposed Emailer website failed web-server validation. Its previous configuration was restored and the web server was not reloaded. Keep the saved operation and correct the website conflict before Finish.')
+        self.m.call(['systemctl', 'reload', self.web().service])
 
     @staticmethod
     def references(line, markers):
@@ -114,34 +98,17 @@ server {{
     def prepare(self):
         m = self.m
         self.profile_check()
+        m.validate_launcher()
         if not self.state:
             uri = urllib.parse.urlsplit(m.values['DEFAULT_URI'])
             if uri.scheme != 'https' or uri.port or uri.path not in ('', '/') or not uri.hostname or not re.fullmatch(r'[a-z0-9.-]+', uri.hostname):
                 self.fail('This update hosting profile requires an existing HTTPS hostname without a custom port or application subfolder.')
-            sites = []
-            for enabled in Path('/etc/nginx/sites-enabled').iterdir():
-                path = enabled.resolve()
-                if not path.is_file():
-                    continue
-                text = path.read_text()
-                if re.search(r'\broot\s+' + re.escape(str(m.releases / 'current/public')) + r'\s*;', text):
-                    if path in sites:
-                        continue
-                    names = re.findall(r'\bserver_name\s+([^;]+);', text)
-                    if not names or any(value.strip() != uri.hostname for value in names):
-                        self.fail('The Emailer Nginx file also contains other website names. Split only this site into its own file before using this hosting profile; no site was changed.')
-                    sites.append(path)
-            if len(sites) != 1:
-                self.fail('Setup could not identify exactly one dedicated Emailer HTTPS website. No web server was changed.')
-            site = sites[0]
+            web = self.host.web
+            site, certificate, certificate_key, acme_webroot = web.source_site(m.releases, uri.hostname)
             info = site.lstat()
             if info.st_uid != 0 or info.st_mode & 0o022 or info.st_nlink != 1:
                 self.fail('The existing website file is not a protected root-owned file.')
             text = site.read_text()
-            certificate = re.findall(r'\bssl_certificate\s+(/[A-Za-z0-9_./-]+);', text)
-            certificate_key = re.findall(r'\bssl_certificate_key\s+(/[A-Za-z0-9_./-]+);', text)
-            if len(set(certificate)) != 1 or len(set(certificate_key)) != 1:
-                self.fail('The dedicated website needs one existing trusted HTTPS certificate. Its certificate configuration was preserved.')
             for path in (self.configuration, Path('/usr/local/sbin') / self.name):
                 if path.exists() or path.is_symlink():
                     self.fail('The isolated target service name is already in use. It was not reused.')
@@ -157,9 +124,9 @@ server {{
                     self.fail('An isolated target service name is already occupied. No service was changed.')
             original = m.original_configuration
             self.state.update({'phase': 'reserved', 'hostname': uri.hostname, 'site': str(site), 'site_bytes': base64.b64encode(site.read_bytes()).decode(),
-                               'acme_locations': re.findall(r'location\s+\^~\s+/\.well-known/acme-challenge/\s*\{\s*root\s+/[A-Za-z0-9_./-]+;\s*\}', text), 'certificate': certificate[0], 'certificate_key': certificate_key[0], 'source_configuration': str(original),
+                               'web_server': web.kind, 'acme_webroot': acme_webroot, 'certificate': certificate, 'certificate_key': certificate_key, 'source_configuration': str(original),
                                'source_configuration_sha256': hashlib.sha256(original.read_bytes()).hexdigest(),
-                               'source_version': m.source_version, 'source_product': m.product,
+                               'source_version': m.source_version, 'source_product': m.product, 'source_user': m.account.pw_name,
                                'installation_uuid': json.loads((m.private / 'install.lock').read_text())['installation_uuid'],
                                'database': {'name': 'em_' + secrets.token_hex(10), 'password': secrets.token_hex(32), 'host': 'localhost' if 'unix_socket' in urllib.parse.parse_qs(urllib.parse.urlsplit(m.source_values['DATABASE_URL']).query) else '127.0.0.1'}, 'cron': {}})
             launcher = Path('/usr/local/sbin') / m.prefix
@@ -172,19 +139,40 @@ server {{
                 self.state['source_active_pointer'] = {'bytes': base64.b64encode(pointer.read_bytes()).decode(), 'mode': stat.S_IMODE(metadata.st_mode), 'uid': metadata.st_uid, 'gid': metadata.st_gid}
             else:
                 self.state['source_active_pointer'] = None
-            m.save()  # Reserve all generated identities before creating resources.
+            # Adoption is bounded to the just-validated source site and launcher.
+            claims = self.claims()
+            enabled_links = [link for link in (web.directory / 'sites-enabled').iterdir() if link.is_symlink() and link.resolve() == site]
+            for adopted in (site, launcher, pointer, *enabled_links):
+                self.state['resource_claims'][str(adopted)] = {'current': claims.proof(adopted)}
+            m.save()  # Source proofs and identities are durable before any host mutation.
+        self.claims().check_all()
+        reserved = [self.configuration, self.configuration / 'fpm.conf', self.configuration / 'release-signing.pub', self.configuration / 'keys', self.hold, Path('/usr/local/sbin') / self.name]
+        if self.state.get('phase') != 'complete':
+            reserved.append(self.runtime)
+        reserved += [Path('/etc/systemd/system') / (self.name + '-' + suffix) for suffix in ('fpm.service', 'worker.service', 'scheduler.service', 'scheduler.timer', 'operations.service', 'operations.timer')]
+        self.claims().reserve(reserved)
+        self.host.resource_claims = self.claims()
+        for suffix in ('fpm.service', 'worker.service', 'scheduler.service', 'scheduler.timer', 'operations.service', 'operations.timer'):
+            self.host.check_unit(self.name + '-' + suffix)
         if hashlib.sha256(m.original_configuration.read_bytes()).hexdigest() != self.state['source_configuration_sha256']:
             self.fail('The original application configuration changed after this operation began. It was preserved; Finish needs its original recovery evidence.')
+        marker = 'emailer-update-' + self.state['installation_uuid'] + '-' + self.name
         try:
             account = pwd.getpwnam(self.name)
         except KeyError:
-            m.call(['useradd', '--system', '--user-group', '--home-dir', str(m.private.parent), '--shell', '/usr/sbin/nologin', self.name])
+            m.call(['useradd', '--system', '--user-group', '--comment', marker, '--home-dir', str(m.private.parent), '--shell', '/usr/sbin/nologin', self.name])
             account = pwd.getpwnam(self.name)
+        if account.pw_gecos != marker or account.pw_dir != str(m.private.parent) or account.pw_shell != '/usr/sbin/nologin':
+            self.fail('The reserved target service account was created or changed outside this operation. It was preserved; restore the operation-owned account or move the conflicting account before retrying.')
+        source_query = urllib.parse.parse_qs(urllib.parse.urlsplit(m.source_values['DATABASE_URL']).query)
+        if source_query.get('unix_socket') == ['/run/emailer-database/mysql.sock']:
+            m.call(['usermod', '--append', '--groups', 'emailer-db', self.name])
         if account.pw_uid == 0 or account.pw_name != self.name or grp.getgrgid(account.pw_gid).gr_name != self.name:
             self.fail('The reserved service identity has unexpected ownership.')
         from provision import root_directory
+        self.claims().directory(self.configuration, 0, account.pw_gid, 0o750)
         root_directory(self.configuration, account.pw_gid, 0o750)
-        self.host.durable(self.hold, json.dumps({'format': 'emailer-installer-hold-v1', 'installation_uuid': self.state['installation_uuid'], 'phase': 'host-handoff'}) + '\n', 0o644)
+        self.claims().write(self.hold, json.dumps({'format': 'emailer-installer-hold-v1', 'installation_uuid': self.state['installation_uuid'], 'phase': 'host-handoff'}) + '\n', 0o644)
         if not self.state.get('database_prepared'):
             self.database('create')
             try:
@@ -399,8 +387,7 @@ server {{
         account = pwd.getpwnam(self.name)
         self.database('verify')
         keys = self.configuration / 'keys'
-        keys.mkdir(mode=0o700, exist_ok=True)
-        os.chown(keys, account.pw_uid, account.pw_gid)
+        self.claims().directory(keys, account.pw_uid, account.pw_gid, 0o700)
         values = dict(m.source_values)
         key_paths = ['EMAILER_SECRET_KEY_FILE', 'EMAILER_RECOVERY_KEY_FILE']
         # The edition layer supplies its generated recovery path without changing the old runtime file.
@@ -415,7 +402,7 @@ server {{
             os.chown(target, account.pw_uid, account.pw_gid)
             values[name] = str(target)
         pin = self.configuration / 'release-signing.pub'
-        self.host.durable(pin, (m.package.parent / 'release.pub').read_bytes(), 0o644)
+        self.claims().write(pin, (m.package.parent / 'release.pub').read_bytes(), 0o644)
         original_url = urllib.parse.urlsplit(values['DATABASE_URL'])
         if original_url.hostname not in ('localhost', '127.0.0.1', '::1'):
             self.fail('This host handoff supports a local MariaDB server. The remote database configuration was preserved.')
@@ -448,8 +435,7 @@ server {{
         else:
             backups.mkdir(mode=0o700, parents=True)
             os.chown(backups, account.pw_uid, account.pw_gid)
-        self.host.durable(self.runtime, ''.join(name + '=' + json.dumps(value, ensure_ascii=False).replace('$', '\\$') + '\n' for name, value in sorted(values.items())), 0o640)
-        os.chown(self.runtime, 0, account.pw_gid)
+        self.claims().write(self.runtime, ''.join(name + '=' + json.dumps(value, ensure_ascii=False).replace('$', '\\$') + '\n' for name, value in sorted(values.items())), 0o640, gid=account.pw_gid)
         self.database('unlock')
         self.state['phase'] = 'target-prepared'
         m.save()
@@ -465,10 +451,12 @@ server {{
         host.base = m.releases.parent
         host.release = (m.releases / 'current').resolve(strict=True)
         host.php = '/usr/bin/php8.4'
+        host.database_profile = 'isolated' if urllib.parse.parse_qs(original_url.query).get('unix_socket') == ['/run/emailer-database/mysql.sock'] else 'shared'
+        host.resource_claims = self.claims()
         host.services()
         launcher = Path('/usr/local/sbin') / m.prefix
         generated = Path('/usr/local/sbin') / self.name
-        self.host.durable(launcher, generated.read_bytes(), 0o755)
+        self.claims().write(launcher, generated.read_bytes(), 0o755)
         self.state['phase'] = 'services-prepared'
         m.save()
         self.live(['emailer:health:verify-runtime', '--offline-maintenance'])
@@ -487,12 +475,13 @@ server {{
             if unit.startswith(m.prefix + '-') and not unit.startswith(self.name + '-'):
                 m.call(['systemctl', 'disable', unit])
         self.disable_cron()
-        self.host.durable(m.root / 'active-installation.json', json.dumps({'format': 'emailer-active-installation-v1', 'runtime': str(self.runtime), 'product': self.host.product, 'version': self.host.version}) + '\n')
+        self.claims().write(m.root / 'active-installation.json', json.dumps({'format': 'emailer-active-installation-v1', 'runtime': str(self.runtime), 'product': self.host.product, 'version': self.host.version}) + '\n', 0o600)
         # Only this root-controlled operation can lift the host hold. Delivery itself stays quiesced.
-        self.hold.unlink(missing_ok=True)
+        self.claims().remove(self.hold)
         self.live(['emailer:health:verify-runtime', '--allow-operational-hold', '--record'])
         self.apply_site(self.site_text(maintenance=False))
         self.state['phase'] = 'complete'
+        self.state.get('resource_claims', {}).pop(str(self.runtime), None)
         m.record.pop('active_units', None)
         m.save()
 
@@ -537,19 +526,25 @@ server {{
     def stop_target(self):
         if self.state.get('phase') in ('core-accepted', 'complete'):
             self.fail('This operation was accepted. Finish host setup; recovery cannot downgrade it.')
-        for suffix in ('scheduler.timer', 'operations.timer', 'scheduler.service', 'operations.service', 'worker.service', 'fpm.service'):
-            unit = self.name + '-' + suffix
-            state = subprocess.run(['systemctl', 'show', unit, '--property=LoadState'], capture_output=True, text=True)
-            if 'LoadState=not-found' in state.stdout:
-                continue
-            if state.returncode or 'LoadState=loaded' not in state.stdout:
-                self.fail('The target service state could not be inspected. Restoration was not started; restore access to systemd before Recover.')
+        for unit in self.owned_target_units():
             self.m.call(['systemctl', 'stop', unit])
             active = subprocess.run(['systemctl', 'is-active', '--quiet', unit])
             if active.returncode not in (3, 4):
                 self.fail('A target service is still active. Data restoration was not started.')
         if self.runtime.exists():
             self.database('lock')
+
+    def owned_target_units(self):
+        self.claims().check_all()
+        self.host.resource_claims = self.claims()
+        units = []
+        # Validate every name before stopping even one service.
+        for suffix in ('scheduler.timer', 'operations.timer', 'scheduler.service', 'operations.service', 'worker.service', 'fpm.service'):
+            unit = self.name + '-' + suffix
+            self.host.check_unit(unit)
+            if self.claims().proof(Path('/etc/systemd/system') / unit) is not None:
+                units.append(unit)
+        return units
 
     def recover_host(self):
         m = self.m
@@ -559,8 +554,8 @@ server {{
             self.fail('This operation was accepted. Finish host setup; recovery cannot downgrade a completed installation.')
         if 'database' in self.state and self.runtime.exists():
             self.database('lock')
-        for suffix in ('scheduler.timer', 'operations.timer', 'scheduler.service', 'operations.service', 'worker.service', 'fpm.service'):
-            subprocess.run(['systemctl', 'stop', self.name + '-' + suffix], capture_output=True)
+        for unit in self.owned_target_units():
+            subprocess.run(['systemctl', 'stop', unit], capture_output=True)
         for name, metadata in self.state.get('backup_metadata', {}).items():
             path = Path(name)
             if path.is_symlink():
@@ -571,17 +566,17 @@ server {{
         self.apply_site(base64.b64decode(self.state['site_bytes']))
         saved = self.state.get('launcher_bytes')
         if saved is not None:
-            self.host.durable('/usr/local/sbin/' + m.prefix, base64.b64decode(saved), 0o755)
+            self.claims().write('/usr/local/sbin/' + m.prefix, base64.b64decode(saved), 0o755)
         # The core restores source data/key ownership before this method is called.
-        self.hold.unlink(missing_ok=True)
+        self.claims().remove(self.hold)
         pointer = m.root / 'active-installation.json'
         if 'source_active_pointer' not in self.state:
             self.fail('This operation lacks its previous active-installation receipt. The source data was retained; restore the exact protected host receipt before reopening the site.')
         saved_pointer = self.state['source_active_pointer']
         if saved_pointer is None:
-            pointer.unlink(missing_ok=True)
+            self.claims().remove(pointer)
         else:
-            self.host.durable(pointer, base64.b64decode(saved_pointer['bytes']), saved_pointer['mode'])
+            self.claims().write(pointer, base64.b64decode(saved_pointer['bytes']), saved_pointer['mode'], gid=saved_pointer['gid'])
             os.chown(pointer, saved_pointer['uid'], saved_pointer['gid'])
         self.state['phase'] = 'recovered'
         m.save()

@@ -5,7 +5,11 @@ declare(strict_types=1);
 if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL')) {
     throw new RuntimeException('Native fixture is isolated-only.');
 }
-require '/rehearsal/source-releases/1.0.6/vendor/autoload.php';
+$sourceVersion = getenv('EMAILER_REHEARSAL_NATIVE_SOURCE') ?: '1.0.6';
+if (!in_array($sourceVersion, ['1.0.6', '1.1.0'], true)) {
+    throw new RuntimeException('Unsupported isolated native source.');
+}
+require '/rehearsal/source-releases/'.$sourceVersion.'/vendor/autoload.php';
 $p = (new Doctrine\DBAL\Tools\DsnParser(['mysql' => 'pdo_mysql']))->parse((string) getenv('DATABASE_URL'));
 if ('database' !== ($p['host'] ?? null) || !str_starts_with($p['dbname'] ?? '', 'ripe106_')) {
     throw new RuntimeException('Native fixture refuses non-harness access.');
@@ -43,7 +47,7 @@ foreach (['USER@example.test', 'user@example.test'] as $i => $email) {
     $c->insert('suppression', ['id' => '01990606-0000-7000-8000-0000000000'.(20 + $i), 'email_canonical' => $email, 'reason' => 'manual', 'source' => 'synthetic-native-fixture', 'created_at' => $n]);
 }
 $installation = $c->fetchOne("SELECT installation_uuid FROM installation_state WHERE singleton_key = '1'");
-$master = new App\Module\Secrets\Infrastructure\FilesystemMasterKey('/rehearsal/keys/master.key', '/rehearsal/source-releases/1.0.6/public', '/rehearsal/source-releases/1.0.6', 'dev');
+$master = new App\Module\Secrets\Infrastructure\FilesystemMasterKey('/rehearsal/keys/master.key', '/rehearsal/source-releases/'.$sourceVersion.'/public', '/rehearsal/source-releases/'.$sourceVersion, 'dev');
 $vault = new App\Module\Secrets\Infrastructure\DoctrineSecretVault($c, $master, new App\Module\Secrets\Application\SecretCipher());
 $credential = $vault->store('smtp.credential', 'synthetic-credential-only', $installation);
 $c->update('sender_identity', ['smtp_host' => 'smtp.invalid', 'smtp_port' => 587, 'encryption_mode' => 'starttls', 'smtp_username' => 'synthetic-user', 'credential_secret_id' => $credential, 'tls_peer_verification' => 1], ['singleton_key' => '1']);

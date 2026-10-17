@@ -204,7 +204,7 @@ final readonly class ReleaseManager
             } else {
                 $this->runConsole($target, ['emailer:health:verify-runtime', '--offline-maintenance'], [0]);
             }
-            if ('1.1.0' === $targetVersion && null !== $nativeJournal) {
+            if (\in_array($targetVersion, ['1.1.0', '1.2.0', '1.2.1'], true) && null !== $nativeJournal) {
                 $this->synchronizeNativeIdentity($targetVersion);
             }
             $this->connection->update('release_operation', ['status' => 'succeeded', 'detail_code' => 'health_passed', 'finished_at' => Identity::now()], ['id' => $operationId]);
@@ -360,7 +360,7 @@ final readonly class ReleaseManager
 
     public function recoverNativeUpdate(string $operationId, string $archive, string $sourceArchive): void
     {
-        if (1 !== preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/D', $operationId) || !\in_array($this->currentVersion, ['1.0.5', '1.0.6'], true) || null === $this->completeRecovery) {
+        if (1 !== preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/D', $operationId) || !\in_array($this->currentVersion, ['1.0.5', '1.0.6', '1.1.0'], true) || null === $this->completeRecovery) {
             throw new \RuntimeException('Native recovery requires the recorded supported source launcher and exact operation UUID.');
         }
         $directory = \dirname($this->privateDirectory).'/native-update-recovery/'.$operationId;
@@ -380,7 +380,7 @@ final readonly class ReleaseManager
             $journal = EditionData::read($directory.'/native-operation.json');
             $manifest = $this->inspector->inspect($archive);
             $sourceManifest = $this->inspector->inspectInstalledSource($sourceArchive);
-            $source = $this->releasesDirectory.'/'.$this->currentVersion;
+            $source = NativeReleaseRoot::source($this->releasesDirectory, $this->currentVersion, $journal['source_root'] ?? null);
             $targetVersion = EditionData::text($manifest['version'] ?? null);
             if ('emailer-native-update-recovery-v1' !== ($journal['format'] ?? null) || $operationId !== ($journal['operation_id'] ?? null) || !$this->completeNativePair($this->currentVersion, $targetVersion) || $targetVersion !== ($journal['target_version'] ?? null) || $this->currentVersion !== ($journal['source_version'] ?? null) || $this->privateDirectory !== ($journal['private_directory'] ?? null) || $source !== ($journal['source_root'] ?? null) || $this->nativeDatabaseBinding() !== ($journal['database_binding'] ?? null) || !hash_equals(EditionData::text($journal['target_archive_sha256']), EditionData::text(hash_file('sha256', $archive))) || !hash_equals(EditionData::text($journal['source_archive_sha256']), EditionData::text(hash_file('sha256', $sourceArchive)))) {
                 throw new \RuntimeException('Native recovery identity, installation or authenticated package does not match.');
@@ -500,7 +500,7 @@ final readonly class ReleaseManager
 
     private function completeNativePair(string $source, string $target): bool
     {
-        return ('1.0.5' === $source && '1.0.6' === $target) || ('1.0.6' === $source && '1.1.0' === $target);
+        return ('1.0.5' === $source && '1.0.6' === $target) || ('1.0.6' === $source && '1.1.0' === $target) || (\in_array($source, ['1.0.6', '1.1.0'], true) && \in_array($target, ['1.2.0', '1.2.1'], true));
     }
 
     private function nativeDatabaseBinding(): string
@@ -517,7 +517,7 @@ final readonly class ReleaseManager
 
     private function assertNativeOperationOwnership(?string $selected = null): void
     {
-        if (!\in_array($this->currentVersion, ['1.0.5', '1.0.6'], true) || null === $this->completeRecovery || '' === $this->privateDirectory) {
+        if (!\in_array($this->currentVersion, ['1.0.5', '1.0.6', '1.1.0'], true) || null === $this->completeRecovery || '' === $this->privateDirectory) {
             return;
         }
         $files = glob(\dirname($this->privateDirectory).'/native-update-recovery/*/native-operation.json');

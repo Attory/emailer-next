@@ -5,7 +5,7 @@ declare(strict_types=1);
 if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL')) {
     throw new RuntimeException('Activation fault is isolated-only.');
 }
-$target = '1' === getenv('EMAILER_REHEARSAL_NATIVE_TARGET') ? '/rehearsal/source-releases/1.1.0' : '/rehearsal/source-releases/ripe-1.1.0';
+$target = '1' === getenv('EMAILER_REHEARSAL_NATIVE_TARGET') ? '/rehearsal/source-releases/1.2.1' : '/rehearsal/source-releases/ripe-1.2.1';
 $deadline = microtime(true) + 45;
 while (microtime(true) < $deadline) {
     clearstatcache(true);

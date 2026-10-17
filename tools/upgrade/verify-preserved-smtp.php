@@ -5,7 +5,11 @@ declare(strict_types=1);
 if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL')) {
     throw new RuntimeException('SMTP compatibility verification is isolated-only.');
 }
-require '/rehearsal/source-releases/ripe-1.1.0/vendor/autoload.php';
+$sourceRoot = realpath('/rehearsal/source-releases/current');
+if (!in_array($sourceRoot, ['/rehearsal/source-releases/ripe-1.2.1', '/rehearsal/source-releases/1.2.1'], true)) {
+    throw new RuntimeException('Only the isolated accepted target root is permitted.');
+}
+require $sourceRoot.'/vendor/autoload.php';
 $p = (new Doctrine\DBAL\Tools\DsnParser(['mysql' => 'pdo_mysql']))->parse((string) getenv('DATABASE_URL'));
 if ('database' !== ($p['host'] ?? null) || !str_starts_with($p['dbname'] ?? '', 'ripe106_')) {
     throw new RuntimeException('SMTP verification refuses non-harness access.');
@@ -16,7 +20,7 @@ if (file_exists('/rehearsal/private/edition-delivery-hold.json') || 1 !== (int) 
 }
 $sender = $c->fetchAssociative("SELECT smtp_username,credential_secret_id FROM sender_identity WHERE singleton_key='1'");
 $installation = $c->fetchOne("SELECT installation_uuid FROM installation_state WHERE singleton_key='1'");
-$master = new App\Module\Secrets\Infrastructure\FilesystemMasterKey('/rehearsal/keys/master.key', '/rehearsal/source-releases/ripe-1.1.0/public', '/rehearsal/source-releases/ripe-1.1.0', 'dev');
+$master = new App\Module\Secrets\Infrastructure\FilesystemMasterKey('/rehearsal/keys/master.key', $sourceRoot.'/public', $sourceRoot, 'dev');
 $vault = new App\Module\Secrets\Infrastructure\DoctrineSecretVault($c, $master, new App\Module\Secrets\Application\SecretCipher());
 $envelopeBefore = $c->fetchOne('SELECT envelope FROM encrypted_secret WHERE id = ?', [$sender['credential_secret_id']]);
 $password = $vault->reveal($sender['credential_secret_id'], 'smtp.credential', $installation);

@@ -1,10 +1,10 @@
 {
   "title": "Upgrade Emailer Light to Ripe",
-  "subtitle": "Ripe 1.1.0 | Beginner guide for Light 1.0.0 and 1.1.0",
+  "subtitle": "Ripe 1.2.1 | Beginner guide for Light 1.0.0, 1.1.0, 1.2.0 and 1.2.1",
   "blocks": [
     {
       "type": "p",
-      "text": "Upgrade with the private Ripe 1.1.0 setup file. Your Light administrator becomes an Owner and keeps the same password. Delivery remains held until you accept the validated upgrade, check the result and deliberately resume."
+      "text": "Upgrade with the private Ripe 1.2.1 setup file. Your Light administrator becomes an Owner and keeps the same password. Delivery remains held until you accept the validated upgrade, check the result and deliberately resume."
     },
     {
       "type": "h2",
@@ -19,29 +19,37 @@
       "rows": [
         [
           "Original published Light 1.0.0",
-          "Ripe 1.1.0, direct upgrade."
+          "Ripe 1.2.1, direct guided upgrade."
         ],
         [
           "Official Light 1.1.0",
-          "Ripe 1.1.0, direct upgrade."
+          "Ripe 1.2.1, direct guided upgrade."
         ],
         [
-          "Light 1.0.0 updated to Light 1.1.0",
-          "Ripe 1.1.0, same guided edition upgrade."
+          "Official Light 1.2.0",
+          "Ripe 1.2.1, direct guided upgrade."
         ],
         [
-          "Ripe 1.0.6",
-          "Ripe 1.1.0, normal Update menu instead."
+          "Official Light 1.2.1",
+          "Ripe 1.2.1, direct guided upgrade."
+        ],
+        [
+          "Light updated through a supported path to 1.1.0, 1.2.0 or 1.2.1",
+          "Ripe 1.2.1, same guided edition upgrade."
+        ],
+        [
+          "Ripe 1.0.6 or 1.1.0",
+          "Ripe 1.2.1, normal Update menu instead."
         ]
       ]
     },
     {
       "type": "p",
-      "text": "Do not use Ripe 1.0.6 for Light 1.1.0: it does not know the newly versioned Light release. The historical Light 1.0.0 path is retained, but this guide uses Ripe 1.1.0 for both supported Light versions. There is no general Ripe to Light downgrade."
+      "text": "Use the new Ripe 1.2.1 installer for all four Light sources. Earlier Ripe 1.0.6 does not recognize Light 1.1.0/1.2.0/1.2.1, and Ripe 1.1.0 does not add Light 1.2.0/1.2.1 support. Original Light 1.0.0 remains supported. There is no general Ripe-to-Light downgrade."
     },
     {
       "type": "p",
-      "text": "The guided host path uses the verified Debian 13 amd64/systemd/Nginx/PHP 8.4/MariaDB 10.11 or 11.8 profile. It discovers protected standard settings under /etc/emailer-light or /etc/emailer, a dedicated application database account, dedicated private/key storage and an existing HTTPS hostname without a custom port/subfolder. Unsupported customized hosts stop with a specific reason before conversion. Use the operator reference rather than changing grants or paths blindly."
+      "text": "Use Ubuntu 22.04/24.04 amd64/systemd with Apache, or Debian 13 with Nginx, PHP 8.4 and supported MariaDB 10.11/11.8. Ubuntu 22.04 fresh installations use an isolated MariaDB 10.11.19 beside any existing host database. The installer discovers protected standard settings under /etc/emailer-light or /etc/emailer, a dedicated application database account, private/key storage and an existing trusted HTTPS hostname without a custom port/subfolder. A dedicated Emailer virtual-host file must not also serve unrelated routes or applications. Unknown customized targets stop before handoff; keep their existing configuration."
     },
     {
       "type": "h2",
@@ -57,15 +65,15 @@
     },
     {
       "type": "p",
-      "text": "While signed in with access, download <b>emailer-ripe-1.1.0-setup.run</b> from the <a href=\"https://github.com/Attory/emailer-next/releases/tag/v1.1.0\">official private release</a>, or use an authorized private copy. Upload that one file to the existing server through your provider's file-transfer facility. Do not put a GitHub token in a shell command. In the folder containing the file, run:"
+      "text": "While signed in with access, download <b>emailer-ripe-1.2.1-setup.run</b> from the <a href=\"https://github.com/Attory/emailer-next/releases/tag/v1.2.1\">official private release</a>, or use an authorized private copy. Upload that one file to the existing server through your provider's file-transfer facility. Do not put a GitHub token in a shell command. In the folder containing the file, run:"
     },
     {
       "type": "code",
-      "text": "sudo sh emailer-ripe-1.1.0-setup.run"
+      "text": "sudo sh emailer-ripe-1.2.1-setup.run"
     },
     {
       "type": "p",
-      "text": "Initial trust comes from the official HTTPS or authorized private delivery channel. Embedded established signing identities authenticate the Ripe package and both supported Light predecessor packages. You do not need to assemble verifier source, sidecars, version arguments or commit hashes."
+      "text": "Initial trust comes from the official HTTPS or authorized private delivery channel. Embedded established signing identities authenticate the Ripe package and all four supported Light predecessor packages. You do not need to assemble verifier source, sidecars, version arguments or commit hashes."
     },
     {
       "type": "h2",
@@ -73,7 +81,7 @@
     },
     {
       "type": "p",
-      "text": "If asked about an existing Light installation, choose <b>Upgrade this Light installation to Ripe</b>. If several installations are found, select the correct address. Check the displayed Light version and address, then choose <b>Upgrade with verified recovery material</b>. Wait for named progress and validation. Retain the printed recovery location."
+      "text": "If asked about an existing Light installation, choose <b>Upgrade this Light installation to Ripe</b>. If both standard installations are found, select the intended address when asked. A custom or unrecognized target stops without adoption. Check the displayed Light version and address, then choose <b>Upgrade with verified recovery material</b>. Wait for named progress and validation. Retain the printed recovery location."
     },
     {
       "type": "image",
@@ -128,7 +136,7 @@
     {
       "type": "image",
       "file": "emailer-ripe-resume.png",
-      "caption": "Actual explicit Resume action after readiness passes."
+      "caption": "Actual acceptance output. Sign in and complete MFA, then review Doctor before choosing Resume delivery."
     },
     {
       "type": "p",

@@ -21,7 +21,7 @@ final readonly class LightSourceInspection
             throw new \RuntimeException('Light transition requires supported MariaDB 10.11 or 11.8.');
         }
         $identity = $this->connection->fetchAssociative("SELECT * FROM product_identity WHERE singleton_key = '1'");
-        if (false === $identity || 'emailer-light' !== ($identity['product_id'] ?? null) || !\in_array($identity['product_version'] ?? null, ['1.0.0', '1.1.0'], true) || '20261014000000' !== ($identity['schema_version'] ?? null) || '1.0' !== ($identity['upgrade_contract_version'] ?? null) || 1 !== EditionData::integer($this->connection->fetchOne('SELECT COUNT(*) FROM product_identity'))) {
+        if (false === $identity || 'emailer-light' !== ($identity['product_id'] ?? null) || !\in_array($identity['product_version'] ?? null, ['1.0.0', '1.1.0', '1.2.0', '1.2.1'], true) || '20261014000000' !== ($identity['schema_version'] ?? null) || '1.0' !== ($identity['upgrade_contract_version'] ?? null) || 1 !== EditionData::integer($this->connection->fetchOne('SELECT COUNT(*) FROM product_identity'))) {
             throw new \RuntimeException('Unsupported or malformed Light product identity.');
         }
         $installation = $this->connection->fetchAssociative("SELECT installation_uuid, completed_at FROM installation_state WHERE singleton_key = '1'");
