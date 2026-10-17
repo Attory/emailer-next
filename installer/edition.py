@@ -20,6 +20,18 @@ def installation_address(values):
     return 'https://' + uri.hostname
 
 
+def native_source_root(releases, version, recorded):
+    try:
+        parent = releases.resolve(strict=True)
+        expected = (str(parent / version), str(parent / ('ripe-' + version)))
+        source = Path(recorded) if isinstance(recorded, str) else None
+        if version not in ('1.0.6', '1.1.0') or recorded not in expected or source is None or source.is_symlink() or not source.is_dir() or str(source.resolve(strict=True)) != recorded:
+            raise ValueError()
+    except (OSError, ValueError):
+        raise ManagementError('The retained update source directory changed or is outside this installation. Keep delivery held and retain its recovery record; no release or data was changed.') from None
+    return recorded
+
+
 class EditionManager(Manager):
     def run(self):
         if self.product == 'emailer-light' or self.record.get('mode') == 'light-to-ripe':
@@ -34,7 +46,8 @@ class EditionManager(Manager):
         matches = []
         for path in journals:
             journal = json.loads(protected(path).read_text())
-            if journal.get('source_version') in ('1.0.6', '1.1.0') and journal.get('target_version') == self.installer.version and journal.get('private_directory') == str(self.private) and journal.get('source_root') == str(self.releases / journal.get('source_version', '')):
+            if journal.get('source_version') in ('1.0.6', '1.1.0') and journal.get('target_version') == self.installer.version and journal.get('private_directory') == str(self.private):
+                native_source_root(self.releases, journal['source_version'], journal.get('source_root'))
                 matches.append(journal)
         if matches:
             operation = matches[-1]

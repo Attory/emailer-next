@@ -3,11 +3,12 @@ import io
 from pathlib import Path
 import sys
 import types
+import tempfile
 import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'installer'))
-from edition import EditionManager, installation_address
+from edition import EditionManager, installation_address, native_source_root
 from manage import ManagementError
 
 
@@ -30,3 +31,16 @@ class EditionChoices(unittest.TestCase):
             with self.subTest(value=value), self.assertRaises(ManagementError):
                 installation_address({'DEFAULT_URI': value})
         self.assertEqual('https://news.example.test', installation_address({'DEFAULT_URI': 'https://news.example.test/'}))
+
+    def test_native_recovery_accepts_only_actual_plain_or_converted_source_children(self):
+        with tempfile.TemporaryDirectory() as directory:
+            releases=Path(directory)/'releases';releases.mkdir()
+            for name in ('1.1.0','ripe-1.1.0'):
+                path=releases/name;path.mkdir()
+                self.assertEqual(str(path),native_source_root(releases,'1.1.0',str(path)))
+            outside=Path(directory)/'outside';outside.mkdir()
+            for recorded in (str(outside),str(releases/'1.0.6'),str(releases/'ripe-1.1.0'/'..'/'1.1.0'),None):
+                with self.subTest(recorded=recorded),self.assertRaises(ManagementError):
+                    native_source_root(releases,'1.1.0',recorded)
+            path=releases/'1.1.0';path.rmdir();path.symlink_to(outside,target_is_directory=True)
+            with self.assertRaises(ManagementError):native_source_root(releases,'1.1.0',str(path))

@@ -380,7 +380,7 @@ final readonly class ReleaseManager
             $journal = EditionData::read($directory.'/native-operation.json');
             $manifest = $this->inspector->inspect($archive);
             $sourceManifest = $this->inspector->inspectInstalledSource($sourceArchive);
-            $source = $this->releasesDirectory.'/'.$this->currentVersion;
+            $source = NativeReleaseRoot::source($this->releasesDirectory, $this->currentVersion, $journal['source_root'] ?? null);
             $targetVersion = EditionData::text($manifest['version'] ?? null);
             if ('emailer-native-update-recovery-v1' !== ($journal['format'] ?? null) || $operationId !== ($journal['operation_id'] ?? null) || !$this->completeNativePair($this->currentVersion, $targetVersion) || $targetVersion !== ($journal['target_version'] ?? null) || $this->currentVersion !== ($journal['source_version'] ?? null) || $this->privateDirectory !== ($journal['private_directory'] ?? null) || $source !== ($journal['source_root'] ?? null) || $this->nativeDatabaseBinding() !== ($journal['database_binding'] ?? null) || !hash_equals(EditionData::text($journal['target_archive_sha256']), EditionData::text(hash_file('sha256', $archive))) || !hash_equals(EditionData::text($journal['source_archive_sha256']), EditionData::text(hash_file('sha256', $sourceArchive)))) {
                 throw new \RuntimeException('Native recovery identity, installation or authenticated package does not match.');
