@@ -97,7 +97,7 @@ final class EditionRecoverySet
                         if (!$entry instanceof \SplFileInfo) {
                             throw new \RuntimeException('Recovery private-state inventory failed.');
                         }
-                        'private' === $role ? self::safePrivate($entry->getPathname(), $entry->isDir()) : self::safe($entry->getPathname(), $entry->isDir());
+                        'private' === $role ? self::safePrivate($entry->getPathname(), $entry->isDir(), $root) : self::safe($entry->getPathname(), $entry->isDir());
                         if ($entry->isDir()) {
                             $metadata = lstat($entry->getPathname());
                             if (false === $metadata) {
@@ -227,7 +227,7 @@ final class EditionRecoverySet
                     if (!is_dir($path) && !mkdir($path, 0o700, true)) {
                         throw new \RuntimeException('Recovery private directory is unavailable.');
                     }
-                    self::safePrivate($path, true);
+                    self::safePrivate($path, true, 'private' === $role && '' !== $relative ? $manifest['roots'][$role] : null);
                     if (!chown($path, $metadata['uid']) || !chgrp($path, $metadata['gid']) || !chmod($path, $metadata['mode'])) {
                         throw new \RuntimeException('Recovery directory ownership restoration failed.');
                     }
@@ -265,7 +265,7 @@ final class EditionRecoverySet
                         throw new \RuntimeException('Recovery private state is unavailable.');
                     }
                     try {
-                        self::writeStream($path, $stream, \in_array($role, ['runtime_configuration', 'private'], true));
+                        self::writeStream($path, $stream, \in_array($role, ['runtime_configuration', 'private'], true), 'private' === $role ? $root : null);
                         $metadata = $manifest['file_metadata'][$name] ?? throw new \RuntimeException('Recovery file ownership evidence is missing.');
                         if (!chown($path, $metadata['uid']) || !chgrp($path, $metadata['gid']) || !chmod($path, $metadata['mode'])) {
                             throw new \RuntimeException('Recovery file ownership restoration failed.');
@@ -458,7 +458,7 @@ final class EditionRecoverySet
             if ('edition-delivery-hold.json' === $relative) {
                 continue;
             }
-            self::safePrivate($path, $entry->isDir());
+            self::safePrivate($path, $entry->isDir(), $root);
             if ($entry->isDir() || isset($entries['private/private/'.$relative])) {
                 continue;
             }
@@ -538,9 +538,18 @@ final class EditionRecoverySet
         }
     }
 
-    public static function safePrivate(string $path, bool $directory): void
+    public static function safePrivate(string $path, bool $directory, ?string $protectedRoot = null): void
     {
-        if (!$directory) {
+        $asset = false;
+        if (null !== $protectedRoot) {
+            self::safePrivate($protectedRoot, true);
+            if (!str_starts_with($path, rtrim($protectedRoot, '/').'/') || realpath($path) !== $path) {
+                throw new \RuntimeException('Private recovery descendant escapes its protected root.');
+            }
+            $assets = rtrim($protectedRoot, '/').'/template-assets';
+            $asset = $path === $assets || str_starts_with($path, $assets.'/');
+        }
+        if (!$directory && !$asset) {
             self::safeConfiguration($path);
 
             return;
@@ -550,8 +559,15 @@ final class EditionRecoverySet
                 throw new \RuntimeException('Private recovery state has a linked ancestor.');
             }
         }
+        // The application and backup restoration publish template assets with
+        // 0755/0644 metadata. Their private0700/0750 ancestor remains mandatory;
+        // keys, runtime configuration and all other private files stay strict.
+        $modes = $directory ? [0o700, 0o750, 0o500, 0o550] : [0o600, 0o640, 0o400, 0o440];
+        if ($asset) {
+            $modes = [...$modes, ...($directory ? [0o755, 0o555] : [0o644, 0o444])];
+        }
         $stat = lstat($path);
-        if (false === $stat || !str_starts_with($path, '/') || 0o040000 !== ($stat['mode'] & 0o170000) || !\in_array($stat['mode'] & 0o777, [0o700, 0o750, 0o500, 0o550], true)) {
+        if (false === $stat || !str_starts_with($path, '/') || ($directory ? 0o040000 : 0o100000) !== ($stat['mode'] & 0o170000) || (!$directory && 1 !== $stat['nlink']) || !\in_array($stat['mode'] & 0o777, $modes, true)) {
             throw new \RuntimeException('Private recovery directory metadata is unsafe.');
         }
     }
@@ -570,11 +586,15 @@ final class EditionRecoverySet
     }
 
     /** @param resource $input */
-    private static function writeStream(string $path, $input, bool $configuration = false): void
+    private static function writeStream(string $path, $input, bool $configuration = false, ?string $protectedRoot = null): void
     {
         $previous = @lstat($path);
         if (\is_array($previous)) {
-            $configuration ? self::safeConfiguration($path) : self::safe($path, false);
+            if (null !== $protectedRoot) {
+                self::safePrivate($path, false, $protectedRoot);
+            } else {
+                $configuration ? self::safeConfiguration($path) : self::safe($path, false);
+            }
         }
         $temporary = $path.'.new-'.bin2hex(random_bytes(8));
         $output = fopen($temporary, 'x+b');

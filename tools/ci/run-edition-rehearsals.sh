@@ -109,6 +109,13 @@ for light_version in 1.1.0 1.2.0; do
         curl --fail --silent --show-error --location "https://github.com/Attory/emailer-light/releases/download/v$light_version/emailer-light-$light_version.zip$suffix" --output "$state_root/published-light/emailer-light-$light_version.zip$suffix"
     done
 done
+for mode in success fault journal preparing; do
+    case "$mode" in
+        success) bash tools/upgrade/run-converted-native-rehearsal.sh "$target" "$key" "$state_root/native110-package/emailer-next-1.1.0.zip" "$state_root/published-light/emailer-light-1.1.0.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit" "$state_root/source110" ;;
+        fault) EMAILER_REHEARSAL_NATIVE_FAULT=1 bash tools/upgrade/run-converted-native-rehearsal.sh "$target" "$key" "$state_root/native110-package/emailer-next-1.1.0.zip" "$state_root/published-light/emailer-light-1.1.0.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit" "$state_root/source110" ;;
+        *) EMAILER_REHEARSAL_NATIVE_INTERRUPT="$mode" bash tools/upgrade/run-converted-native-rehearsal.sh "$target" "$key" "$state_root/native110-package/emailer-next-1.1.0.zip" "$state_root/published-light/emailer-light-1.1.0.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit" "$state_root/source110" ;;
+    esac
+done
 for light_version in 1.0.0 1.1.0 1.2.0; do
     EMAILER_REHEARSAL_LIGHT_VERSION="$light_version" bash tools/upgrade/run-light-rehearsal.sh "$target" "$key" "$state_root/published-light/emailer-light-$light_version.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit"
     EMAILER_REHEARSAL_LIGHT_VERSION="$light_version" EMAILER_REHEARSAL_MINIMAL=1 bash tools/upgrade/run-light-rehearsal.sh "$target" "$key" "$state_root/published-light/emailer-light-$light_version.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit"
