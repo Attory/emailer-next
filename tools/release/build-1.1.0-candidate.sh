@@ -51,8 +51,9 @@ php -r '$z = new ZipArchive(); if (true !== $z->open($argv[1], ZipArchive::CREAT
     "$work/first/emailer-ripe-1.1.0-documentation.zip" "$documentation" "$source_epoch"
 light_assets="${EMAILER_LIGHT_RELEASE_ASSETS_DIR:?Use the authenticated final public Light release assets.}"
 cmp "$light_assets/emailer-light-1.1.0.zip" "$predecessors/emailer-light-1.1.0.zip"
+light_documentation="${EMAILER_LIGHT_DOCUMENTATION_ASSETS_DIR:?Use the signed corrected Light documentation release.}"
 for target in "$work/first" "$work/second"; do
-    php "$project_root/tools/docs/combine-guides.php" "$light_assets" "$documentation" \
+    php "$project_root/tools/docs/combine-guides.php" "$light_assets" "$light_documentation" "$documentation" \
         "$target/emailer-1.1.0-complete-documentation-private.zip" "$source_epoch"
 done
 cmp "$work/first/emailer-1.1.0-complete-documentation-private.zip" "$work/second/emailer-1.1.0-complete-documentation-private.zip"
