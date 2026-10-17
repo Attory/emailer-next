@@ -8,7 +8,7 @@ import unittest
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / 'installer'))
-from edition import EditionManager, installation_address, native_source_root
+from edition import EditionManager, installation_address, native_source_root, dispatch
 from manage import ManagementError
 
 
@@ -44,3 +44,24 @@ class EditionChoices(unittest.TestCase):
                     native_source_root(releases,'1.1.0',recorded)
             path=releases/'1.1.0';path.rmdir();path.symlink_to(outside,target_is_directory=True)
             with self.assertRaises(ManagementError):native_source_root(releases,'1.1.0',str(path))
+
+    def test_multiple_standard_profiles_select_only_the_displayed_address(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root=Path(directory);paths=[]
+            for name in ('emailer','emailer-light'):
+                path=root/name/'runtime.env';path.parent.mkdir();path.touch();paths.append(path)
+            real_path=Path
+            def translate(value):
+                if str(value).startswith('/etc/emailer'):return root/str(value).removeprefix('/etc/')
+                return real_path(value)
+            def environment(path):
+                return {'DEFAULT_URI':'https://'+path.parent.name+'.example.test','DATABASE_URL':'mysql://synthetic-private-password@localhost/private','APP_SECRET':'synthetic-private-secret'}
+            output=io.StringIO();installer=types.SimpleNamespace(journal=root/'no-journal')
+            with patch('edition.Path',side_effect=translate),patch('edition.read_environment',side_effect=environment),patch('edition.common_dispatch',return_value=True) as common,patch('builtins.input',return_value='2'),contextlib.redirect_stdout(output):
+                self.assertTrue(dispatch(installer,ManagementError))
+            self.assertEqual([paths[1]],common.call_args.args[3])
+            self.assertIn('https://emailer-light.example.test',output.getvalue())
+            self.assertNotIn('synthetic-private',output.getvalue())
+            with patch('edition.Path',side_effect=translate),patch('edition.read_environment',side_effect=environment),patch('edition.common_dispatch') as common,patch('builtins.input',return_value='99'),contextlib.redirect_stdout(io.StringIO()),self.assertRaisesRegex(ManagementError,'Nothing was changed'):
+                dispatch(installer,ManagementError)
+            common.assert_not_called()

@@ -74,6 +74,10 @@ run bash -euc 'set -a; source /rehearsal/runtime.env; set +a; php /tools/tools/u
 rehearsal_user=1000 run bash -euc 'set -a; source /rehearsal/runtime.env; set +a; printf "%s\n%s\n" "Synthetic native recovery passphrase only" "Synthetic native recovery passphrase only" | php /rehearsal/source-releases/${EMAILER_REHEARSAL_NATIVE_SOURCE_ROOT}/bin/console emailer:secrets:export-recovery-key' >> "$log_root/source-fixture.log" 2>&1
 fi
 run php /tools/tools/upgrade/extract-rehearsal-target.php
+# Converted cases retain historical acceptance files. Retire only completed
+# harness synchronization markers before starting this independent fault test;
+# stale ready/release markers must never masquerade as a newly held SQL lock.
+run rm -f /rehearsal/fault-lock-ready /rehearsal/release-fault-lock /rehearsal/native-journal-only-observed /rehearsal/activation-fault-observed
 verify_converted_functionality() {
     if [ "$converted" = 1 ]; then
         run bash -euc 'set -a; source /rehearsal/runtime.env; export EMAILER_RUNTIME_DIR=/rehearsal/native-post-acceptance-runtime; set +a; php /tools/tools/upgrade/verify-old-links.php; php /rehearsal/source-releases/1.2.0/bin/console emailer:delivery:resume; php /tools/tools/upgrade/verify-preserved-smtp.php; php /rehearsal/source-releases/1.2.0/bin/console emailer:delivery:quiesce' >> "$log_root/preservation.log" 2>&1

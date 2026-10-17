@@ -22,4 +22,12 @@ log="$(mktemp "$output/converted-source-XXXXXX.log")"
 EMAILER_REHEARSAL_LIGHT_VERSION=1.1.0 bash "$historical/tools/upgrade/run-light-rehearsal.sh" "$source" "$key" "$light" "$light_key" "$output" 171d6aa658e3aca77c60fb9c7803303d8f4788cd >"$log" 2>&1
 case_root="$(sed -n 's/^Packaged synthetic Light transition completed: //p' "$log")"
 test -n "$case_root"
+# The historical acceptance script ends by restoring its earlier native backup,
+# which predates Owner MFA enrollment. Enroll normally through that historical
+# application's authenticated UI before capturing this update's MFA baseline.
+# No password, source account or existing MFA material is reset.
+docker run --rm --user root --network "${EMAILER_REHEARSAL_NETWORK:?}" \
+    -v "$historical:/tools:ro" -v "$case_root:/rehearsal" -v "$key:/package/ripe.pub:ro" \
+    -e EMAILER_ISOLATED_REHEARSAL=1 "${EMAILER_REHEARSAL_APP_IMAGE:-emailer-next-app:latest}" \
+    bash -euc 'set -a; source /rehearsal/runtime.env; export EMAILER_RUNTIME_DIR=/rehearsal/converted-native-source-owner-runtime; set +a; php /tools/tools/upgrade/verify-owner-login.php' >>"$log" 2>&1
 EMAILER_REHEARSAL_NATIVE_SOURCE=1.1.0 EMAILER_REHEARSAL_NATIVE_CONVERTED_ROOT="$case_root" bash "$project_root/tools/upgrade/run-native-update-rehearsal.sh" "$archive" "$key" "$source" "$output" "$commit"
