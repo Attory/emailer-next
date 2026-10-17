@@ -43,24 +43,24 @@ final class PrivateRecoveryBoundaryTest extends TestCase
                 try {
                     EditionRecoverySet::safePrivate($path, false, $root);
                     self::fail('Asset permission allowance escaped its own tree.');
-                } catch (\RuntimeException) {
-                    self::assertTrue(true);
+                } catch (\RuntimeException $exception) {
+                    self::assertMatchesRegularExpression('/unsafe|escapes its protected root/', $exception->getMessage());
                 }
             }
             link($root.'/template-assets/image', $root.'/template-assets/linked-image');
             try {
                 EditionRecoverySet::safePrivate($root.'/template-assets/image', false, $root);
                 self::fail('Hardlinked asset was accepted.');
-            } catch (\RuntimeException) {
-                self::assertTrue(true);
+            } catch (\RuntimeException $exception) {
+                self::assertMatchesRegularExpression('/unsafe|escapes its protected root/', $exception->getMessage());
             }
             unlink($root.'/template-assets/linked-image');
             symlink($root.'/outside/private-state', $root.'/template-assets/outside-image');
             try {
                 EditionRecoverySet::safePrivate($root.'/template-assets/outside-image', false, $root);
                 self::fail('Linked asset was accepted.');
-            } catch (\RuntimeException) {
-                self::assertTrue(true);
+            } catch (\RuntimeException $exception) {
+                self::assertMatchesRegularExpression('/unsafe|escapes its protected root/', $exception->getMessage());
             }
             unlink($root.'/template-assets/outside-image');
             chmod($root, 0o755);
