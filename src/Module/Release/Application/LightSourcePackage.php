@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Release\Application;
 
-/** Authenticate only the two explicitly supported Light releases under Light's original identity. */
+/** Authenticate only the explicitly supported Light releases under Light's original identity. */
 final class LightSourcePackage
 {
     private const ORIGINAL_HASH = 'cfd9afb133c3bbfe7da6053aa2d121d325200c46f4db51e784699356d28d0e77';
@@ -16,8 +16,8 @@ final class LightSourcePackage
         if (\is_string($hash) && hash_equals(self::ORIGINAL_HASH, $hash)) {
             return '1.0.0';
         }
-        if ('emailer-light-1.1.0.zip' !== basename($archive)) {
-            throw new \RuntimeException('Only published Light 1.0.0 and signed Light 1.1.0 are supported.');
+        if (1 !== preg_match('/^emailer-light-(1\.[12]\.0)\.zip$/D', basename($archive), $match)) {
+            throw new \RuntimeException('Only original published Light 1.0.0 and signed Light 1.1.0/1.2.0 are supported.');
         }
         $manifestBytes = self::read($archive.'.manifest.json', 1048576);
         $checksum = self::read($archive.'.sha256', 256);
@@ -30,13 +30,13 @@ final class LightSourcePackage
             throw new \RuntimeException('Light source package authentication failed.');
         }
         $manifest = json_decode($manifestBytes, true, 32, JSON_THROW_ON_ERROR);
-        if (!\is_array($manifest) || 'emailer-light-release-v1' !== ($manifest['format'] ?? null) || '1.1.0' !== ($manifest['version'] ?? null)
+        if (!\is_array($manifest) || 'emailer-light-release-v1' !== ($manifest['format'] ?? null) || $match[1] !== ($manifest['version'] ?? null)
             || '20261014000000' !== ($manifest['schema_version'] ?? null) || !\is_string($manifest['source_commit'] ?? null)
             || 1 !== preg_match('/^[a-f0-9]{40}$/', $manifest['source_commit'])) {
             throw new \RuntimeException('Light source release identity is unsupported.');
         }
 
-        return '1.1.0';
+        return $match[1];
     }
 
     private static function read(string $path, int $limit): string

@@ -5,7 +5,7 @@ declare(strict_types=1);
 if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL')) {
     throw new RuntimeException('Old-link verification is isolated-only.');
 }
-require '/rehearsal/source-releases/ripe-1.1.0/vendor/autoload.php';
+require '/rehearsal/source-releases/ripe-1.2.0/vendor/autoload.php';
 // Load only browser test helpers from the approved image. Application classes
 // and all production services remain from the actual staged signed package.
 $browserLoader = new Composer\Autoload\ClassLoader();

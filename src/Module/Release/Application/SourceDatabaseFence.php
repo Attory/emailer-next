@@ -31,7 +31,7 @@ final readonly class SourceDatabaseFence
             if ($account === $this->connection->fetchOne('SELECT CURRENT_USER()')) {
                 throw new \RuntimeException('Execution requires a separate privileged maintenance database identity; do not lock the application identity in use by the installer.');
             }
-            if ($application->fetchAssociative('SELECT @@hostname host, @@port port, @@server_id server_id') !== $this->connection->fetchAssociative('SELECT @@hostname host, @@port port, @@server_id server_id')) {
+            if ($application->fetchAssociative('SELECT @@hostname host, @@port port, @@server_id server_id, @@socket socket, @@datadir datadir') !== $this->connection->fetchAssociative('SELECT @@hostname host, @@port port, @@server_id server_id, @@socket socket, @@datadir datadir')) {
                 throw new \RuntimeException('Application and maintenance identities refer to different database servers.');
             }
         } finally {

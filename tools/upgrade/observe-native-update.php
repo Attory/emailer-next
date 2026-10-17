@@ -5,6 +5,10 @@ declare(strict_types=1);
 if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL') || 2 !== $argc || !in_array($argv[1], ['before', 'after', 'restored'], true)) {
     throw new RuntimeException('Explicit isolated native observation phase is required.');
 }
+$sourceVersion = getenv('EMAILER_REHEARSAL_NATIVE_SOURCE') ?: '1.0.6';
+if (!in_array($sourceVersion, ['1.0.6', '1.1.0'], true)) {
+    throw new RuntimeException('Unsupported isolated native source.');
+}
 require '/tools/vendor/autoload.php';
 $p = (new Doctrine\DBAL\Tools\DsnParser(['mysql' => 'pdo_mysql']))->parse((string) getenv('DATABASE_URL'));
 if ('database' !== ($p['host'] ?? null) || !str_starts_with($p['dbname'] ?? '', 'ripe106_')) {
@@ -64,7 +68,7 @@ if ('restored' === $argv[1]) {
             throw new RuntimeException('Native recovery schema changed in '.$table.'.');
         }
     }
-    if ('/rehearsal/source-releases/1.0.6' !== realpath('/rehearsal/source-releases/current') || 0 !== (int) $c->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key='1'") || $e['messages'] !== $mail['total'] || !hash_equals($e['master_key_sha256'], (string) hash_file('sha256', '/rehearsal/keys/master.key'))) {
+    if ('/rehearsal/source-releases/'.$sourceVersion !== realpath('/rehearsal/source-releases/current') || 0 !== (int) $c->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key='1'") || $e['messages'] !== $mail['total'] || !hash_equals($e['master_key_sha256'], (string) hash_file('sha256', '/rehearsal/keys/master.key'))) {
         throw new RuntimeException('Native recovery pointer, delivery hold, key or zero-send proof failed.');
     }
     echo json_encode(['native_post_activation_recovery' => true, 'exact_source_schema_restored' => true, 'original_native_rows_verified' => $verified, 'original_key_and_pointer_restored' => true, 'delivery_quiesced' => true, 'new_emitted_messages' => 0], JSON_THROW_ON_ERROR)."\n";
@@ -78,4 +82,4 @@ foreach (['campaign_audience_recipient', 'campaign_recipient', 'recipient_token'
 if (16 !== (int) $c->fetchOne('SELECT COUNT(*) FROM doctrine_migration_versions') || false !== $c->fetchOne("SELECT 1 FROM campaign WHERE audience_model <> 'list'") || $e['messages'] !== $mail['total'] || !hash_equals($e['master_key_sha256'], (string) hash_file('sha256', '/rehearsal/keys/master.key'))) {
     throw new RuntimeException('Native target schema, list workflow, zero-send or key preservation failed.');
 }
-echo json_encode(['actual_native_106_to_110_update' => true, 'verified_original_native_rows' => $verified, 'list_contact_provenance_retained' => true, 'accepted_and_retry_history_unchanged' => true, 'native_crypto_and_mfa_unchanged' => true, 'suppression_case_aliases_preserved' => true, 'new_emitted_messages' => 0], JSON_THROW_ON_ERROR)."\n";
+echo json_encode(['actual_native_update' => true, 'source_version' => $sourceVersion, 'target_version' => '1.2.0', 'verified_original_native_rows' => $verified, 'list_contact_provenance_retained' => true, 'accepted_and_retry_history_unchanged' => true, 'native_crypto_and_mfa_unchanged' => true, 'suppression_case_aliases_preserved' => true, 'new_emitted_messages' => 0], JSON_THROW_ON_ERROR)."\n";
