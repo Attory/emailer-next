@@ -16,8 +16,8 @@ final class LightSourcePackage
         if (\is_string($hash) && hash_equals(self::ORIGINAL_HASH, $hash)) {
             return '1.0.0';
         }
-        if (1 !== preg_match('/^emailer-light-(1\.[12]\.0)\.zip$/D', basename($archive), $match)) {
-            throw new \RuntimeException('Only original published Light 1.0.0 and signed Light 1.1.0/1.2.0 are supported.');
+        if (1 !== preg_match('/^emailer-light-(1\.(?:1\.0|2\.[01]))\.zip$/D', basename($archive), $match)) {
+            throw new \RuntimeException('Only original published Light 1.0.0 and signed Light 1.1.0/1.2.0/1.2.1 are supported.');
         }
         $manifestBytes = self::read($archive.'.manifest.json', 1048576);
         $checksum = self::read($archive.'.sha256', 256);

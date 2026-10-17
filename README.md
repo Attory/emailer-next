@@ -1,7 +1,7 @@
 # Emailer Ripe
 
-Emailer Ripe 1.2.0 includes guided Ubuntu 22.04/24.04 Apache and Debian 13 Nginx VPS installers,
-ordinary Ripe 1.0.6/1.1.0 updates, and Light 1.0.0/1.1.0/1.2.0 upgrades with verified recovery and
+Emailer Ripe 1.2.1 includes guided Ubuntu 22.04/24.04 Apache and Debian 13 Nginx VPS installers,
+ordinary Ripe 1.0.6/1.1.0 updates, and Light 1.0.0/1.1.0/1.2.1 upgrades with verified recovery and
 explicit acceptance/resume. SMTP is optional during fresh setup.
 
 - [Beginner installation](docs/guides/emailer-ripe-install.md)
@@ -10,8 +10,8 @@ explicit acceptance/resume. SMTP is optional during fresh setup.
 - [Operator and troubleshooting reference](docs/guides/emailer-ripe-operator.md)
 - [HTML/PDF downloads](docs/guides/README.md)
 
-Download the private official `emailer-ripe-1.2.0-setup.run` through an authorized
-channel, upload that one file to the server, then start `sudo sh emailer-ripe-1.2.0-setup.run`.
+Download the private official `emailer-ripe-1.2.1-setup.run` through an authorized
+channel, upload that one file to the server, then start `sudo sh emailer-ripe-1.2.1-setup.run`.
 The guide explains DNS and host permission. The installer supplies runtime,
 verification, database, secrets, isolated services, HTTPS, backups and launcher.
 Customers do not need Docker, Composer, Mailpit or manual service definitions.

@@ -39,11 +39,11 @@ try {
     if (!is_string($options['predecessors'] ?? null)) {
         throw new RuntimeException('The self-contained installer requires its authenticated predecessor package set.');
     }
-    $priorArchives = ['emailer-next-1.0.6.zip', 'emailer-next-1.1.0.zip', 'emailer-light-1.0.0.zip', 'emailer-light-1.1.0.zip', 'emailer-light-1.2.0.zip'];
+    $priorArchives = ['emailer-next-1.0.6.zip', 'emailer-next-1.1.0.zip', 'emailer-light-1.0.0.zip', 'emailer-light-1.1.0.zip', 'emailer-light-1.2.0.zip', 'emailer-light-1.2.1.zip'];
     (new App\Module\Release\Application\PackageInspector($options['public-key'], '1.0.6'))->inspectInstalledSource($options['predecessors'].'/emailer-next-1.0.6.zip');
     require_once $root.'/src/Module/Release/Application/LightSourcePackage.php';
     (new App\Module\Release\Application\PackageInspector($options['public-key'], '1.1.0'))->inspectInstalledSource($options['predecessors'].'/emailer-next-1.1.0.zip');
-    foreach (['1.0.0', '1.1.0', '1.2.0'] as $lightVersion) {
+    foreach (['1.0.0', '1.1.0', '1.2.0', '1.2.1'] as $lightVersion) {
         if ($lightVersion !== App\Module\Release\Application\LightSourcePackage::authenticate($options['predecessors'].'/emailer-light-'.$lightVersion.'.zip')) {
             throw new RuntimeException('The Light predecessor identity is incompatible.');
         }
@@ -62,7 +62,7 @@ try {
             $contents[$prior.$suffix] = $bytes;
         }
     }
-    foreach (['provision.py', 'command.py', 'manage.py', 'runtime_env.py', 'hosting.py', 'packages.py', 'isolated_database.py', 'ubuntu-php.asc', 'apt-guard.py', 'edition.py', 'host.py', 'host-database.php'] as $file) {
+    foreach (['provision.py', 'resources.py', 'command.py', 'manage.py', 'runtime_env.py', 'hosting.py', 'packages.py', 'isolated_database.py', 'ubuntu-php.asc', 'apt-guard.py', 'edition.py', 'host.py', 'host-database.php'] as $file) {
         $contents[$file] = (string) file_get_contents(__DIR__.'/'.$file);
     }
     $contents['verify-package.php'] = (string) file_get_contents($root.'/tools/release/verify-package.php');

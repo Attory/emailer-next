@@ -43,7 +43,7 @@ docker run --rm --user root --network none -v "$project_root:/tools:ro" -v "$sta
     mkdir -m0700 /rehearsals/test-keys
     mkdir -m0755 /rehearsals/target-package
     php /tools/tools/release/generate-test-keypair.php /rehearsals/test-keys/signing.key /rehearsals/target-package/ripe.pub
-    php /tools/tools/release/build-package.php --artifact=/tools/build/artifact --output=/rehearsals/target-package --version=1.2.0 --source="$1" --minimum-source=1.0.6 --supported-sources=1.0.6,1.1.0 --minimum-schema=20261015000000 --schema=20261015000000 --rollback-schema-compatible=true --signing-key=/rehearsals/test-keys/signing.key --source-date-epoch="$2" >/dev/null
+    php /tools/tools/release/build-package.php --artifact=/tools/build/artifact --output=/rehearsals/target-package --version=1.2.1 --source="$1" --minimum-source=1.0.6 --supported-sources=1.0.6,1.1.0 --minimum-schema=20261015000000 --schema=20261015000000 --rollback-schema-compatible=true --signing-key=/rehearsals/test-keys/signing.key --source-date-epoch="$2" >/dev/null
 ' bash "$source_commit" "$source_epoch"
 for version in 105 106 110; do
     case "$version" in
@@ -86,7 +86,7 @@ for phase in journal preparing migrating; do
 done
 # Current schema-preserving update: real process interruption before checkpoint,
 # plus post-activation failure. There is no intermediate1.1 ALTER to fabricate.
-target="$state_root/target-package/emailer-next-1.2.0.zip"
+target="$state_root/target-package/emailer-next-1.2.1.zip"
 key="$state_root/target-package/ripe.pub"
 bash tools/upgrade/run-fresh-ripe-rehearsal.sh "$target" "$key" "$state_root" "$source_commit"
 bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$legacy_target" "$state_root" "$source_commit"
@@ -104,7 +104,7 @@ done
 # Light's production pin is never substituted to accommodate a CI signer.
 # Publish the fully accepted Light release before enabling the corresponding
 # private Ripe release: public release sidecars are authenticated by current code.
-for light_version in 1.1.0 1.2.0; do
+for light_version in 1.1.0 1.2.0 1.2.1; do
     for suffix in '' .manifest.json .sha256 .spdx.json .sig; do
         curl --fail --silent --show-error --location "https://github.com/Attory/emailer-light/releases/download/v$light_version/emailer-light-$light_version.zip$suffix" --output "$state_root/published-light/emailer-light-$light_version.zip$suffix"
     done
@@ -116,7 +116,7 @@ for mode in success fault journal preparing; do
         *) EMAILER_REHEARSAL_NATIVE_INTERRUPT="$mode" bash tools/upgrade/run-converted-native-rehearsal.sh "$target" "$key" "$state_root/native110-package/emailer-next-1.1.0.zip" "$state_root/published-light/emailer-light-1.1.0.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit" "$state_root/source110" ;;
     esac
 done
-for light_version in 1.0.0 1.1.0 1.2.0; do
+for light_version in 1.0.0 1.1.0 1.2.0 1.2.1; do
     EMAILER_REHEARSAL_LIGHT_VERSION="$light_version" bash tools/upgrade/run-light-rehearsal.sh "$target" "$key" "$state_root/published-light/emailer-light-$light_version.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit"
     EMAILER_REHEARSAL_LIGHT_VERSION="$light_version" EMAILER_REHEARSAL_MINIMAL=1 bash tools/upgrade/run-light-rehearsal.sh "$target" "$key" "$state_root/published-light/emailer-light-$light_version.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit"
 done
