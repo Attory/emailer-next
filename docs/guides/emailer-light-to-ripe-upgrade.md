@@ -15,7 +15,7 @@ Upgrade with the private Ripe 1.2.1 setup file. Your Light administrator becomes
 | Light updated through a supported path to 1.1.0, 1.2.0 or 1.2.1 | Ripe 1.2.1, same guided edition upgrade. |
 | Ripe 1.0.6 or 1.1.0 | Ripe 1.2.1, normal Update menu instead. |
 
-Use the new Ripe 1.2.1 installer for all four Light sources. Earlier Ripe 1.0.6 does not recognize Light 1.1.0/1.2.0/1.2.1, and Ripe 1.1.0 does not add Light 1.2.1 support. Original Light 1.0.0 remains supported. There is no general Ripe-to-Light downgrade.
+Use the new Ripe 1.2.1 installer for all four Light sources. Earlier Ripe 1.0.6 does not recognize Light 1.1.0/1.2.0/1.2.1, and Ripe 1.1.0 does not add Light 1.2.0/1.2.1 support. Original Light 1.0.0 remains supported. There is no general Ripe-to-Light downgrade.
 
 Use Ubuntu 22.04/24.04 amd64/systemd with Apache, or Debian 13 with Nginx, PHP 8.4 and supported MariaDB 10.11/11.8. Ubuntu 22.04 fresh installations use an isolated MariaDB 10.11.19 beside any existing host database. The installer discovers protected standard settings under /etc/emailer-light or /etc/emailer, a dedicated application database account, private/key storage and an existing trusted HTTPS hostname without a custom port/subfolder. A dedicated Emailer virtual-host file must not also serve unrelated routes or applications. Unknown customized targets stop before handoff; keep their existing configuration.
 

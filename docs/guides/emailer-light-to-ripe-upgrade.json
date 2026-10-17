@@ -45,7 +45,7 @@
     },
     {
       "type": "p",
-      "text": "Use the new Ripe 1.2.1 installer for all four Light sources. Earlier Ripe 1.0.6 does not recognize Light 1.1.0/1.2.0/1.2.1, and Ripe 1.1.0 does not add Light 1.2.1 support. Original Light 1.0.0 remains supported. There is no general Ripe-to-Light downgrade."
+      "text": "Use the new Ripe 1.2.1 installer for all four Light sources. Earlier Ripe 1.0.6 does not recognize Light 1.1.0/1.2.0/1.2.1, and Ripe 1.1.0 does not add Light 1.2.0/1.2.1 support. Original Light 1.0.0 remains supported. There is no general Ripe-to-Light downgrade."
     },
     {
       "type": "p",
