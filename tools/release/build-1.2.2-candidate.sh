@@ -36,7 +36,7 @@ php "$project_root/tools/release/verify-package.php" --archive="$work/first/$arc
 bundle_options=()
 if [ "${EMAILER_INSTALLER_TEST_ONLY:-0}" = 1 ]; then bundle_options+=(--test-only); fi
 for target in "$work/first" "$work/second"; do
-    php "$project_root/installer/build-bundle.php" --candidate="$target" --source="$source_commit" --version=1.2.2 \
+    php -d memory_limit=256M "$project_root/installer/build-bundle.php" --candidate="$target" --source="$source_commit" --version=1.2.2 \
         --public-key="$public_key" --signing-key="$signing_key" --predecessors="$predecessors" \
         --output="$target/emailer-ripe-1.2.2-setup.run" "${bundle_options[@]}"
 done
