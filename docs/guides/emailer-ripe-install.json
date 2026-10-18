@@ -224,11 +224,7 @@
     },
     {
       "type": "p",
-      "text": "After successful installation, running the file again opens an installation management menu. <b>Check the installation</b> is safe to repeat; an already-installed update leaves settings and delivery state unchanged. For other errors, use the <a href=\"emailer-ripe-operator.html\">operator and troubleshooting reference</a>. Do not delete installer state or database files to retry."
-    },
-    {
-      "type": "p",
-      "text": "Next: <a href=\"emailer-ripe-manual.html\">Ripe user manual</a>."
+      "text": "Run setup again for installation management. <b>Check the installation</b> is safe to repeat; an installed update preserves settings and delivery state. For other errors, read the <a href=\"emailer-ripe-operator.html\">operator and troubleshooting reference</a>. Keep installer state and database files when retrying. Next: <a href=\"emailer-ripe-manual.html\">Ripe user manual</a>."
     }
   ]
 }

@@ -96,6 +96,4 @@ For a fresh Ripe installation, backups are under `/var/lib/emailer/private/backu
 | Package authenticity or integrity verification failed | Delete only the failed download, obtain a fresh official setup file, and retry. Keep any existing application and recovery files. |
 | Setup interrupted | Run the same action again. It resumes the recorded setup; it does not create another administrator or reset an existing database. |
 
-After successful installation, running the file again opens an installation management menu. **Check the installation** is safe to repeat; an already-installed update leaves settings and delivery state unchanged. For other errors, use the [operator and troubleshooting reference](emailer-ripe-operator.md). Do not delete installer state or database files to retry.
-
-Next: [Ripe user manual](emailer-ripe-manual.md).
+Run setup again for installation management. **Check the installation** is safe to repeat; an installed update preserves settings and delivery state. For other errors, read the [operator and troubleshooting reference](emailer-ripe-operator.md). Keep installer state and database files when retrying. Next: [Ripe user manual](emailer-ripe-manual.md).
