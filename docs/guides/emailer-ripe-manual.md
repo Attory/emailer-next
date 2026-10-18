@@ -1,10 +1,10 @@
 # Emailer Ripe user manual
 
-Version 1.2.1 | Accounts, setup and everyday newsletters
+Version 1.2.2 | Accounts, setup and everyday newsletters
 
 Prepare, test, approve, then send. Saving a draft sends nothing. A campaign is one newsletter, a template is reusable content, and a list is a group of contacts.
 
-The 1.2.1 setup file supports Ubuntu 22.04/24.04 with Apache and Debian 13 with Nginx. It creates a dedicated PHP runtime, application services, backups and a command launcher. Ubuntu 22.04 gets an isolated supported database beside existing sites. Administrator email is the default login name on fresh setup; existing accounts keep their identifier and password. You can sign in, prepare templates and campaigns, and configure SMTP later. See the beginner installation guide for the tested hosting profile and one-file setup action.
+The 1.2.2 setup file supports Ubuntu 22.04/24.04 with Apache and Debian 13 with Nginx. It creates a dedicated PHP runtime, application services, backups and a command launcher. Ubuntu 22.04 gets an isolated supported database beside existing sites. Administrator email is the default login name on fresh setup; existing accounts keep their identifier and password. You can sign in, prepare templates and campaigns, and configure SMTP later. See the beginner installation guide for the tested hosting profile and one-file setup action.
 
 ## Your installed account
 
@@ -82,4 +82,4 @@ Doctor shows each sending blocker and repair action. Native updates and edition 
 
 Fresh setup enables daily encrypted local backup copies. Under Backups inspect verification and transfer evidence, adjust policy or create and verify an on-demand backup. Keep the recovery-key package and its password separately. Same-server copies do not protect against server loss; arrange an independent backup destination. Restore drills are supervised, never automatic.
 
-For Ripe 1.0.6 or 1.1.0 to 1.2.1, start the new official setup file, choose Update with a verified backup and follow any Finish instruction. This includes Ripe 1.1.0 installations previously converted from Light. Existing MFA, password, recipients, tracking, SMTP encryption contexts and recovery history are retained. Review Doctor before Resume. Earlier Ripe versions must follow their published supported path to 1.0.6 first. Interrupted operations use Recover; committed operations use Finish and cannot be downgraded by recovery. See the [operator reference](emailer-ripe-operator.md).
+For Ripe 1.0.6, 1.1.0 or 1.2.1 to 1.2.2, start the new official setup file, choose Update with a verified backup and follow any Finish instruction. This includes Ripe 1.1.0 installations previously converted from Light. Existing MFA, password, recipients, tracking, SMTP encryption contexts and recovery history are retained. Review Doctor before Resume. Earlier Ripe versions must follow their published supported path to 1.0.6 first. Interrupted operations use Recover; committed operations use Finish and cannot be downgraded by recovery. See the [operator reference](emailer-ripe-operator.md).
