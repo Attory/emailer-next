@@ -461,6 +461,9 @@ class HostHandoff:
         self.state['phase'] = 'services-prepared'
         m.save()
         self.live(['emailer:health:verify-runtime', '--offline-maintenance'])
+        self.probe_https()
+
+    def probe_https(self):
         bindings = self.state.get('apache_bindings')
         addresses = [value.rsplit(':', 1)[0].strip('[]') for value in bindings['443'] if not value.startswith('*:')] if bindings else []
         for address in addresses or ['127.0.0.1']:
@@ -469,7 +472,7 @@ class HostHandoff:
             loopback = '::1' if ':' in address else '127.0.0.1'
             destination = '[' + address + ']' if ':' in address else address
             for path in ('/health/live', '/login'):
-                m.call(['curl', '--fail', '--silent', '--show-error', '--interface', loopback, '--resolve', self.state['hostname'] + ':443:' + destination, 'https://' + self.state['hostname'] + path])
+                self.m.call(['curl', '-q', '--fail', '--silent', '--show-error', '--noproxy', '*', '--connect-timeout', '5', '--max-time', '30', '--interface', loopback, '--resolve', self.state['hostname'] + ':443:' + destination, 'https://' + self.state['hostname'] + path])
 
     def live(self, arguments):
         return self.m.call(['/usr/local/sbin/' + self.name, *arguments])

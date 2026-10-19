@@ -4,7 +4,7 @@ Version 1.2.3 | Beginner guide | Ubuntu Apache or Debian Nginx VPS
 
 Install a usable Emailer Ripe website with one guided server setup. You need your administrator email, a new password, and the address you want people to use. Email delivery can wait.
 
-Ubuntu Apache can coexist with Nginx on a separate port (tested: 8081). Setup manages only Apache and the Emailer instance. Every existing listener on ports 80 and 443 must belong to apache2.service; a different service on either port or an overlapping Emailer hostname stops setup with existing services preserved. Ripe additionally supports literal IPv4/IPv6 Apache virtual hosts on explicit ports 80 and 443. Fresh setup joins the existing address groups automatically. Updates and Light upgrades retain the existing Emailer site’s address bindings. Wildcard-port virtual hosts (IP:*) and scoped addresses are unsupported; setup stops before changing websites.
+Ubuntu Apache can coexist with Nginx on a separate port (tested: 8081). Setup manages only Apache and the Emailer instance. Every existing listener on ports 80 and 443 must belong to apache2.service; a different service on either port or an overlapping Emailer hostname stops setup with existing services preserved. Ripe additionally supports literal IPv4/IPv6 Apache virtual hosts on explicit ports 80 and 443. Fresh setup joins the existing address groups automatically. Updates and Light upgrades retain the existing Emailer site’s address bindings. Its dedicated file must group addresses into at most one VirtualHost block per port; custom routing or separate blocks on the same port require operator preparation. Wildcard-port virtual hosts (IP:*) and scoped addresses are unsupported; setup stops before changing websites.
 
 ## Who can use this guide?
 

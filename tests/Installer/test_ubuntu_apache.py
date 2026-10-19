@@ -125,6 +125,25 @@ SSLCertificateKeyFile /etc/letsencrypt/live/mailer/privkey.pem
                 with self.assertRaises(SetupError):web.source_site(releases,host)
                 self.assertEqual(altered,site.read_text())
 
+    def test_exact_ip_health_probes_bypass_proxies_and_keep_tls_verification(self):
+        calls=[]
+        manager=types.SimpleNamespace(prefix='emailer',installer=types.SimpleNamespace(product='emailer-ripe',version='1.2.3'),record={},error=ManagementError,releases=Path('/srv/emailer/releases'),call=lambda args:calls.append(args))
+        handoff=HostHandoff(manager)
+        handoff.state.update(hostname='mailer.example.test',apache_bindings={'80':['192.0.2.2:80'],'443':['192.0.2.2:443','[2001:db8::2]:443']})
+        with patch.dict(os.environ,{'HTTPS_PROXY':'http://proxy.invalid:8888','ALL_PROXY':'http://proxy.invalid:8888','NO_PROXY':''}):
+            handoff.probe_https()
+        self.assertEqual(4,len(calls))
+        for args in calls:
+            self.assertEqual(['curl','-q'],args[:2])
+            self.assertEqual('*',args[args.index('--noproxy')+1])
+            self.assertIn('--connect-timeout',args)
+            self.assertIn('--max-time',args)
+            self.assertNotIn('--insecure',args)
+            self.assertNotIn('-k',args)
+            ipv6='[2001:db8::2]' in args[args.index('--resolve')+1]
+            self.assertEqual('::1' if ipv6 else '127.0.0.1',args[args.index('--interface')+1])
+            self.assertTrue(args[-1].startswith('https://mailer.example.test/'))
+
     def test_target_handoff_is_versioned_and_uses_apache_without_nginx(self):
         manager=types.SimpleNamespace(prefix='emailer-light',installer=types.SimpleNamespace(product='emailer-light',version='1.2.0'),record={},error=ManagementError,releases=Path('/srv/emailer-light/releases'))
         handoff=HostHandoff(manager)
