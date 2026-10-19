@@ -15,6 +15,7 @@ use Doctrine\DBAL\Connection;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Lock\LockFactory;
 use Symfony\Component\Lock\Store\FlockStore;
+use Symfony\Component\Process\Process;
 
 /** Real encrypted archives/filesystem; DB is stubbed because these contributors own no tables. */
 final class PrivateBackupAssetsTest extends TestCase
@@ -59,12 +60,109 @@ final class PrivateBackupAssetsTest extends TestCase
         $this->assertMode($private.'/administrators', 0o700);
         $this->assertMode($private.'/state.json', 0o600);
         $this->assertMode($private.'/administrators/synthetic.json', 0o600);
+        self::assertSame(fileowner($this->directory), fileowner($private));
+        self::assertSame(filegroup($this->directory), filegroup($private));
+        self::assertSame(fileowner($this->directory), fileowner($private.'/state.json'));
+        self::assertSame(filegroup($this->directory), filegroup($private.'/state.json'));
         $this->assertMode($templates.'/synthetic.png', 0o644);
         // No recovery exception or broad permission relaxation is needed.
         EditionRecoverySet::safePrivate($private.'/state.json', false, $this->directory);
         EditionRecoverySet::safePrivate($private.'/administrators', true, $this->directory);
         $next = $engine->create();
         self::assertSame(['appearance', 'template-assets'], $this->logicalRoots($engine->verify($next['path'])));
+    }
+
+    public function testRootRestorePreservesApplicationOwnershipAndAnAbsentRootsParentOwnership(): void
+    {
+        $this->requireRoot();
+        chmod($this->directory, 0o755);
+        foreach ([true, false] as $existing) {
+            $parent = $this->directory.($existing ? '/existing-private' : '/new-private');
+            self::assertTrue(mkdir($parent, 0o700));
+            self::assertTrue(chown($parent, 1000));
+            self::assertTrue(chgrp($parent, 1000));
+            $root = $parent.'/appearance';
+            if ($existing) {
+                self::assertTrue(mkdir($root, 0o700));
+                self::assertTrue(chown($root, 1000));
+                self::assertTrue(chgrp($root, 1000));
+                $this->put($root.'/state.json', 'old application state', 0o600);
+                self::assertTrue(chown($root.'/state.json', 1000));
+                self::assertTrue(chgrp($root.'/state.json', 1000));
+            }
+            $archive = new \ZipArchive();
+            $path = $this->directory.'/ownership-'.($existing ? 'existing' : 'new').'.zip';
+            self::assertTrue($archive->open($path, \ZipArchive::CREATE));
+            self::assertTrue($archive->addFromString('assets/appearance/state.json', 'restored application state'));
+            self::assertTrue($archive->addFromString('assets/appearance/administrators/synthetic.json', 'restored preference'));
+            self::assertTrue($archive->close());
+            self::assertTrue($archive->open($path));
+            (new \ReflectionMethod(BackupEngine::class, 'restoreAssets'))->invoke($this->engine([$this->privateContributor(['appearance' => $root])]), $archive);
+            self::assertTrue($archive->close());
+            foreach ([$root, $root.'/administrators', $root.'/state.json', $root.'/administrators/synthetic.json'] as $item) {
+                clearstatcache(true, $item);
+                self::assertSame(1000, fileowner($item));
+                self::assertSame(1000, filegroup($item));
+                $this->assertMode($item, is_dir($item) ? 0o700 : 0o600);
+            }
+            $probe = new Process([PHP_BINARY, '-r', 'if (!posix_setgid(1000) || !posix_setuid(1000)) {exit(11);} $root=$argv[1]; if (file_get_contents($root."/state.json")!=="restored application state" || file_get_contents($root."/administrators/synthetic.json")!=="restored preference" || file_put_contents($root."/after-restore.json","saved by application")===false) {exit(12);}', $root]);
+            $probe->mustRun();
+            self::assertSame('saved by application', file_get_contents($root.'/after-restore.json'));
+            $this->assertMode($root.'/state.json', 0o600);
+        }
+    }
+
+    public function testUnprivilegedRestoreCannotPublishWhenItCannotPreserveApplicationGroup(): void
+    {
+        $this->requireRoot();
+        chmod($this->directory, 0o755);
+        $parent = $this->directory.'/application-private';
+        self::assertTrue(mkdir($parent, 0o700));
+        self::assertTrue(chown($parent, 1000));
+        self::assertTrue(chgrp($parent, 1000));
+        $root = $parent.'/appearance';
+        self::assertTrue(mkdir($root, 0o700));
+        self::assertTrue(chown($root, 1000));
+        self::assertTrue(chgrp($root, 1001));
+        $this->put($root.'/state.json', 'original state', 0o600);
+        self::assertTrue(chown($root.'/state.json', 1000));
+        self::assertTrue(chgrp($root.'/state.json', 1001));
+        $before = lstat($root);
+        self::assertNotFalse($before);
+        $path = $this->directory.'/group-refusal.zip';
+        $zip = new \ZipArchive();
+        self::assertTrue($zip->open($path, \ZipArchive::CREATE));
+        self::assertTrue($zip->addFromString('assets/appearance/state.json', 'must not publish'));
+        self::assertTrue($zip->close());
+        $script = <<<'SCRIPT'
+require $argv[1].'/vendor/autoload.php';
+if (!posix_setgid(1000) || !posix_setuid(1000)) {exit(11);}
+$contributor = new readonly class($argv[2]) implements \App\Module\Backup\Application\Contract\PrivateBackupAssets {
+    public function __construct(private string $root) {}
+    public function tables(): array {return [];}
+    public function assetRoots(): array {return ['appearance'=>$this->root];}
+    public function privateAssetRoots(): array {return ['appearance'];}
+};
+$engine = (new ReflectionClass(\App\Module\Backup\Application\BackupEngine::class))->newInstanceWithoutConstructor();
+(new ReflectionProperty(\App\Module\Backup\Application\BackupEngine::class,'contributors'))->setValue($engine, [$contributor]);
+$zip = new ZipArchive();
+$zip->open($argv[3]);
+try {
+    (new ReflectionMethod(\App\Module\Backup\Application\BackupEngine::class,'restoreAssets'))->invoke($engine, $zip);
+    exit(12);
+} catch (RuntimeException $exception) {
+    if ($exception->getMessage() !== 'Private backup ownership cannot be restored safely.') {exit(13);}
+}
+SCRIPT;
+        $probe = new Process([PHP_BINARY, '-r', $script, \dirname(__DIR__, 3), $root, $path]);
+        $probe->mustRun();
+        clearstatcache(true, $root);
+        self::assertSame($before['ino'], fileinode($root));
+        self::assertSame(1000, fileowner($root));
+        self::assertSame(1001, filegroup($root));
+        self::assertSame('original state', file_get_contents($root.'/state.json'));
+        self::assertSame([], glob($parent.'/.restore-*'));
+        self::assertSame([], glob($parent.'/.rollback-*'));
     }
 
     public function testHistoricalBackupWithoutAppearanceResetsToEmptyPrivateRoot(): void
@@ -203,6 +301,13 @@ final class PrivateBackupAssetsTest extends TestCase
         ] as $contributors) {
             $this->assertRejected(fn () => $this->engine($contributors)->create());
             self::assertFileDoesNotExist($private);
+        }
+    }
+
+    private function requireRoot(): void
+    {
+        if (!\function_exists('posix_geteuid') || 0 !== posix_geteuid()) {
+            self::markTestSkipped('Root-only ownership regression runs separately from the ordinary non-root backup suite.');
         }
     }
 

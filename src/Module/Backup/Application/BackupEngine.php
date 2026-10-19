@@ -854,6 +854,7 @@ final readonly class BackupEngine implements BackupOperations
             $nonce = Identity::uuidV7();
             $staging = $parent.'/.restore-'.basename($root).'-'.$nonce;
             $rollback = $parent.'/.rollback-'.basename($root).'-'.$nonce;
+            $privateIdentity = $private ? $this->privateAssetIdentity($root) : null;
             $directoryMode = $private ? 0o700 : 0o755;
             $fileMode = $private ? 0o600 : 0o644;
             if (!mkdir($staging, $directoryMode)) {
@@ -891,11 +892,15 @@ final readonly class BackupEngine implements BackupOperations
                         fclose($output);
                     }
                 }
-                if ($private) {
+                if (null !== $privateIdentity) {
+                    $this->assignPrivateAssetOwnership($staging, $privateIdentity['uid'], $privateIdentity['gid']);
                     $this->syncPrivateAssetDirectories($staging);
                     // Recheck immediately before publication; never replace a
                     // linked or relaxed destination introduced during staging.
                     $this->assertPrivateAssetRoot($root);
+                    if ($privateIdentity !== $this->privateAssetIdentity($root)) {
+                        throw new \RuntimeException('Private backup destination identity changed during staging.');
+                    }
                 }
                 $hadRoot = is_dir($root);
                 if ($hadRoot && !rename($root, $rollback)) {
@@ -908,13 +913,13 @@ final readonly class BackupEngine implements BackupOperations
                     throw new \RuntimeException('Restored asset root cannot be published.');
                 }
                 if ($private) {
-                    $this->syncDirectory($parent);
+                    $this->syncPrivatePath($parent);
                 }
                 if ($hadRoot) {
                     $this->removeTree($rollback);
                 }
                 if ($private) {
-                    $this->syncDirectory($parent);
+                    $this->syncPrivatePath($parent);
                 }
             } finally {
                 $this->removeTree($staging);
@@ -1052,6 +1057,57 @@ final readonly class BackupEngine implements BackupOperations
         }
     }
 
+    /** @return array{exists: bool, dev: int, ino: int, uid: int, gid: int} */
+    private function privateAssetIdentity(string $root): array
+    {
+        clearstatcache(true, $root);
+        $stat = @lstat($root);
+        $exists = false !== $stat;
+        if (false === $stat) {
+            $parent = \dirname($root);
+            clearstatcache(true, $parent);
+            $stat = lstat($parent);
+        }
+        if (false === $stat || 0o040000 !== ($stat['mode'] & 0o170000)) {
+            throw new \RuntimeException('Private backup destination ownership is unavailable.');
+        }
+
+        return ['exists' => $exists, 'dev' => $stat['dev'], 'ino' => $stat['ino'], 'uid' => $stat['uid'], 'gid' => $stat['gid']];
+    }
+
+    private function assignPrivateAssetOwnership(string $root, int $uid, int $gid): void
+    {
+        // Keep the staging root inaccessible to the restored account until all
+        // descendants have their final ownership and durable metadata.
+        $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS), \RecursiveIteratorIterator::CHILD_FIRST);
+        foreach ($iterator as $entry) {
+            if (!$entry instanceof \SplFileInfo) {
+                throw new \RuntimeException('Private backup ownership iterator is invalid.');
+            }
+            $this->assignPrivateAssetOwner($entry->getPathname(), $entry->isDir(), $uid, $gid);
+        }
+        $this->assignPrivateAssetOwner($root, true, $uid, $gid);
+    }
+
+    private function assignPrivateAssetOwner(string $path, bool $directory, int $uid, int $gid): void
+    {
+        $this->assertPrivateAssetTree($path, $directory);
+        clearstatcache(true, $path);
+        $stat = lstat($path);
+        if (false === $stat || ($stat['uid'] !== $uid && !@chown($path, $uid)) || ($stat['gid'] !== $gid && !@chgrp($path, $gid))) {
+            throw new \RuntimeException('Private backup ownership cannot be restored safely.');
+        }
+        clearstatcache(true, $path);
+        $after = lstat($path);
+        if (false === $after || $after['dev'] !== $stat['dev'] || $after['ino'] !== $stat['ino'] || $after['uid'] !== $uid || $after['gid'] !== $gid) {
+            throw new \RuntimeException('Private backup ownership verification failed.');
+        }
+        $this->assertPrivateAssetTree($path, $directory);
+        if (!$directory) {
+            $this->syncPrivatePath($path);
+        }
+    }
+
     private function syncPrivateAssetDirectories(string $root): void
     {
         $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS), \RecursiveIteratorIterator::CHILD_FIRST);
@@ -1060,21 +1116,21 @@ final readonly class BackupEngine implements BackupOperations
                 throw new \RuntimeException('Private backup directory iterator is invalid.');
             }
             if ($entry->isDir()) {
-                $this->syncDirectory($entry->getPathname());
+                $this->syncPrivatePath($entry->getPathname());
             }
         }
-        $this->syncDirectory($root);
+        $this->syncPrivatePath($root);
     }
 
-    private function syncDirectory(string $path): void
+    private function syncPrivatePath(string $path): void
     {
         $stream = @fopen($path, 'r');
         if (false === $stream) {
-            throw new \RuntimeException('Private backup directory durability is unavailable.');
+            throw new \RuntimeException('Private backup storage durability is unavailable.');
         }
         try {
             if (!fsync($stream)) {
-                throw new \RuntimeException('Private backup directory cannot be synchronized.');
+                throw new \RuntimeException('Private backup storage cannot be synchronized.');
             }
         } finally {
             fclose($stream);
