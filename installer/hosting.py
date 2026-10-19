@@ -1,5 +1,6 @@
 """Bounded native web profiles; each generated site owns one hostname only."""
 from pathlib import Path
+import ipaddress
 import re
 import shlex
 import shutil
@@ -36,11 +37,66 @@ class WebServer:
 
     def check_layout(self, configuration):
         if self.kind == 'apache2':
-            # IP-specific vhosts take precedence over a generated *:80/*:443
-            # site even with a different ServerName. Do not silently shadow it.
-            for address, port in re.findall(r'(?m)^\s*(\S+):(80|443)\s+', configuration):
-                if address != '*':
-                    raise self.error(f'Apache has an address-specific website on {address}:{port}. It takes precedence over the new wildcard Emailer site. This automatic profile requires *:80 and *:443 virtual hosts; the existing site was preserved. Use a separate supported VPS or obtain a scoped Apache configuration review before retrying.')
+            self.bindings(configuration)
+
+    def bindings(self, configuration=None):
+        """Join every Apache address group, without changing Listen or defaults.
+
+        Apache selects an address group before considering ServerName. A new
+        wildcard-only vhost would be unreachable on existing exact-IP groups.
+        Keep wildcard fallback for unclaimed addresses and loopback health probes.
+        """
+        if self.kind != 'apache2':
+            return None
+        if configuration is None:
+            configuration = self.configuration() if shutil.which(self.kind) else ''
+        groups = {'80': {'*:80'}, '443': {'*:443'}}
+        for address, port in re.findall(r'(?m)^\s*(\S+):([0-9]+|\*)\s+', configuration):
+            if port in ('*', '0'):
+                raise self.error('Apache uses a wildcard-port virtual host. Ripe supports explicit ports 80 and 443; existing sites were preserved. Give that website explicit port selectors before retrying.')
+            if port not in groups:
+                continue
+            if address == '*':
+                continue
+            try:
+                ip = ipaddress.ip_address(address.strip('[]'))
+            except ValueError:
+                raise self.error('Apache uses a non-literal public address selector. Ripe supports wildcard and literal IPv4/IPv6 virtual hosts on ports 80 and 443. Existing sites were preserved; resolve this selector into a dedicated literal address before retrying.') from None
+            if ip.is_unspecified or '%' in str(ip):
+                raise self.error('Apache uses an unspecified or scoped public address selector. Existing sites were preserved; use * or an unscoped literal IPv4/IPv6 address before retrying Ripe setup.')
+            groups[port].add(f'[{ip}]:{port}' if ip.version == 6 else f'{ip}:{port}')
+        return {port: sorted(values) for port, values in groups.items()}
+
+    def validate_bindings(self, bindings):
+        if self.kind != 'apache2':
+            if bindings is not None:
+                raise self.error('The saved website addresses belong to another web-server profile.')
+            return
+        if not isinstance(bindings, dict) or set(bindings) != {'80', '443'}:
+            raise self.error('The saved Apache website addresses are invalid; no site was changed.')
+        for port, values in bindings.items():
+            if not isinstance(values, list) or not values or any(not isinstance(value, str) for value in values) or len(set(values)) != len(values):
+                raise self.error('The saved Apache website addresses are invalid; no site was changed.')
+            for value in values:
+                if not isinstance(value, str) or not value.endswith(':' + port):
+                    raise self.error('The saved Apache website addresses are invalid; no site was changed.')
+                address = value[:-(len(port) + 1)]
+                if address == '*':
+                    continue
+                try:
+                    ip = ipaddress.ip_address(address.strip('[]'))
+                except ValueError:
+                    raise self.error('The saved Apache website addresses are invalid; no site was changed.') from None
+                canonical = f'[{ip}]:{port}' if ip.version == 6 else f'{ip}:{port}'
+                if value != canonical or ip.is_unspecified or '%' in str(ip):
+                    raise self.error('The saved Apache website addresses are invalid; no site was changed.')
+
+    def check_bindings(self, bindings, configuration=None):
+        if self.kind != 'apache2':
+            return
+        self.validate_bindings(bindings)
+        if bindings != self.bindings(configuration):
+            raise self.error('Apache address groups changed after setup saved its website plan. Existing sites and saved progress were preserved. Restore the previous address groups, then retry this setup file; do not delete state or database files.')
 
     def names(self, configuration):
         if self.kind == 'apache2':
@@ -48,12 +104,14 @@ class WebServer:
             return re.findall(r'(?:namevhost|alias|wild alias|default server)\s+([^\s(]+)', configuration) + re.findall(r'(?m)^\s*[^\s]+:(?:80|443)\s+([^\s(]+)\s+\(', configuration)
         return [name for declaration in re.findall(r'server_name\s+([^;]+);', configuration) for name in declaration.split()]
 
-    def check_assignment(self, hostname, owned_site):
+    def check_assignment(self, hostname, owned_site, bindings=None):
         # Parsed inventories include other files added while setup was interrupted.
         own = False
         foreign = []
         configuration = self.configuration()
         self.check_layout(configuration)
+        if bindings is not None:
+            self.check_bindings(bindings, configuration)
         for line in configuration.splitlines():
             if self.kind == 'apache2':
                 source = re.search(r'\((/.*):[0-9]+\)', line)
@@ -76,9 +134,11 @@ class WebServer:
             # No mod_php package, global FPM handler or MPM replacement.
             call(['a2enmod', 'ssl', 'proxy', 'proxy_fcgi', 'rewrite', 'headers'])
 
-    def site(self, *, hostname, name, public, webroot=None, certificate=None, certificate_key=None, maintenance=False):
+    def site(self, *, hostname, name, public, webroot=None, certificate=None, certificate_key=None, maintenance=False, bindings=None):
         if self.kind == 'nginx':
             return self.nginx_site(hostname, name, public, webroot, certificate, certificate_key, maintenance)
+        bindings = bindings if bindings is not None else {'80': ['*:80'], '443': ['*:443']}
+        self.validate_bindings({'80': bindings.get('80', ['*:80']), '443': bindings.get('443', ['*:443'])})
         challenge = '' if not webroot else f'''    Alias /.well-known/acme-challenge/ {webroot}/.well-known/acme-challenge/
     <Directory {webroot}/.well-known/acme-challenge>
         Options None
@@ -87,7 +147,7 @@ class WebServer:
     </Directory>
 '''
         redirect = f'    RewriteRule ^ https://{hostname}%{{REQUEST_URI}} [R=301,L,NE]' if certificate else '    RewriteRule ^ - [R=503,L]'
-        http = f'''<VirtualHost *:80>
+        http = '' if '80' not in bindings else f'''<VirtualHost {' '.join(bindings['80'])}>
     ServerName {hostname}
     CustomLog /dev/null combined
     RewriteEngine On
@@ -103,7 +163,7 @@ class WebServer:
     RewriteRule ^ - [R=503,L]
     ErrorDocument 503 "Emailer setup is finishing. Please try again shortly."
 ''' if maintenance else ''
-        return http + f'''<VirtualHost *:443>
+        return http + f'''<VirtualHost {' '.join(bindings['443'])}>
     ServerName {hostname}
     SSLEngine on
     SSLProtocol all -SSLv3 -TLSv1 -TLSv1.1
@@ -188,6 +248,36 @@ class WebServer:
             else: result.append(char)
         return ''.join(result)
 
+    def source_bindings(self, text):
+        """Preserve an adopted site's exact scope, not every other site's IPs."""
+        if self.kind != 'apache2':
+            return None
+        groups = {}
+        text = re.sub(r'(?m)^\s*#.*$', '', text)
+        try:
+            for declaration in re.findall(r'(?is)<VirtualHost\s+([^>]+)>', text):
+                addresses = declaration.split()
+                ports = {value.rsplit(':', 1)[-1] for value in addresses}
+                if len(ports) != 1 or not ports.issubset({'80', '443'}):
+                    raise ValueError
+                port = ports.pop()
+                if port in groups:
+                    raise ValueError
+                normalized = []
+                for value in addresses:
+                    address = value.rsplit(':', 1)[0]
+                    if address == '*':
+                        normalized.append('*:' + port)
+                        continue
+                    ip = ipaddress.ip_address(address.strip('[]'))
+                    normalized.append(f'[{ip}]:{port}' if ip.version == 6 else f'{ip}:{port}')
+                groups[port] = normalized
+            self.validate_bindings({'80': groups.get('80', ['*:80']), '443': groups.get('443', [])})
+        except (ValueError, self.error):
+            raise self.error('The Apache file contains unsupported or repeated address groups. It was preserved; automatic handoff needs dedicated literal IPv4/IPv6 or wildcard virtual hosts on standard ports.') from None
+        # A missing HTTP block must remain missing during adoption.
+        return groups
+
     def source_site(self, releases, hostname):
         sites=[]
         for enabled in (self.directory/'sites-enabled').iterdir():
@@ -202,8 +292,9 @@ class WebServer:
                 blocks=re.findall(r'(?is)<VirtualHost\s+([^>]+)>(.*?)</VirtualHost\s*>',clean)
                 outside=re.sub(r'(?is)<VirtualHost\s+[^>]+>.*?</VirtualHost\s*>','',clean).strip()
                 listeners=[item[0].strip() for item in blocks]
+                self.source_bindings(clean)
                 roots=re.findall(r'(?im)^\s*DocumentRoot\s+"?([^\s"]+)"?\s*$',clean)
-                if outside or not blocks or len(set(listeners))!=len(listeners) or '*:443' not in listeners or any(value not in ('*:80','*:443') for value in listeners) or not roots or any(value!=root for value in roots) or re.search(r'(?im)^\s*(?:ProxyPass|ProxyPassMatch|ScriptAlias|AliasMatch|ScriptAliasMatch|Virtual(?:DocumentRoot|ScriptAlias)(?:IP)?)\b',clean):
+                if outside or not blocks or len(set(listeners))!=len(listeners) or not roots or any(value!=root for value in roots) or re.search(r'(?im)^\s*(?:ProxyPass|ProxyPassMatch|ScriptAlias|AliasMatch|ScriptAliasMatch|Virtual(?:DocumentRoot|ScriptAlias)(?:IP)?)\b',clean):
                     raise self.error('The Apache file contains additional listeners, sites or document roots. It was preserved; automatic handoff requires one dedicated Emailer site on standard ports.')
                 for rule in re.findall(r'(?im)^\s*RewriteRule\s+([^\n]+)',clean):
                     try:

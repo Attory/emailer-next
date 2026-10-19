@@ -49,12 +49,12 @@ class HostHandoff:
             roots = re.findall(r'root\s+(/[A-Za-z0-9_./-]+);', ' '.join(state.get('acme_locations', [])))
             acme = roots[0] if roots else None
         return self.web().site(hostname=state['hostname'], name=self.name, public=str(self.m.releases / 'current/public'), webroot=acme,
-                               certificate=state['certificate'], certificate_key=state['certificate_key'], maintenance=maintenance)
+                               certificate=state['certificate'], certificate_key=state['certificate_key'], maintenance=maintenance, bindings=state.get('apache_bindings'))
 
     def apply_site(self, text):
         path = Path(self.state['site'])
         self.claims().check_all()
-        self.web().check_assignment(self.state['hostname'], path)
+        self.web().check_assignment(self.state['hostname'], path, self.state.get('apache_layout'))
         previous = path.read_bytes()
         self.claims().write(path, text, 0o644)
         check = subprocess.run(self.web().check_command, capture_output=True)
@@ -124,7 +124,7 @@ class HostHandoff:
                     self.fail('An isolated target service name is already occupied. No service was changed.')
             original = m.original_configuration
             self.state.update({'phase': 'reserved', 'hostname': uri.hostname, 'site': str(site), 'site_bytes': base64.b64encode(site.read_bytes()).decode(),
-                               'web_server': web.kind, 'acme_webroot': acme_webroot, 'certificate': certificate, 'certificate_key': certificate_key, 'source_configuration': str(original),
+                               'web_server': web.kind, 'apache_layout': web.bindings(), 'apache_bindings': web.source_bindings(text), 'acme_webroot': acme_webroot, 'certificate': certificate, 'certificate_key': certificate_key, 'source_configuration': str(original),
                                'source_configuration_sha256': hashlib.sha256(original.read_bytes()).hexdigest(),
                                'source_version': m.source_version, 'source_product': m.product, 'source_user': m.account.pw_name,
                                'installation_uuid': json.loads((m.private / 'install.lock').read_text())['installation_uuid'],
@@ -145,6 +145,7 @@ class HostHandoff:
             for adopted in (site, launcher, pointer, *enabled_links):
                 self.state['resource_claims'][str(adopted)] = {'current': claims.proof(adopted)}
             m.save()  # Source proofs and identities are durable before any host mutation.
+        self.web().check_assignment(self.state['hostname'], Path(self.state['site']), self.state.get('apache_layout'))
         self.claims().check_all()
         reserved = [self.configuration, self.configuration / 'fpm.conf', self.configuration / 'release-signing.pub', self.configuration / 'keys', self.hold, Path('/usr/local/sbin') / self.name]
         if self.state.get('phase') != 'complete':
@@ -460,8 +461,15 @@ class HostHandoff:
         self.state['phase'] = 'services-prepared'
         m.save()
         self.live(['emailer:health:verify-runtime', '--offline-maintenance'])
-        m.call(['curl', '--fail', '--silent', '--show-error', '--resolve', self.state['hostname'] + ':443:127.0.0.1', 'https://' + self.state['hostname'] + '/health/live'])
-        m.call(['curl', '--fail', '--silent', '--show-error', '--resolve', self.state['hostname'] + ':443:127.0.0.1', 'https://' + self.state['hostname'] + '/login'])
+        bindings = self.state.get('apache_bindings')
+        addresses = [value.rsplit(':', 1)[0].strip('[]') for value in bindings['443'] if not value.startswith('*:')] if bindings else []
+        for address in addresses or ['127.0.0.1']:
+            # Bind the probe source to loopback so an exact-IP destination can
+            # retain the same private maintenance gate as wildcard installations.
+            loopback = '::1' if ':' in address else '127.0.0.1'
+            destination = '[' + address + ']' if ':' in address else address
+            for path in ('/health/live', '/login'):
+                m.call(['curl', '--fail', '--silent', '--show-error', '--interface', loopback, '--resolve', self.state['hostname'] + ':443:' + destination, 'https://' + self.state['hostname'] + path])
 
     def live(self, arguments):
         return self.m.call(['/usr/local/sbin/' + self.name, *arguments])

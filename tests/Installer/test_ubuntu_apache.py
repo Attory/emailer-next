@@ -98,6 +98,33 @@ SSLCertificateKeyFile /etc/letsencrypt/live/mailer/privkey.pem
                     site.write_text('# Ordinary full-line comment\n'+published.replace('include fastcgi_params;','include fastcgi_params; # Ordinary end-line comment'))
                     self.assertEqual(site,web.source_site(releases,host)[0])
 
+    def test_address_specific_source_adoption_and_handoff(self):
+        releases=Path('/srv/emailer/releases');host='mailer.example.test'
+        with tempfile.TemporaryDirectory() as directory:
+            web=WebServer('apache2',SetupError);web.directory=Path(directory)
+            (web.directory/'sites-enabled').mkdir()
+            site=web.directory/'sites-enabled/emailer.conf'
+            bindings={'80':['*:80','192.0.2.2:80'],'443':['*:443','192.0.2.2:443','[2001:db8::2]:443']}
+            text=web.site(hostname=host,name='emailer',public=releases/'current/public',certificate='/etc/tls/cert.pem',certificate_key='/etc/tls/key.pem',bindings=bindings)
+            site.write_text(text)
+            self.assertEqual(site,web.source_site(releases,host)[0])
+            narrow='<VirtualHost [2001:DB8:0:0::2]:443>\nServerName '+host+'\nDocumentRoot '+str(releases/'current/public')+'\nSSLCertificateFile /etc/tls/cert.pem\nSSLCertificateKeyFile /etc/tls/key.pem\n</VirtualHost>\n'
+            self.assertEqual({'443':['[2001:db8::2]:443']},web.source_bindings(narrow))
+            narrow_site=web.site(hostname=host,name='emailer',public=releases/'current/public',certificate='/etc/tls/cert.pem',certificate_key='/etc/tls/key.pem',bindings=web.source_bindings(narrow))
+            self.assertNotIn('*:',narrow_site)
+            self.assertNotIn(':80>',narrow_site)
+            site.write_text(narrow)
+            self.assertEqual(site,web.source_site(releases,host)[0])
+            site.write_text(text)
+            manager=types.SimpleNamespace(prefix='emailer',installer=types.SimpleNamespace(product='emailer-ripe',version='1.3.0'),record={},error=ManagementError,releases=releases)
+            handoff=HostHandoff(manager)
+            handoff.state.update(web_server='apache2',hostname=host,certificate='/etc/tls/cert.pem',certificate_key='/etc/tls/key.pem',apache_bindings=bindings)
+            self.assertIn('<VirtualHost *:443 192.0.2.2:443 [2001:db8::2]:443>',handoff.site_text(maintenance=True))
+            for altered in (text.replace('*:80 192.0.2.2:80','*:80 192.0.2.2:443'),text.replace('192.0.2.2:80','0.0.0.0:80'),text.replace('</VirtualHost>','</VirtualHost>\n<VirtualHost *:80>\nServerName mailer.example.test\n</VirtualHost>',1)):
+                site.write_text(altered)
+                with self.assertRaises(SetupError):web.source_site(releases,host)
+                self.assertEqual(altered,site.read_text())
+
     def test_target_handoff_is_versioned_and_uses_apache_without_nginx(self):
         manager=types.SimpleNamespace(prefix='emailer-light',installer=types.SimpleNamespace(product='emailer-light',version='1.2.0'),record={},error=ManagementError,releases=Path('/srv/emailer-light/releases'))
         handoff=HostHandoff(manager)

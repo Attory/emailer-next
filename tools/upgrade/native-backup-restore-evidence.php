@@ -5,7 +5,7 @@ declare(strict_types=1);
 if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL') || 2 !== $argc || !in_array($argv[1], ['before', 'after'], true)) {
     throw new RuntimeException('Native backup evidence is isolated-only.');
 }
-require '/rehearsal/source-releases/ripe-1.2.2/vendor/autoload.php';
+require '/rehearsal/source-releases/ripe-1.2.3/vendor/autoload.php';
 $p = (new Doctrine\DBAL\Tools\DsnParser(['mysql' => 'pdo_mysql']))->parse((string) getenv('DATABASE_URL'));
 if ('database' !== ($p['host'] ?? null) || !str_starts_with($p['dbname'] ?? '', 'ripe106_')) {
     throw new RuntimeException('Native backup evidence refuses non-harness access.');
@@ -15,7 +15,7 @@ $mail = json_decode((string) file_get_contents('http://mailpit:8025/api/v1/messa
 $attempts = $c->fetchAllAssociative('SELECT * FROM delivery_attempt ORDER BY id');
 $file = '/rehearsal/native-backup-restore-before.json';
 if ('before' === $argv[1]) {
-    $filename = $c->fetchOne("SELECT filename FROM backup_record WHERE source_version='1.2.2' AND source_edition='emailer-ripe' ORDER BY created_at LIMIT 1");
+    $filename = $c->fetchOne("SELECT filename FROM backup_record WHERE source_version='1.2.3' AND source_edition='emailer-ripe' ORDER BY created_at LIMIT 1");
     if (!is_string($filename) || basename($filename) !== $filename) {
         throw new RuntimeException('A conversion-created native Ripe backup is required.');
     }

@@ -1,10 +1,10 @@
 # Install Emailer Ripe
 
-Version 1.2.2 | Beginner guide | Ubuntu Apache or Debian Nginx VPS
+Version 1.2.3 | Beginner guide | Ubuntu Apache or Debian Nginx VPS
 
 Install a usable Emailer Ripe website with one guided server setup. You need your administrator email, a new password, and the address you want people to use. Email delivery can wait.
 
-Ubuntu Apache can coexist with Nginx on a separate port (tested: 8081). Setup manages only Apache and the new Emailer instance. Every existing listener on ports 80 and 443 must belong to apache2.service. A different service on either port, an address-specific Apache virtual host on those ports, or an overlapping Emailer hostname stops setup with existing services preserved.
+Ubuntu Apache can coexist with Nginx on a separate port (tested: 8081). Setup manages only Apache and the Emailer instance. Every existing listener on ports 80 and 443 must belong to apache2.service; a different service on either port or an overlapping Emailer hostname stops setup with existing services preserved. Ripe additionally supports literal IPv4/IPv6 Apache virtual hosts on explicit ports 80 and 443. Fresh setup joins the existing address groups automatically. Updates and Light upgrades retain the existing Emailer site’s address bindings. Wildcard-port virtual hosts (IP:*) and scoped addresses are unsupported; setup stops before changing websites.
 
 ## Who can use this guide?
 
@@ -32,7 +32,7 @@ Choose a spare address such as `news.your-domain.com`. In your domain provider's
 
 ## 2. Download the official setup package
 
-While signed in to GitHub with access to the private [Emailer Ripe release](https://github.com/Attory/emailer-next/releases/tag/v1.2.2), download **emailer-ripe-1.2.2-setup.run**. Upload that one file to the server using your provider's file-transfer facility. An authorized privately supplied copy of the same signed setup file also works. Keep the file private. Do not paste a GitHub token or repository password into a download command.
+While signed in to GitHub with access to the private [Emailer Ripe release](https://github.com/Attory/emailer-next/releases/tag/v1.2.3), download **emailer-ripe-1.2.3-setup.run**. Upload that one file to the server using your provider's file-transfer facility. An authorized privately supplied copy of the same signed setup file also works. Keep the file private. Do not paste a GitHub token or repository password into a download command.
 
 You do not need a source checkout, Composer, a public-key file or separate verification sidecars. Those components are inside the setup package.
 
@@ -45,7 +45,7 @@ Ubuntu 22.04 also retrieves an authenticated MariaDB runtime of about 360 MB. Al
 From the folder containing the downloaded file, paste this single setup action:
 
 ```bash
-sudo sh emailer-ripe-1.2.2-setup.run
+sudo sh emailer-ripe-1.2.3-setup.run
 ```
 
 If setup finds an existing Light installation, choose **Install a separate fresh Ripe application** for this fresh-install guide. Choose its upgrade option only when you intend to convert Light, following the separate upgrade guide. The fresh Ripe site needs a different dedicated hostname.

@@ -104,7 +104,7 @@ if ('after' === $argv[1]) {
         }
     }
     $identity = $c->fetchAssociative("SELECT product_id, product_version, schema_version FROM product_identity WHERE singleton_key = '1'");
-    if (['product_id' => 'emailer-ripe', 'product_version' => '1.2.2', 'schema_version' => '20261015000000'] !== $identity) {
+    if (['product_id' => 'emailer-ripe', 'product_version' => '1.2.3', 'schema_version' => '20261015000000'] !== $identity) {
         throw new RuntimeException('Target edition identity is not explicit.');
     }
     $receipt = $c->fetchAssociative('SELECT source_identity_json, source_migration_json FROM ripe_edition_transition');

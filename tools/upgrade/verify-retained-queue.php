@@ -5,7 +5,7 @@ declare(strict_types=1);
 if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL')) {
     throw new RuntimeException('Queue compatibility verification is isolated-only.');
 }
-require '/rehearsal/source-releases/ripe-1.2.2/vendor/autoload.php';
+require '/rehearsal/source-releases/ripe-1.2.3/vendor/autoload.php';
 $p = (new Doctrine\DBAL\Tools\DsnParser(['mysql' => 'pdo_mysql']))->parse((string) getenv('DATABASE_URL'));
 if ('database' !== ($p['host'] ?? null) || !str_starts_with($p['dbname'] ?? '', 'ripe106_')) {
     throw new RuntimeException('Queue verification refuses non-harness access.');
