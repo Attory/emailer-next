@@ -42,7 +42,7 @@
           "Ripe 1.2.3, direct guided upgrade."
         ],
         [
-          "Light updated through a supported path to 1.1.0, 1.2.0, 1.2.1 or 1.2.3",
+          "Light updated through a supported path to 1.1.0, 1.2.0, 1.2.1, 1.2.2 or 1.2.3",
           "Ripe 1.2.3, same guided edition upgrade."
         ],
         [
@@ -53,7 +53,7 @@
     },
     {
       "type": "p",
-      "text": "Use the new Ripe 1.2.3 installer for all six Light sources. Earlier Ripe 1.0.6 does not recognize Light 1.1.0/1.2.0/1.2.1/1.2.3, and Ripe 1.1.0 does not add Light 1.2.0/1.2.1/1.2.3 support. Original Light 1.0.0 remains supported. There is no general Ripe-to-Light downgrade."
+      "text": "Use the new Ripe 1.2.3 installer for all six Light sources. Earlier Ripe 1.0.6 does not recognize Light 1.1.0/1.2.0/1.2.1/1.2.2/1.2.3, and Ripe 1.1.0 does not add Light 1.2.0/1.2.1/1.2.2/1.2.3 support. Original Light 1.0.0 remains supported. There is no general Ripe-to-Light downgrade."
     },
     {
       "type": "p",
@@ -81,7 +81,7 @@
     },
     {
       "type": "p",
-      "text": "Initial trust comes from the official HTTPS or authorized private delivery channel. Embedded established signing identities authenticate the Ripe package and all five supported Light predecessor packages. You do not need to assemble verifier source, sidecars, version arguments or commit hashes."
+      "text": "Initial trust comes from the official HTTPS or authorized private delivery channel. Embedded established signing identities authenticate the Ripe package and all six supported Light predecessor packages. You do not need to assemble verifier source, sidecars, version arguments or commit hashes."
     },
     {
       "type": "h2",

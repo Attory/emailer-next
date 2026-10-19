@@ -14,10 +14,10 @@ Upgrade with the private Ripe 1.2.3 setup file. Your Light administrator becomes
 | Official Light 1.2.1 | Ripe 1.2.3, direct guided upgrade. |
 | Official Light 1.2.2 | Ripe 1.2.3, direct guided upgrade. |
 | Official Light 1.2.3 | Ripe 1.2.3, direct guided upgrade. |
-| Light updated through a supported path to 1.1.0, 1.2.0, 1.2.1 or 1.2.3 | Ripe 1.2.3, same guided edition upgrade. |
+| Light updated through a supported path to 1.1.0, 1.2.0, 1.2.1, 1.2.2 or 1.2.3 | Ripe 1.2.3, same guided edition upgrade. |
 | Ripe 1.0.6, 1.1.0 or 1.2.1 | Ripe 1.2.3, normal Update menu instead. |
 
-Use the new Ripe 1.2.3 installer for all six Light sources. Earlier Ripe 1.0.6 does not recognize Light 1.1.0/1.2.0/1.2.1/1.2.3, and Ripe 1.1.0 does not add Light 1.2.0/1.2.1/1.2.3 support. Original Light 1.0.0 remains supported. There is no general Ripe-to-Light downgrade.
+Use the new Ripe 1.2.3 installer for all six Light sources. Earlier Ripe 1.0.6 does not recognize Light 1.1.0/1.2.0/1.2.1/1.2.2/1.2.3, and Ripe 1.1.0 does not add Light 1.2.0/1.2.1/1.2.2/1.2.3 support. Original Light 1.0.0 remains supported. There is no general Ripe-to-Light downgrade.
 
 Use Ubuntu 22.04/24.04 amd64/systemd with Apache, or Debian 13 with Nginx, PHP 8.4 and supported MariaDB 10.11/11.8. Ubuntu 22.04 fresh installations use an isolated MariaDB 10.11.19 beside any existing host database. The installer discovers protected standard settings under /etc/emailer-light or /etc/emailer, a dedicated application database account, private/key storage and an existing trusted HTTPS hostname without a custom port/subfolder. A dedicated Emailer virtual-host file must not also serve unrelated routes or applications. Unknown customized targets stop before handoff; keep their existing configuration.
 
@@ -33,7 +33,7 @@ While signed in with access, download **emailer-ripe-1.2.3-setup.run** from the 
 sudo sh emailer-ripe-1.2.3-setup.run
 ```
 
-Initial trust comes from the official HTTPS or authorized private delivery channel. Embedded established signing identities authenticate the Ripe package and all five supported Light predecessor packages. You do not need to assemble verifier source, sidecars, version arguments or commit hashes.
+Initial trust comes from the official HTTPS or authorized private delivery channel. Embedded established signing identities authenticate the Ripe package and all six supported Light predecessor packages. You do not need to assemble verifier source, sidecars, version arguments or commit hashes.
 
 ## 3. Select and upgrade
 

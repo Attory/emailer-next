@@ -7,6 +7,8 @@ namespace App\Module\Release\Application;
 /** Authenticate only the explicitly supported Light releases under Light's original identity. */
 final class LightSourcePackage
 {
+    public const SUPPORTED_VERSIONS = ['1.0.0', '1.1.0', '1.2.0', '1.2.1', '1.2.2', '1.2.3'];
+
     private const ORIGINAL_HASH = 'cfd9afb133c3bbfe7da6053aa2d121d325200c46f4db51e784699356d28d0e77';
     private const LIGHT_SIGNER = '2zO47r_uQtv-lcMryvh_wWijpyCF1YAfBXBGi9W8B1E';
 

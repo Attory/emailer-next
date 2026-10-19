@@ -13,6 +13,7 @@ use Symfony\Component\Lock\LockFactory;
 
 final readonly class ReleaseManager
 {
+    private const NATIVE_RECOVERY_SOURCES = ['1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2'];
     public function __construct(private PackageInspector $inspector, private BackupOperations $backups, private Connection $connection, private LockFactory $locks, private MaintenanceOperationLock $maintenance, private InterruptedDeliveryRecovery $recovery, private string $releasesDirectory, private string $currentVersion, private int $rollbackReserveBytes = 536870912, private string $environment = 'test', private ?EditionRecoverySet $completeRecovery = null, private string $privateDirectory = '', private string $masterKeyFile = '', private string $runtimeConfigurationFile = '', private ?\App\Module\Health\Application\Contract\RuntimeVerification $runtimeVerification = null, private bool $retainSourceFence = false, private string $replacementRuntimeFile = '')
     {
     }
@@ -360,7 +361,7 @@ final readonly class ReleaseManager
 
     public function recoverNativeUpdate(string $operationId, string $archive, string $sourceArchive): void
     {
-        if (1 !== preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/D', $operationId) || !\in_array($this->currentVersion, ['1.0.5', '1.0.6', '1.1.0', '1.2.1'], true) || null === $this->completeRecovery) {
+        if (1 !== preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/D', $operationId) || !\in_array($this->currentVersion, self::NATIVE_RECOVERY_SOURCES, true) || null === $this->completeRecovery) {
             throw new \RuntimeException('Native recovery requires the recorded supported source launcher and exact operation UUID.');
         }
         $directory = \dirname($this->privateDirectory).'/native-update-recovery/'.$operationId;
@@ -517,7 +518,7 @@ final readonly class ReleaseManager
 
     private function assertNativeOperationOwnership(?string $selected = null): void
     {
-        if (!\in_array($this->currentVersion, ['1.0.5', '1.0.6', '1.1.0', '1.2.1'], true) || null === $this->completeRecovery || '' === $this->privateDirectory) {
+        if (!\in_array($this->currentVersion, self::NATIVE_RECOVERY_SOURCES, true) || null === $this->completeRecovery || '' === $this->privateDirectory) {
             return;
         }
         $files = glob(\dirname($this->privateDirectory).'/native-update-recovery/*/native-operation.json');

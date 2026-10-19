@@ -6,7 +6,7 @@ if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL')) {
     throw new RuntimeException('Owner acceptance is isolated-only.');
 }
 $version = $argv[1] ?? 'ripe-1.2.3';
-if (!in_array($version, ['1.0.5', '1.0.6', '1.1.0', '1.2.1', 'ripe-1.2.3'], true)) {
+if (!in_array($version, ['1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', 'ripe-1.2.3'], true)) {
     throw new RuntimeException('Unsupported isolated Owner acceptance version.');
 }
 require '/rehearsal/source-releases/'.$version.'/vendor/autoload.php';

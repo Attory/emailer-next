@@ -424,13 +424,13 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
         }
         $journal = $this->receipt(false);
         if (isset($journal['source_root']) && \is_string($journal['source_root'])) {
-            if (\dirname($journal['source_root']) !== realpath($this->releasesDirectory) || !\in_array(basename($journal['source_root']), ['1.0.0', '1.1.0', '1.2.0', '1.2.1', '1.2.3'], true) || !\in_array($root, [$journal['source_root'], $this->releasesDirectory.'/ripe-1.2.3'], true)) {
+            if (\dirname($journal['source_root']) !== realpath($this->releasesDirectory) || !\in_array(basename($journal['source_root']), LightSourcePackage::SUPPORTED_VERSIONS, true) || !\in_array($root, [$journal['source_root'], $this->releasesDirectory.'/ripe-1.2.3'], true)) {
                 throw new \RuntimeException('Durable edition journal and current installation roots disagree.');
             }
 
             return $journal['source_root'];
         }
-        if (!\in_array(basename($root), ['1.0.0', '1.1.0', '1.2.0', '1.2.1', '1.2.3'], true)) {
+        if (!\in_array(basename($root), LightSourcePackage::SUPPORTED_VERSIONS, true)) {
             throw new \RuntimeException('Current release is not Light 1.0.0; edition downgrade or repeated conversion is prohibited.');
         }
 
