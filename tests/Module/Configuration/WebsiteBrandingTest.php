@@ -53,15 +53,23 @@ final class WebsiteBrandingTest extends TestCase
     public function testExtractionOnlyStoresBoundedTokensAndLeavesScriptsAndExternalAssetsBehind(): void
     {
         $client = $this->createMock(PublicWebsiteClient::class);
-        $client->expects(self::exactly(2))->method('get')->willReturnMap([
+        $responses = [
             ['https://example.com/', ['url' => 'https://example.com/', 'type' => 'text/html', 'body' => '<html><meta name="theme-color" content="#a31"><script>throw "never executed"</script><link rel="stylesheet" href="/brand.css"><link rel="stylesheet" href="https://other.example.com/tracker.css"><body style="background:url(https://evil.invalid)"><img src="https://evil.invalid/logo.svg"></body></html>']],
             ['https://example.com/brand.css', ['url' => 'https://example.com/brand.css', 'type' => 'text/css', 'body' => ':root{--accent:#256b63;--surface:#fff;--text:#333;font-family:Georgia,serif}body{background:url(https://evil.invalid)}']],
-        ]);
+        ];
+        $client->expects(self::exactly(2))->method('get')->willReturnCallback(static function (string $url) use ($responses): array {
+            foreach ($responses as [$source, $response]) {
+                if ($url === $source) {
+                    return $response;
+                }
+            }
+            throw new \RuntimeException('Unexpected synthetic URL');
+        });
         $result = (new WebsiteBranding($client))->extract('https://example.com/');
         self::assertSame('#aa3311', $result['tokens']['primary']);
         self::assertSame('#256b63', $result['tokens']['accent']);
         self::assertSame('serif', $result['tokens']['font']);
-        self::assertSame(['website_url', 'refreshed_at', 'tokens', 'logo_url'], array_keys($result));
+        self::assertSame(['website_url', 'refreshed_at', 'tokens', 'logo_url', 'logo_data'], array_keys($result));
         self::assertSame(6, \count($result['tokens']));
         self::assertStringNotContainsString('script', json_encode($result, JSON_THROW_ON_ERROR));
         self::assertStringNotContainsString('evil', json_encode($result, JSON_THROW_ON_ERROR));

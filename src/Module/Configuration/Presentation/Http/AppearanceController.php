@@ -46,6 +46,15 @@ final class AppearanceController extends AbstractController
         });
     }
 
+    #[Route('/logo.png', name: 'admin_appearance_logo', methods: ['GET', 'HEAD'])]
+    public function logo(): Response
+    {
+        $this->settings->view($this->actor());
+        $bytes = $this->settings->logo();
+
+        return null === $bytes ? new Response('', 404) : new Response($bytes, headers: ['Content-Type' => 'image/png']);
+    }
+
     #[Route('/tokens.css', name: 'admin_appearance_tokens', methods: ['GET', 'HEAD'])]
     public function tokens(): Response
     {
@@ -54,10 +63,13 @@ final class AppearanceController extends AbstractController
         foreach (WebsiteBranding::defaults() as $name => $default) {
             $value = $tokens[$name];
             if ('font' === $name) {
-                $value = 'serif' === $value ? 'Georgia,serif' : '"Segoe UI","Helvetica Neue",Arial,sans-serif';
+                $value = 'serif' === $value ? '"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif' : 'system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif';
             }
             $css .= '--website-'.$name.':'.$value.';';
         }
+
+        $css .= '--website-on-primary:'.(WebsiteBranding::contrast($tokens['primary'], '#ffffff') >= WebsiteBranding::contrast($tokens['primary'], '#111111') ? '#ffffff' : '#111111').';';
+        $css .= '--website-scheme:'.(5.0 > WebsiteBranding::contrast($tokens['background'], '#000000') ? 'dark' : 'light').';';
 
         return new Response($css.'}', headers: ['Content-Type' => 'text/css; charset=UTF-8']);
     }

@@ -10,6 +10,7 @@ use App\Module\Configuration\Application\Contract\AppearanceInitialization;
 use App\Module\Identity\Application\Contract\AdministrativeAccessLevel;
 use App\Module\Identity\Application\Contract\AdministrativeActor;
 use App\Module\Identity\Application\Contract\AdministrativeAuthorization;
+use App\Shared\MaintenanceOperationLock;
 
 /** Non-secret installation presentation settings; included in encrypted application backups. */
 final readonly class AppearanceSettings implements AppearanceInitialization
@@ -19,6 +20,7 @@ final readonly class AppearanceSettings implements AppearanceInitialization
         private WebsiteBranding $branding,
         private AdministrativeAuthorization $authorization,
         private AuditSink $audit,
+        private MaintenanceOperationLock $maintenance,
     ) {
     }
 
@@ -31,7 +33,7 @@ final readonly class AppearanceSettings implements AppearanceInitialization
         });
     }
 
-    /** @return array{skin: string, motion: string, branding: array{website_url: string, refreshed_at: ?string, tokens: array<string, string>, logo_url: null}} */
+    /** @return array{skin: string, motion: string, branding: array{website_url: string, refreshed_at: ?string, tokens: array<string, string>, logo_url: ?string}} */
     public function view(AdministrativeActor $actor): array
     {
         $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Auditor, 'appearance.view');
@@ -46,7 +48,7 @@ final readonly class AppearanceSettings implements AppearanceInitialization
         ];
     }
 
-    /** @return array{skin: string, motion: string, branding: array{website_url: string, refreshed_at: ?string, tokens: array<string, string>, logo_url: null}} */
+    /** @return array{skin: string, motion: string, branding: array{website_url: string, refreshed_at: ?string, tokens: array<string, string>, logo_url: ?string}} */
     public function save(AdministrativeActor $actor, string $skin, string $motion): array
     {
         $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Auditor, 'appearance.save');
@@ -59,7 +61,7 @@ final readonly class AppearanceSettings implements AppearanceInitialization
     }
 
     /** @param array<mixed> $tokens
-     * @return array{website_url: string, refreshed_at: ?string, tokens: array<string, string>, logo_url: null}
+     * @return array{website_url: string, refreshed_at: ?string, tokens: array<string, string>, logo_url: ?string}
      */
     public function changeBranding(AdministrativeActor $actor, string $action, string $website, array $tokens): array
     {
@@ -69,8 +71,10 @@ final readonly class AppearanceSettings implements AppearanceInitialization
         }
         $website = '' === trim($website) && 'save' === $action ? '' : WebsiteUrlPolicy::normalize(trim($website));
         // Reserve the shared fetch budget under lock, then release it before network I/O.
+        $generation = null;
         if ('refresh' === $action) {
-            $this->mutate(function (): void {
+            $this->mutate(function () use (&$generation): void {
+                $generation = $this->generation();
                 $last = $this->read('fetch-budget.json')['last_attempt'] ?? 0;
                 if (\is_int($last) && time() - $last < 30) {
                     throw new \InvalidArgumentException('Wait thirty seconds before refreshing website branding again.');
@@ -80,9 +84,13 @@ final readonly class AppearanceSettings implements AppearanceInitialization
             $brand = $this->branding->extract($website);
         } else {
             $saved = $this->savedBranding();
-            $brand = ['website_url' => $website, 'refreshed_at' => $website === $saved['website_url'] ? $saved['refreshed_at'] : null, 'tokens' => WebsiteBranding::validate($tokens), 'logo_url' => null];
+            $raw = $this->read('branding.json');
+            $brand = ['website_url' => $website, 'refreshed_at' => $website === $saved['website_url'] ? $saved['refreshed_at'] : null, 'tokens' => WebsiteBranding::validate($tokens), 'logo_url' => null, 'logo_data' => $website === $saved['website_url'] ? ($raw['logo_data'] ?? null) : null];
         }
-        $this->mutate(function () use ($actor, $brand, $action): void {
+        $this->mutate(function () use ($actor, $brand, $action, $generation): void {
+            if (null !== $generation && !hash_equals($generation, $this->generation())) {
+                throw new \InvalidArgumentException('Website branding changed while the website was loading. Your newer saved settings were preserved. Review them before refreshing again.');
+            }
             $this->audit->append(new AuditRecord($actor->id(), 'configuration.appearance.branding.'.$action, null, 'success'));
             $this->write('branding.json', $brand);
         });
@@ -90,7 +98,7 @@ final readonly class AppearanceSettings implements AppearanceInitialization
         return $this->savedBranding();
     }
 
-    /** @return array{website_url: string, refreshed_at: ?string, tokens: array<string, string>, logo_url: null} */
+    /** @return array{website_url: string, refreshed_at: ?string, tokens: array<string, string>, logo_url: ?string} */
     private function savedBranding(): array
     {
         $saved = $this->read('branding.json');
@@ -106,10 +114,22 @@ final readonly class AppearanceSettings implements AppearanceInitialization
             }
             $date = $saved['refreshed_at'] ?? null;
 
-            return ['website_url' => '' === $url ? '' : WebsiteUrlPolicy::normalize($url), 'refreshed_at' => \is_string($date) && 1 === preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00$/', $date) ? $date : null, 'tokens' => WebsiteBranding::validate($tokens), 'logo_url' => null];
+            return ['website_url' => '' === $url ? '' : WebsiteUrlPolicy::normalize($url), 'refreshed_at' => \is_string($date) && 1 === preg_match('/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\+00:00$/', $date) ? $date : null, 'tokens' => WebsiteBranding::validate($tokens), 'logo_url' => null === $this->logo() ? null : '/admin/appearance/logo.png'];
         } catch (\InvalidArgumentException) {
             return $fallback;
         }
+    }
+
+    private function generation(): string
+    {
+        return hash('sha256', json_encode($this->read('branding.json'), JSON_THROW_ON_ERROR));
+    }
+
+    public function logo(): ?string
+    {
+        $value = $this->read('branding.json')['logo_data'] ?? null;
+
+        return \is_string($value) ? WebsiteLogo::decode($value) : null;
     }
 
     private function preferenceFile(AdministrativeActor $actor): string
@@ -127,7 +147,7 @@ final readonly class AppearanceSettings implements AppearanceInitialization
         try {
             $this->assertSafe($path);
             $bytes = file_get_contents($path);
-            if (false === $bytes || 16384 < \strlen($bytes)) {
+            if (false === $bytes || 32768 < \strlen($bytes)) {
                 return null;
             }
             $value = json_decode($bytes, true, 8, JSON_THROW_ON_ERROR);
@@ -150,6 +170,16 @@ final readonly class AppearanceSettings implements AppearanceInitialization
     }
 
     private function mutate(\Closure $operation): void
+    {
+        $this->maintenance->acquire();
+        try {
+            $this->mutateWithMaintenanceLock($operation);
+        } finally {
+            $this->maintenance->release();
+        }
+    }
+
+    private function mutateWithMaintenanceLock(\Closure $operation): void
     {
         $directory = $this->appearanceDirectory;
         if (!is_dir($directory) && !@mkdir($directory, 0o700, true) && !is_dir($directory)) {
@@ -233,7 +263,7 @@ final readonly class AppearanceSettings implements AppearanceInitialization
     private function assertSafe(string $path): void
     {
         $stat = lstat($path);
-        if (false === $stat || is_link($this->appearanceDirectory) || 0o100000 !== ($stat['mode'] & 0o170000) || 0 !== ($stat['mode'] & 0o077) || 1 !== $stat['nlink'] || 16384 < $stat['size']) {
+        if (false === $stat || is_link($this->appearanceDirectory) || 0o100000 !== ($stat['mode'] & 0o170000) || 0 !== ($stat['mode'] & 0o077) || 1 !== $stat['nlink'] || 32768 < $stat['size']) {
             throw new \RuntimeException('Appearance storage is unsafe.');
         }
     }

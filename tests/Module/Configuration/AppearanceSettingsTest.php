@@ -13,7 +13,10 @@ use App\Module\Identity\Application\AuthenticatedUser;
 use App\Module\Identity\Application\Contract\AdministrativeAccessLevel;
 use App\Module\Identity\Application\Contract\AdministrativeActor;
 use App\Module\Identity\Application\Contract\AdministrativeAuthorization;
+use App\Shared\MaintenanceOperationLock;
 use PHPUnit\Framework\TestCase;
+use Symfony\Component\Lock\LockFactory;
+use Symfony\Component\Lock\Store\FlockStore;
 use Symfony\Component\Security\Core\Exception\AccessDeniedException;
 
 final class AppearanceSettingsTest extends TestCase
@@ -135,6 +138,6 @@ final class AppearanceSettingsTest extends TestCase
             }
         });
 
-        return new AppearanceSettings($this->directory, new WebsiteBranding($client ?? self::createStub(PublicWebsiteClient::class)), $authorization, self::createStub(AuditSink::class));
+        return new AppearanceSettings($this->directory, new WebsiteBranding($client ?? self::createStub(PublicWebsiteClient::class)), $authorization, self::createStub(AuditSink::class), new MaintenanceOperationLock(new LockFactory(new FlockStore())));
     }
 }

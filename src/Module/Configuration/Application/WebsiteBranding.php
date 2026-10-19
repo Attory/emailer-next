@@ -6,17 +6,18 @@ namespace App\Module\Configuration\Application;
 
 use App\Module\Configuration\Application\Contract\PublicWebsiteClient;
 
-/** Extract values, never executable source. Remote fonts and logos are not loaded by dashboards. */
+/** Extract values, never executable source. Remote fonts and source files are not loaded by dashboards. */
 final readonly class WebsiteBranding
 {
     public function __construct(private PublicWebsiteClient $client)
     {
     }
 
-    /** @return array{website_url: string, refreshed_at: string, tokens: array<string, string>, logo_url: null} */
+    /** @return array{website_url: string, refreshed_at: string, tokens: array<string, string>, logo_url: null, logo_data: ?string} */
     public function extract(string $url): array
     {
-        $page = $this->client->get(WebsiteUrlPolicy::normalize(trim($url)));
+        $deadline = microtime(true) + 12.0;
+        $page = $this->client->get(WebsiteUrlPolicy::normalize(trim($url)), null, $deadline);
         if ('text/html' !== $page['type']) {
             throw new \InvalidArgumentException('Enter the website home page, rather than a stylesheet.');
         }
@@ -43,7 +44,7 @@ final readonly class WebsiteBranding
                 if (parse_url($sheet, PHP_URL_HOST) !== parse_url($page['url'], PHP_URL_HOST)) {
                     continue;
                 }
-                $response = $this->client->get($sheet);
+                $response = $this->client->get($sheet, $page['url'], $deadline);
                 if ('text/css' === $response['type'] && parse_url($response['url'], PHP_URL_HOST) === parse_url($page['url'], PHP_URL_HOST)) {
                     $css .= substr($response['body'], 0, 65536);
                 }
@@ -67,7 +68,26 @@ final readonly class WebsiteBranding
         }
         $tokens = self::readable($tokens);
 
-        return ['website_url' => $page['url'], 'refreshed_at' => gmdate('c'), 'tokens' => $tokens, 'logo_url' => null];
+        $logo = null;
+        foreach ($document->getElementsByTagName('link') as $link) {
+            if (!\in_array(strtolower($link->getAttribute('rel')), ['icon', 'shortcut icon', 'apple-touch-icon'], true)) {
+                continue;
+            }
+            try {
+                $url = WebsiteUrlPolicy::resolve($page['url'], $link->getAttribute('href'));
+                if (parse_url($url, PHP_URL_HOST) === parse_url($page['url'], PHP_URL_HOST)) {
+                    $image = $this->client->get($url, $page['url'], $deadline);
+                    if (parse_url($image['url'], PHP_URL_HOST) === parse_url($page['url'], PHP_URL_HOST) && \in_array($image['type'], ['image/png', 'image/jpeg', 'image/webp'], true)) {
+                        $logo = WebsiteLogo::normalize($image['body']);
+                    }
+                }
+            } catch (\InvalidArgumentException|\RuntimeException) {
+                // A local text mark remains available when no small safe icon can be extracted.
+            }
+            break; // At most one icon request, including unsuccessful extraction.
+        }
+
+        return ['website_url' => $page['url'], 'refreshed_at' => gmdate('c'), 'tokens' => $tokens, 'logo_url' => null, 'logo_data' => $logo];
     }
 
     /** @return array<string, string> */

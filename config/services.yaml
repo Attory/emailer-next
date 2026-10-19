@@ -380,3 +380,10 @@ services:
 
     App\Module\Configuration\Application\Contract\PublicWebsiteClient:
         alias: App\Module\Configuration\Infrastructure\CurlPublicWebsiteClient
+
+    App\Module\Configuration\Infrastructure\AppearanceBackupContributor:
+        arguments:
+            $appearanceDirectory: '%emailer.appearance_dir%'
+
+    App\Module\Configuration\Application\Contract\PublicDnsResolver:
+        alias: App\Module\Configuration\Infrastructure\BoundedPublicDnsResolver

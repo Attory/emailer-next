@@ -1,0 +1,1021 @@
+/*
+ * Ripe administration skins.
+ *
+ * Classic is app.css unchanged: no rule below targets body[data-skin=classic]
+ * except the appearance control itself. Studio, Warm and Website share one
+ * component layer driven by --sk-* tokens; each skin only sets tokens plus a
+ * few signature details. Email content (template preview canvas, HTML and
+ * plain-text textareas) is deliberately excluded from skin typography and
+ * colour so newsletters always render as authored.
+ *
+ * Shorthands used in comments: M = Studio, Warm and Website. X = the
+ * :where(:not(canvas *)) exclusion, which adds no specificity.
+ */
+
+/* ---------------------------------------------------------------- tokens */
+
+body[data-skin=studio] {
+    --sk-font: system-ui, -apple-system, "Segoe UI Variable Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --sk-font-heading: var(--sk-font);
+    --sk-heading-weight: 600;
+    --sk-heading-tracking: -.025em;
+    --sk-bg: #f6f8fc;
+    --sk-bg-image: none;
+    --sk-surface: #fff;
+    --sk-surface-2: #f1f4f9;
+    --sk-header-bg: #fff;
+    --sk-ink: #1b1f24;
+    --sk-muted: #5f6368;
+    --sk-line: #dfe3eb;
+    --sk-line-strong: #c3c9d3;
+    --sk-accent: #0b57d0;
+    --sk-accent-ink: #fff;
+    --sk-accent-hover: #0842a0;
+    --sk-accent-soft: #e8f0fe;
+    --sk-link: #0b57d0;
+    --sk-link-hover: #0842a0;
+    --sk-highlight: #0b57d0;
+    --sk-focus: #0b57d0;
+    --sk-field-bg: #fff;
+    --sk-table-head: #f8f9fc;
+    --sk-row-hover: #f4f7fd;
+    --sk-radius: 12px;
+    --sk-radius-lg: 16px;
+    --sk-radius-control: 8px;
+    --sk-radius-button: 20px;
+    --sk-shadow-1: 0 1px 2px rgb(31 41 55 / 6%), 0 1px 3px 1px rgb(31 41 55 / 4%);
+    --sk-shadow-2: 0 2px 6px 2px rgb(31 41 55 / 8%), 0 1px 2px rgb(31 41 55 / 10%);
+    --sk-shadow-3: 0 12px 40px rgb(31 41 55 / 20%), 0 2px 6px rgb(31 41 55 / 10%);
+    --sk-success: #146c2e;
+    --sk-success-soft: #e6f4ea;
+    --sk-info: #0b57d0;
+    --sk-info-soft: #e8f0fe;
+    --sk-warning: #7a4f01;
+    --sk-warning-soft: #fef3d6;
+    --sk-danger: #b3261e;
+    --sk-danger-soft: #fce8e6;
+    --sk-th-transform: none;
+    --sk-th-size: .78rem;
+    --sk-ease: cubic-bezier(.2, 0, 0, 1);
+    --sk-dur: 160ms;
+}
+
+body[data-skin=warm] {
+    --sk-font: ui-rounded, "SF Pro Rounded", "Segoe UI Variable Text", "Segoe UI", system-ui, -apple-system, Roboto, "Helvetica Neue", Arial, sans-serif;
+    --sk-font-heading: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --sk-heading-weight: 650;
+    --sk-heading-tracking: -.015em;
+    --sk-bg: #fbf4ec;
+    --sk-bg-image: radial-gradient(60rem 30rem at 100% -10%, rgb(244 190 140 / 32%), transparent 70%), radial-gradient(50rem 28rem at -10% 110%, rgb(226 160 120 / 18%), transparent 70%);
+    --sk-surface: #fffaf4;
+    --sk-surface-2: #f7ebdd;
+    --sk-header-bg: rgb(255 250 244 / 88%);
+    --sk-ink: #3b2a21;
+    --sk-muted: #6e5547;
+    --sk-line: #ead9c7;
+    --sk-line-strong: #d6bca3;
+    --sk-accent: #a8441c;
+    --sk-accent-ink: #fff;
+    --sk-accent-hover: #8c3713;
+    --sk-accent-soft: #fbe3d2;
+    --sk-link: #9a3d17;
+    --sk-link-hover: #74290c;
+    --sk-highlight: #e3a03b;
+    --sk-focus: #8c3713;
+    --sk-field-bg: #fffdf9;
+    --sk-table-head: #f8ecdf;
+    --sk-row-hover: #fcf1e5;
+    --sk-radius: 18px;
+    --sk-radius-lg: 24px;
+    --sk-radius-control: 12px;
+    --sk-radius-button: 999px;
+    --sk-shadow-1: 0 1px 2px rgb(92 52 24 / 6%), 0 8px 24px -14px rgb(92 52 24 / 22%);
+    --sk-shadow-2: 0 2px 6px rgb(92 52 24 / 8%), 0 18px 40px -18px rgb(92 52 24 / 30%);
+    --sk-shadow-3: 0 24px 60px -12px rgb(92 52 24 / 35%), 0 2px 8px rgb(92 52 24 / 10%);
+    --sk-success: #2f6b2a;
+    --sk-success-soft: #e7f2df;
+    --sk-info: #22577a;
+    --sk-info-soft: #e3eff6;
+    --sk-warning: #7c4e00;
+    --sk-warning-soft: #fcefd2;
+    --sk-danger: #a1301f;
+    --sk-danger-soft: #fbe6df;
+    --sk-th-transform: none;
+    --sk-th-size: .82rem;
+    --sk-ease: cubic-bezier(.22, 1, .36, 1);
+    --sk-dur: 240ms;
+}
+
+/*
+ * Website tokens come from the authenticated admin_appearance_tokens
+ * stylesheet (or appearance.js previews). Every derived value falls back to a
+ * neutral, accessible palette when tokens are missing or the source was never
+ * refreshed. Status colours mix towards the text colour so they stay legible
+ * on both light and dark website surfaces.
+ */
+body[data-skin=website] {
+    --sk-font: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    --sk-font-heading: var(--website-font, var(--sk-font));
+    --sk-heading-weight: 650;
+    --sk-heading-tracking: -.02em;
+    --sk-bg: var(--website-background, #f5f6f8);
+    --sk-bg-image: none;
+    --sk-surface: var(--website-surface, #fff);
+    --sk-surface-2: color-mix(in srgb, var(--sk-ink) 5%, var(--sk-surface));
+    --sk-header-bg: var(--sk-surface);
+    --sk-ink: var(--website-text, #1d232b);
+    --sk-muted: color-mix(in srgb, var(--sk-ink) 74%, var(--sk-surface));
+    --sk-line: color-mix(in srgb, var(--sk-ink) 15%, var(--sk-surface));
+    --sk-line-strong: color-mix(in srgb, var(--sk-ink) 30%, var(--sk-surface));
+    --sk-accent: var(--website-primary, #2f5d9a);
+    --sk-accent-ink: var(--website-on-primary, #fff);
+    --sk-accent-hover: color-mix(in srgb, var(--sk-accent) 84%, var(--sk-ink));
+    --sk-accent-soft: color-mix(in srgb, var(--sk-accent) 13%, var(--sk-surface));
+    --sk-link: color-mix(in srgb, var(--sk-accent) 70%, var(--sk-ink));
+    --sk-link-hover: var(--sk-ink);
+    --sk-highlight: var(--website-accent, var(--sk-accent));
+    --sk-focus: var(--sk-ink);
+    --sk-field-bg: var(--sk-surface);
+    --sk-table-head: var(--sk-surface-2);
+    --sk-row-hover: color-mix(in srgb, var(--sk-accent) 6%, var(--sk-surface));
+    --sk-radius: 10px;
+    --sk-radius-lg: 14px;
+    --sk-radius-control: 8px;
+    --sk-radius-button: 8px;
+    --sk-shadow-1: 0 1px 2px rgb(0 0 0 / 7%), 0 1px 3px rgb(0 0 0 / 5%);
+    --sk-shadow-2: 0 4px 14px rgb(0 0 0 / 12%);
+    --sk-shadow-3: 0 18px 48px rgb(0 0 0 / 28%);
+    --sk-success: color-mix(in srgb, #1e8e3e 62%, var(--sk-ink));
+    --sk-success-soft: color-mix(in srgb, #1e8e3e 14%, var(--sk-surface));
+    --sk-info: color-mix(in srgb, #1a73e8 62%, var(--sk-ink));
+    --sk-info-soft: color-mix(in srgb, #1a73e8 13%, var(--sk-surface));
+    --sk-warning: color-mix(in srgb, #b06000 62%, var(--sk-ink));
+    --sk-warning-soft: color-mix(in srgb, #f9ab00 18%, var(--sk-surface));
+    --sk-danger: color-mix(in srgb, #c5221f 66%, var(--sk-ink));
+    --sk-danger-soft: color-mix(in srgb, #d93025 13%, var(--sk-surface));
+    --sk-th-transform: none;
+    --sk-th-size: .8rem;
+    --sk-ease: cubic-bezier(.2, 0, 0, 1);
+    --sk-dur: 160ms;
+    color-scheme: var(--website-scheme, light);
+}
+
+/* ------------------------------------------------- shared modern shell (M) */
+
+/* A transparent root lets the body background (and the website tokens scoped to body) paint the whole canvas. */
+:root:has(> body:is([data-skin=studio], [data-skin=warm], [data-skin=website])) {
+    background: transparent;
+    scroll-padding-top: 6rem;
+}
+
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) {
+    --ink: var(--sk-ink);
+    --muted: var(--sk-muted);
+    --paper: var(--sk-surface-2);
+    --surface: var(--sk-surface);
+    --line: var(--sk-line);
+    --accent: var(--sk-accent);
+    --accent-soft: var(--sk-accent-soft);
+    --danger: var(--sk-danger);
+    --radius: var(--sk-radius);
+    min-height: 100vh;
+    font-family: var(--sk-font);
+    color: var(--sk-ink);
+    background-color: var(--sk-bg);
+    background-image: var(--sk-bg-image);
+    background-attachment: fixed;
+    -webkit-font-smoothing: antialiased;
+    transition: background-color var(--sk-dur) var(--sk-ease), color var(--sk-dur) var(--sk-ease);
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) ::selection { background: var(--sk-accent-soft); color: var(--sk-ink); }
+
+/* Typography */
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) :is(h1, h2, h3):where(:not([data-email-canvas] *, [aria-label="Sanitized synthetic HTML preview"] *)) {
+    font-family: var(--sk-font-heading);
+    font-weight: var(--sk-heading-weight);
+    letter-spacing: var(--sk-heading-tracking);
+    color: var(--sk-ink);
+    text-wrap: balance;
+}
+body[data-skin=studio] h1:where(:not([data-email-canvas] *, [aria-label="Sanitized synthetic HTML preview"] *)) { font-size: clamp(1.6rem, 2.4vw, 2.1rem); letter-spacing: -.03em; }
+body[data-skin=studio] h2:where(:not([data-email-canvas] *, [aria-label="Sanitized synthetic HTML preview"] *)) { font-size: 1.2rem; }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) :is(.eyebrow) { color: var(--sk-link); letter-spacing: .08em; }
+body[data-skin=studio] .eyebrow { color: var(--sk-muted); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) :is(small, .muted, .field-hint, .help) { color: var(--sk-muted); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) a:where(:not([data-email-canvas] *, [aria-label="Sanitized synthetic HTML preview"] *)) {
+    color: var(--sk-link);
+    text-decoration-thickness: 1px;
+    transition: color var(--sk-dur) var(--sk-ease);
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) a:where(:not([data-email-canvas] *, [aria-label="Sanitized synthetic HTML preview"] *)):hover { color: var(--sk-link-hover); text-decoration-thickness: 2px; }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) :is(code):where(:not([data-email-canvas] *, [aria-label="Sanitized synthetic HTML preview"] *)) {
+    padding: .1em .35em;
+    border-radius: 4px;
+    background: var(--sk-surface-2);
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) pre:where(:not([data-email-canvas] *, [aria-label="Sanitized synthetic HTML preview"] *)) {
+    padding: 1rem 1.1rem;
+    border: 1px solid var(--sk-line);
+    border-radius: var(--sk-radius-control);
+    background: var(--sk-surface);
+}
+
+/* Focus: one consistent 3px ring per skin. */
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) :focus-visible {
+    outline: 3px solid var(--sk-focus);
+    outline-offset: 3px;
+}
+
+/* Header and navigation */
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .skip-link { background: var(--sk-accent); color: var(--sk-accent-ink); border-radius: var(--sk-radius-control); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .admin-header {
+    position: sticky;
+    top: 0;
+    z-index: 30;
+    gap: 1.5rem;
+    padding-block: .8rem;
+    background-color: var(--sk-header-bg);
+    border-bottom: 1px solid var(--sk-line);
+    transition: background-color var(--sk-dur) var(--sk-ease), border-color var(--sk-dur) var(--sk-ease);
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .brand {
+    display: inline-flex;
+    align-items: center;
+    color: var(--sk-ink);
+    font-family: var(--sk-font-heading);
+    font-weight: 700;
+    letter-spacing: -.03em;
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .brand:hover { color: var(--sk-ink); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .brand-mark { background: var(--sk-accent); color: var(--sk-accent-ink); border-radius: var(--sk-radius-control); font-family: var(--sk-font); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .admin-header nav { gap: .25rem; }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .admin-header nav > a {
+    display: inline-flex;
+    align-items: center;
+    min-height: 40px;
+    padding: .45rem .85rem;
+    border-radius: var(--sk-radius-button);
+    color: var(--sk-muted);
+    font-weight: 550;
+    text-decoration: none;
+    transition: background-color var(--sk-dur) var(--sk-ease), color var(--sk-dur) var(--sk-ease), box-shadow var(--sk-dur) var(--sk-ease);
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .admin-header nav > a:hover { color: var(--sk-ink); background: var(--sk-surface-2); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .admin-header nav > a[aria-current=page] {
+    color: var(--sk-link);
+    background: var(--sk-accent-soft);
+    font-weight: 650;
+    box-shadow: inset 0 -2px 0 var(--sk-highlight);
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .admin-header summary {
+    display: inline-flex;
+    align-items: center;
+    gap: .45rem;
+    min-height: 40px;
+    padding: .45rem .85rem;
+    list-style: none;
+    border-radius: var(--sk-radius-button);
+    color: var(--sk-muted);
+    font-weight: 550;
+    transition: background-color var(--sk-dur) var(--sk-ease), color var(--sk-dur) var(--sk-ease);
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .admin-header summary::-webkit-details-marker { display: none; }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .admin-header summary::after {
+    content: "";
+    width: .45rem;
+    height: .45rem;
+    margin-top: -.2rem;
+    border-right: 2px solid currentColor;
+    border-bottom: 2px solid currentColor;
+    transform: rotate(45deg);
+    transition: transform var(--sk-dur) var(--sk-ease);
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .admin-header details[open] > summary::after { transform: translateY(.2rem) rotate(225deg); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .admin-header summary:hover,
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .admin-header details[open] > summary { color: var(--sk-ink); background: var(--sk-surface-2); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .tools-menu {
+    top: calc(100% + .4rem);
+    width: 250px;
+    max-height: calc(100vh - 7rem);
+    overflow-y: auto;
+    padding: .45rem;
+    gap: .1rem;
+    background: var(--sk-surface);
+    border: 1px solid var(--sk-line);
+    border-radius: var(--sk-radius);
+    box-shadow: var(--sk-shadow-2);
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .tools-menu a {
+    padding: .55rem .75rem;
+    border-radius: var(--sk-radius-control);
+    color: var(--sk-ink);
+    font-weight: 500;
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .tools-menu a:hover { background: var(--sk-accent-soft); color: var(--sk-ink); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .tools-menu form { padding: .4rem .3rem .2rem; margin-top: .3rem; border-top: 1px solid var(--sk-line); }
+
+/* Content shell */
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .admin-content { padding-top: 2.25rem; }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) :is(.panel, .dashboard-grid > section, .auth-shell) {
+    background: var(--sk-surface);
+    border: 1px solid var(--sk-line);
+    border-radius: var(--sk-radius);
+    box-shadow: var(--sk-shadow-1);
+    transition: background-color var(--sk-dur) var(--sk-ease), border-color var(--sk-dur) var(--sk-ease), box-shadow var(--sk-dur) var(--sk-ease);
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .panel-soft { background: var(--sk-accent-soft); border-color: transparent; box-shadow: none; }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .dashboard-grid { gap: 1rem; }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .dashboard-grid > section h2 { font-size: 1.02rem; margin-bottom: .6rem; }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .dashboard-grid > section dl {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    margin: .75rem 0 0;
+    border-top: 1px solid var(--sk-line);
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .dashboard-grid > section :is(dt, dd) {
+    margin: 0;
+    padding: .5rem 0;
+    border-bottom: 1px solid var(--sk-line);
+    font-size: .9rem;
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .dashboard-grid > section dt { color: var(--sk-muted); font-weight: 500; }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .dashboard-grid > section dd { text-align: right; font-weight: 650; font-variant-numeric: tabular-nums; }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .quick-start {
+    background: linear-gradient(120deg, var(--sk-accent-soft), color-mix(in srgb, var(--sk-highlight) 10%, var(--sk-surface)));
+    border: 1px solid color-mix(in srgb, var(--sk-accent) 18%, transparent);
+    border-radius: var(--sk-radius-lg);
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) :is(.next-step) { background: var(--sk-accent-soft); border-radius: var(--sk-radius); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) :is(.summary-item, .review-line, .campaign-summary > div, .choice-switch) { border-color: var(--sk-line); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .sidebar-summary .metric-number { color: var(--sk-ink); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .empty-state {
+    background: var(--sk-surface);
+    border: 1.5px dashed var(--sk-line-strong);
+    border-radius: var(--sk-radius-lg);
+    color: var(--sk-muted);
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .empty-state h2 { color: var(--sk-ink); }
+
+/* Forms */
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) :is(input, select, textarea):where(:not([data-email-canvas] *, [aria-label="Sanitized synthetic HTML preview"] *)) {
+    color: var(--sk-ink);
+    background-color: var(--sk-field-bg);
+    border: 1px solid var(--sk-line-strong);
+    border-radius: var(--sk-radius-control);
+    transition: border-color var(--sk-dur) var(--sk-ease), box-shadow var(--sk-dur) var(--sk-ease);
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) :is(input, select, textarea):where(:not([type=checkbox], [type=radio])):hover { border-color: var(--sk-muted); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) :is(input, select, textarea):focus-visible {
+    border-color: var(--sk-accent);
+    box-shadow: 0 0 0 1px var(--sk-accent);
+    outline-offset: 2px;
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) :is(input, select, textarea):is([aria-invalid=true], :user-invalid) { border-color: var(--sk-danger); }
+/* Newsletter source stays in its authored, neutral editing surface. */
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) textarea {
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    color: #253a36;
+    background-color: #fff;
+    color-scheme: light;
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) input[readonly] { background-color: var(--sk-surface-2); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) input[type=file] { background-color: var(--sk-surface-2); border-style: dashed; }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) input[type=file]::file-selector-button {
+    padding: .4rem .8rem;
+    border: 1px solid var(--sk-line-strong);
+    border-radius: var(--sk-radius-button);
+    background: var(--sk-surface);
+    color: var(--sk-ink);
+    font-weight: 600;
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) :is(input[type=checkbox], input[type=radio]) { accent-color: var(--sk-accent); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) fieldset { border-color: var(--sk-line); border-radius: var(--sk-radius); background: color-mix(in srgb, var(--sk-surface) 60%, transparent); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) legend { color: var(--sk-ink); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .field-error { color: var(--sk-danger); font-weight: 550; }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .list-choice { background: var(--sk-surface); border-color: var(--sk-line); border-radius: var(--sk-radius-control); transition: background-color var(--sk-dur) var(--sk-ease), border-color var(--sk-dur) var(--sk-ease); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .list-choice:has(input:checked) { background: var(--sk-accent-soft); border-color: var(--sk-accent); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .step-number { border-color: var(--sk-line-strong); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .stepper button {
+    background: transparent;
+    color: var(--sk-muted);
+    border: 0;
+    border-bottom: 3px solid var(--sk-line);
+    border-radius: 0;
+    box-shadow: none;
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .stepper button:hover { background: var(--sk-surface-2); color: var(--sk-ink); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .stepper button[aria-current=step] { color: var(--sk-link); border-bottom-color: var(--sk-accent); }
+
+/* Buttons */
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) :is(button, .button):where(:not([data-email-canvas] *, [aria-label="Sanitized synthetic HTML preview"] *)) {
+    background: var(--sk-accent);
+    color: var(--sk-accent-ink);
+    border: 1px solid var(--sk-accent);
+    border-radius: var(--sk-radius-button);
+    padding-inline: 1.15rem;
+    font-weight: 600;
+    letter-spacing: .005em;
+    transition: background-color var(--sk-dur) var(--sk-ease), border-color var(--sk-dur) var(--sk-ease), color var(--sk-dur) var(--sk-ease), box-shadow var(--sk-dur) var(--sk-ease), transform var(--sk-dur) var(--sk-ease);
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) :is(button, .button):where(:not([data-email-canvas] *, [aria-label="Sanitized synthetic HTML preview"] *)):hover {
+    background: var(--sk-accent-hover);
+    border-color: var(--sk-accent-hover);
+    color: var(--sk-accent-ink);
+    box-shadow: var(--sk-shadow-1);
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) :is(.button-secondary, .button.secondary, button.secondary):where(:not([data-email-canvas] *, [aria-label="Sanitized synthetic HTML preview"] *)) {
+    background: var(--sk-surface);
+    color: var(--sk-ink);
+    border-color: var(--sk-line-strong);
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) :is(.button-secondary, .button.secondary, button.secondary):where(:not([data-email-canvas] *, [aria-label="Sanitized synthetic HTML preview"] *)):hover {
+    background: var(--sk-accent-soft);
+    color: var(--sk-ink);
+    border-color: var(--sk-accent);
+    box-shadow: none;
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) :is(.button-danger, button.danger) {
+    background: var(--sk-surface);
+    color: var(--sk-danger);
+    border-color: color-mix(in srgb, var(--sk-danger) 40%, var(--sk-surface));
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) :is(.button-danger, button.danger):hover {
+    background: var(--sk-danger-soft);
+    color: var(--sk-danger);
+    border-color: var(--sk-danger);
+    box-shadow: none;
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .actions > a:not(.button) {
+    border-color: var(--sk-line-strong);
+    border-radius: var(--sk-radius-button);
+    background: var(--sk-surface);
+    color: var(--sk-link);
+    font-weight: 550;
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .actions > a:not(.button):hover { background: var(--sk-accent-soft); border-color: var(--sk-accent); }
+
+/* Loading: any control marked aria-busy shows a quiet spinner and blocks repeat clicks. */
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) [aria-busy=true] { cursor: progress; }
+:is(button, .button)[aria-busy=true]::after {
+    content: "";
+    width: .9em;
+    height: .9em;
+    border: 2px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: sk-spin .7s linear infinite;
+}
+:is(button, .button)[aria-busy=true] { pointer-events: none; }
+
+/* Alerts and status */
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .alert {
+    position: relative;
+    padding: .95rem 1.15rem .95rem 1.4rem;
+    color: var(--sk-ink);
+    background: var(--sk-danger-soft);
+    border: 1px solid color-mix(in srgb, var(--sk-danger) 30%, transparent);
+    border-left: 4px solid var(--sk-danger);
+    border-radius: var(--sk-radius-control);
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .alert strong { color: var(--sk-danger); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .alert.success {
+    background: var(--sk-success-soft);
+    border-color: color-mix(in srgb, var(--sk-success) 30%, transparent);
+    border-left-color: var(--sk-success);
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .alert.success strong { color: var(--sk-success); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: .4rem;
+    padding: .2rem .65rem;
+    border-radius: 999px;
+    background: var(--sk-surface-2);
+    color: var(--sk-muted);
+    border: 1px solid var(--sk-line);
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .status-pill::before {
+    content: "";
+    width: .45rem;
+    height: .45rem;
+    border-radius: 50%;
+    background: currentColor;
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .status-pill:is([data-state=completed], [data-state=approved]) { background: var(--sk-success-soft); color: var(--sk-success); border-color: transparent; }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .status-pill:is([data-state=sending], [data-state=queueing]) { background: var(--sk-info-soft); color: var(--sk-info); border-color: transparent; }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .status-pill[data-state=paused] { background: var(--sk-warning-soft); color: var(--sk-warning); border-color: transparent; }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .status-pill[data-state=failed] { background: var(--sk-danger-soft); color: var(--sk-danger); border-color: transparent; }
+
+/* Tables: precise, tabular, sticky-free so mobile horizontal scrolling keeps working. */
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) table:where(:not([data-email-canvas] *, [aria-label="Sanitized synthetic HTML preview"] *)) {
+    border-collapse: separate;
+    border-spacing: 0;
+    background: var(--sk-surface);
+    border: 1px solid var(--sk-line);
+    border-radius: var(--sk-radius);
+    box-shadow: var(--sk-shadow-1);
+    font-variant-numeric: tabular-nums;
+    font-size: .9rem;
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) :is(th, td):where(:not([data-email-canvas] *, [aria-label="Sanitized synthetic HTML preview"] *)) {
+    padding: .8rem 1rem;
+    border-bottom: 1px solid var(--sk-line);
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) th:where(:not([data-email-canvas] *, [aria-label="Sanitized synthetic HTML preview"] *)) {
+    background: var(--sk-table-head);
+    color: var(--sk-muted);
+    font-size: var(--sk-th-size);
+    text-transform: var(--sk-th-transform);
+    letter-spacing: .02em;
+    font-weight: 650;
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) thead th:where(:not([data-email-canvas] *, [aria-label="Sanitized synthetic HTML preview"] *)):first-child { border-top-left-radius: calc(var(--sk-radius) - 1px); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) thead th:where(:not([data-email-canvas] *, [aria-label="Sanitized synthetic HTML preview"] *)):last-child { border-top-right-radius: calc(var(--sk-radius) - 1px); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) tbody tr:where(:not([data-email-canvas] *, [aria-label="Sanitized synthetic HTML preview"] *)) { transition: background-color var(--sk-dur) var(--sk-ease); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) tbody tr:where(:not([data-email-canvas] *, [aria-label="Sanitized synthetic HTML preview"] *)):hover { background: var(--sk-row-hover); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) tbody tr:last-child > :is(td, th):where(:not([data-email-canvas] *, [aria-label="Sanitized synthetic HTML preview"] *)) { border-bottom: 0; }
+/* Single-cell "nothing here yet" rows read as an empty state rather than data. */
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) td[colspan]:only-child:where(:not([data-email-canvas] *, [aria-label="Sanitized synthetic HTML preview"] *)) {
+    padding: 2.25rem 1rem;
+    text-align: center;
+    color: var(--sk-muted);
+    white-space: normal;
+}
+
+/* Progress and metrics: the dashboard's chart-like elements. */
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .progress-track { height: 10px; background: var(--sk-surface-2); accent-color: var(--sk-accent); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) progress::-webkit-progress-bar { background: var(--sk-surface-2); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) progress::-webkit-progress-value { background: var(--sk-accent); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) progress::-moz-progress-bar { background: var(--sk-accent); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .progress-stats div { background: var(--sk-surface-2); border: 1px solid var(--sk-line); border-radius: var(--sk-radius-control); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .progress-stats dt { color: var(--sk-muted); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .progress-feedback { color: var(--sk-muted); }
+
+/* Dialogs */
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) dialog {
+    color: var(--sk-ink);
+    background: var(--sk-surface);
+    border: 1px solid var(--sk-line);
+    border-radius: var(--sk-radius-lg);
+    box-shadow: var(--sk-shadow-3);
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) dialog::backdrop {
+    background: color-mix(in srgb, var(--sk-ink, #1b1f24) 42%, transparent);
+    backdrop-filter: blur(2px);
+}
+
+/* Email canvas: always rendered as in Classic, whatever the active skin. */
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) :is([data-email-canvas], [aria-label="Sanitized synthetic HTML preview"]) {
+    --ink: #253a36;
+    --muted: #5a645e;
+    --paper: #f5f4ee;
+    --surface: #fff;
+    --line: #dce1d7;
+    --accent: #246453;
+    --accent-soft: #e8f1e9;
+    --danger: #a64134;
+    --radius: 12px;
+    display: block;
+    padding: 1.5rem;
+    margin-bottom: 1.5rem;
+    color: #253a36;
+    background: #fff;
+    border: 1px solid var(--sk-line);
+    border-radius: var(--sk-radius-control);
+    font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    letter-spacing: normal;
+    color-scheme: light;
+}
+
+/* ------------------------------------------------------------ Studio extras */
+
+body[data-skin=studio] .admin-header { box-shadow: 0 1px 2px rgb(31 41 55 / 4%); }
+body[data-skin=studio] .brand-mark { border-radius: 10px; background: linear-gradient(135deg, #0b57d0, #3c7be8); }
+body[data-skin=studio] .admin-content { max-width: 1240px; }
+body[data-skin=studio] .page-heading { padding-bottom: 1.25rem; border-bottom: 1px solid var(--sk-line); }
+
+/* Wide screens: Studio becomes a console layout with a structured side rail. */
+@media (min-width: 1100px) {
+    body[data-skin=studio] {
+        display: grid;
+        grid-template-columns: 16rem minmax(0, 1fr);
+        align-items: start;
+    }
+    body[data-skin=studio] .admin-header {
+        position: sticky;
+        top: 0;
+        height: 100vh;
+        overflow-y: auto;
+        flex-direction: column;
+        flex-wrap: nowrap;
+        align-items: stretch;
+        gap: 1.25rem;
+        padding: 1.25rem .85rem;
+        border-bottom: 0;
+        border-right: 1px solid var(--sk-line);
+        box-shadow: none;
+    }
+    body[data-skin=studio] .brand { padding: .2rem .6rem; }
+    body[data-skin=studio] .admin-header nav {
+        flex: none;
+        flex-direction: column;
+        align-items: stretch;
+        flex-wrap: nowrap;
+        gap: .15rem;
+    }
+    body[data-skin=studio] .admin-header nav > a,
+    body[data-skin=studio] .admin-header summary {
+        border-radius: 0 999px 999px 0;
+        margin-left: -.85rem;
+        padding-left: 1.45rem;
+    }
+    body[data-skin=studio] .admin-header nav > a[aria-current=page] { box-shadow: inset 3px 0 0 var(--sk-accent); }
+    body[data-skin=studio] .admin-header details { margin: .75rem 0 0; padding-top: .75rem; border-top: 1px solid var(--sk-line); }
+    body[data-skin=studio] .admin-header summary { display: flex; justify-content: space-between; width: calc(100% + .85rem); }
+    body[data-skin=studio] .tools-menu {
+        position: static;
+        width: auto;
+        max-height: none;
+        margin-top: .25rem;
+        padding: 0;
+        border: 0;
+        box-shadow: none;
+        background: transparent;
+    }
+    body[data-skin=studio] .tools-menu a { padding: .45rem .75rem .45rem 1.1rem; font-size: .9rem; color: var(--sk-muted); }
+    body[data-skin=studio] .appearance-trigger { margin-top: auto; justify-content: flex-start; }
+    body[data-skin=studio] .admin-content { width: 100%; margin: 0 auto; padding: 2.25rem 2.5rem 4rem; }
+}
+
+/* -------------------------------------------------------------- Warm extras */
+
+body[data-skin=warm] .admin-header {
+    top: .75rem;
+    max-width: calc(1200px + 2.8rem);
+    margin: .75rem auto 0;
+    padding: .7rem 1.1rem;
+    border: 1px solid var(--sk-line);
+    border-radius: 22px;
+    box-shadow: var(--sk-shadow-2);
+    -webkit-backdrop-filter: saturate(1.2) blur(12px);
+    backdrop-filter: saturate(1.2) blur(12px);
+}
+@media (max-width: 1248px) {
+    body[data-skin=warm] .admin-header { margin-inline: .75rem; }
+}
+body[data-skin=warm] .brand-mark { border-radius: 50%; background: linear-gradient(140deg, #c2582b, #a8441c 55%, #8c3713); box-shadow: 0 0 0 3px #f5d9a8; }
+body[data-skin=warm] .admin-header nav > a[aria-current=page] { box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--sk-accent) 25%, transparent); }
+body[data-skin=warm] h1:where(:not([data-email-canvas] *, [aria-label="Sanitized synthetic HTML preview"] *)) { font-size: clamp(2rem, 3.4vw, 2.85rem); }
+body[data-skin=warm] .eyebrow { color: var(--sk-link); }
+body[data-skin=warm] .eyebrow::before {
+    content: "";
+    display: inline-block;
+    width: 1.4rem;
+    height: 3px;
+    margin-right: .55rem;
+    vertical-align: middle;
+    border-radius: 3px;
+    background: linear-gradient(90deg, var(--sk-accent), var(--sk-highlight));
+}
+body[data-skin=warm] :is(.panel, .dashboard-grid > section) { padding: 1.75rem; }
+body[data-skin=warm] .dashboard-grid > section { background: linear-gradient(180deg, var(--sk-surface), color-mix(in srgb, var(--sk-surface-2) 55%, var(--sk-surface))); }
+body[data-skin=warm] .dashboard-grid > section:hover { box-shadow: var(--sk-shadow-2); transform: translateY(-2px); }
+body[data-skin=warm] .dashboard-grid > section { transition: box-shadow var(--sk-dur) var(--sk-ease), transform var(--sk-dur) var(--sk-ease); }
+body[data-skin=warm] .quick-start {
+    padding: 2.25rem;
+    background: radial-gradient(28rem 14rem at 95% 0%, rgb(227 160 59 / 30%), transparent 70%), linear-gradient(120deg, #fde4d0, #fbeedf);
+    border-color: #f1cfb3;
+}
+body[data-skin=warm] .progress-track,
+body[data-skin=warm] progress::-webkit-progress-bar,
+body[data-skin=warm] progress::-webkit-progress-value,
+body[data-skin=warm] progress::-moz-progress-bar { border-radius: 999px; }
+body[data-skin=warm] progress::-webkit-progress-value { background: linear-gradient(90deg, #a8441c, #d97a2b); }
+body[data-skin=warm] progress::-moz-progress-bar { background: linear-gradient(90deg, #a8441c, #d97a2b); }
+
+/* ----------------------------------------------------------- Website extras */
+
+body[data-skin=website] .admin-header {
+    background-image: linear-gradient(90deg, var(--sk-accent), var(--sk-highlight));
+    background-size: 100% 4px;
+    background-repeat: no-repeat;
+    background-position: top;
+    padding-top: calc(.8rem + 4px);
+}
+body[data-skin=website] .brand-mark { background: var(--sk-accent); }
+.brand-logo { display: none; }
+body[data-skin=website][data-brand-logo] .brand-logo {
+    display: inline-block;
+    width: auto;
+    max-width: 8rem;
+    height: 36px;
+    margin-right: .65rem;
+    object-fit: contain;
+    vertical-align: middle;
+}
+body[data-skin=website][data-brand-logo] .brand-mark { display: none; }
+body[data-skin=website] .eyebrow { color: var(--sk-link); }
+
+/* ---------------------------------------------------- responsive (M) */
+
+@media (max-width: 760px) {
+    body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .admin-header {
+        position: relative;
+        top: auto;
+        gap: .6rem .75rem;
+        padding: .75rem 1rem;
+    }
+    body[data-skin=warm] .admin-header { margin: .5rem; border-radius: 18px; }
+    body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .admin-header nav { order: 3; flex-basis: 100%; gap: .3rem; }
+    body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .admin-header nav > a,
+    body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .admin-header summary {
+        min-height: 44px;
+        padding: .45rem .8rem;
+        border: 1px solid var(--sk-line);
+        font-size: .9rem;
+    }
+    /* The tools menu opens as a full-width sheet under the header instead of a clipped popover. */
+    body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .admin-header details { position: static; margin-left: 0; }
+    body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .tools-menu {
+        left: .75rem;
+        right: .75rem;
+        top: calc(100% + .35rem);
+        width: auto;
+        grid-template-columns: repeat(auto-fill, minmax(10rem, 1fr));
+    }
+    body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .tools-menu form { grid-column: 1 / -1; }
+    body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .appearance-trigger { margin-left: auto; }
+    body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .admin-content { padding-top: 1.5rem; }
+    body[data-skin=warm] :is(.panel, .dashboard-grid > section) { padding: 1.2rem; }
+    body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) table:where(:not([data-email-canvas] *, [aria-label="Sanitized synthetic HTML preview"] *)) { border-radius: var(--sk-radius-control); }
+}
+
+/* ------------------------------------------------------------------- motion */
+
+@keyframes sk-spin { to { transform: rotate(360deg); } }
+@keyframes sk-rise { from { opacity: 0; transform: translateY(8px); } }
+@keyframes sk-fade { from { opacity: 0; } }
+@keyframes sk-pop { from { opacity: 0; transform: translateY(6px) scale(.985); } }
+@keyframes sk-drop { from { opacity: 0; transform: translateY(-4px); } }
+
+@media (prefers-reduced-motion: no-preference) {
+    body:is([data-skin=studio], [data-skin=warm], [data-skin=website]):not([data-motion=reduced]) dialog[open] { animation: sk-pop var(--sk-dur) var(--sk-ease); }
+    body:is([data-skin=studio], [data-skin=warm], [data-skin=website]):not([data-motion=reduced]) dialog[open]::backdrop { animation: sk-fade var(--sk-dur) var(--sk-ease); }
+    body:is([data-skin=studio], [data-skin=warm], [data-skin=website]):not([data-motion=reduced]) .admin-header details[open] > .tools-menu { animation: sk-drop var(--sk-dur) var(--sk-ease); }
+
+    /* Warm: sections settle in once on arrival and feedback rises into view. Content is interactive throughout. */
+    body[data-skin=warm]:not([data-motion=reduced]) .admin-content > :where(:not([data-email-canvas], [aria-label="Sanitized synthetic HTML preview"])) { animation: sk-rise 380ms var(--sk-ease) both; }
+    body[data-skin=warm]:not([data-motion=reduced]) .admin-content > :nth-child(2) { animation-delay: 40ms; }
+    body[data-skin=warm]:not([data-motion=reduced]) .admin-content > :nth-child(3) { animation-delay: 80ms; }
+    body[data-skin=warm]:not([data-motion=reduced]) .admin-content > :nth-child(4) { animation-delay: 120ms; }
+    body[data-skin=warm]:not([data-motion=reduced]) .admin-content > :nth-child(n+5) { animation-delay: 160ms; }
+    body[data-skin=warm]:not([data-motion=reduced]) :is(.alert, .appearance-feedback:not(:empty)) { animation: sk-pop 320ms var(--sk-ease) both; }
+    body[data-skin=warm]:not([data-motion=reduced]) .admin-header nav > a:active { transform: scale(.97); }
+}
+
+/* Personal "Reduce motion" preference applies in every skin, including Classic. */
+body[data-motion=reduced] *,
+body[data-motion=reduced] *::before,
+body[data-motion=reduced] *::after,
+body[data-motion=reduced] ::backdrop {
+    scroll-behavior: auto !important;
+    transition: none !important;
+    animation: none !important;
+}
+body[data-motion=reduced] { transition: none !important; }
+
+/* ----------------------------------------- appearance control (all skins) */
+
+.visually-hidden {
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+    border: 0;
+}
+.appearance-trigger {
+    gap: .5rem;
+    min-height: 40px;
+    padding: .4rem .85rem .4rem .5rem;
+    background: var(--surface);
+    color: var(--ink);
+    border: 1px solid var(--line);
+    border-radius: 999px;
+    font-weight: 550;
+    font-size: .9rem;
+}
+.appearance-trigger:hover { background: var(--accent-soft); color: var(--ink); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .appearance-trigger {
+    background: var(--sk-surface);
+    color: var(--sk-ink);
+    border: 1px solid var(--sk-line-strong);
+    border-radius: 999px;
+    padding: .4rem .85rem .4rem .5rem;
+    box-shadow: none;
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .appearance-trigger:hover { background: var(--sk-accent-soft); color: var(--sk-ink); border-color: var(--sk-accent); box-shadow: none; }
+.appearance-trigger-swatch {
+    width: 1.5rem;
+    height: 1.5rem;
+    border-radius: 50%;
+    background: conic-gradient(#246453 0 25%, #0b57d0 0 50%, #a8441c 0 75%, var(--website-primary, #2f5d9a) 0);
+    box-shadow: inset 0 0 0 2px var(--surface, #fff);
+    border: 1px solid var(--line);
+}
+
+.appearance-dialog { max-width: 48rem; width: calc(100% - 2rem); max-height: calc(100dvh - 2rem); padding: 0; color: var(--ink); background: var(--surface); }
+.appearance-dialog[open] { display: flex; flex-direction: column; }
+.appearance-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1.1rem 1.5rem;
+    border-bottom: 1px solid var(--line);
+}
+.appearance-head h2 { margin: 0; font-size: 1.3rem; }
+.appearance-dialog .appearance-close {
+    min-width: 44px;
+    min-height: 44px;
+    padding: 0;
+    font-size: 1.5rem;
+    line-height: 1;
+    border-radius: 999px;
+}
+.appearance-body { flex: 1 1 auto; overflow-y: auto; padding: 1.25rem 1.5rem; overscroll-behavior: contain; }
+.appearance-intro { margin-bottom: 1.25rem; color: var(--muted); }
+.appearance-dialog fieldset { padding: 1rem 1.1rem 1.1rem; margin-bottom: 1.25rem; }
+.appearance-dialog legend { font-weight: 650; }
+.skin-choice-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; }
+.appearance-dialog .skin-choice {
+    position: relative;
+    display: grid;
+    align-content: start;
+    gap: .3rem;
+    margin: 0;
+    padding: .55rem .55rem .75rem;
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    background: var(--surface);
+    cursor: pointer;
+    transition: border-color .15s, box-shadow .15s, background-color .15s;
+}
+.skin-choice:hover { border-color: var(--muted); }
+.skin-choice:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); background: var(--accent-soft); }
+.skin-choice:has(input:focus-visible) { outline: 3px solid var(--sk-focus, #856f37); outline-offset: 3px; }
+.appearance-dialog .skin-choice input {
+    position: absolute;
+    top: .95rem;
+    left: .95rem;
+    z-index: 1;
+    margin: 0;
+}
+.appearance-dialog .skin-choice input:focus-visible { outline: 0; }
+.skin-name { font-weight: 650; line-height: 1.3; }
+.skin-name small { font-weight: 500; }
+.skin-text { font-size: .82rem; line-height: 1.4; color: var(--muted); font-weight: 400; }
+
+/* Thumbnails: fixed palettes so each card always shows its own skin, never the active one. */
+.skin-thumb {
+    display: grid;
+    grid-template: "bar bar" 22% "nav main" 1fr / 26% 1fr;
+    aspect-ratio: 16 / 10;
+    overflow: hidden;
+    margin-bottom: .2rem;
+    border: 1px solid var(--t-line);
+    border-radius: var(--t-radius);
+    background: var(--t-bg);
+    --t-bg: #f5f4ee;
+    --t-surface: #fff;
+    --t-bar: #fff;
+    --t-nav: transparent;
+    --t-accent: #246453;
+    --t-line: #dce1d7;
+    --t-ink: #253a36;
+    --t-radius: 8px;
+    --t-card-radius: 4px;
+    --t-button-radius: 3px;
+}
+.thumb-bar { grid-area: bar; background: var(--t-bar); border-bottom: 1px solid var(--t-line); position: relative; }
+.thumb-bar::before { content: ""; position: absolute; left: 8%; top: 32%; width: 9%; height: 36%; border-radius: 2px; background: var(--t-accent); }
+.thumb-bar::after { content: ""; position: absolute; left: 22%; top: 42%; width: 40%; height: 16%; border-radius: 2px; background: repeating-linear-gradient(90deg, var(--t-line) 0 22%, transparent 22% 27%); }
+.thumb-nav { grid-area: nav; background: var(--t-nav); }
+.thumb-main { grid-area: main; display: grid; grid-template-columns: 1fr 1fr; grid-auto-rows: min-content; gap: 8%; padding: 9% 9% 0; align-content: start; }
+.thumb-heading { grid-column: 1 / -1; height: .35rem; width: 60%; border-radius: 2px; background: var(--t-ink); opacity: .75; }
+.thumb-card { height: 1.35rem; border-radius: var(--t-card-radius); background: var(--t-surface); border: 1px solid var(--t-line); }
+.thumb-button { width: 45%; height: .45rem; border-radius: var(--t-button-radius); background: var(--t-accent); }
+.skin-thumb[data-thumb=classic] .thumb-main { grid-column: 1 / -1; grid-row: 2; }
+.skin-thumb[data-thumb=classic] .thumb-nav { display: none; }
+.skin-thumb[data-thumb=studio] {
+    --t-bg: #f6f8fc;
+    --t-bar: #fff;
+    --t-nav: #fff;
+    --t-accent: #0b57d0;
+    --t-line: #dfe3eb;
+    --t-ink: #1b1f24;
+    --t-card-radius: 5px;
+    --t-button-radius: 999px;
+    grid-template: "nav bar" 22% "nav main" 1fr / 26% 1fr;
+}
+.skin-thumb[data-thumb=studio] .thumb-nav { border-right: 1px solid var(--t-line); background: linear-gradient(#e8f0fe, #e8f0fe) 0 18% / 82% 12% no-repeat, linear-gradient(#dfe3eb, #dfe3eb) 30% 40% / 50% 5% no-repeat, linear-gradient(#dfe3eb, #dfe3eb) 30% 55% / 50% 5% no-repeat, var(--t-nav); }
+.skin-thumb[data-thumb=studio] .thumb-bar::before { display: none; }
+.skin-thumb[data-thumb=warm] {
+    --t-bg: #fbf4ec;
+    --t-surface: #fffaf4;
+    --t-bar: #fffaf4;
+    --t-accent: #a8441c;
+    --t-line: #ead9c7;
+    --t-ink: #3b2a21;
+    --t-radius: 14px;
+    --t-card-radius: 8px;
+    --t-button-radius: 999px;
+    background: radial-gradient(circle at 100% 0, #f6cfa6, transparent 60%), var(--t-bg);
+}
+.skin-thumb[data-thumb=warm] .thumb-bar { margin: 5% 5% 0; border: 1px solid var(--t-line); border-radius: 999px; }
+.skin-thumb[data-thumb=warm] .thumb-bar::before { border-radius: 50%; width: 7%; }
+.skin-thumb[data-thumb=warm] .thumb-main { grid-column: 1 / -1; grid-row: 2; }
+.skin-thumb[data-thumb=warm] .thumb-nav { display: none; }
+.skin-thumb[data-thumb=website] {
+    --t-bg: var(--website-background, #f5f6f8);
+    --t-surface: var(--website-surface, #fff);
+    --t-bar: var(--website-surface, #fff);
+    --t-accent: var(--website-primary, #2f5d9a);
+    --t-ink: var(--website-text, #1d232b);
+    --t-line: color-mix(in srgb, var(--t-ink) 15%, var(--t-surface));
+    --t-card-radius: 4px;
+}
+.skin-thumb[data-thumb=website] .thumb-bar { border-top: 3px solid var(--t-accent); }
+.skin-thumb[data-thumb=website] .thumb-bar::after { background: repeating-linear-gradient(90deg, var(--website-accent, var(--t-line)) 0 22%, transparent 22% 27%); opacity: .7; }
+.skin-thumb[data-thumb=website] .thumb-main { grid-column: 1 / -1; grid-row: 2; }
+.skin-thumb[data-thumb=website] .thumb-nav { display: none; }
+
+.motion-choices label { display: flex; flex-wrap: wrap; align-items: center; gap: .1rem .5rem; margin: .4rem 0; min-height: 44px; }
+.motion-choices .field-hint { flex-basis: 100%; margin: 0 0 0 1.95rem; font-weight: 400; }
+.motion-choices .field-hint:empty { display: none; }
+
+.branding-panel { margin-bottom: 1.25rem; padding: 1.1rem; border: 1px solid var(--line); border-radius: 12px; background: var(--paper); }
+.branding-panel h3 { margin-bottom: .35rem; }
+.branding-source { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: .75rem; margin: 1rem 0; }
+.branding-source > div { padding: .7rem .85rem; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); min-width: 0; }
+.branding-source dt { font-size: .8rem; color: var(--muted); font-weight: 550; }
+.branding-source dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.branding-editor > label { margin-bottom: .2rem; }
+.branding-editor > input { margin-top: 0; }
+.branding-actions { display: flex; flex-wrap: wrap; gap: .6rem; margin: .5rem 0 1rem; }
+.appearance-dialog .branding-tokens { margin: .5rem 0 0; background: var(--surface); }
+.branding-token-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 0 1rem; }
+.branding-color, .branding-font { margin: .5rem 0; }
+.branding-color-row { display: flex; align-items: center; gap: .6rem; }
+.appearance-dialog .branding-color input[type=color] {
+    display: inline-block;
+    width: 3.25rem;
+    min-height: 44px;
+    height: 44px;
+    margin: 0;
+    padding: .2rem;
+    cursor: pointer;
+}
+.branding-color output { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: .85rem; color: var(--muted); }
+.branding-contrast { padding: .6rem .8rem; border-left: 4px solid #8a5300; background: #fef3dc; color: #4a3200; border-radius: 6px; }
+.appearance-feedback { margin: .5rem 0 0; font-weight: 550; }
+.appearance-feedback:empty { display: none; }
+.appearance-error { padding: .7rem .9rem; border-left: 4px solid var(--danger); background: #fbeee9; color: var(--ink); border-radius: 6px; }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .appearance-error { background: var(--sk-danger-soft); border-left-color: var(--sk-danger); }
+.appearance-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: .6rem;
+    padding: 1rem 1.5rem;
+    border-top: 1px solid var(--line);
+    background: var(--surface);
+}
+.appearance-actions [data-appearance-cancel] { margin-left: auto; }
+
+@media (max-width: 720px) {
+    .skin-choice-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .branding-token-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 480px) {
+    .appearance-dialog { width: 100%; max-width: none; max-height: 100dvh; margin: auto 0 0; border-radius: 16px 16px 0 0; }
+    .appearance-head, .appearance-body, .appearance-actions { padding-inline: 1rem; }
+    .branding-source { grid-template-columns: 1fr; }
+    .appearance-actions > button { flex: 1 1 auto; }
+    .appearance-actions [data-appearance-cancel] { margin-left: 0; }
+    .appearance-trigger > span:last-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .appearance-trigger { padding: .4rem; min-width: 44px; min-height: 44px; }
+}
+
+@media (forced-colors: active) {
+    .skin-choice:has(input:checked) { outline: 3px solid Highlight; }
+    .skin-thumb { forced-color-adjust: none; }
+    body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .status-pill { border: 1px solid CanvasText; }
+}
+
+@media print {
+    body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) { display: block; background: #fff; color: #000; }
+    .appearance-trigger, .appearance-dialog { display: none !important; }
+}
