@@ -121,7 +121,7 @@ body[data-skin=website] {
     --sk-bg: var(--website-background, #f5f6f8);
     --sk-bg-image: none;
     --sk-surface: var(--website-surface, #fff);
-    --sk-surface-2: color-mix(in srgb, var(--sk-ink) 5%, var(--sk-surface));
+    --sk-surface-2: var(--sk-surface);
     --sk-header-bg: var(--sk-surface);
     --sk-ink: var(--website-text, #1d232b);
     --sk-muted: var(--sk-ink);
@@ -130,14 +130,14 @@ body[data-skin=website] {
     --sk-accent: var(--website-primary, #2f5d9a);
     --sk-accent-ink: var(--website-on-primary, #fff);
     --sk-accent-hover: var(--sk-accent);
-    --sk-accent-soft: color-mix(in srgb, var(--sk-accent) 13%, var(--sk-surface));
+    --sk-accent-soft: var(--sk-surface);
     --sk-link: var(--website-link, var(--sk-ink));
     --sk-link-hover: var(--sk-ink);
     --sk-highlight: var(--website-accent, var(--sk-accent));
     --sk-focus: var(--sk-ink);
     --sk-field-bg: var(--sk-surface);
     --sk-table-head: var(--sk-surface-2);
-    --sk-row-hover: color-mix(in srgb, var(--sk-accent) 6%, var(--sk-surface));
+    --sk-row-hover: var(--sk-surface);
     --sk-radius: 10px;
     --sk-radius-lg: 14px;
     --sk-radius-control: 8px;
@@ -476,6 +476,10 @@ body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .actions > a:
     font-weight: 550;
 }
 body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .actions > a:not(.button):hover { background: var(--sk-accent-soft); border-color: var(--sk-accent); }
+
+/* Arbitrary branding palettes can sit at the contrast boundary; no unvalidated tint. */
+body[data-skin=website] :is(.quick-start, fieldset) { background: var(--sk-surface); }
+body[data-skin=website] ::selection { background: var(--sk-ink); color: var(--sk-surface); }
 
 /* Loading: any control marked aria-busy shows a quiet spinner and blocks repeat clicks. */
 body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) [aria-busy=true] { cursor: progress; }

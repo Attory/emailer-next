@@ -31,7 +31,7 @@ Open <strong>Appearance</strong> in the administration header. Studio gives a cr
 
 ### Match your organisation website
 
-In Appearance choose Website. An Administrator or Owner can enter the organisation’s public HTTPS website and choose <strong>Refresh from website and save for everyone</strong>. Confirm the organisation website rather than assuming that the Emailer dashboard address is the right source. No website is contacted until you press this button.
+In Appearance choose Website. An Administrator or Owner can confirm or edit the suggested address, or enter the organisation’s public HTTPS website, and choose <strong>Refresh from website and save for everyone</strong>. Confirm the organisation website rather than assuming that the Emailer dashboard address is the right source. No website is contacted until you press this button.
 
 Emailer saves a small set of colours, a system or serif heading font and, when available, a small safe site icon. It does not copy whole pages or load the website into your dashboard. If no suitable icon is found, the text mark remains. The source address and last refresh time are displayed. Extraction suggests a coherent starting point; it cannot exactly copy every website.
 

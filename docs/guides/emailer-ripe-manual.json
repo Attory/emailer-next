@@ -65,7 +65,7 @@
     },
     {
       "type": "p",
-      "text": "In Appearance choose Website. An Administrator or Owner can enter the organisation’s public HTTPS website and choose <strong>Refresh from website and save for everyone</strong>. Confirm the organisation website rather than assuming that the Emailer dashboard address is the right source. No website is contacted until you press this button."
+      "text": "In Appearance choose Website. An Administrator or Owner can confirm or edit the suggested address, or enter the organisation’s public HTTPS website, and choose <strong>Refresh from website and save for everyone</strong>. Confirm the organisation website rather than assuming that the Emailer dashboard address is the right source. No website is contacted until you press this button."
     },
     {
       "type": "p",

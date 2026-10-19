@@ -63,6 +63,12 @@ final class AppearanceHttpTest extends WebTestCase
         self::assertStringContainsString('--website-on-primary:', (string) $client->getResponse()->getContent());
         self::assertStringContainsString('no-store', (string) $client->getResponse()->headers->get('Cache-Control'));
         self::assertStringNotContainsString("'unsafe-inline'", (string) $client->getResponse()->headers->get('Content-Security-Policy'));
+        $this->post($client, '/admin/appearance/branding', ['action' => 'save', 'website_url' => 'https://example.com', 'tokens' => ['primary' => '#777777'], '_token' => $token], $server);
+        self::assertResponseIsSuccessful();
+        $client->request('GET', '/admin/appearance/tokens.css', server: $server);
+        self::assertStringContainsString('--website-on-primary:#000000;', (string) $client->getResponse()->getContent());
+        $this->post($client, '/admin/appearance/branding', ['action' => 'save', 'website_url' => 'https://example.com', 'tokens' => ['primary' => '#244a66'], '_token' => $token], $server);
+        self::assertResponseIsSuccessful();
         $this->post($client, '/admin/appearance/branding', ['action' => 'refresh', 'website_url' => 'https://127.0.0.1', '_token' => $token], $server);
         self::assertResponseStatusCodeSame(400);
         self::ensureKernelShutdown();

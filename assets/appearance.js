@@ -47,7 +47,7 @@ const STATUS_COLOURS = {
     warning: ['#7a4f01', '#ffe3a3'], danger: ['#b3261e', '#ffd4ce'],
 };
 const statusColour = (candidates, tokens) => candidates.find((colour) => Math.min(contrast(colour, tokens.surface), contrast(colour, tokens.background)) >= 4.5) ?? tokens.text;
-const onColour = (hex) => (contrast(hex, '#ffffff') >= contrast(hex, '#111111') ? '#ffffff' : '#111111');
+const onColour = (hex) => (contrast(hex, '#ffffff') >= contrast(hex, '#000000') ? '#ffffff' : '#000000');
 
 // CSSOM custom properties only; values are validated hex or fixed stacks, never fetched text.
 const applyTokens = (tokens) => {

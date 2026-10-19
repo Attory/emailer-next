@@ -71,7 +71,7 @@ final class AppearanceController extends AbstractController
         foreach (WebsiteBranding::statusColours($tokens) as $name => $colour) {
             $css .= '--website-'.$name.':'.$colour.';';
         }
-        $css .= '--website-on-primary:'.(WebsiteBranding::contrast($tokens['primary'], '#ffffff') >= WebsiteBranding::contrast($tokens['primary'], '#111111') ? '#ffffff' : '#111111').';';
+        $css .= '--website-on-primary:'.(WebsiteBranding::contrast($tokens['primary'], '#ffffff') >= WebsiteBranding::contrast($tokens['primary'], '#000000') ? '#ffffff' : '#000000').';';
         $css .= '--website-link:'.(min(WebsiteBranding::contrast($tokens['primary'], $tokens['surface']), WebsiteBranding::contrast($tokens['primary'], $tokens['background'])) >= 4.5 ? $tokens['primary'] : $tokens['text']).';';
         $css .= '--website-scheme:'.(5.0 > WebsiteBranding::contrast($tokens['background'], '#000000') ? 'dark' : 'light').';';
 
