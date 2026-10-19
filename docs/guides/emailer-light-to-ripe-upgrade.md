@@ -15,7 +15,7 @@ Upgrade with the private Ripe 1.2.3 setup file. Your Light administrator becomes
 | Official Light 1.2.2 | Ripe 1.2.3, direct guided upgrade. |
 | Official Light 1.2.3 | Ripe 1.2.3, direct guided upgrade. |
 | Light updated through a supported path to 1.1.0, 1.2.0, 1.2.1, 1.2.2 or 1.2.3 | Ripe 1.2.3, same guided edition upgrade. |
-| Ripe 1.0.6, 1.1.0 or 1.2.1 | Ripe 1.2.3, normal Update menu instead. |
+| Ripe 1.0.6, 1.1.0, 1.2.1 or 1.2.2 | Ripe 1.2.3, normal Update menu instead. |
 
 Use the new Ripe 1.2.3 installer for all six Light sources. Earlier Ripe 1.0.6 does not recognize Light 1.1.0/1.2.0/1.2.1/1.2.2/1.2.3, and Ripe 1.1.0 does not add Light 1.2.0/1.2.1/1.2.2/1.2.3 support. Original Light 1.0.0 remains supported. There is no general Ripe-to-Light downgrade.
 
