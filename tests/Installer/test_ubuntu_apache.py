@@ -127,7 +127,7 @@ SSLCertificateKeyFile /etc/letsencrypt/live/mailer/privkey.pem
 
     def test_exact_ip_health_probes_bypass_proxies_and_keep_tls_verification(self):
         calls=[]
-        manager=types.SimpleNamespace(prefix='emailer',installer=types.SimpleNamespace(product='emailer-ripe',version='1.2.3'),record={},error=ManagementError,releases=Path('/srv/emailer/releases'),call=lambda args:calls.append(args))
+        manager=types.SimpleNamespace(prefix='emailer',installer=types.SimpleNamespace(product='emailer-ripe',version='1.3.0'),record={},error=ManagementError,releases=Path('/srv/emailer/releases'),call=lambda args:calls.append(args))
         handoff=HostHandoff(manager)
         handoff.state.update(hostname='mailer.example.test',apache_bindings={'80':['192.0.2.2:80'],'443':['192.0.2.2:443','[2001:db8::2]:443']})
         with patch.dict(os.environ,{'HTTPS_PROXY':'http://proxy.invalid:8888','ALL_PROXY':'http://proxy.invalid:8888','NO_PROXY':''}):

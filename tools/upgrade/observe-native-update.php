@@ -90,7 +90,7 @@ foreach ($e['tables'] as $table => $evidence) {
                 continue;
             }
             if ('product_identity' === $table && 'product_version' === $key) {
-                if (('after' === $argv[1] ? '1.2.3' : $sourceVersion) !== $actual[$key]) {
+                if (('after' === $argv[1] ? '1.3.0' : $sourceVersion) !== $actual[$key]) {
                     throw new RuntimeException('Native product identity version is inconsistent.');
                 }
                 continue;
@@ -135,7 +135,7 @@ if ($converted) {
         throw new RuntimeException('Native list workflow changed.');
     }
 }
-if (16 !== (int) $c->fetchOne('SELECT COUNT(*) FROM doctrine_migration_versions') || '/rehearsal/source-releases/1.2.3' !== realpath('/rehearsal/source-releases/current')) {
+if (16 !== (int) $c->fetchOne('SELECT COUNT(*) FROM doctrine_migration_versions') || '/rehearsal/source-releases/1.3.0' !== realpath('/rehearsal/source-releases/current')) {
     throw new RuntimeException('Native target schema or active root is inconsistent.');
 }
-echo json_encode(['actual_native_update' => true, 'source_version' => $sourceVersion, 'target_version' => '1.2.3', 'converted_source' => $converted, 'original_business_audit_and_backup_rows_verified' => $verified, 'original_crypto_unchanged' => true, 'new_emitted_messages' => 0], JSON_THROW_ON_ERROR)."\n";
+echo json_encode(['actual_native_update' => true, 'source_version' => $sourceVersion, 'target_version' => '1.3.0', 'converted_source' => $converted, 'original_business_audit_and_backup_rows_verified' => $verified, 'original_crypto_unchanged' => true, 'new_emitted_messages' => 0], JSON_THROW_ON_ERROR)."\n";

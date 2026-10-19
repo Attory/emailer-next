@@ -1,7 +1,7 @@
 # ADR 0016: Ripe Apache address groups
 
 - Status: Implemented; exact signed-package acceptance gates release
-- Scope: Authorized edition-specific Apache installer correction, 1.2.3
+- Scope: Authorized edition-specific Apache installer correction, Ripe 1.3.0 / Light 1.2.3
 
 Apache selects an address group before considering ServerName. Ripe therefore
 plans literal IPv4/IPv6 groups from apache2ctl -S on explicit ports 80 and 443,

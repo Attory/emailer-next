@@ -43,7 +43,7 @@ docker run --rm --user root --network none -v "$project_root:/tools:ro" -v "$sta
     mkdir -m0700 /rehearsals/test-keys
     mkdir -m0755 /rehearsals/target-package
     php /tools/tools/release/generate-test-keypair.php /rehearsals/test-keys/signing.key /rehearsals/target-package/ripe.pub
-    php /tools/tools/release/build-package.php --artifact=/tools/build/artifact --output=/rehearsals/target-package --version=1.2.3 --source="$1" --minimum-source=1.0.6 --supported-sources=1.0.6,1.1.0,1.2.1,1.2.2 --minimum-schema=20261015000000 --schema=20261015000000 --rollback-schema-compatible=true --signing-key=/rehearsals/test-keys/signing.key --source-date-epoch="$2" >/dev/null
+    php /tools/tools/release/build-package.php --artifact=/tools/build/artifact --output=/rehearsals/target-package --version=1.3.0 --source="$1" --minimum-source=1.0.6 --supported-sources=1.0.6,1.1.0,1.2.1,1.2.2 --minimum-schema=20261015000000 --schema=20261015000000 --rollback-schema-compatible=true --signing-key=/rehearsals/test-keys/signing.key --source-date-epoch="$2" >/dev/null
 ' bash "$source_commit" "$source_epoch"
 for version in 105 106 110 121 122; do
     case "$version" in
@@ -88,7 +88,7 @@ for phase in journal preparing migrating; do
 done
 # Current schema-preserving update: real process interruption before checkpoint,
 # plus post-activation failure. There is no intermediate1.1 ALTER to fabricate.
-target="$state_root/target-package/emailer-next-1.2.3.zip"
+target="$state_root/target-package/emailer-next-1.3.0.zip"
 key="$state_root/target-package/ripe.pub"
 bash tools/upgrade/run-fresh-ripe-rehearsal.sh "$target" "$key" "$state_root" "$source_commit"
 bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$legacy_target" "$state_root" "$source_commit"
