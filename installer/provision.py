@@ -274,6 +274,10 @@ class Installer:
         self.state.setdefault('web_preexisting', bool(shutil.which(self.web.kind)))
         self.state['web_server'] = self.web.kind
         self.state['database_profile'] = self.database_profile
+        if self.web.kind == 'apache2':
+            if 'apache_bindings' not in self.state:
+                self.state['apache_bindings'] = self.web.bindings()
+            self.web.check_bindings(self.state['apache_bindings'])
         self.save()
         self.php = '/usr/bin/php8.4'
         self.release = self.base / 'releases' / self.version
@@ -499,6 +503,8 @@ class Installer:
             raise SetupError('An Emailer service name is occupied by another loaded host service or a custom override. It was preserved. Move that conflicting service to another name, then retry this setup file.')
 
     def resources(self):
+        if self.web.kind == 'apache2':
+            self.web.check_bindings(self.state['apache_bindings'])
         if not self.state.get('resources_reserved'):
             configuration = self.web.configuration()
             host = self.state['hostname']
@@ -814,7 +820,7 @@ WantedBy=multi-user.target
     def validated_site(self, text, enabled=None):
         claims = self.claims()
         claims.check_all()
-        self.web.check_assignment(self.state['hostname'], self.site)
+        self.web.check_assignment(self.state['hostname'], self.site, self.state.get('apache_bindings'))
         previous = self.site.read_bytes() if self.site.exists() else None
         linked = enabled is not None and claims.proof(enabled) is None
         claims.write(self.site, text, 0o644)
@@ -838,7 +844,7 @@ WantedBy=multi-user.target
             self.claims().directory(directory, 0, 0, 0o755)
             root_directory(directory, 0, 0o755)
         self.web.modules(run)
-        base = self.web.site(hostname=host, name=self.name, public=str(self.base / 'releases/current/public'), webroot=str(webroot))
+        base = self.web.site(hostname=host, name=self.name, public=str(self.base / 'releases/current/public'), webroot=str(webroot), bindings=self.state.get('apache_bindings'))
         enabled = self.web.directory / 'sites-enabled' / self.state.get('site_link_name', 'zzzz-' + self.site.name)
         self.validated_site(base, enabled)
         run(['systemctl', 'start', self.web.service] if self.state.get('web_preexisting') else ['systemctl', 'enable', '--now', self.web.service])
@@ -850,7 +856,7 @@ WantedBy=multi-user.target
         result = subprocess.run(['certbot', 'certonly', '--webroot', '-w', str(webroot), '-d', host, '--non-interactive', '--agree-tos', '--register-unsafely-without-email'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         if result.returncode:
             raise SetupError(f'Trusted HTTPS could not be issued for {host}. Check that every A/AAAA record reaches this VPS and ports 80 and 443 are reachable, then run setup again. Your progress is saved. No trusted certificate is claimed.')
-        https = self.web.site(hostname=host, name=self.name, public=str(self.base / 'releases/current/public'), webroot=str(webroot), certificate=f'/etc/letsencrypt/live/{host}/fullchain.pem', certificate_key=f'/etc/letsencrypt/live/{host}/privkey.pem')
+        https = self.web.site(hostname=host, name=self.name, public=str(self.base / 'releases/current/public'), webroot=str(webroot), certificate=f'/etc/letsencrypt/live/{host}/fullchain.pem', certificate_key=f'/etc/letsencrypt/live/{host}/privkey.pem', bindings=self.state.get('apache_bindings'))
         self.validated_site(https)
         run(['systemctl', 'reload', self.web.service])
         self.claims().write('/etc/letsencrypt/renewal-hooks/deploy/' + self.name, '#!/bin/sh\n' + ' '.join(self.web.check_command) + ' && systemctl reload ' + self.web.service + '\n', 0o755)

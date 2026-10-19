@@ -8,6 +8,7 @@ use App\Module\Audit\Application\Contract\AuditRecord;
 use App\Module\Audit\Application\Contract\AuditSink;
 use App\Module\Backup\Application\Contract\BackupContributor;
 use App\Module\Backup\Application\Contract\BackupOperations;
+use App\Module\Backup\Application\Contract\PrivateBackupAssets;
 use App\Module\Secrets\Application\Contract\MasterKey;
 use App\Shared\Identity;
 use App\Shared\MaintenanceOperationLock;
@@ -582,7 +583,11 @@ final readonly class BackupEngine implements BackupOperations
                 }
                 $entries[$name] = hash_final($hash);
             }
-            foreach ($this->assets() as $logical => $root) {
+            foreach ($this->assetPolicies() as $logical => $policy) {
+                $root = $policy['path'];
+                if ($policy['private']) {
+                    $this->assertPrivateAssetRoot($root);
+                }
                 if (!is_dir($root)) {
                     continue;
                 }
@@ -593,6 +598,9 @@ final readonly class BackupEngine implements BackupOperations
                     }
                     if (!$file->isFile() || $file->isLink()) {
                         throw new \RuntimeException('Backup asset storage contains an unsafe object.');
+                    }
+                    if ($policy['private']) {
+                        $this->assertPrivateAssetTree($file->getPathname(), false);
                     }
                     $relative = substr($file->getPathname(), \strlen(rtrim($root, '/')) + 1);
                     $name = 'assets/'.$logical.'/'.$relative;
@@ -833,7 +841,12 @@ final readonly class BackupEngine implements BackupOperations
 
     private function restoreAssets(\ZipArchive $zip): void
     {
-        foreach ($this->assets() as $logical => $root) {
+        foreach ($this->assetPolicies() as $logical => $policy) {
+            $root = $policy['path'];
+            $private = $policy['private'];
+            if ($private) {
+                $this->assertPrivateAssetRoot($root);
+            }
             $parent = \dirname($root);
             if (!is_dir($parent) || is_link($parent) || (file_exists($root) && (is_link($root) || !is_dir($root)))) {
                 throw new \RuntimeException('Restore asset destination is unsafe.');
@@ -841,7 +854,10 @@ final readonly class BackupEngine implements BackupOperations
             $nonce = Identity::uuidV7();
             $staging = $parent.'/.restore-'.basename($root).'-'.$nonce;
             $rollback = $parent.'/.rollback-'.basename($root).'-'.$nonce;
-            if (!mkdir($staging, 0o755)) {
+            $privateIdentity = $private ? $this->privateAssetIdentity($root) : null;
+            $directoryMode = $private ? 0o700 : 0o755;
+            $fileMode = $private ? 0o600 : 0o644;
+            if (!mkdir($staging, $directoryMode)) {
                 throw new \RuntimeException('Restore asset staging cannot be created.');
             }
             try {
@@ -852,12 +868,12 @@ final readonly class BackupEngine implements BackupOperations
                         continue;
                     }
                     $relative = substr($name, \strlen($prefix));
-                    if ('' === $relative || 1 === preg_match('~(^|/)\.\.(/|$)~', $relative) || str_starts_with($relative, '/')) {
+                    if ('' === $relative || 1 === preg_match('~(^|/)\.{1,2}(/|$)~', $relative) || str_starts_with($relative, '/') || str_contains($relative, '//') || str_contains($relative, "\0") || str_contains($relative, '\\')) {
                         throw new \RuntimeException('Restore asset path is unsafe.');
                     }
                     $destination = $staging.'/'.$relative;
                     $directory = \dirname($destination);
-                    if (!is_dir($directory) && !mkdir($directory, 0o755, true)) {
+                    if (!is_dir($directory) && !mkdir($directory, $directoryMode, true)) {
                         throw new \RuntimeException('Restore asset directory cannot be created.');
                     }
                     $input = $zip->getStream($name);
@@ -868,12 +884,22 @@ final readonly class BackupEngine implements BackupOperations
                     try {
                         $entry = $zip->statName($name);
                         $copied = stream_copy_to_stream($input, $output);
-                        if (false === $entry || false === $copied || $entry['size'] !== $copied || !fflush($output) || !chmod($destination, 0o644)) {
+                        if (false === $entry || false === $copied || $entry['size'] !== $copied || !fflush($output) || !chmod($destination, $fileMode) || ($private && !fsync($output))) {
                             throw new \RuntimeException('Restore asset cannot be written safely.');
                         }
                     } finally {
                         fclose($input);
                         fclose($output);
+                    }
+                }
+                if (null !== $privateIdentity) {
+                    $this->assignPrivateAssetOwnership($staging, $privateIdentity['uid'], $privateIdentity['gid']);
+                    $this->syncPrivateAssetDirectories($staging);
+                    // Recheck immediately before publication; never replace a
+                    // linked or relaxed destination introduced during staging.
+                    $this->assertPrivateAssetRoot($root);
+                    if ($privateIdentity !== $this->privateAssetIdentity($root)) {
+                        throw new \RuntimeException('Private backup destination identity changed during staging.');
                     }
                 }
                 $hadRoot = is_dir($root);
@@ -886,8 +912,14 @@ final readonly class BackupEngine implements BackupOperations
                     }
                     throw new \RuntimeException('Restored asset root cannot be published.');
                 }
+                if ($private) {
+                    $this->syncPrivatePath($parent);
+                }
                 if ($hadRoot) {
                     $this->removeTree($rollback);
+                }
+                if ($private) {
+                    $this->syncPrivatePath($parent);
                 }
             } finally {
                 $this->removeTree($staging);
@@ -961,12 +993,148 @@ final readonly class BackupEngine implements BackupOperations
     /** @return array<string, string> */
     private function assets(): array
     {
+        return array_map(static fn (array $policy): string => $policy['path'], $this->assetPolicies());
+    }
+
+    /** @return array<string, array{path: string, private: bool}> */
+    private function assetPolicies(): array
+    {
         $assets = [];
         foreach ($this->contributors as $contributor) {
-            $assets += $contributor->assetRoots();
+            $roots = $contributor->assetRoots();
+            $private = $contributor instanceof PrivateBackupAssets ? $contributor->privateAssetRoots() : [];
+            if (\count($private) !== \count(array_unique($private))) {
+                throw new \RuntimeException('Private backup asset declaration is invalid.');
+            }
+            foreach ($private as $logical) {
+                if (!\array_key_exists($logical, $roots)) {
+                    throw new \RuntimeException('Private backup asset root is not owned by its contributor.');
+                }
+            }
+            foreach ($roots as $logical => $root) {
+                if (1 !== preg_match('/^[a-z][a-z0-9-]{0,63}$/', $logical) || isset($assets[$logical]) || !str_starts_with($root, '/') || '/' === $root || str_contains($root, "\0") || str_contains($root, '\\') || str_contains($root, '//') || str_ends_with($root, '/') || 1 === preg_match('~(^|/)\.{1,2}(/|$)~', $root)) {
+                    throw new \RuntimeException('Backup asset root declaration is invalid.');
+                }
+                foreach ($assets as $existing) {
+                    if ($root === $existing['path'] || str_starts_with($root, $existing['path'].'/') || str_starts_with($existing['path'], $root.'/')) {
+                        throw new \RuntimeException('Backup asset roots overlap.');
+                    }
+                }
+                $assets[$logical] = ['path' => $root, 'private' => \in_array($logical, $private, true)];
+            }
         }
 
         return $assets;
+    }
+
+    private function assertPrivateAssetRoot(string $root): void
+    {
+        for ($path = $root; '/' !== $path; $path = \dirname($path)) {
+            if (is_link($path)) {
+                throw new \RuntimeException('Private backup asset root has a linked ancestor.');
+            }
+        }
+        if (!is_dir(\dirname($root)) || 0 !== (fileperms(\dirname($root)) & 0o027)) {
+            throw new \RuntimeException('Private backup asset parent is not protected.');
+        }
+        if (false !== @lstat($root)) {
+            $this->assertPrivateAssetTree($root, true);
+            $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS), \RecursiveIteratorIterator::SELF_FIRST);
+            foreach ($iterator as $entry) {
+                if (!$entry instanceof \SplFileInfo) {
+                    throw new \RuntimeException('Private backup asset iterator is invalid.');
+                }
+                $this->assertPrivateAssetTree($entry->getPathname(), $entry->isDir());
+            }
+        }
+    }
+
+    private function assertPrivateAssetTree(string $path, bool $directory): void
+    {
+        $stat = @lstat($path);
+        if (false === $stat || ($directory ? 0o040000 : 0o100000) !== ($stat['mode'] & 0o170000) || ($directory ? 0o700 : 0o600) !== ($stat['mode'] & 0o777) || (!$directory && 1 !== $stat['nlink'])) {
+            throw new \RuntimeException('Private backup asset metadata is unsafe.');
+        }
+    }
+
+    /** @return array{exists: bool, dev: int, ino: int, uid: int, gid: int} */
+    private function privateAssetIdentity(string $root): array
+    {
+        clearstatcache(true, $root);
+        $stat = @lstat($root);
+        $exists = false !== $stat;
+        if (false === $stat) {
+            $parent = \dirname($root);
+            clearstatcache(true, $parent);
+            $stat = lstat($parent);
+        }
+        if (false === $stat || 0o040000 !== ($stat['mode'] & 0o170000)) {
+            throw new \RuntimeException('Private backup destination ownership is unavailable.');
+        }
+
+        return ['exists' => $exists, 'dev' => $stat['dev'], 'ino' => $stat['ino'], 'uid' => $stat['uid'], 'gid' => $stat['gid']];
+    }
+
+    private function assignPrivateAssetOwnership(string $root, int $uid, int $gid): void
+    {
+        // Keep the staging root inaccessible to the restored account until all
+        // descendants have their final ownership and durable metadata.
+        $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS), \RecursiveIteratorIterator::CHILD_FIRST);
+        foreach ($iterator as $entry) {
+            if (!$entry instanceof \SplFileInfo) {
+                throw new \RuntimeException('Private backup ownership iterator is invalid.');
+            }
+            $this->assignPrivateAssetOwner($entry->getPathname(), $entry->isDir(), $uid, $gid);
+        }
+        $this->assignPrivateAssetOwner($root, true, $uid, $gid);
+    }
+
+    private function assignPrivateAssetOwner(string $path, bool $directory, int $uid, int $gid): void
+    {
+        $this->assertPrivateAssetTree($path, $directory);
+        clearstatcache(true, $path);
+        $stat = lstat($path);
+        if (false === $stat || ($stat['uid'] !== $uid && !@chown($path, $uid)) || ($stat['gid'] !== $gid && !@chgrp($path, $gid))) {
+            throw new \RuntimeException('Private backup ownership cannot be restored safely.');
+        }
+        clearstatcache(true, $path);
+        $after = lstat($path);
+        if (false === $after || $after['dev'] !== $stat['dev'] || $after['ino'] !== $stat['ino'] || $after['uid'] !== $uid || $after['gid'] !== $gid) {
+            throw new \RuntimeException('Private backup ownership verification failed.');
+        }
+        $this->assertPrivateAssetTree($path, $directory);
+        if (!$directory) {
+            $this->syncPrivatePath($path);
+        }
+    }
+
+    private function syncPrivateAssetDirectories(string $root): void
+    {
+        $iterator = new \RecursiveIteratorIterator(new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS), \RecursiveIteratorIterator::CHILD_FIRST);
+        foreach ($iterator as $entry) {
+            if (!$entry instanceof \SplFileInfo) {
+                throw new \RuntimeException('Private backup directory iterator is invalid.');
+            }
+            if ($entry->isDir()) {
+                $this->syncPrivatePath($entry->getPathname());
+            }
+        }
+        $this->syncPrivatePath($root);
+    }
+
+    private function syncPrivatePath(string $path): void
+    {
+        $stream = @fopen($path, 'r');
+        if (false === $stream) {
+            throw new \RuntimeException('Private backup storage durability is unavailable.');
+        }
+        try {
+            if (!fsync($stream)) {
+                throw new \RuntimeException('Private backup storage cannot be synchronized.');
+            }
+        } finally {
+            fclose($stream);
+        }
     }
 
     private function schemaVersion(): string

@@ -5,10 +5,11 @@
         <meta name="viewport" content="width=device-width, initial-scale=1">
         <title>{% block title %}Emailer Next{% endblock %}</title>
         <link rel="stylesheet" href="{{ asset('styles/app.css') }}">
+        {% block shell_assets %}{% endblock %}
         {% block stylesheets %}{% endblock %}
         {% block javascripts %}{% endblock %}
     </head>
-    <body>
+    <body{% block body_attributes %}{% endblock %}>
         {% block body %}{% endblock %}
     </body>
 </html>

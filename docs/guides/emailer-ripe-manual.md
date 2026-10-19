@@ -1,16 +1,50 @@
 # Emailer Ripe user manual
 
-Version 1.2.2 | Accounts, setup and everyday newsletters
+Version 1.3.0 | Accounts, setup and everyday newsletters
 
 Prepare, test, approve, then send. Saving a draft sends nothing. A campaign is one newsletter, a template is reusable content, and a list is a group of contacts.
 
-The 1.2.2 setup file supports Ubuntu 22.04/24.04 with Apache and Debian 13 with Nginx. It creates a dedicated PHP runtime, application services, backups and a command launcher. Ubuntu 22.04 gets an isolated supported database beside existing sites. Administrator email is the default login name on fresh setup; existing accounts keep their identifier and password. You can sign in, prepare templates and campaigns, and configure SMTP later. See the beginner installation guide for the tested hosting profile and one-file setup action.
+Ripe’s Ubuntu Apache installer supports wildcard and literal address-specific virtual hosts on explicit ports 80 and 443. Light retains a wildcard-only Apache profile. An existing Nginx service on a separate port, such as 8081, remains unchanged.
+
+The 1.3.0 setup file supports Ubuntu 22.04/24.04 with Apache and Debian 13 with Nginx. It creates a dedicated PHP runtime, application services, backups and a command launcher. Ubuntu 22.04 gets an isolated supported database beside existing sites. Administrator email is the default login name on fresh setup; existing accounts keep their identifier and password. You can sign in, prepare templates and campaigns, and configure SMTP later. See the beginner installation guide for the tested hosting profile and one-file setup action.
 
 ## Your installed account
 
 The [fresh installer](emailer-ripe-install.md) creates an Owner using your administrator email. Existing accounts keep their identifiers and password hashes. For Light transitions, follow the [upgrade guide](emailer-light-to-ripe-upgrade.md). Fresh organisation defaults are Emailer, English and UTC. The installer installs background services and an initial encrypted backup. You can prepare content and drafts while sending is blocked.
 
 ![Actual Ripe dashboard with email delivery deferred.](images/emailer-ripe-dashboard.png)
+
+## Choose your dashboard appearance
+
+Open <strong>Appearance</strong> in the administration header. Studio gives a crisp, structured workspace; Warm adds welcoming colours and gentle motion; Website uses saved organisation branding. Classic keeps the original look. Fresh Ripe installations start with Studio. An update or Light upgrade keeps the existing Classic appearance until you choose another skin.
+
+1. Choose a thumbnail to preview its skin immediately. Anything you have typed on the page stays in place.
+2. Choose <strong>Save appearance</strong> to keep your choice across sign-ins. Your selection affects only your account.
+3. Choose <strong>Revert preview</strong>, Cancel or Escape to return to your saved appearance.
+4. For less animation choose <strong>Reduce motion</strong>. Otherwise Emailer follows your device’s motion preference.
+
+![The actual Appearance dialog: preview a skin, reduce motion, save or revert.](images/emailer-ripe-appearance.png)
+
+![Studio keeps administration tables and operational status readable.](images/emailer-ripe-studio.png)
+
+![Warm applies the same presentation to settings and forms; permissions and sending checks stay in place.](images/emailer-ripe-warm-settings.png)
+
+### Match your organisation website
+
+In Appearance choose Website. An Administrator or Owner can confirm or edit the suggested address, or enter the organisation’s public HTTPS website, and choose <strong>Refresh from website and save for everyone</strong>. Confirm the organisation website rather than assuming that the Emailer dashboard address is the right source. No website is contacted until you press this button.
+
+Emailer saves a small set of colours, a system or serif heading font and, when available, a small safe site icon. It does not copy whole pages or load the website into your dashboard. If no suitable icon is found, the text mark remains. The source address and last refresh time are displayed. Extraction suggests a coherent starting point; it cannot exactly copy every website.
+
+1. Review the preview. Adjust Primary, Accent, Panels, Page background, Text and Headings if needed.
+2. Choose <strong>Save corrected branding for everyone</strong> to share your corrections with accounts using Website. These shared branding buttons save immediately; Cancel only reverts your personal preview.
+3. Use the website-fetch button again when the organisation branding changes. Emailer uses its saved copy between refreshes, including when the website is offline.
+4. If a refresh fails, check the displayed website address and try again later, or use manual colours. Low-contrast text and unsafe or local website addresses are rejected with an explanation.
+
+![Appearance keeps the skin choices available on a phone. Scroll within the dialog for website corrections.](images/emailer-ripe-website-mobile.png)
+
+![A rejected colour correction keeps your inputs and explains the readability problem.](images/emailer-ripe-appearance-error.png)
+
+Skins affect the administration interface. They do not change newsletter HTML, the email-content preview, recipient lists, approvals, security level or delivery holds. A sending-blocked message remains visible in every skin. Appearance settings are included in the application’s encrypted backups.
 
 ## Secure your Owner account
 
@@ -82,4 +116,4 @@ Doctor shows each sending blocker and repair action. Native updates and edition 
 
 Fresh setup enables daily encrypted local backup copies. Under Backups inspect verification and transfer evidence, adjust policy or create and verify an on-demand backup. Keep the recovery-key package and its password separately. Same-server copies do not protect against server loss; arrange an independent backup destination. Restore drills are supervised, never automatic.
 
-For Ripe 1.0.6, 1.1.0 or 1.2.1 to 1.2.2, start the new official setup file, choose Update with a verified backup and follow any Finish instruction. This includes Ripe 1.1.0 installations previously converted from Light. Existing MFA, password, recipients, tracking, SMTP encryption contexts and recovery history are retained. Review Doctor before Resume. Earlier Ripe versions must follow their published supported path to 1.0.6 first. Interrupted operations use Recover; committed operations use Finish and cannot be downgraded by recovery. See the [operator reference](emailer-ripe-operator.md).
+For Ripe 1.0.6, 1.1.0, 1.2.1 or 1.2.2 to 1.3.0, start the new official setup file, choose Update with a verified backup and follow any Finish instruction. This includes Ripe 1.1.0 installations previously converted from Light. Existing MFA, password, recipients, tracking, SMTP encryption contexts and recovery history are retained. Review Doctor before Resume. Earlier Ripe versions must follow their published supported path to 1.0.6 first. Interrupted operations use Recover; committed operations use Finish and cannot be downgraded by recovery. See the [operator reference](emailer-ripe-operator.md).

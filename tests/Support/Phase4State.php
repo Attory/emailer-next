@@ -15,6 +15,7 @@ trait Phase4State
 {
     private function preparePhase4State(Connection $connection): void
     {
+        $this->removePhase4AppearanceFiles();
         $lock = self::getContainer()->get(InstallationLock::class);
         if (!$lock instanceof InstallationLock) {
             throw new \RuntimeException('Installation lock service is unavailable.');
@@ -84,6 +85,7 @@ SQL);
 
     private function removePhase4Files(): void
     {
+        $this->removePhase4AppearanceFiles();
         foreach (['emailer.master_key_file', 'emailer.install_lock_file', 'emailer.recovery_key_file'] as $parameter) {
             $path = self::getContainer()->getParameter($parameter);
             if (\is_string($path) && (file_exists($path) || is_link($path))) {
@@ -116,6 +118,22 @@ SQL);
                 }
             }
         }
+    }
+
+    private function removePhase4AppearanceFiles(): void
+    {
+        $directory = self::getContainer()->getParameter('emailer.appearance_dir');
+        if (!\is_string($directory) || !is_dir($directory)) {
+            return;
+        }
+        foreach (new \DirectoryIterator($directory) as $entry) {
+            if (!$entry->isDot()) {
+                if (!$entry->isFile() || !unlink($entry->getPathname())) {
+                    throw new \RuntimeException('Unable to remove an appearance test file safely.');
+                }
+            }
+        }
+        rmdir($directory);
     }
 
     private function createPhase4User(

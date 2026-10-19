@@ -7,6 +7,7 @@ parameters:
     emailer.default_proof_file: '%kernel.project_dir%/.emailer-install-proof'
     emailer.proof_file: '%env(default:emailer.default_proof_file:EMAILER_INSTALL_PROOF_FILE)%'
     emailer.install_lock_file: '%emailer.private_dir%/install.lock'
+    emailer.appearance_dir: '%emailer.private_dir%/appearance'
     emailer.import_dir: '%emailer.private_dir%/imports'
     emailer.template_asset_dir: '%emailer.private_dir%/template-assets'
     emailer.backup_dir: '%emailer.private_dir%/backups'
@@ -23,7 +24,7 @@ parameters:
     emailer.default_transition_recovery_url: ''
     emailer.transition_recovery_url: '%env(default:emailer.default_transition_recovery_url:EMAILER_TRANSITION_RECOVERY_DATABASE_URL)%'
     emailer.product_id: 'emailer-ripe'
-    emailer.app_version: '1.2.2'
+    emailer.app_version: '1.3.0'
     emailer.update_source_version: '%env(default:emailer.app_version:EMAILER_UPDATE_SOURCE_VERSION)%'
     emailer.schema_version: '20261015000000'
     emailer.default_uri: '%env(DEFAULT_URI)%'
@@ -369,3 +370,20 @@ services:
     App\Shared\InstallerDeliveryHold:
         arguments:
             $holdFile: '%emailer.installer_hold%'
+
+    App\Module\Configuration\Application\AppearanceSettings:
+        arguments:
+            $appearanceDirectory: '%emailer.appearance_dir%'
+
+    App\Module\Configuration\Application\Contract\AppearanceInitialization:
+        alias: App\Module\Configuration\Application\AppearanceSettings
+
+    App\Module\Configuration\Application\Contract\PublicWebsiteClient:
+        alias: App\Module\Configuration\Infrastructure\CurlPublicWebsiteClient
+
+    App\Module\Configuration\Infrastructure\AppearanceBackupContributor:
+        arguments:
+            $appearanceDirectory: '%emailer.appearance_dir%'
+
+    App\Module\Configuration\Application\Contract\PublicDnsResolver:
+        alias: App\Module\Configuration\Infrastructure\BoundedPublicDnsResolver

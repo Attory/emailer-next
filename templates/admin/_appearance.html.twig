@@ -1,0 +1,95 @@
+{% set current_skin = appearance.skin|default('classic') %}
+{% set current_skin = current_skin in ['classic', 'website', 'studio', 'warm'] ? current_skin : 'classic' %}
+{% set current_motion = appearance.motion|default('system') == 'reduced' ? 'reduced' : 'system' %}
+{% set can_edit_branding = is_granted('ROLE_ADMINISTRATOR') %}
+{% set skins = {
+    classic: {name: 'Classic', text: 'The original Emailer Next look.'},
+    studio: {name: 'Studio', text: 'Crisp, structured and quiet, with precise tables.'},
+    warm: {name: 'Warm', text: 'Welcoming colours, rounded shapes and gentle motion.'},
+    website: {name: 'Website', text: 'Your organisation’s website colours and logo.'}
+} %}
+<button type="button" class="appearance-trigger" data-appearance-open aria-haspopup="dialog" aria-controls="appearance-dialog" hidden><span class="appearance-trigger-swatch" aria-hidden="true"></span><span>Appearance</span></button>
+<div class="visually-hidden" role="status" data-appearance-announcer></div>
+<dialog id="appearance-dialog" class="appearance-dialog" aria-labelledby="appearance-title" aria-describedby="appearance-intro"
+    data-appearance
+    data-appearance-endpoint="{{ path('admin_appearance') }}"
+    data-branding-endpoint="{{ path('admin_appearance_branding') }}"
+    data-csrf-token="{{ csrf_token('admin-appearance') }}"
+    data-can-edit-branding="{{ can_edit_branding ? 'true' : 'false' }}"
+    data-appearance-state="{{ appearance|json_encode }}">
+    <div class="appearance-head">
+        <h2 id="appearance-title">Appearance</h2>
+        <button type="button" class="appearance-close secondary" data-appearance-cancel aria-label="Cancel and close appearance settings"><span aria-hidden="true">×</span></button>
+    </div>
+    <div class="appearance-body">
+        <p id="appearance-intro" class="appearance-intro">Choose how the administration area looks for you. Each choice previews on this page straight away. Nothing is saved until you choose <strong>Save appearance</strong>, and anything you have typed on this page is kept.</p>
+        <fieldset class="skin-choices">
+            <legend>Skin</legend>
+            <div class="skin-choice-grid">
+            {% for value, skin in skins %}
+                <label class="skin-choice">
+                    <input type="radio" name="appearance_skin" value="{{ value }}" data-appearance-skin aria-describedby="skin-text-{{ value }}"{% if value == current_skin %} checked{% endif %}>
+                    <span class="skin-thumb" data-thumb="{{ value }}" aria-hidden="true"><span class="thumb-bar"></span><span class="thumb-nav"></span><span class="thumb-main"><span class="thumb-heading"></span><span class="thumb-card"></span><span class="thumb-card"></span><span class="thumb-button"></span></span></span>
+                    <span class="skin-name">{{ skin.name }}{% if value == 'classic' %} <small>(original)</small>{% endif %}</span>
+                    <span class="skin-text" id="skin-text-{{ value }}">{{ skin.text }}</span>
+                </label>
+            {% endfor %}
+            </div>
+        </fieldset>
+        <fieldset class="motion-choices">
+            <legend>Motion</legend>
+            <label><input type="radio" name="appearance_motion" value="system" data-appearance-motion{% if current_motion == 'system' %} checked{% endif %}> Follow my device setting <span class="field-hint" data-motion-device-hint></span></label>
+            <label><input type="radio" name="appearance_motion" value="reduced" data-appearance-motion{% if current_motion == 'reduced' %} checked{% endif %}> Reduce motion <span class="field-hint">Turns off animated transitions in every skin.</span></label>
+        </fieldset>
+        <section class="branding-panel" data-branding-panel aria-labelledby="branding-title"{% if current_skin != 'website' %} hidden{% endif %}>
+            <h3 id="branding-title">Website branding</h3>
+            <p class="field-hint">Shared by everyone who uses the Website skin in this installation. Emailer Next keeps a saved copy, so the dashboard still works if your website is unavailable. Colours are matched closely, not pixel for pixel.</p>
+            <dl class="branding-source">
+                <div><dt>Source</dt><dd data-branding-source>Not set yet</dd></div>
+                <div><dt>Last refreshed</dt><dd><time data-branding-refreshed>Never</time></dd></div>
+            </dl>
+            {% if can_edit_branding %}
+            <div class="branding-editor">
+                <label for="branding-website-url">Organisation website address</label>
+                <input type="url" id="branding-website-url" inputmode="url" autocomplete="url" spellcheck="false" placeholder="https://www.example.org" aria-describedby="branding-url-hint" data-branding-url>
+                <p class="field-hint" id="branding-url-hint">Enter your organisation’s public website, not the address of this dashboard. The website is only contacted when you press the button below.</p>
+                <p class="field-hint" data-branding-suggestion hidden>Suggested starting address: <button type="button" class="secondary" data-branding-use-suggestion></button>. Confirm or edit this address before refreshing; the dashboard address may belong to a different website.</p>
+                <div class="branding-actions">
+                    <button type="button" class="secondary" data-branding-refresh>Refresh from website and save for everyone</button>
+                </div>
+                <fieldset class="branding-tokens">
+                    <legend>Manual corrections</legend>
+                    <p class="field-hint">Adjust any colour that was not picked up correctly. Changes preview on this page only until you save them for everyone.</p>
+                    <div class="branding-token-grid">
+                    {% for key, label in {primary: 'Primary', accent: 'Accent', surface: 'Panels', background: 'Page background', text: 'Text'} %}
+                        <label class="branding-color">
+                            <span class="field-label">{{ label }}</span>
+                            <span class="branding-color-row"><input type="color" value="#000000" data-branding-token="{{ key }}"><output data-branding-hex="{{ key }}">—</output></span>
+                        </label>
+                    {% endfor %}
+                        <label class="branding-font">
+                            <span class="field-label">Headings</span>
+                            <select data-branding-token="font"><option value="system">Clean sans-serif</option><option value="serif">Classic serif</option></select>
+                        </label>
+                    </div>
+                    <p class="field-hint branding-contrast" data-branding-contrast hidden></p>
+                    <div class="branding-actions">
+                        <button type="button" class="secondary" data-branding-save>Save corrected branding for everyone</button>
+                    </div>
+                </fieldset>
+                <div class="appearance-feedback" role="status" data-branding-status></div>
+                <div class="appearance-feedback appearance-error" role="alert" data-branding-error></div>
+            </div>
+            {% else %}
+            <p class="field-hint">Only administrators can change shared website branding.</p>
+            {% endif %}
+        </section>
+        <div class="appearance-feedback" role="status" data-appearance-status></div>
+        <div class="appearance-feedback appearance-error" role="alert" data-appearance-error></div>
+    </div>
+    <div class="appearance-actions">
+        <button type="button" data-appearance-save disabled>Save appearance</button>
+        <button type="button" class="secondary" data-appearance-revert disabled>Revert preview</button>
+        <button type="button" class="secondary" data-appearance-cancel>Cancel</button>
+    </div>
+</dialog>

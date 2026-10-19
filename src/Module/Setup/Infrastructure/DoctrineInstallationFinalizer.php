@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Setup\Infrastructure;
 
+use App\Module\Configuration\Application\Contract\AppearanceInitialization;
 use App\Module\Health\Application\Contract\SetupDoctor;
 use App\Module\Setup\Application\Contract\InstallationFinalizer;
 use App\Module\Setup\Application\Contract\InstallationLock;
@@ -17,8 +18,9 @@ final readonly class DoctrineInstallationFinalizer implements InstallationFinali
         private InstallationLock $installationLock,
         private SetupDoctor $doctor,
         private SetupLifecycle $lifecycle,
-        private string $productVersion = '1.2.2',
+        private string $productVersion = '1.3.0',
         private string $productSchema = '20261015000000',
+        private ?AppearanceInitialization $appearance = null,
     ) {
     }
 
@@ -70,6 +72,7 @@ final readonly class DoctrineInstallationFinalizer implements InstallationFinali
             }
 
             try {
+                $this->appearance?->initializeFresh();
                 $this->installationLock->create([
                     'version' => 1,
                     'installation_uuid' => $installationId,

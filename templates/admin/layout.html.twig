@@ -1,8 +1,18 @@
 {% extends 'base.html.twig' %}
+{# Appearance assets live in shell_assets so pages that replace the javascripts block keep the skin and its control. #}
+{% block shell_assets %}
+        <link rel="stylesheet" href="{{ asset('styles/skins.css') }}">
+        <link rel="stylesheet" href="{{ path('admin_appearance_tokens') }}">
+        <script type="module" src="{{ asset('appearance.js') }}"></script>
+{% endblock %}
+{% block body_attributes %}{% set appearance = app.request.attributes.get('appearance')|default({}) %}{% set skin = appearance.skin|default('classic') %} data-skin="{{ skin in ['classic', 'website', 'studio', 'warm'] ? skin : 'classic' }}" data-motion="{{ appearance.motion|default('system') == 'reduced' ? 'reduced' : 'system' }}"{% if appearance.branding.logo_url|default(null) %} data-brand-logo="present"{% endif %}{% endblock %}
 {% block body %}
+{% set appearance = app.request.attributes.get('appearance')|default({}) %}
+{% set brand_logo = appearance.branding.logo_url|default(null) %}
+{% set brand_logo = brand_logo is not null and brand_logo starts with '/' and not (brand_logo starts with '//') ? brand_logo : null %}
 <a class="skip-link" href="#main-content">Skip to main content</a>
 <header class="admin-header">
-    <a class="brand" href="{{ path('admin_dashboard') }}"><span class="brand-mark" aria-hidden="true">en</span>Emailer Next</a>
+    <a class="brand" href="{{ path('admin_dashboard') }}">{% if brand_logo %}<img class="brand-logo" src="{{ brand_logo }}" alt="" width="32" height="32" data-brand-logo-image>{% endif %}<span class="brand-mark" aria-hidden="true">en</span>Emailer Next</a>
     <nav aria-label="Administration">
         {% set current_route = app.request.attributes.get('_route')|default('') %}
         {% for label, route in {'Overview': 'admin_dashboard', 'Campaigns': 'admin_campaigns', 'Lists': 'admin_lists', 'Templates': 'admin_templates', 'Contacts': 'admin_contacts'} %}
@@ -21,6 +31,7 @@
             <form method="post" action="{{ path('admin_logout') }}"><input type="hidden" name="_token" value="{{ csrf_token('admin-logout') }}"><button type="submit" class="secondary">Sign out</button></form>
         </div></details>
     </nav>
+    {% include 'admin/_appearance.html.twig' with {appearance: appearance} only %}
 </header>
 <main id="main-content" class="admin-content" tabindex="-1">
     {% set doctor_findings = app.request.attributes.get('doctor_active_findings')|default([]) %}

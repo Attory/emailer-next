@@ -48,13 +48,48 @@ class ApacheCoexistence(unittest.TestCase):
         with patch.object(Path,'read_text',side_effect=PermissionError), self.assertRaisesRegex(SetupError,'could not safely identify'):
             instance.check_public_listeners()
 
-    def test_apache_address_specific_vhosts_cannot_shadow_new_site(self):
+    def test_ripe_joins_literal_ipv4_ipv6_and_wildcard_address_groups(self):
         web=WebServer('apache2',SetupError)
-        web.check_layout('*:80 is a NameVirtualHost\n*:443 secure.example.test (/etc/apache2/sites-enabled/site:1)\n127.0.0.1:8081 internal.example.test (/etc/apache2/sites-enabled/internal:1)\n')
-        for address in ('127.0.0.1','192.0.2.2','[::]','[::1]'):
-            for port in (80,443):
-                with self.subTest(address=address,port=port), self.assertRaisesRegex(SetupError,'address-specific'):
-                    web.check_layout(f'{address}:{port} is a NameVirtualHost\n')
+        inventory="""*:80 is a NameVirtualHost
+192.0.2.2:80 old.example.test (/etc/apache2/sites-enabled/old:1)
+[2001:db8::2]:443 is a NameVirtualHost
+127.0.0.1:8081 internal.example.test (/etc/apache2/sites-enabled/internal:1)
+"""
+        bindings=web.bindings(inventory)
+        self.assertEqual({'80':['*:80','192.0.2.2:80'],'443':['*:443','[2001:db8::2]:443']},bindings)
+        web.check_layout(inventory)
+        site=web.site(hostname='mailer.example.test',name='emailer',public='/srv/emailer/current/public',certificate='/etc/tls/cert.pem',certificate_key='/etc/tls/key.pem',bindings=bindings)
+        self.assertIn('<VirtualHost *:80 192.0.2.2:80>',site)
+        self.assertIn('<VirtualHost *:443 [2001:db8::2]:443>',site)
+        self.assertNotIn('8081',site)
+        self.assertNotIn('Listen ',site)
+
+    def test_clean_host_does_not_require_apache_before_dependencies(self):
+        web=WebServer('apache2',SetupError)
+        with patch('hosting.shutil.which',return_value=None),patch.object(web,'configuration',side_effect=AssertionError('Apache not installed')):
+            self.assertEqual({'80':['*:80'],'443':['*:443']},web.bindings())
+
+    def test_ambiguous_and_unsafe_address_selectors_fail_closed(self):
+        web=WebServer('apache2',SetupError)
+        for address in ('_default_','hostname.example.test','0.0.0.0','[::]','[fe80::1%eth0]','192.0.2.999'):
+            with self.subTest(address=address),self.assertRaises(SetupError):
+                web.check_layout(f'{address}:80 is a NameVirtualHost\n')
+        for selector in ('192.0.2.2:*', '_default_:*', '192.0.2.2:0'):
+            with self.subTest(selector=selector),self.assertRaisesRegex(SetupError,'wildcard-port'):
+                web.check_layout(selector + ' is a NameVirtualHost\n')
+        for values in (['192.0.2.2:80\nInclude /etc/evil'],['[::1]:443'],[],['*:80','*:80']):
+            with self.subTest(values=values),self.assertRaises(SetupError):
+                web.validate_bindings({'80':values,'443':['*:443']})
+
+    def test_resume_preserves_saved_address_plan_and_detects_new_shadowing(self):
+        web=WebServer('apache2',SetupError)
+        original='192.0.2.2:80 is a NameVirtualHost\n'
+        saved=web.bindings(original)
+        with patch.object(web,'configuration',return_value=original):
+            web.check_assignment('mailer.example.test',Path('/etc/apache2/sites-available/emailer.conf'),saved)
+        for changed in ('',original+'192.0.2.3:443 is a NameVirtualHost\n'):
+            with self.subTest(changed=changed),patch.object(web,'configuration',return_value=changed),self.assertRaisesRegex(SetupError,'address groups changed'):
+                web.check_assignment('mailer.example.test',Path('/etc/apache2/sites-available/emailer.conf'),saved)
 
     def test_preflight_cannot_skip_listener_proof_on_fresh_or_managed_runs(self):
         # Use real preflight flow; stop exactly at the mandatory live inspection.
