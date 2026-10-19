@@ -1,6 +1,6 @@
 # Ripe administration appearance: design record
 
-Owner: design (Claude, delegated by Anton). Actual local Claude Code2.1.284 session model: `claude-opus-5-5`, verified from CLI initialization; initial implementation and a second pass reviewing actual Codex browser screenshots completed on19October2026. Backend, security, integration and
+Owner: design (Claude, delegated by Anton). Actual local Claude Code 2.1.284 session model: `claude-opus-5-5`, verified from CLI initialization; initial implementation and a second pass reviewing actual Codex browser screenshots completed on 19 October 2026. Backend, security, integration and
 release: Codex. Branch `codex/ripe-dashboard-skins`, base `9887fd0`.
 
 ## Scope
@@ -68,20 +68,23 @@ sections rise once on arrival (380ms, stagger capped at 160ms; never blocks
 input), alerts and feedback rise into view, cards lift slightly on hover, and
 nav items give press feedback. Nothing loops.
 
-**Website**: derives everything from six validated tokens. Links mix primary
-toward text for contrast; muted text and lines mix text into surface; status
-colours mix fixed hues toward text so they stay distinct on light *and* dark
-sites. The header carries a 4px primary→accent strip; the logo (when the
+**Website**: derives its presentation from six validated tokens. Links use
+primary only when it meets text contrast on both saved surfaces, otherwise
+they use the validated text colour. Muted text keeps that same readable ink.
+Text-bearing surfaces remain untinted, including hover and fieldset surfaces.
+Status foregrounds prefer bounded semantic hues with at least 4.5:1 contrast
+on both surfaces and fall back to validated ink at difficult midtone palettes.
+Every status retains its explicit label; meaning never depends on colour. The header carries a 4px primary→accent strip; the logo (when the
 backend provides a local copy) replaces the "en" mark at up to 8rem × 36px with
 `object-fit: contain`. Headings use the site font class (sans or serif); body
 text stays system sans for data density. The focus ring uses the text colour
 so it always contrasts with the background. No pixel-perfect promise is made
 in the UI copy.
 
-Status colours in all modern skins: success (green), info (blue), warning
-(amber), danger (red), each AA on its tint. Pills always carry text, so state
-is never colour-only. `failed` is red and `paused` amber (Classic shows both
-amber).
+Studio and Warm use AA semantic foreground/tint pairs: success (green),
+info (blue), warning (amber) and danger (red). Website uses the contrast-checked
+foregrounds above on its saved surface. Pills always carry text, so state is
+never colour-only. Classic keeps its original status presentation.
 
 ## Appearance control
 
@@ -110,9 +113,11 @@ amber).
   to every user. Editing requires `ROLE_ADMINISTRATOR` (Twig `is_granted`; the
   backend enforces it again).
 * URL field is blank with an `https://www.example.org` placeholder and copy
-  telling the administrator not to use the dashboard address. Nothing is
-  fetched until the explicit **Fetch from website and save for everyone**
-  button is pressed.
+  telling the administrator to confirm the organisation website. A separate
+  editable proposal may remove a common mailer/email/newsletter prefix from
+  the dashboard hostname; it is never fetched automatically. Saved branding
+  always takes priority. Nothing is fetched until the explicit **Refresh from
+  website and save for everyone** button is pressed.
 * **Manual corrections**: five colour pickers with hex readouts plus a heading
   font choice. These preview on the page only, with a live WCAG readability
   check. They become shared only through **Save corrected branding for
