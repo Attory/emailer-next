@@ -41,17 +41,24 @@ const contrast = (first, second) => {
     const [light, dark] = [luminance(first), luminance(second)].sort((a, b) => b - a);
     return (light + 0.05) / (dark + 0.05);
 };
+// Prefer recognisable status hues; the validated body text is the safe fallback.
+const STATUS_COLOURS = {
+    success: ['#146c2e', '#b7efc5'], info: ['#0b57d0', '#cadcff'],
+    warning: ['#7a4f01', '#ffe3a3'], danger: ['#b3261e', '#ffd4ce'],
+};
+const statusColour = (candidates, tokens) => candidates.find((colour) => Math.min(contrast(colour, tokens.surface), contrast(colour, tokens.background)) >= 4.5) ?? tokens.text;
 const onColour = (hex) => (contrast(hex, '#ffffff') >= contrast(hex, '#111111') ? '#ffffff' : '#111111');
 
 // CSSOM custom properties only; values are validated hex or fixed stacks, never fetched text.
 const applyTokens = (tokens) => {
     const style = document.body.style;
-    const names = ['primary', 'accent', 'surface', 'background', 'text', 'font', 'on-primary', 'scheme', 'link'];
+    const names = ['primary', 'accent', 'surface', 'background', 'text', 'font', 'on-primary', 'scheme', 'link', ...Object.keys(STATUS_COLOURS)];
     if (!tokens) {
         names.forEach((name) => style.removeProperty(`--website-${name}`));
         return;
     }
     COLOUR_TOKENS.forEach((key) => style.setProperty(`--website-${key}`, tokens[key]));
+    Object.entries(STATUS_COLOURS).forEach(([name, candidates]) => style.setProperty(`--website-${name}`, statusColour(candidates, tokens)));
     style.setProperty('--website-font', FONT_STACKS[tokens.font]);
     style.setProperty('--website-on-primary', onColour(tokens.primary));
     style.setProperty('--website-link', Math.min(contrast(tokens.primary, tokens.surface), contrast(tokens.primary, tokens.background)) >= 4.5 ? tokens.primary : tokens.text);
@@ -157,6 +164,19 @@ class Appearance {
         this.brandingError = dialog.querySelector('[data-branding-error]');
         this.refreshButton = dialog.querySelector('[data-branding-refresh]');
         this.brandingSaveButton = dialog.querySelector('[data-branding-save]');
+        this.suggestion = dialog.querySelector('[data-branding-suggestion]');
+        this.suggestionButton = dialog.querySelector('[data-branding-use-suggestion]');
+        // A proposal only. No request or shared change occurs until an explicit refresh/save.
+        const suggestedHost = window.location.hostname.replace(/^(mailer|email|newsletter)\./i, '');
+        this.suggestedUrl = /^[a-z][a-z0-9.-]*\.[a-z]{2,}$/i.test(suggestedHost) ? `https://${suggestedHost}/` : '';
+        if (this.suggestionButton && this.suggestedUrl) {
+            this.suggestionButton.textContent = this.suggestedUrl;
+            this.suggestionButton.addEventListener('click', () => {
+                this.urlInput.value = this.suggestedUrl;
+                this.urlInput.focus();
+                this.updateDirty();
+            });
+        }
 
         applyTokens(this.branding.tokens);
         this.describeDeviceMotion();
@@ -318,6 +338,7 @@ class Appearance {
         applyLogo(this.branding.logo_url);
         if (!this.canEditBranding || !this.urlInput) return;
         this.urlInput.value = url;
+        if (this.suggestion) this.suggestion.hidden = url !== '' || this.suggestedUrl === '';
         const fallback = { primary: '#2f5d9a', accent: '#2f5d9a', surface: '#ffffff', background: '#f5f6f8', text: '#1d232b', font: 'system' };
         this.tokenInputs.forEach((input) => {
             input.value = (tokens ?? fallback)[input.dataset.brandingToken];

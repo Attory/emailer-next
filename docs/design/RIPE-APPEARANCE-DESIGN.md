@@ -193,3 +193,5 @@ Use synthetic data only (`composer` fixtures / Mailpit dev stack).
    reduced motion on and off, and in forced-colours mode.
 
 The initial authoring session could not render a browser. Codex subsequently ran the real Symfony application with synthetic data, captured desktop/mobile screenshots, and ran the browser walkthrough. Claude inspected the actual Studio dashboard and Warm dialog screenshots and corrected dense card wrapping, rail painting and radio placement. Codex retained the visible mobile Appearance label, corrected email-canvas spacing, and aligned validated link/text contrast and token stylesheets during functional integration. Final acceptance and release evidence is recorded separately.
+
+Website status foregrounds are selected from bounded dark/light semantic hues only when they meet 4.5:1 against both saved surfaces; otherwise the validated text colour is used. Status labels retain their meaning without colour. Status backgrounds remain the saved surface to preserve that guarantee, including midtone palettes.

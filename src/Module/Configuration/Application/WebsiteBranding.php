@@ -96,6 +96,27 @@ final readonly class WebsiteBranding
         return ['primary' => '#245c52', 'accent' => '#945529', 'surface' => '#ffffff', 'background' => '#f4f6f5', 'text' => '#243632', 'font' => 'system'];
     }
 
+    /** Status labels may appear directly on either surface; never tint their backgrounds.
+     * @param array<string, string> $tokens Validated branding tokens
+     *
+     * @return array<string, string>
+     */
+    public static function statusColours(array $tokens): array
+    {
+        $colours = [];
+        foreach (['success' => ['#146c2e', '#b7efc5'], 'info' => ['#0b57d0', '#cadcff'], 'warning' => ['#7a4f01', '#ffe3a3'], 'danger' => ['#b3261e', '#ffd4ce']] as $name => $candidates) {
+            $colours[$name] = $tokens['text'];
+            foreach ($candidates as $candidate) {
+                if (4.5 <= min(self::contrast($candidate, $tokens['surface']), self::contrast($candidate, $tokens['background']))) {
+                    $colours[$name] = $candidate;
+                    break;
+                }
+            }
+        }
+
+        return $colours;
+    }
+
     /** @param array<mixed> $tokens
      * @return array<string, string>
      */

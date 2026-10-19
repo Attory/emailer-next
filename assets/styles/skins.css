@@ -145,14 +145,15 @@ body[data-skin=website] {
     --sk-shadow-1: 0 1px 2px rgb(0 0 0 / 7%), 0 1px 3px rgb(0 0 0 / 5%);
     --sk-shadow-2: 0 4px 14px rgb(0 0 0 / 12%);
     --sk-shadow-3: 0 18px 48px rgb(0 0 0 / 28%);
-    --sk-success: color-mix(in srgb, #1e8e3e 62%, var(--sk-ink));
-    --sk-success-soft: color-mix(in srgb, #1e8e3e 14%, var(--sk-surface));
-    --sk-info: color-mix(in srgb, #1a73e8 62%, var(--sk-ink));
-    --sk-info-soft: color-mix(in srgb, #1a73e8 13%, var(--sk-surface));
-    --sk-warning: color-mix(in srgb, #b06000 62%, var(--sk-ink));
-    --sk-warning-soft: color-mix(in srgb, #f9ab00 18%, var(--sk-surface));
-    --sk-danger: color-mix(in srgb, #c5221f 66%, var(--sk-ink));
-    --sk-danger-soft: color-mix(in srgb, #d93025 13%, var(--sk-surface));
+    /* Derived status text is checked against both saved surfaces. Never mix away contrast. */
+    --sk-success: var(--website-success, var(--sk-ink));
+    --sk-success-soft: var(--sk-surface);
+    --sk-info: var(--website-info, var(--sk-ink));
+    --sk-info-soft: var(--sk-surface);
+    --sk-warning: var(--website-warning, var(--sk-ink));
+    --sk-warning-soft: var(--sk-surface);
+    --sk-danger: var(--website-danger, var(--sk-ink));
+    --sk-danger-soft: var(--sk-surface);
     --sk-th-transform: none;
     --sk-th-size: .8rem;
     --sk-ease: cubic-bezier(.2, 0, 0, 1);

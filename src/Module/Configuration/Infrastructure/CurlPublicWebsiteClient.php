@@ -67,7 +67,7 @@ final class CurlPublicWebsiteClient implements PublicWebsiteClient
             $ok = curl_exec($handle);
             $status = curl_getinfo($handle, CURLINFO_RESPONSE_CODE);
             $type = curl_getinfo($handle, CURLINFO_CONTENT_TYPE);
-            curl_close($handle);
+            unset($handle);
             if (false === $ok) {
                 throw new \RuntimeException('The website could not be read securely within the size or time limit. Your saved appearance is unchanged.');
             }

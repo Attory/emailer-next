@@ -90,6 +90,19 @@ final class WebsiteBrandingTest extends TestCase
         self::assertGreaterThanOrEqual(4.5, WebsiteBranding::contrast($tokens['text'], $tokens['background']));
     }
 
+    public function testStatusTextRemainsReadableOnLightDarkAndMidtoneSurfaces(): void
+    {
+        foreach ([['#243632', '#ffffff', '#f4f6f5'], ['#ffffff', '#17212b', '#101820'], ['#000000', '#757575', '#757575'], ['#ffffff', '#767676', '#767676']] as [$text, $surface, $background]) {
+            $tokens = WebsiteBranding::validate(['text' => $text, 'surface' => $surface, 'background' => $background]);
+            $statuses = WebsiteBranding::statusColours($tokens);
+            self::assertSame(['success', 'info', 'warning', 'danger'], array_keys($statuses));
+            foreach ($statuses as $colour) {
+                self::assertGreaterThanOrEqual(4.5, WebsiteBranding::contrast($colour, $surface));
+                self::assertGreaterThanOrEqual(4.5, WebsiteBranding::contrast($colour, $background));
+            }
+        }
+    }
+
     public function testArbitraryCssCannotBeSavedAsTokens(): void
     {
         $this->expectException(\InvalidArgumentException::class);
