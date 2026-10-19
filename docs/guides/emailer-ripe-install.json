@@ -140,7 +140,7 @@
     },
     {
       "type": "p",
-      "text": "Wait for <b>Installation successful</b>. Open the printed HTTPS login address in your browser and sign in with the email and password you entered. Setup has already installed the worker, scheduler, maintenance jobs and command launcher and verified the initial backup. Do not proceed past a browser certificate warning; use the HTTPS troubleshooting entry below."
+      "text": "Wait for <b>Installation successful</b>. Open the printed HTTPS login address in your browser and sign in with the email and password you entered. Setup has already installed the worker, scheduler, maintenance jobs and command launcher and verified the initial backup. Do not proceed past a browser certificate warning; use the HTTPS troubleshooting entry below. Fresh Ripe uses Studio; open Appearance to preview the other skins."
     },
     {
       "type": "image",

@@ -1,6 +1,6 @@
 # Ripe administration appearance: design record
 
-Owner: design (Claude, delegated by Anton). Backend, security, integration and
+Owner: design (Claude, delegated by Anton). Actual local Claude Code2.1.284 session model: `claude-opus-5-5`, verified from CLI initialization; initial implementation and a second pass reviewing actual Codex browser screenshots completed on19October2026. Backend, security, integration and
 release: Codex. Branch `codex/ripe-dashboard-skins`, base `9887fd0`.
 
 ## Scope
@@ -139,7 +139,7 @@ amber).
 * `forced-colors`: selected skin card gets a `Highlight` outline, and pills
   gain borders. Print resets the Studio grid and hides the control.
 
-## Requests for Codex (integration)
+## Initial handoff requests and integration record
 
 1. **Routes must exist before merge.** `path('admin_appearance')`,
    `admin_appearance_branding` and `admin_appearance_tokens` are referenced
@@ -192,5 +192,4 @@ Use synthetic data only (`composer` fixtures / Mailpit dev stack).
 5. Repeat at 390px, 768px, 1280px and 200% zoom, keyboard-only, with OS
    reduced motion on and off, and in forced-colours mode.
 
-Rendered screenshots were not produced in the authoring session: the sandbox
-denied Node and browser execution. The steps above remain required acceptance.
+The initial authoring session could not render a browser. Codex subsequently ran the real Symfony application with synthetic data, captured desktop/mobile screenshots, and ran the browser walkthrough. Claude inspected the actual Studio dashboard and Warm dialog screenshots and corrected dense card wrapping, rail painting and radio placement. Codex retained the visible mobile Appearance label, corrected email-canvas spacing, and aligned validated link/text contrast and token stylesheets during functional integration. Final acceptance and release evidence is recorded separately.

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Tests\Integration;
 
+use App\Module\Configuration\Application\Contract\AppearanceInitialization;
 use App\Module\Configuration\Application\Contract\ConfigurationSetup;
 use App\Module\Configuration\Application\Contract\MailInput;
 use App\Module\Configuration\Application\Contract\OrganisationInput;
@@ -98,6 +99,40 @@ final class InstallationFinalizerTest extends KernelTestCase
 
         self::assertNull($this->connection->fetchOne("SELECT completed_at FROM installation_state WHERE singleton_key = '1'"));
         self::assertSame(0, $this->dbCount('SELECT COUNT(*) FROM setup_installation_event'));
+    }
+
+    public function testAppearanceInitializationFailureCanResumeWithoutChangingTheOwner(): void
+    {
+        $installationId = $this->prepareCompleteSetup();
+        $before = $this->connection->fetchAllAssociative('SELECT id, password_hash FROM app_user ORDER BY id');
+        $appearance = $this->createMock(AppearanceInitialization::class);
+        $appearance->expects(self::exactly(2))->method('initializeFresh')->willReturnCallback(static function (): void {
+            /** @var int $attempt */
+            static $attempt = 0;
+            if (0 === $attempt++) {
+                throw new \RuntimeException('Synthetic appearance storage interruption.');
+            }
+        });
+        $finalizer = new DoctrineInstallationFinalizer(
+            $this->connection,
+            $this->service(InstallationLock::class),
+            $this->service(SetupDoctor::class),
+            $this->service(SetupLifecycle::class),
+            appearance: $appearance,
+        );
+        try {
+            $finalizer->finalize();
+            self::fail('Interrupted appearance initialization was accepted.');
+        } catch (\RuntimeException $exception) {
+            self::assertSame('Installation lock completion failed safely.', $exception->getMessage());
+        }
+        self::assertFalse($this->service(InstallationLock::class)->exists());
+        self::assertNull($this->connection->fetchOne("SELECT completed_at FROM installation_state WHERE singleton_key = '1'"));
+        self::assertSame(0, $this->dbCount('SELECT COUNT(*) FROM setup_installation_event'));
+        self::assertSame($installationId, $finalizer->finalize());
+        self::assertSame($installationId, $finalizer->finalize());
+        self::assertSame($before, $this->connection->fetchAllAssociative('SELECT id, password_hash FROM app_user ORDER BY id'));
+        self::assertSame(1, $this->dbCount('SELECT COUNT(*) FROM setup_installation_event'));
     }
 
     public function testConcurrentAndRepeatedFinalizationIsSingleUse(): void

@@ -63,7 +63,7 @@ You will see named progress steps for dependencies, package verification, privat
 
 ## 4. Sign in
 
-Wait for **Installation successful**. Open the printed HTTPS login address in your browser and sign in with the email and password you entered. Setup has already installed the worker, scheduler, maintenance jobs and command launcher and verified the initial backup. Do not proceed past a browser certificate warning; use the HTTPS troubleshooting entry below.
+Wait for **Installation successful**. Open the printed HTTPS login address in your browser and sign in with the email and password you entered. Setup has already installed the worker, scheduler, maintenance jobs and command launcher and verified the initial backup. Do not proceed past a browser certificate warning; use the HTTPS troubleshooting entry below. Fresh Ripe uses Studio; open Appearance to preview the other skins.
 
 ![Actual Ripe dashboard after sign-in with email delivery deferred.](images/emailer-ripe-dashboard.png)
 

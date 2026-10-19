@@ -46,7 +46,7 @@ const onColour = (hex) => (contrast(hex, '#ffffff') >= contrast(hex, '#111111') 
 // CSSOM custom properties only; values are validated hex or fixed stacks, never fetched text.
 const applyTokens = (tokens) => {
     const style = document.body.style;
-    const names = ['primary', 'accent', 'surface', 'background', 'text', 'font', 'on-primary', 'scheme'];
+    const names = ['primary', 'accent', 'surface', 'background', 'text', 'font', 'on-primary', 'scheme', 'link'];
     if (!tokens) {
         names.forEach((name) => style.removeProperty(`--website-${name}`));
         return;
@@ -54,6 +54,7 @@ const applyTokens = (tokens) => {
     COLOUR_TOKENS.forEach((key) => style.setProperty(`--website-${key}`, tokens[key]));
     style.setProperty('--website-font', FONT_STACKS[tokens.font]);
     style.setProperty('--website-on-primary', onColour(tokens.primary));
+    style.setProperty('--website-link', Math.min(contrast(tokens.primary, tokens.surface), contrast(tokens.primary, tokens.background)) >= 4.5 ? tokens.primary : tokens.text);
     style.setProperty('--website-scheme', luminance(tokens.background) < 0.2 ? 'dark' : 'light');
 };
 
@@ -352,9 +353,10 @@ class Appearance {
     previewBranding() {
         this.describeTokens();
         const tokens = this.readTokens();
-        if (tokens) applyTokens(tokens);
+        const readable = tokens && Math.min(contrast(tokens.text, tokens.surface), contrast(tokens.text, tokens.background)) >= 4.5;
+        if (readable) applyTokens(tokens);
         this.brandingError.textContent = '';
-        this.brandingStatus.textContent = this.brandingDirty() ? 'Previewing unsaved colour corrections on this page only.' : '';
+        this.brandingStatus.textContent = !readable ? 'These colours would be hard to read. The last readable preview is still showing.' : (this.brandingDirty() ? 'Previewing unsaved colour corrections on this page only.' : '');
         this.updateDirty();
     }
 
@@ -369,7 +371,7 @@ class Appearance {
         } catch {
             parsed = null;
         }
-        if (url !== '' && (!parsed || !['http:', 'https:'].includes(parsed.protocol))) {
+        if (url !== '' && (!parsed || parsed.protocol !== 'https:')) {
             this.brandingError.textContent = 'Enter the full website address, starting with https://.';
             this.urlInput.focus();
             return;

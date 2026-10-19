@@ -9,7 +9,7 @@
     website: {name: 'Website', text: 'Your organisation’s website colours and logo.'}
 } %}
 <button type="button" class="appearance-trigger" data-appearance-open aria-haspopup="dialog" aria-controls="appearance-dialog" hidden><span class="appearance-trigger-swatch" aria-hidden="true"></span><span>Appearance</span></button>
-<p class="visually-hidden" role="status" data-appearance-announcer></p>
+<div class="visually-hidden" role="status" data-appearance-announcer></div>
 <dialog id="appearance-dialog" class="appearance-dialog" aria-labelledby="appearance-title" aria-describedby="appearance-intro"
     data-appearance
     data-appearance-endpoint="{{ path('admin_appearance') }}"
@@ -54,7 +54,7 @@
                 <input type="url" id="branding-website-url" inputmode="url" autocomplete="url" spellcheck="false" placeholder="https://www.example.org" aria-describedby="branding-url-hint" data-branding-url>
                 <p class="field-hint" id="branding-url-hint">Enter your organisation’s public website, not the address of this dashboard. The website is only contacted when you press the button below.</p>
                 <div class="branding-actions">
-                    <button type="button" class="secondary" data-branding-refresh>Fetch from website and save for everyone</button>
+                    <button type="button" class="secondary" data-branding-refresh>Refresh from website and save for everyone</button>
                 </div>
                 <fieldset class="branding-tokens">
                     <legend>Manual corrections</legend>
@@ -76,15 +76,15 @@
                         <button type="button" class="secondary" data-branding-save>Save corrected branding for everyone</button>
                     </div>
                 </fieldset>
-                <p class="appearance-feedback" role="status" data-branding-status></p>
-                <p class="appearance-feedback appearance-error" role="alert" data-branding-error></p>
+                <div class="appearance-feedback" role="status" data-branding-status></div>
+                <div class="appearance-feedback appearance-error" role="alert" data-branding-error></div>
             </div>
             {% else %}
             <p class="field-hint">Only administrators can change shared website branding.</p>
             {% endif %}
         </section>
-        <p class="appearance-feedback" role="status" data-appearance-status></p>
-        <p class="appearance-feedback appearance-error" role="alert" data-appearance-error></p>
+        <div class="appearance-feedback" role="status" data-appearance-status></div>
+        <div class="appearance-feedback appearance-error" role="alert" data-appearance-error></div>
     </div>
     <div class="appearance-actions">
         <button type="button" data-appearance-save disabled>Save appearance</button>

@@ -15,7 +15,7 @@ final class WebsiteLogoTest extends TestCase
         ob_start();
         imagepng($image);
         $bytes = ob_get_clean();
-        imagedestroy($image);
+        unset($image);
         $encoded = WebsiteLogo::normalize($bytes.'<script>untrusted-source-tail</script>');
         self::assertNotNull($encoded);
         $png = WebsiteLogo::decode($encoded);

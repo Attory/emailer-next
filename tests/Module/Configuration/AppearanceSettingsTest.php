@@ -124,6 +124,40 @@ final class AppearanceSettingsTest extends TestCase
         }
     }
 
+    public function testARefreshCannotOverwriteCorrectionsSavedWhileItsWebsiteWasLoading(): void
+    {
+        $owner = $this->actor('owner');
+        $other = $this->settings();
+        $client = $this->createMock(PublicWebsiteClient::class);
+        $client->expects(self::once())->method('get')->willReturnCallback(static function (string $url) use ($other, $owner): array {
+            $tokens = WebsiteBranding::defaults();
+            $tokens['primary'] = '#234567';
+            $other->changeBranding($owner, 'save', 'https://example.com/', $tokens);
+
+            return ['url' => $url, 'type' => 'text/html', 'body' => '<meta name="theme-color" content="#765432">'];
+        });
+        try {
+            $this->settings($client)->changeBranding($owner, 'refresh', 'https://example.com/', []);
+            self::fail('A stale refresh replaced newer manual corrections.');
+        } catch (\InvalidArgumentException $exception) {
+            self::assertStringContainsString('newer saved settings were preserved', $exception->getMessage());
+            self::assertSame('#234567', $other->view($owner)['branding']['tokens']['primary']);
+        }
+    }
+
+    public function testOtherProcessMaintenancePreventsAppearanceMutation(): void
+    {
+        $factory = new LockFactory(new FlockStore());
+        $held = new MaintenanceOperationLock($factory);
+        $held->acquire();
+        try {
+            $this->expectException(\RuntimeException::class);
+            $this->settings()->save($this->actor('owner'), 'warm', 'system');
+        } finally {
+            $held->release();
+        }
+    }
+
     private function actor(string $id, AdministrativeRole $role = AdministrativeRole::Owner): AuthenticatedUser
     {
         return new AuthenticatedUser($id, $id.'@example.test', 'synthetic-unusable-hash', $role, true);

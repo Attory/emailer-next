@@ -124,14 +124,14 @@ body[data-skin=website] {
     --sk-surface-2: color-mix(in srgb, var(--sk-ink) 5%, var(--sk-surface));
     --sk-header-bg: var(--sk-surface);
     --sk-ink: var(--website-text, #1d232b);
-    --sk-muted: color-mix(in srgb, var(--sk-ink) 74%, var(--sk-surface));
+    --sk-muted: var(--sk-ink);
     --sk-line: color-mix(in srgb, var(--sk-ink) 15%, var(--sk-surface));
     --sk-line-strong: color-mix(in srgb, var(--sk-ink) 30%, var(--sk-surface));
     --sk-accent: var(--website-primary, #2f5d9a);
     --sk-accent-ink: var(--website-on-primary, #fff);
-    --sk-accent-hover: color-mix(in srgb, var(--sk-accent) 84%, var(--sk-ink));
+    --sk-accent-hover: var(--sk-accent);
     --sk-accent-soft: color-mix(in srgb, var(--sk-accent) 13%, var(--sk-surface));
-    --sk-link: color-mix(in srgb, var(--sk-accent) 70%, var(--sk-ink));
+    --sk-link: var(--website-link, var(--sk-ink));
     --sk-link-hover: var(--sk-ink);
     --sk-highlight: var(--website-accent, var(--sk-accent));
     --sk-focus: var(--sk-ink);
@@ -183,7 +183,7 @@ body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) {
     color: var(--sk-ink);
     background-color: var(--sk-bg);
     background-image: var(--sk-bg-image);
-    background-attachment: fixed;
+    background-attachment: scroll;
     -webkit-font-smoothing: antialiased;
     transition: background-color var(--sk-dur) var(--sk-ease), color var(--sk-dur) var(--sk-ease);
 }
@@ -324,22 +324,44 @@ body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) :is(.panel, .
     transition: background-color var(--sk-dur) var(--sk-ease), border-color var(--sk-dur) var(--sk-ease), box-shadow var(--sk-dur) var(--sk-ease);
 }
 body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .panel-soft { background: var(--sk-accent-soft); border-color: transparent; box-shadow: none; }
-body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .dashboard-grid { gap: 1rem; }
+/* Wider minimum than Classic's 240px: dense evidence cards need room for label + timestamp rows. */
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .dashboard-grid { gap: 1rem; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr)); }
 body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .dashboard-grid > section h2 { font-size: 1.02rem; margin-bottom: .6rem; }
+/*
+ * Metric rows: the label keeps a readable minimum width and the value column
+ * may shrink and wrap (long timestamps, action names), so the two can never
+ * overlap. Narrow cards stack label above value via a container query.
+ */
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .dashboard-grid > section { container-type: inline-size; min-width: 0; }
 body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .dashboard-grid > section dl {
     display: grid;
-    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-columns: minmax(min(7.5rem, 45%), 1fr) minmax(0, max-content);
+    column-gap: 1rem;
     margin: .75rem 0 0;
     border-top: 1px solid var(--sk-line);
 }
 body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .dashboard-grid > section :is(dt, dd) {
+    min-width: 0;
     margin: 0;
     padding: .5rem 0;
     border-bottom: 1px solid var(--sk-line);
     font-size: .9rem;
+    line-height: 1.4;
 }
 body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .dashboard-grid > section dt { color: var(--sk-muted); font-weight: 500; }
-body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .dashboard-grid > section dd { text-align: right; font-weight: 650; font-variant-numeric: tabular-nums; }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .dashboard-grid > section dd {
+    text-align: right;
+    font-weight: 650;
+    font-variant-numeric: tabular-nums;
+    overflow-wrap: anywhere;
+}
+@container (max-width: 13rem) {
+    body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .dashboard-grid > section dl { grid-template-columns: minmax(0, 1fr); }
+    body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .dashboard-grid > section dt { padding-bottom: 0; border-bottom: 0; }
+    body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .dashboard-grid > section dd { padding-top: .1rem; text-align: left; }
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .summary-item dt { flex: 0 1 auto; min-width: min(8rem, 45%); }
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .summary-item dd { min-width: 0; overflow-wrap: anywhere; }
 body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .quick-start {
     background: linear-gradient(120deg, var(--sk-accent-soft), color-mix(in srgb, var(--sk-highlight) 10%, var(--sk-surface)));
     border: 1px solid color-mix(in srgb, var(--sk-accent) 18%, transparent);
@@ -576,14 +598,16 @@ body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) :is([data-ema
     --danger: #a64134;
     --radius: 12px;
     display: block;
-    padding: 1.5rem;
-    margin-bottom: 1.5rem;
+    padding: 0;
+    margin: 0;
     color: #253a36;
-    background: #fff;
-    border: 1px solid var(--sk-line);
-    border-radius: var(--sk-radius-control);
+    background: transparent;
+    border: 0;
+    border-radius: 0;
     font-family: "Segoe UI", "Helvetica Neue", Arial, sans-serif;
     letter-spacing: normal;
+    line-height: 1.55;
+    font-size: 16px;
     color-scheme: light;
 }
 
@@ -596,10 +620,12 @@ body[data-skin=studio] .page-heading { padding-bottom: 1.25rem; border-bottom: 1
 
 /* Wide screens: Studio becomes a console layout with a structured side rail. */
 @media (min-width: 1100px) {
+    /* The rail surface is painted on the canvas so it runs the full document height, not just the sticky viewport. */
     body[data-skin=studio] {
         display: grid;
         grid-template-columns: 16rem minmax(0, 1fr);
         align-items: start;
+        background-image: linear-gradient(90deg, var(--sk-surface) 0 16rem, var(--sk-line) 16rem calc(16rem + 1px), transparent calc(16rem + 1px));
     }
     body[data-skin=studio] .admin-header {
         position: sticky;
@@ -612,7 +638,7 @@ body[data-skin=studio] .page-heading { padding-bottom: 1.25rem; border-bottom: 1
         gap: 1.25rem;
         padding: 1.25rem .85rem;
         border-bottom: 0;
-        border-right: 1px solid var(--sk-line);
+        background-color: transparent;
         box-shadow: none;
     }
     body[data-skin=studio] .brand { padding: .2rem .6rem; }
@@ -851,11 +877,15 @@ body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .appearance-t
 .appearance-dialog fieldset { padding: 1rem 1.1rem 1.1rem; margin-bottom: 1.25rem; }
 .appearance-dialog legend { font-weight: 650; }
 .skin-choice-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: .75rem; }
+/* Radio sits beside the name, below the thumbnail, so it never covers the preview. */
 .appearance-dialog .skin-choice {
     position: relative;
     display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    grid-template-areas: "thumb thumb" "radio name" "text text";
     align-content: start;
-    gap: .3rem;
+    align-items: center;
+    gap: .3rem .5rem;
     margin: 0;
     padding: .55rem .55rem .75rem;
     border: 1px solid var(--line);
@@ -867,17 +897,12 @@ body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .appearance-t
 .skin-choice:hover { border-color: var(--muted); }
 .skin-choice:has(input:checked) { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); background: var(--accent-soft); }
 .skin-choice:has(input:focus-visible) { outline: 3px solid var(--sk-focus, #856f37); outline-offset: 3px; }
-.appearance-dialog .skin-choice input {
-    position: absolute;
-    top: .95rem;
-    left: .95rem;
-    z-index: 1;
-    margin: 0;
-}
+.appearance-dialog .skin-choice input { grid-area: radio; margin: 0; }
 .appearance-dialog .skin-choice input:focus-visible { outline: 0; }
-.skin-name { font-weight: 650; line-height: 1.3; }
+.skin-choice .skin-thumb { grid-area: thumb; }
+.skin-name { grid-area: name; font-weight: 650; line-height: 1.3; }
 .skin-name small { font-weight: 500; }
-.skin-text { font-size: .82rem; line-height: 1.4; color: var(--muted); font-weight: 400; }
+.skin-text { grid-area: text; font-size: .82rem; line-height: 1.4; color: var(--muted); font-weight: 400; }
 
 /* Thumbnails: fixed palettes so each card always shows its own skin, never the active one. */
 .skin-thumb {
@@ -1005,7 +1030,7 @@ body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .appearance-e
     .branding-source { grid-template-columns: 1fr; }
     .appearance-actions > button { flex: 1 1 auto; }
     .appearance-actions [data-appearance-cancel] { margin-left: 0; }
-    .appearance-trigger > span:last-child { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+    .appearance-trigger > span:last-child { white-space: nowrap; }
     .appearance-trigger { padding: .4rem; min-width: 44px; min-height: 44px; }
 }
 

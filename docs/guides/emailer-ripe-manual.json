@@ -29,6 +29,73 @@
     },
     {
       "type": "h2",
+      "text": "Choose your dashboard appearance"
+    },
+    {
+      "type": "p",
+      "text": "Open <strong>Appearance</strong> in the administration header. Studio gives a crisp, structured workspace; Warm adds welcoming colours and gentle motion; Website uses saved organisation branding. Classic keeps the original look. Fresh Ripe installations start with Studio. An update or Light upgrade keeps the existing Classic appearance until you choose another skin."
+    },
+    {
+      "type": "ol",
+      "items": [
+        "Choose a thumbnail to preview its skin immediately. Anything you have typed on the page stays in place.",
+        "Choose <strong>Save appearance</strong> to keep your choice across sign-ins. Your selection affects only your account.",
+        "Choose <strong>Revert preview</strong>, Cancel or Escape to return to your saved appearance.",
+        "For less animation choose <strong>Reduce motion</strong>. Otherwise Emailer follows your device’s motion preference."
+      ]
+    },
+    {
+      "type": "image",
+      "file": "emailer-ripe-appearance.png",
+      "caption": "The actual Appearance dialog: preview a skin, reduce motion, save or revert."
+    },
+    {
+      "type": "image",
+      "file": "emailer-ripe-studio.png",
+      "caption": "Studio keeps administration tables and operational status readable."
+    },
+    {
+      "type": "image",
+      "file": "emailer-ripe-warm-settings.png",
+      "caption": "Warm applies the same presentation to settings and forms; permissions and sending checks stay in place."
+    },
+    {
+      "type": "h3",
+      "text": "Match your organisation website"
+    },
+    {
+      "type": "p",
+      "text": "In Appearance choose Website. An Administrator or Owner can enter the organisation’s public HTTPS website and choose <strong>Refresh from website and save for everyone</strong>. Confirm the organisation website rather than assuming that the Emailer dashboard address is the right source. No website is contacted until you press this button."
+    },
+    {
+      "type": "p",
+      "text": "Emailer saves a small set of colours, a system or serif heading font and, when available, a small safe site icon. It does not copy whole pages or load the website into your dashboard. If no suitable icon is found, the text mark remains. The source address and last refresh time are displayed. Extraction suggests a coherent starting point; it cannot exactly copy every website."
+    },
+    {
+      "type": "ol",
+      "items": [
+        "Review the preview. Adjust Primary, Accent, Panels, Page background, Text and Headings if needed.",
+        "Choose <strong>Save corrected branding for everyone</strong> to share your corrections with accounts using Website. These shared branding buttons save immediately; Cancel only reverts your personal preview.",
+        "Use the website-fetch button again when the organisation branding changes. Emailer uses its saved copy between refreshes, including when the website is offline.",
+        "If a refresh fails, check the displayed website address and try again later, or use manual colours. Low-contrast text and unsafe or local website addresses are rejected with an explanation."
+      ]
+    },
+    {
+      "type": "image",
+      "file": "emailer-ripe-website-mobile.png",
+      "caption": "Appearance keeps the skin choices available on a phone. Scroll within the dialog for website corrections."
+    },
+    {
+      "type": "image",
+      "file": "emailer-ripe-appearance-error.png",
+      "caption": "A rejected colour correction keeps your inputs and explains the readability problem."
+    },
+    {
+      "type": "p",
+      "text": "Skins affect the administration interface. They do not change newsletter HTML, the email-content preview, recipient lists, approvals, security level or delivery holds. A sending-blocked message remains visible in every skin. Appearance settings are included in the application’s encrypted backups."
+    },
+    {
+      "type": "h2",
       "text": "Secure your Owner account"
     },
     {

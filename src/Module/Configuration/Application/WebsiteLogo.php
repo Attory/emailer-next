@@ -40,8 +40,8 @@ final class WebsiteLogo
             $png = ob_get_contents();
         } finally {
             ob_end_clean();
-            imagedestroy($image);
-            imagedestroy($output);
+            unset($image);
+            unset($output);
         }
 
         return 16384 >= \strlen($png) ? base64_encode($png) : null;

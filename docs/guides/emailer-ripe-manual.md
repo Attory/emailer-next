@@ -14,6 +14,38 @@ The [fresh installer](emailer-ripe-install.md) creates an Owner using your admin
 
 ![Actual Ripe dashboard with email delivery deferred.](images/emailer-ripe-dashboard.png)
 
+## Choose your dashboard appearance
+
+Open <strong>Appearance</strong> in the administration header. Studio gives a crisp, structured workspace; Warm adds welcoming colours and gentle motion; Website uses saved organisation branding. Classic keeps the original look. Fresh Ripe installations start with Studio. An update or Light upgrade keeps the existing Classic appearance until you choose another skin.
+
+1. Choose a thumbnail to preview its skin immediately. Anything you have typed on the page stays in place.
+2. Choose <strong>Save appearance</strong> to keep your choice across sign-ins. Your selection affects only your account.
+3. Choose <strong>Revert preview</strong>, Cancel or Escape to return to your saved appearance.
+4. For less animation choose <strong>Reduce motion</strong>. Otherwise Emailer follows your device’s motion preference.
+
+![The actual Appearance dialog: preview a skin, reduce motion, save or revert.](images/emailer-ripe-appearance.png)
+
+![Studio keeps administration tables and operational status readable.](images/emailer-ripe-studio.png)
+
+![Warm applies the same presentation to settings and forms; permissions and sending checks stay in place.](images/emailer-ripe-warm-settings.png)
+
+### Match your organisation website
+
+In Appearance choose Website. An Administrator or Owner can enter the organisation’s public HTTPS website and choose <strong>Refresh from website and save for everyone</strong>. Confirm the organisation website rather than assuming that the Emailer dashboard address is the right source. No website is contacted until you press this button.
+
+Emailer saves a small set of colours, a system or serif heading font and, when available, a small safe site icon. It does not copy whole pages or load the website into your dashboard. If no suitable icon is found, the text mark remains. The source address and last refresh time are displayed. Extraction suggests a coherent starting point; it cannot exactly copy every website.
+
+1. Review the preview. Adjust Primary, Accent, Panels, Page background, Text and Headings if needed.
+2. Choose <strong>Save corrected branding for everyone</strong> to share your corrections with accounts using Website. These shared branding buttons save immediately; Cancel only reverts your personal preview.
+3. Use the website-fetch button again when the organisation branding changes. Emailer uses its saved copy between refreshes, including when the website is offline.
+4. If a refresh fails, check the displayed website address and try again later, or use manual colours. Low-contrast text and unsafe or local website addresses are rejected with an explanation.
+
+![Appearance keeps the skin choices available on a phone. Scroll within the dialog for website corrections.](images/emailer-ripe-website-mobile.png)
+
+![A rejected colour correction keeps your inputs and explains the readability problem.](images/emailer-ripe-appearance-error.png)
+
+Skins affect the administration interface. They do not change newsletter HTML, the email-content preview, recipient lists, approvals, security level or delivery holds. A sending-blocked message remains visible in every skin. Appearance settings are included in the application’s encrypted backups.
+
 ## Secure your Owner account
 
 1. Open Settings & tools > MFA. Confirm your current credentials when asked and start enrollment.
