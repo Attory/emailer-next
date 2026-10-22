@@ -43,7 +43,7 @@ php "$project_root/tools/release/build-package.php" \
     --version=1.3.1 \
     --source="$(git -C "$project_root" rev-parse HEAD)" \
     --minimum-source=1.0.6 \
-    --supported-sources=1.0.6,1.1.0,1.2.1,1.2.2 \
+    --supported-sources=1.0.6,1.1.0,1.2.1,1.2.2,1.3.0 \
     --minimum-schema=20261015000000 \
     --schema=20261015000000 \
     --rollback-schema-compatible=true \

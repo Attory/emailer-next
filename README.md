@@ -1,7 +1,7 @@
 # Emailer Ripe
 
-Emailer Ripe 1.3.1 includes guided Ubuntu 22.04/24.04 Apache and Debian 13 Nginx VPS installers,
-ordinary Ripe 1.0.6/1.1.0/1.2.1/1.2.2 updates, and Light 1.0.0/1.1.0/1.2.0/1.2.1/1.2.2/1.2.3 upgrades with verified recovery and
+Emailer Ripe 1.3.1 includes guided Ubuntu 22.04/24.04/26.04 Apache and Debian 13 Nginx VPS installers,
+ordinary Ripe 1.0.6/1.1.0/1.2.1/1.2.2/1.3.0 updates, and Light 1.0.0/1.1.0/1.2.0/1.2.1/1.2.2/1.2.3/1.2.4 upgrades with verified recovery and
 explicit acceptance/resume. SMTP is optional during fresh setup.
 
 - [Beginner installation](docs/guides/emailer-ripe-install.md)

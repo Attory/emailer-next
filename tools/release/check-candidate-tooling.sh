@@ -23,7 +23,7 @@ for output in "$temporary_root/first" "$temporary_root/second"; do
         --version=1.3.1 \
         --source="$source_commit" \
         --minimum-source=1.0.6 \
-        --supported-sources=1.0.6,1.1.0,1.2.1,1.2.2 \
+        --supported-sources=1.0.6,1.1.0,1.2.1,1.2.2,1.3.0 \
         --minimum-schema=20261015000000 \
         --schema=20261015000000 \
         --rollback-schema-compatible=true \
@@ -39,7 +39,7 @@ mkdir "$temporary_root/standalone-verifier"
 install -m 0644 "$project_root/tools/release/verify-package.php" "$temporary_root/standalone-verifier/verify-package.php"
 install -m 0644 "$project_root/src/Module/Release/Application/PackageInspector.php" "$temporary_root/standalone-verifier/PackageInspector.php"
 
-for supported_source in 1.0.6 1.1.0 1.2.1 1.2.2; do
+for supported_source in 1.0.6 1.1.0 1.2.1 1.2.2 1.3.0; do
     php "$temporary_root/standalone-verifier/verify-package.php" \
         --archive="$temporary_root/first/emailer-next-1.3.1.zip" \
         --public-key="$temporary_root/release.pub" \
