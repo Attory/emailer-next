@@ -110,7 +110,7 @@
     {
       "type": "image",
       "file": "emailer-ripe-upgrade.png",
-      "caption": "Actual Light to Ripe management menu and successful upgrade output."
+      "caption": "Actual Ubuntu 26.04 / Virtualmin upgrade from published Light 1.2.4 to Ripe 1.3.1."
     },
     {
       "type": "p",
@@ -160,7 +160,7 @@
     {
       "type": "image",
       "file": "emailer-ripe-resume.png",
-      "caption": "Actual acceptance output. Sign in and complete MFA, then review Doctor before choosing Resume delivery."
+      "caption": "Actual Ripe 1.3.1 acceptance output. Sign in and complete MFA, then review Doctor before choosing Resume delivery."
     },
     {
       "type": "p",

@@ -46,7 +46,7 @@ Initial trust comes from the official HTTPS or authorized private delivery chann
 
 If asked about an existing Light installation, choose **Upgrade this Light installation to Ripe**. If both standard installations are found, select the intended address when asked. A custom or unrecognized target stops without adoption. Check the displayed Light version and address, then choose **Upgrade with verified recovery material**. Wait for named progress and validation. Retain the printed recovery location.
 
-![Actual Light to Ripe management menu and successful upgrade output.](images/emailer-ripe-upgrade.png)
+![Actual Ubuntu 26.04 / Virtualmin upgrade from published Light 1.2.4 to Ripe 1.3.1.](images/emailer-ripe-upgrade.png)
 
 If interrupted, start the same file and choose **Recover an interrupted upgrade** before retrying. If the message says conversion committed, follow its Accept instruction. Never delete operation journals or edit migration records to retry.
 
@@ -70,7 +70,7 @@ Open Mail settings. Existing SMTP settings should be retained. Choose **Test con
 
 Resolve Doctor's sending blockers and review previously approved or scheduled campaigns: lifting the hold can allow existing due work to continue. Start the same setup file, choose **Resume delivery after reviewing readiness** and answer yes. All normal sending checks must pass. The action does not approve any draft.
 
-![Actual acceptance output. Sign in and complete MFA, then review Doctor before choosing Resume delivery.](images/emailer-ripe-resume.png)
+![Actual Ripe 1.3.1 acceptance output. Sign in and complete MFA, then review Doctor before choosing Resume delivery.](images/emailer-ripe-resume.png)
 
 If you are not ready, exit; drafting remains available. Keep recovery material after acceptance.
 

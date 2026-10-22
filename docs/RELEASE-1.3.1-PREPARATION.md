@@ -51,9 +51,22 @@ new versions. There is no Ripe-to-Light downgrade.
   tests per edition pass independently. No readiness, signature, fence,
   restoration or no-downgrade control was weakened.
 
-The final Light 1.2.4 publication, complete required GitHub CI matrix, exact-head
-merge approval, merge-commit rebuild and exact final-package acceptance remain
-release gates. Candidate tests are not represented as final published-package
+Light 1.2.4 is now published from b844cb64694de69158190287260a7ffe6c092aed.
+Its official setup SHA256 is
+264d66349a1848600a0685a602b106aab1fba20eae87b356fa95e070b331391b.
+The public download is byte-identical to the independently accepted package.
+A second complete Ripe candidate uses those actual official Light predecessor
+bytes. Its Ubuntu 26 / Virtualmin Upgrade, explicit Accept and repeated Check
+pass: all 5,564 installed runtime files verify, the administrator password hash,
+identity, encryption material and delivery history are retained, Owner/High
+mapping is correct, no contacts/list memberships are manufactured, and delivery
+remains held with zero attempts or queued messages. Both existing websites
+remain healthy across 916 probes; all five unrelated service PIDs are unchanged.
+The two upgrade/acceptance terminal screenshots were refreshed from these actual
+1.2.4-to-1.3.1 actions after review found obsolete 1.3.0 paths in inherited images.
+
+The complete required GitHub CI matrix, exact-head merge approval, merge-commit
+rebuild and exact final-package acceptance remain release gates. Candidate tests are not represented as final published-package
 acceptance. The existing eight CI jobs retain all original members and add
 PHP 8.5/MariaDB 11.8 to both application and installer matrices.
 
