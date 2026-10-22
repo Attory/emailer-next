@@ -41,4 +41,4 @@ if bash /tools/tools/ci/compact-rehearsal-evidence.sh; then exit 1; fi
 test ! -e /rehearsals/passed-evidence/light-3_3.tar.gz
 test "$(sha256sum /rehearsals/do-not-compact/sentinel | cut -d' ' -f1)" = "$sentinel"
 test -f /rehearsals/light-3_3/evidence
-printf 'Evidence preservation, isolated/completed guards and unsafe destination refusals passed.\n' 
+printf 'Evidence preservation, isolated/completed guards and unsafe destination refusals passed.\n'
