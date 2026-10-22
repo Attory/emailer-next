@@ -14,7 +14,7 @@ Ubuntu Apache can coexist with Nginx on a separate port (tested: 8081). Setup ma
 
 ## Who can use this guide?
 
-Use a virtual server with Ubuntu 22.04 LTS, 24.04 LTS or 26.04 LTS and Apache, or Debian 13 and Nginx. It must be amd64/x86-64, use systemd, and let you run sudo. Setup chooses Apache on a clean Ubuntu host and Nginx on a clean Debian 13 host. The tested server has 2 CPU cores, 3 GB memory and a 24 GB disk. Ubuntu 22.04 needs at least 5 GiB free; other supported profiles need 2 GiB. Leave additional space for uploads and backups.
+Use a virtual server with Ubuntu 22.04 LTS, 24.04 LTS or 26.04 LTS and Apache, or Debian 13 and Nginx. It must be amd64/x86-64, use systemd, and let you run sudo. Setup chooses Apache on a clean Ubuntu host and Nginx on a clean Debian 13 host. Earlier profiles were tested with 2 CPU cores, 3 GB memory and a 24 GB disk. The Ubuntu 26.04.1 Virtualmin fixture has 4 CPU cores, 6 GB memory and a 40 GB disk. Ubuntu 22.04 needs at least 5 GiB free; other supported profiles need 2 GiB. Leave additional space for uploads and backups.
 
 An existing Apache website using PHP 8.1 can stay on Ubuntu 22.04, including its existing database and unrelated services. Give Emailer a spare hostname. Setup adds its own PHP runtime and application services without changing the existing website’s PHP selection. Ubuntu 22.04 also gets a separate supported database; it does not upgrade an older shared database. Ubuntu 24.04, Ubuntu 26.04 and Debian 13 reuse a compatible local MariaDB server. An incompatible existing database on those profiles stops setup before packages change.
 
@@ -62,7 +62,7 @@ sudo may ask for your server account password once. Setup needs host permission 
 1. Enter **Application hostname** if asked: just your dedicated address, without https://, a port or a path. Setup does not assume the machine's name is a public website.
 2. Enter **Owner email**. This becomes your sign-in name.
 3. Enter a strong **Owner password** and enter it again. Use 15-256 characters.
-4. On Ubuntu 22.04 fresh setup creates its own database without asking for database details. On Ubuntu 24.04 or Debian 13, enter a database administrator sign-in only if the existing local MariaDB server needs it; passwords are hidden.
+4. On Ubuntu 22.04 fresh setup creates its own database without asking for database details. On Ubuntu 24.04, Ubuntu 26.04 or Debian 13, enter a database administrator sign-in only if the existing local MariaDB server needs it; passwords are hidden.
 
 You will see named progress steps for dependencies, package verification, private folders, database and account, services, backup/recovery, HTTPS and health. Organisation name defaults to Emailer; language to English and scheduling timezone to UTC. SMTP details are not required.
 
@@ -98,7 +98,7 @@ For a fresh Ripe installation, backups are under `/var/lib/emailer/private/backu
 | --- | --- |
 | Address/DNS or HTTPS validation failed | Correct the domain records and provider firewall for this server, then run the same setup action again. Saved progress is retained. HTTPS is complete only after validation succeeds. |
 | Another service owns port 80 or 443 | Keep that service running. Existing supported Apache/Nginx sites can coexist; a different service owning the web ports needs a separate supported VPS. Setup does not stop unrelated services. |
-| Existing database is incompatible | Ubuntu 22.04 provisions its own isolated database. On Ubuntu 24.04 or Debian 13, an incompatible existing server is preserved; use the supported separate VPS profile rather than upgrading a shared database during setup. |
+| Existing database is incompatible | Ubuntu 22.04 provisions its own isolated database. On Ubuntu 24.04, Ubuntu 26.04 or Debian 13, an incompatible existing server is preserved; use the supported separate VPS profile rather than upgrading a shared database during setup. |
 | Signed OS package catalogue cannot be used | Check the server clock, internet connection and configured OS repositories. Setup does not bypass signature checks. Keep the same setup file and retry. |
 | Package authenticity or integrity verification failed | Delete only the failed download, obtain a fresh official setup file, and retry. Keep any existing application and recovery files. |
 | Setup interrupted | Run the same action again. It resumes the recorded setup; it does not create another administrator or reset an existing database. |
