@@ -1,33 +1,72 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -Eeuo pipefail
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$project_root"
 app_image="${COMPOSE_PROJECT_NAME:-emailer-next}-app"
 network="${COMPOSE_PROJECT_NAME:-emailer_next_ci}_edition"
 state_root="$(mktemp -d /tmp/ripe106-ci-XXXXXX)"
 chmod 0755 "$state_root"
+
+rehearsal_failure() {
+    local status="$1" line="$2" directory log
+    trap - ERR
+    printf 'Independent rehearsal failed: script line %s, status %s. Raw private logs are withheld.\n' "$line" "$status" >&2
+    df -Pk "$state_root" >&2 || true
+    df -Pi "$state_root" >&2 || true
+    for directory in "$state_root"/light-*; do
+        if [ ! -d "$directory" ] || [ -L "$directory" ]; then continue; fi
+        if [ -f "$directory/rehearsal-phase" ] && [ ! -L "$directory/rehearsal-phase" ]; then
+            printf 'Case %s phase: ' "$(basename "$directory")" >&2
+            grep -Ex '(source-install|source-fixture|transition|legacy-clone-setup|legacy-clone-restore|legacy-clone-inspect|legacy-clone-execute|postaccept-smtp|native-backup|complete)' "$directory/rehearsal-phase" >&2 || true
+        fi
+        for log in "$directory/source-install.log" "$directory/recovery.log" "$directory/acceptance.log"; do
+            if [ ! -f "$log" ] || [ -L "$log" ]; then continue; fi
+            # Only fixed location/SQLSTATE captures: never dump an exception
+            # message, query parameters, environment, key or credential value.
+            sed -nE 's/.*In ([A-Za-z_][A-Za-z0-9_]*\.php) line ([0-9]+):.*/location=\1:\2/p; s/.*SQLSTATE\[([A-Z0-9]{5})\].*/sqlstate=\1/p' "$log" | sort -u | head -12 >&2 || true
+        done
+    done
+    return "$status"
+}
+trap 'rehearsal_failure "$?" "$LINENO"' ERR
+rehearse() {
+    reset_rehearsal_mailboxes || return "$?"
+    "$@" || return "$?"
+    assert_no_rehearsal_actors || return "$?"
+    check_rehearsal_mailboxes bounded || return "$?"
+    # A converted-native outer case reuses its own Light tree internally.
+    # Archive only when that WHOLE outer command, with every check, passed.
+    docker run --rm --user root --network none -e EMAILER_ISOLATED_REHEARSAL=1 -e EMAILER_REHEARSAL_CASE_COMPLETED=1 \
+        -v "$project_root:/tools:ro" -v "$state_root:/rehearsals" "$app_image" \
+        bash /tools/tools/ci/compact-rehearsal-evidence.sh
+}
 if docker network inspect "$network" >/dev/null 2>&1; then
     printf 'Refusing an existing edition network.\n' >&2
     exit 1
 fi
 database_id="$(docker compose ps --quiet database)"
-mailpit_id="$(docker compose ps --quiet mailpit)"
 test -n "$database_id"
-test -n "$mailpit_id"
 docker network create --internal "$network" >/dev/null
+plain_mailpit="${network}_mailpit"
 auth_mailpit="${network}_auth_mailpit"
+source "$project_root/tools/ci/rehearsal-mailboxes.sh"
 cleanup() {
-    docker rm --force "$auth_mailpit" >/dev/null 2>&1 || true
-    docker network disconnect --force "$network" "$database_id" >/dev/null 2>&1 || true
-    docker network disconnect --force "$network" "$mailpit_id" >/dev/null 2>&1 || true
-    docker network rm "$network" >/dev/null 2>&1 || true
+    local status="$?"
+    if [ "$status" = 0 ] && assert_no_rehearsal_actors \
+        && mailbox_owned_or_absent "$plain_mailpit" && mailbox_owned_or_absent "$auth_mailpit"; then
+        remove_rehearsal_mailbox "$plain_mailpit" || return 1
+        remove_rehearsal_mailbox "$auth_mailpit" || return 1
+        docker network disconnect "$network" "$database_id" >/dev/null || return 1
+        docker network rm "$network" >/dev/null || return 1
+    else
+        printf 'Preserving isolated failed-case mailboxes and network for diagnosis.\n' >&2
+        if [ "$status" = 0 ]; then status=1; fi
+    fi
+    return "$status"
 }
 trap cleanup EXIT
 docker network connect --alias database "$network" "$database_id"
-docker network connect --alias mailpit "$network" "$mailpit_id"
-docker run --detach --name "$auth_mailpit" --network "$network" --network-alias auth-mailpit \
-    -e MP_SMTP_AUTH_ACCEPT_ANY=true -e MP_SMTP_AUTH_ALLOW_INSECURE=true \
-    -e MP_DISABLE_VERSION_CHECK=true axllent/mailpit:v1.30.5 >/dev/null
+bash "$project_root/tools/ci/check-rehearsal-mailbox-isolation.sh" "$network" "$database_id" "$app_image"
 # Compose's vendor volume is not visible in independent docker-run rehearsals.
 docker run --rm --user root --network none -v "$project_root:/workspace" "$app_image" \
     sh -euc 'mkdir -p /workspace/vendor; cp -a /opt/emailer-vendor/. /workspace/vendor/'
@@ -77,52 +116,56 @@ for version in 105 106 110 121 122 130; do
 done
 export EMAILER_REHEARSAL_NETWORK="$network"
 export EMAILER_REHEARSAL_APP_IMAGE="$app_image"
+mkdir "$state_root/compaction-selfcheck"
+docker run --rm --user root --network none \
+    -v "$project_root:/tools:ro" -v "$state_root/compaction-selfcheck:/rehearsals" "$app_image" \
+    bash /tools/tools/ci/check-rehearsal-compaction.sh
 # Preserve complete historical failure/partial-DDL recovery coverage with the
 # original reviewed1.0.6 code, tools and artifact. Test signatures are synthetic.
 legacy="$state_root/source106/tools/upgrade"
 legacy_target="$state_root/native106-package/emailer-next-1.0.6.zip"
 legacy_key="$state_root/native106-package/ripe.pub"
-bash "$legacy/run-native-update-rehearsal.sh" "$legacy_target" "$legacy_key" "$state_root/native105-package/emailer-next-1.0.5.zip" "$state_root" e522f8ae007c4232b170f4717247378c4b897863
-EMAILER_REHEARSAL_NATIVE_FAULT=1 bash "$legacy/run-native-update-rehearsal.sh" "$legacy_target" "$legacy_key" "$state_root/native105-package/emailer-next-1.0.5.zip" "$state_root" e522f8ae007c4232b170f4717247378c4b897863
+rehearse bash "$legacy/run-native-update-rehearsal.sh" "$legacy_target" "$legacy_key" "$state_root/native105-package/emailer-next-1.0.5.zip" "$state_root" e522f8ae007c4232b170f4717247378c4b897863
+rehearse env EMAILER_REHEARSAL_NATIVE_FAULT=1 bash "$legacy/run-native-update-rehearsal.sh" "$legacy_target" "$legacy_key" "$state_root/native105-package/emailer-next-1.0.5.zip" "$state_root" e522f8ae007c4232b170f4717247378c4b897863
 for phase in journal preparing migrating; do
-    EMAILER_REHEARSAL_NATIVE_INTERRUPT="$phase" bash "$legacy/run-native-update-rehearsal.sh" "$legacy_target" "$legacy_key" "$state_root/native105-package/emailer-next-1.0.5.zip" "$state_root" e522f8ae007c4232b170f4717247378c4b897863
+    rehearse env EMAILER_REHEARSAL_NATIVE_INTERRUPT="$phase" bash "$legacy/run-native-update-rehearsal.sh" "$legacy_target" "$legacy_key" "$state_root/native105-package/emailer-next-1.0.5.zip" "$state_root" e522f8ae007c4232b170f4717247378c4b897863
 done
 # Current schema-preserving update: real process interruption before checkpoint,
 # plus post-activation failure. There is no intermediate1.1 ALTER to fabricate.
 target="$state_root/target-package/emailer-next-1.3.1.zip"
 key="$state_root/target-package/ripe.pub"
-bash tools/upgrade/run-fresh-ripe-rehearsal.sh "$target" "$key" "$state_root" "$source_commit"
-bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$legacy_target" "$state_root" "$source_commit"
-EMAILER_REHEARSAL_NATIVE_FAULT=1 bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$legacy_target" "$state_root" "$source_commit"
+rehearse bash tools/upgrade/run-fresh-ripe-rehearsal.sh "$target" "$key" "$state_root" "$source_commit"
+rehearse bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$legacy_target" "$state_root" "$source_commit"
+rehearse env EMAILER_REHEARSAL_NATIVE_FAULT=1 bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$legacy_target" "$state_root" "$source_commit"
 for phase in journal preparing; do
-    EMAILER_REHEARSAL_NATIVE_INTERRUPT="$phase" bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$legacy_target" "$state_root" "$source_commit"
+    rehearse env EMAILER_REHEARSAL_NATIVE_INTERRUPT="$phase" bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$legacy_target" "$state_root" "$source_commit"
 done
 for mode in success fault journal preparing; do
     case "$mode" in
-        success) EMAILER_REHEARSAL_NATIVE_SOURCE=1.1.0 bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native110-package/emailer-next-1.1.0.zip" "$state_root" "$source_commit" ;;
-        fault) EMAILER_REHEARSAL_NATIVE_SOURCE=1.1.0 EMAILER_REHEARSAL_NATIVE_FAULT=1 bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native110-package/emailer-next-1.1.0.zip" "$state_root" "$source_commit" ;;
-        *) EMAILER_REHEARSAL_NATIVE_SOURCE=1.1.0 EMAILER_REHEARSAL_NATIVE_INTERRUPT="$mode" bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native110-package/emailer-next-1.1.0.zip" "$state_root" "$source_commit" ;;
+        success) rehearse env EMAILER_REHEARSAL_NATIVE_SOURCE=1.1.0 bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native110-package/emailer-next-1.1.0.zip" "$state_root" "$source_commit" ;;
+        fault) rehearse env EMAILER_REHEARSAL_NATIVE_SOURCE=1.1.0 EMAILER_REHEARSAL_NATIVE_FAULT=1 bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native110-package/emailer-next-1.1.0.zip" "$state_root" "$source_commit" ;;
+        *) rehearse env EMAILER_REHEARSAL_NATIVE_SOURCE=1.1.0 EMAILER_REHEARSAL_NATIVE_INTERRUPT="$mode" bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native110-package/emailer-next-1.1.0.zip" "$state_root" "$source_commit" ;;
     esac
 done
 for mode in success fault journal preparing; do
     case "$mode" in
-        success) EMAILER_REHEARSAL_NATIVE_SOURCE=1.2.1 bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native121-package/emailer-next-1.2.1.zip" "$state_root" "$source_commit" ;;
-        fault) EMAILER_REHEARSAL_NATIVE_SOURCE=1.2.1 EMAILER_REHEARSAL_NATIVE_FAULT=1 bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native121-package/emailer-next-1.2.1.zip" "$state_root" "$source_commit" ;;
-        *) EMAILER_REHEARSAL_NATIVE_SOURCE=1.2.1 EMAILER_REHEARSAL_NATIVE_INTERRUPT="$mode" bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native121-package/emailer-next-1.2.1.zip" "$state_root" "$source_commit" ;;
+        success) rehearse env EMAILER_REHEARSAL_NATIVE_SOURCE=1.2.1 bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native121-package/emailer-next-1.2.1.zip" "$state_root" "$source_commit" ;;
+        fault) rehearse env EMAILER_REHEARSAL_NATIVE_SOURCE=1.2.1 EMAILER_REHEARSAL_NATIVE_FAULT=1 bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native121-package/emailer-next-1.2.1.zip" "$state_root" "$source_commit" ;;
+        *) rehearse env EMAILER_REHEARSAL_NATIVE_SOURCE=1.2.1 EMAILER_REHEARSAL_NATIVE_INTERRUPT="$mode" bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native121-package/emailer-next-1.2.1.zip" "$state_root" "$source_commit" ;;
     esac
 done
 for mode in success fault journal preparing; do
     case "$mode" in
-        success) EMAILER_REHEARSAL_NATIVE_SOURCE=1.2.2 bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native122-package/emailer-next-1.2.2.zip" "$state_root" "$source_commit" ;;
-        fault) EMAILER_REHEARSAL_NATIVE_SOURCE=1.2.2 EMAILER_REHEARSAL_NATIVE_FAULT=1 bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native122-package/emailer-next-1.2.2.zip" "$state_root" "$source_commit" ;;
-        *) EMAILER_REHEARSAL_NATIVE_SOURCE=1.2.2 EMAILER_REHEARSAL_NATIVE_INTERRUPT="$mode" bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native122-package/emailer-next-1.2.2.zip" "$state_root" "$source_commit" ;;
+        success) rehearse env EMAILER_REHEARSAL_NATIVE_SOURCE=1.2.2 bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native122-package/emailer-next-1.2.2.zip" "$state_root" "$source_commit" ;;
+        fault) rehearse env EMAILER_REHEARSAL_NATIVE_SOURCE=1.2.2 EMAILER_REHEARSAL_NATIVE_FAULT=1 bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native122-package/emailer-next-1.2.2.zip" "$state_root" "$source_commit" ;;
+        *) rehearse env EMAILER_REHEARSAL_NATIVE_SOURCE=1.2.2 EMAILER_REHEARSAL_NATIVE_INTERRUPT="$mode" bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native122-package/emailer-next-1.2.2.zip" "$state_root" "$source_commit" ;;
     esac
 done
 for mode in success fault journal preparing; do
     case "$mode" in
-        success) EMAILER_REHEARSAL_NATIVE_SOURCE=1.3.0 bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native130-package/emailer-next-1.3.0.zip" "$state_root" "$source_commit" ;;
-        fault) EMAILER_REHEARSAL_NATIVE_SOURCE=1.3.0 EMAILER_REHEARSAL_NATIVE_FAULT=1 bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native130-package/emailer-next-1.3.0.zip" "$state_root" "$source_commit" ;;
-        *) EMAILER_REHEARSAL_NATIVE_SOURCE=1.3.0 EMAILER_REHEARSAL_NATIVE_INTERRUPT="$mode" bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native130-package/emailer-next-1.3.0.zip" "$state_root" "$source_commit" ;;
+        success) rehearse env EMAILER_REHEARSAL_NATIVE_SOURCE=1.3.0 bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native130-package/emailer-next-1.3.0.zip" "$state_root" "$source_commit" ;;
+        fault) rehearse env EMAILER_REHEARSAL_NATIVE_SOURCE=1.3.0 EMAILER_REHEARSAL_NATIVE_FAULT=1 bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native130-package/emailer-next-1.3.0.zip" "$state_root" "$source_commit" ;;
+        *) rehearse env EMAILER_REHEARSAL_NATIVE_SOURCE=1.3.0 EMAILER_REHEARSAL_NATIVE_INTERRUPT="$mode" bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native130-package/emailer-next-1.3.0.zip" "$state_root" "$source_commit" ;;
     esac
 done
 # Light's production pin is never substituted to accommodate a CI signer.
@@ -135,13 +178,14 @@ for light_version in 1.1.0 1.2.0 1.2.1 1.2.2 1.2.3 1.2.4; do
 done
 for mode in success fault journal preparing; do
     case "$mode" in
-        success) bash tools/upgrade/run-converted-native-rehearsal.sh "$target" "$key" "$state_root/native110-package/emailer-next-1.1.0.zip" "$state_root/published-light/emailer-light-1.1.0.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit" "$state_root/source110" ;;
-        fault) EMAILER_REHEARSAL_NATIVE_FAULT=1 bash tools/upgrade/run-converted-native-rehearsal.sh "$target" "$key" "$state_root/native110-package/emailer-next-1.1.0.zip" "$state_root/published-light/emailer-light-1.1.0.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit" "$state_root/source110" ;;
-        *) EMAILER_REHEARSAL_NATIVE_INTERRUPT="$mode" bash tools/upgrade/run-converted-native-rehearsal.sh "$target" "$key" "$state_root/native110-package/emailer-next-1.1.0.zip" "$state_root/published-light/emailer-light-1.1.0.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit" "$state_root/source110" ;;
+        success) rehearse bash tools/upgrade/run-converted-native-rehearsal.sh "$target" "$key" "$state_root/native110-package/emailer-next-1.1.0.zip" "$state_root/published-light/emailer-light-1.1.0.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit" "$state_root/source110" ;;
+        fault) rehearse env EMAILER_REHEARSAL_NATIVE_FAULT=1 bash tools/upgrade/run-converted-native-rehearsal.sh "$target" "$key" "$state_root/native110-package/emailer-next-1.1.0.zip" "$state_root/published-light/emailer-light-1.1.0.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit" "$state_root/source110" ;;
+        *) rehearse env EMAILER_REHEARSAL_NATIVE_INTERRUPT="$mode" bash tools/upgrade/run-converted-native-rehearsal.sh "$target" "$key" "$state_root/native110-package/emailer-next-1.1.0.zip" "$state_root/published-light/emailer-light-1.1.0.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit" "$state_root/source110" ;;
     esac
 done
-for light_version in 1.0.0 1.1.0 1.2.0 1.2.1 1.2.2 1.2.3 1.2.4; do
-    EMAILER_REHEARSAL_LIGHT_VERSION="$light_version" bash tools/upgrade/run-light-rehearsal.sh "$target" "$key" "$state_root/published-light/emailer-light-$light_version.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit"
-    EMAILER_REHEARSAL_LIGHT_VERSION="$light_version" EMAILER_REHEARSAL_MINIMAL=1 bash tools/upgrade/run-light-rehearsal.sh "$target" "$key" "$state_root/published-light/emailer-light-$light_version.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit"
+for light_version in 1.2.4 1.0.0 1.1.0 1.2.0 1.2.1 1.2.2 1.2.3; do
+    printf 'Checking rich and minimal published Light %s fixtures.\n' "$light_version"
+    rehearse env EMAILER_REHEARSAL_LIGHT_VERSION="$light_version" bash tools/upgrade/run-light-rehearsal.sh "$target" "$key" "$state_root/published-light/emailer-light-$light_version.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit"
+    rehearse env EMAILER_REHEARSAL_LIGHT_VERSION="$light_version" EMAILER_REHEARSAL_MINIMAL=1 bash tools/upgrade/run-light-rehearsal.sh "$target" "$key" "$state_root/published-light/emailer-light-$light_version.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit"
 done
 printf 'Historical and current signed-package edition rehearsals passed on this PHP/MariaDB matrix member.\n'

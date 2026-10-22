@@ -65,6 +65,27 @@ remain healthy across 916 probes; all five unrelated service PIDs are unchanged.
 The two upgrade/acceptance terminal screenshots were refreshed from these actual
 1.2.4-to-1.3.1 actions after review found obsolete 1.3.0 paths in inherited images.
 
+The initial eight-job CI run passed all four application matrix members but
+failed late in the edition rehearsals. An isolated reproduction identified a
+fake-mail retention hazard: Compose's shared sink retains 100 messages; pruning
+an accumulated count of 101 to 100 breaks an unchanged no-new-delivery comparison.
+The edition driver now uses fresh, labelled, no-egress sinks for each complete
+outer case, verifies zero initial messages and retention headroom, and refuses
+retirement while any test actor remains. Existing application/Compose mailboxes
+are untouched. All delivery, signature, recovery and source assertions remain.
+Inventory/inspect uncertainty and conflicting container ownership fail closed;
+failed cases retain their sinks and network. Independent regression checks cover
+these guards and the explicit synthetic retention boundary.
+
+Completed case trees also consumed over 9 GiB and 1.28 million inodes locally;
+this is measured pressure, not a claim that CI exhausted disk. After the complete
+outer case passes, full private evidence is archived, gzip-checked, compared
+against every original file and checksummed before removing only that copied
+case tree. Unsafe destinations, symlinks and incomplete-case requests are
+rejected. Failure diagnostics expose only fixed phases, capacity and whitelisted
+source locations/SQLSTATE codes; raw private logs and credential values remain
+withheld. The full original historical/current case roster is retained.
+
 The complete required GitHub CI matrix, exact-head merge approval, merge-commit
 rebuild and exact final-package acceptance remain release gates. Candidate tests are not represented as final published-package
 acceptance. The existing eight CI jobs retain all original members and add

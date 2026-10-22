@@ -27,6 +27,8 @@ test -d "$output_directory"
 iteration="$(date +%s)_${RANDOM}"
 case_root="$output_directory/light-$iteration"
 mkdir -m 0755 "$case_root"
+phase() { printf '%s\n' "$1" > "$case_root/rehearsal-phase"; }
+phase source-install
 touch "$case_root/source-install.log" "$case_root/source-fixture.log" "$case_root/inspection.log" "$case_root/transition.log" "$case_root/preservation.log" "$case_root/recovery.log" "$case_root/rerun.log" "$case_root/fault.log" "$case_root/acceptance.log" "$case_root/old-links.log" "$case_root/owner-login.log" "$case_root/rejections.log"
 # The host path contains no credentials; Docker owns all protected state below it.
 run() {
@@ -54,6 +56,7 @@ run() {
 run php /tools/tools/release/verify-package.php --archive=/package/emailer-next-1.3.1.zip --public-key=/package/ripe.pub --current-version=1.3.1 --expected-version=1.3.1 --expected-source="$expected_commit" > "$case_root/package-verification.txt"
 run php /tools/tools/upgrade/prepare-light-rehearsal.php "ripe106_$iteration" /published-light/emailer-light-"$light_version".zip /package/ripe.pub
 rehearsal_user=1000 run bash -euc 'set -a; source /rehearsal/runtime.env; set +a; php /rehearsal/source-releases/${EMAILER_REHEARSAL_LIGHT_VERSION}/bin/console emailer:setup:install --complete < /rehearsal/install-input' > "$case_root/source-install.log" 2>&1
+phase source-fixture
 if [ "${EMAILER_REHEARSAL_MINIMAL:-0}" != 1 ]; then
     run bash -euc 'set -a; source /rehearsal/runtime.env; set +a; php /tools/tools/upgrade/seed-published-light.php' > "$case_root/source-fixture.log" 2>&1
 fi
@@ -62,6 +65,7 @@ rehearsal_user=1000 run bash -euc 'set -a; source /rehearsal/runtime.env; set +a
 run bash -euc 'set -a; source /rehearsal/runtime.env; export EMAILER_RUNTIME_DIR=/rehearsal/source-http-runtime; set +a; php /tools/tools/upgrade/issue-source-session.php' >> "$case_root/source-fixture.log" 2>&1
 run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /tools/tools/upgrade/observe-light-rehearsal.php before' > "$case_root/preservation.log"
 run php -r '$z=new ZipArchive();$z->open("/package/emailer-next-1.3.1.zip");mkdir("/rehearsal/target");$z->extractTo("/rehearsal/target");'
+phase transition
 for variant in unsupported_version schema_drift mismatched_roots; do
     run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /tools/tools/upgrade/reject-source-fixtures.php "$1"' bash "$variant" >> "$case_root/rejections.log"
     if run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /rehearsal/target/bin/console emailer:setup:install --upgrade-light --edition-action=inspect --target-package=/package/emailer-next-1.3.1.zip --source-package=/published-light/emailer-light-${EMAILER_REHEARSAL_LIGHT_VERSION}.zip --recovery-directory=/rehearsal/recovery' >> "$case_root/rejections.log" 2>&1; then
@@ -191,21 +195,28 @@ done
 run bash -euc 'set -a; source /rehearsal/updater.env; set +a; checkpoint=$(php /tools/tools/upgrade/recovery-checkpoint-path.php); php /rehearsal/target/bin/console emailer:setup:install --upgrade-light --edition-action=export-light-recovery --target-package=/package/emailer-next-1.3.1.zip --source-package=/published-light/emailer-light-${EMAILER_REHEARSAL_LIGHT_VERSION}.zip --recovery-directory="$checkpoint" --light-recovery-export-directory=/rehearsal/legacy-export; mkdir -m 0755 /rehearsal/legacy-source'
 legacy_run() { rehearsal_case_root_override="$case_root/legacy-source" run "$@"; }
 legacy_database="ripe106_$(date +%s)_${RANDOM}_legacy"
+phase legacy-clone-setup
 legacy_run php /tools/tools/upgrade/prepare-light-rehearsal.php "$legacy_database" /published-light/emailer-light-"$light_version".zip /package/ripe.pub
 rehearsal_user=1000 legacy_run bash -euc 'set -a; source /rehearsal/runtime.env; set +a; php /rehearsal/source-releases/${EMAILER_REHEARSAL_LIGHT_VERSION}/bin/console emailer:setup:install --complete < /rehearsal/install-input' >> "$case_root/source-install.log" 2>&1
+phase legacy-clone-restore
 legacy_run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /tools/tools/upgrade/prepare-old-backup-restore.php; export EMAILER_RUNTIME_DIR=/rehearsal/legacy-restore-runtime; export EMAILER_RECOVERY_KEY_FILE=/rehearsal/keys/light-recovery.key; export EMAILER_RELEASE_PUBLIC_KEY_FILE=/published-light/emailer-light-release.pub; old_backup=$(cat /rehearsal/old-backup-path); printf "yes\n" | php /rehearsal/source-releases/${EMAILER_REHEARSAL_LIGHT_VERSION}/bin/console emailer:backup:restore "$old_backup" --drill-receipt; php /rehearsal/source-releases/${EMAILER_REHEARSAL_LIGHT_VERSION}/bin/console emailer:doctor:run --json --maintenance-verification || test "$?" = 1' >> "$case_root/recovery.log" 2>&1
 # The unchanged Light restore itself authenticates every restored row/asset and
 # emits signed drill evidence. Independently check archive/key, durable hold and
 # zero new attempts/messages, then inspect the supported upgrade from that clone.
+phase legacy-clone-inspect
 legacy_run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /tools/tools/upgrade/verify-old-backup-restore.php; php /tools/tools/upgrade/unlock-restored-light-clone.php; chmod -R a-w /rehearsal/source-releases/${EMAILER_REHEARSAL_LIGHT_VERSION}; php /tools/tools/upgrade/observe-light-rehearsal.php before; php /tools/tools/upgrade/extract-rehearsal-target.php; php /rehearsal/target/bin/console emailer:setup:install --upgrade-light --edition-action=inspect --target-package=/package/emailer-next-1.3.1.zip --source-package=/published-light/emailer-light-${EMAILER_REHEARSAL_LIGHT_VERSION}.zip --recovery-directory=/rehearsal/recovery' >> "$case_root/recovery.log" 2>&1
+phase legacy-clone-execute
 legacy_run bash -euc 'set -a; source /rehearsal/updater.env; set +a; printf "%s\n%s\n" "Synthetic recovery rehearsal passphrase only" "Synthetic recovery rehearsal passphrase only" | php /rehearsal/target/bin/console emailer:setup:install --upgrade-light --edition-action=execute --target-package=/package/emailer-next-1.3.1.zip --source-package=/published-light/emailer-light-${EMAILER_REHEARSAL_LIGHT_VERSION}.zip --recovery-directory=/rehearsal/recovery; php /tools/tools/upgrade/observe-light-rehearsal.php after' >> "$case_root/recovery.log" 2>&1
 if [ "${EMAILER_REHEARSAL_MINIMAL:-0}" != 1 ]; then
     # All conversion/recovery zero-send comparisons are complete. This separate
     # operation explicitly releases the accepted hold and authenticates the
     # preserved SMTP credentials to a dedicated synthetic AUTH sink.
+    phase postaccept-smtp
     run bash -euc 'set -a; source /rehearsal/runtime.env; export EMAILER_RUNTIME_DIR=/rehearsal/post-acceptance-runtime; set +a; php /rehearsal/source-releases/ripe-1.3.1/bin/console emailer:delivery:resume; php /tools/tools/upgrade/verify-preserved-smtp.php' >> "$case_root/acceptance.log" 2>&1
     # Native Ripe backups made after conversion retain campaign-owned data.
     # Restore using the real command and authenticated every-row/asset drill.
+    phase native-backup
     run bash -euc 'set -a; source /rehearsal/updater.env; export EMAILER_RUNTIME_DIR=/rehearsal/native-backup-drill-runtime; set +a; php /rehearsal/source-releases/ripe-1.3.1/bin/console emailer:delivery:quiesce; php /tools/tools/upgrade/native-backup-restore-evidence.php before; backup=$(cat /rehearsal/native-backup-path); printf "yes\n" | php /rehearsal/source-releases/ripe-1.3.1/bin/console emailer:backup:restore "$backup" --drill-receipt; php /tools/tools/upgrade/native-backup-restore-evidence.php after; php /tools/tools/upgrade/verify-old-links.php' >> "$case_root/recovery.log" 2>&1
 fi
+phase complete
 printf 'Packaged synthetic Light transition completed: %s\n' "$case_root"
