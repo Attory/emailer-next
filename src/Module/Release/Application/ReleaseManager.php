@@ -206,7 +206,7 @@ final readonly class ReleaseManager
             } else {
                 $this->runConsole($target, ['emailer:health:verify-runtime', '--offline-maintenance'], [0]);
             }
-            if (\in_array($targetVersion, ['1.1.0', '1.2.0', '1.2.1', '1.2.2', '1.3.0'], true) && null !== $nativeJournal) {
+            if (\in_array($targetVersion, ['1.1.0', '1.2.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1'], true) && null !== $nativeJournal) {
                 $this->synchronizeNativeIdentity($targetVersion);
             }
             $this->connection->update('release_operation', ['status' => 'succeeded', 'detail_code' => 'health_passed', 'finished_at' => Identity::now()], ['id' => $operationId]);
@@ -502,7 +502,7 @@ final readonly class ReleaseManager
 
     private function completeNativePair(string $source, string $target): bool
     {
-        return (\in_array($source, ['1.0.6', '1.1.0', '1.2.1', '1.2.2'], true) && '1.3.0' === $target) || ('1.2.1' === $source && '1.2.2' === $target) || ('1.0.5' === $source && '1.0.6' === $target) || ('1.0.6' === $source && '1.1.0' === $target) || (\in_array($source, ['1.0.6', '1.1.0'], true) && \in_array($target, ['1.2.0', '1.2.1', '1.2.2'], true));
+        return (\in_array($source, ['1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0'], true) && '1.3.1' === $target) || (\in_array($source, ['1.0.6', '1.1.0', '1.2.1', '1.2.2'], true) && '1.3.0' === $target) || ('1.2.1' === $source && '1.2.2' === $target) || ('1.0.5' === $source && '1.0.6' === $target) || ('1.0.6' === $source && '1.1.0' === $target) || (\in_array($source, ['1.0.6', '1.1.0'], true) && \in_array($target, ['1.2.0', '1.2.1', '1.2.2'], true));
     }
 
     private function nativeDatabaseBinding(): string

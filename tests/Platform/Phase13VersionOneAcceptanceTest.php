@@ -12,11 +12,11 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
     {
         $root = \dirname(__DIR__, 2);
         $services = (string) file_get_contents($root.'/config/services.yaml');
-        self::assertStringContainsString("emailer.app_version: '1.3.0'", $services);
+        self::assertStringContainsString("emailer.app_version: '1.3.1'", $services);
         self::assertStringContainsString("emailer.schema_version: '20261015000000'", $services);
 
         $tooling = (string) file_get_contents($root.'/tools/release/check-candidate-tooling.sh');
-        self::assertStringContainsString('--version=1.3.0', $tooling);
+        self::assertStringContainsString('--version=1.3.1', $tooling);
         self::assertStringContainsString('--minimum-source=1.0.6', $tooling);
         self::assertStringContainsString('--supported-sources=1.0.6,1.1.0,1.2.1,1.2.2', $tooling);
         self::assertStringContainsString('--minimum-schema=20261015000000', $tooling);
