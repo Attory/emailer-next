@@ -1,18 +1,18 @@
 # Emailer Ripe user manual
 
-Version 1.3.1 | Accounts, setup and everyday newsletters
+Version 1.3.2 | Accounts, setup and everyday newsletters
 
 Prepare, test, approve, then send. Saving a draft sends nothing. A campaign is one newsletter, a template is reusable content, and a list is a group of contacts.
 
 Ubuntu 26.04 uses its maintained distribution PHP 8.5 packages; no external PHP source is added. A compatible existing MariaDB 10.11 or 11.8 service is reused without a major upgrade. Setup adds a dedicated Emailer PHP-FPM pool and keeps existing website pools, PHP alternatives and Virtualmin-managed websites in place. Missing PHP extension packages add their standard extension configuration; existing PHP settings are retained and shared PHP services are not restarted.
 
-Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 on Ubuntu 26.04 upgrades directly to Ripe 1.3.1; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance.
+Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.5 on Ubuntu 26.04 upgrade directly to Ripe 1.3.2; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance.
 
 Ubuntu 26.04.1 HTTPS acceptance used a local ACME server with real HTTP challenge validation and strict certificate/name verification. Public certificate issuance remains unverified because no dedicated non-production hostname and DNS authority were available. Customer setup uses the normal public ACME service; DNS must point to the server and Apache must be reachable on ports 80 and 443.
 
 Ripe’s Ubuntu Apache installer supports wildcard and literal address-specific virtual hosts on explicit ports 80 and 443. Light retains a wildcard-only Apache profile. An existing Nginx service on a separate port, such as 8081, remains unchanged.
 
-The 1.3.1 setup file supports Ubuntu 22.04/24.04/26.04 with Apache and Debian 13 with Nginx. It creates a dedicated PHP runtime, application services, backups and a command launcher. Ubuntu 22.04 gets an isolated supported database beside existing sites. Administrator email is the default login name on fresh setup; existing accounts keep their identifier and password. You can sign in, prepare templates and campaigns, and configure SMTP later. See the beginner installation guide for the tested hosting profile and one-file setup action.
+The 1.3.2 setup file supports Ubuntu 22.04/24.04/26.04 with Apache and Debian 13 with Nginx. It creates a dedicated PHP runtime, application services, backups and a command launcher. Ubuntu 22.04 gets an isolated supported database beside existing sites. Administrator email is the default login name on fresh setup; existing accounts keep their identifier and password. You can sign in, prepare templates and campaigns, and configure SMTP later. See the beginner installation guide for the tested hosting profile and one-file setup action.
 
 ## Your installed account
 
@@ -105,16 +105,39 @@ For Draft or Review, open the campaign and choose Edit draft after committing pe
 3. An Administrator or Owner chooses Approve newsletter and confirms their own credentials when asked. Operators need an approver.
 4. Choose Send now or set a date/time and Schedule newsletter. Use the displayed organisation timezone. Approval alone does not start delivery.
 
-## Progress, templates and reports
+## Progress and reports
 
 - SMTP accepted means accepted by the mail server, not proven inbox placement. Waiting/retries may reflect rate limits or temporary provider failures.
 - Pause stops new claims; in-flight messages can finish. Adjust the rate while paused and resume deliberately. Cancellation cannot recall messages already sent. Uncertain outcomes are not automatically resent.
 - Owners adjust installation limits under Settings & tools > Delivery limits. Campaign rates cannot bypass them.
 - Refresh the page or sign in again if counts stop refreshing. Without JavaScript use Refresh page.
-- Template versions are immutable. Upload images through the asset controls; unsafe HTML, remote image sources and unsupported styling are removed. Use supported merge fields such as {{ contact.first_name }} and {{ unsubscribe_url }}.
 - Unsubscribe actions suppress the represented address globally. Forwarded links affect their original recipient. Open/click tracking is approximate because of privacy tools and scanners.
 
-![The installed Ripe templates screen.](images/emailer-ripe-templates.png)
+## Create or edit a template with images
+
+Open Templates to create a draft, or choose Edit for an existing template. Enter the name, subject, optional preheader and HTML. Plain text is optional; leave it blank to generate it when saving. Your image controls are part of this same editor.
+
+1. In Images, choose a JPEG, PNG or WebP file and select Upload and re-encode image. Stay on this page: progress is shown while Emailer validates and saves the image. Uploading keeps your five template fields and HTML cursor position.
+2. Choose the saved thumbnail in the gallery. Earlier uploads are available here too; use Refresh gallery or Load more images when needed. You do not need to upload the same image again.
+3. Enter a useful Description (alt text), or leave it blank for a decorative image. Adjust Display width if needed; Keep proportions adjusts the height. New selections fit within 600 pixels without enlarging a small image.
+4. Place the HTML cursor in text or between tags, then choose Insert image. The supported image reference is generated for you. Copy image HTML copies the complete image tag; Copy image path copies only its address. Neither copy action changes your template.
+5. Choose Create template, Save template or Create new version, as appropriate. Saving stores an unpublished draft. Publication, campaign approval and sending remain separate actions.
+
+![The editor's image controls after inline upload. Your template fields remain on the same page.](images/emailer-ripe-image-library.png)
+
+![Select an image, set its description and dimensions, then insert at the HTML cursor or copy its HTML/path.](images/emailer-ripe-image-insert.png)
+
+Images must be at most 2 MB and 2400 pixels on each side. Emailer validates and re-encodes them. SVG and other unsupported files are rejected with an explanation. On failure, your entries stay here; correct the file and use Retry upload. If a connection fails after upload started, refresh the gallery before retrying because the image may already have been saved. Cancel also does not remove an image that already reached the server.
+
+Saved image links can be opened without signing in so recipients can see them. Upload only images that are safe to share. The editor uses a relative /template-assets/ image reference; delivered messages automatically use your installation’s HTTPS address. Keep that address and HTTPS working while recipients use those images.
+
+### Recover unsaved work
+
+The editor keeps an unsaved recovery copy in this browser tab for up to 12 hours. After refresh or returning, choose Restore draft to bring back the five fields and HTML cursor, or Discard recovered draft to use the saved version. Each tab has its own copy. Use Save for durable storage; closing the tab may remove browser recovery. Close the tab when finished on a shared computer.
+
+If browser storage is unavailable, the editor says so and warns before you leave with unsaved changes. Keep a copy of your content or save it before leaving. If saving fails validation, your submitted fields remain visible with the error; correct them and save again. Insertion errors leave the HTML unchanged. Uploading, recovering and saving a draft send no messages.
+
+Template versions are immutable. Use supported merge fields such as `{{ contact.first_name }}` and `{{ unsubscribe_url }}`. Unsafe HTML, remote image sources and unsupported styling are removed when a valid draft is saved.
 
 ## Health, backups and updates
 
@@ -122,4 +145,4 @@ Doctor shows each sending blocker and repair action. Native updates and edition 
 
 Fresh setup enables daily encrypted local backup copies. Under Backups inspect verification and transfer evidence, adjust policy or create and verify an on-demand backup. Keep the recovery-key package and its password separately. Same-server copies do not protect against server loss; arrange an independent backup destination. Restore drills are supervised, never automatic.
 
-For Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2 or 1.3.0 to 1.3.1, start the new official setup file, choose Update with a verified backup and follow any Finish instruction. This includes Ripe 1.1.0 installations previously converted from Light. Existing MFA, password, recipients, tracking, SMTP encryption contexts and recovery history are retained. Review Doctor before Resume. Earlier Ripe versions must follow their published supported path to 1.0.6 first. Interrupted operations use Recover; committed operations use Finish and cannot be downgraded by recovery. See the [operator reference](emailer-ripe-operator.md).
+For Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2, 1.3.0 or 1.3.1 to 1.3.2, start the new official setup file, choose Update with a verified backup and follow any Finish instruction. This includes Ripe 1.1.0 installations previously converted from Light. Existing MFA, password, recipients, tracking, SMTP encryption contexts and recovery history are retained. Review Doctor before Resume. Earlier Ripe versions must follow their published supported path to 1.0.6 first. Interrupted operations use Recover; committed operations use Finish and cannot be downgraded by recovery. See the [operator reference](emailer-ripe-operator.md).

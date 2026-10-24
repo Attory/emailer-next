@@ -39,18 +39,19 @@ try {
     if (!is_string($options['predecessors'] ?? null)) {
         throw new RuntimeException('The self-contained installer requires its authenticated predecessor package set.');
     }
-    $priorArchives = ['emailer-next-1.0.6.zip', 'emailer-next-1.1.0.zip', 'emailer-next-1.2.1.zip', 'emailer-next-1.2.2.zip', 'emailer-next-1.3.0.zip', 'emailer-light-1.0.0.zip', 'emailer-light-1.1.0.zip', 'emailer-light-1.2.0.zip', 'emailer-light-1.2.1.zip', 'emailer-light-1.2.2.zip', 'emailer-light-1.2.3.zip', 'emailer-light-1.2.4.zip'];
+    $priorArchives = ['emailer-next-1.0.6.zip', 'emailer-next-1.1.0.zip', 'emailer-next-1.2.1.zip', 'emailer-next-1.2.2.zip', 'emailer-next-1.3.0.zip', 'emailer-next-1.3.1.zip', 'emailer-light-1.0.0.zip', 'emailer-light-1.1.0.zip', 'emailer-light-1.2.0.zip', 'emailer-light-1.2.1.zip', 'emailer-light-1.2.2.zip', 'emailer-light-1.2.3.zip', 'emailer-light-1.2.4.zip', 'emailer-light-1.2.5.zip'];
     (new App\Module\Release\Application\PackageInspector($options['public-key'], '1.0.6'))->inspectInstalledSource($options['predecessors'].'/emailer-next-1.0.6.zip');
     require_once $root.'/src/Module/Release/Application/LightSourcePackage.php';
     (new App\Module\Release\Application\PackageInspector($options['public-key'], '1.1.0'))->inspectInstalledSource($options['predecessors'].'/emailer-next-1.1.0.zip');
     (new App\Module\Release\Application\PackageInspector($options['public-key'], '1.2.1'))->inspectInstalledSource($options['predecessors'].'/emailer-next-1.2.1.zip');
     (new App\Module\Release\Application\PackageInspector($options['public-key'], '1.2.2'))->inspectInstalledSource($options['predecessors'].'/emailer-next-1.2.2.zip');
-    foreach (['1.0.0', '1.1.0', '1.2.0', '1.2.1', '1.2.2', '1.2.3', '1.2.4'] as $lightVersion) {
+    foreach (['1.0.0', '1.1.0', '1.2.0', '1.2.1', '1.2.2', '1.2.3', '1.2.4', '1.2.5'] as $lightVersion) {
         if ($lightVersion !== App\Module\Release\Application\LightSourcePackage::authenticate($options['predecessors'].'/emailer-light-'.$lightVersion.'.zip')) {
             throw new RuntimeException('The Light predecessor identity is incompatible.');
         }
     }
     (new App\Module\Release\Application\PackageInspector($options['public-key'], '1.3.0'))->inspectInstalledSource($options['predecessors'].'/emailer-next-1.3.0.zip');
+    (new App\Module\Release\Application\PackageInspector($options['public-key'], '1.3.1'))->inspectInstalledSource($options['predecessors'].'/emailer-next-1.3.1.zip');
     foreach ($priorArchives as $prior) {
         foreach (['', '.manifest.json', '.sha256', '.spdx.json', '.sig'] as $suffix) {
             $path = $options['predecessors'].'/'.$prior.$suffix;

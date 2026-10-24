@@ -487,3 +487,20 @@ enrollment and all ordinary High gates continue to apply.
 See [ADR 0014](adr/0014-light-recipient-provenance-and-edition-recovery.md) for
 recovery and serialization controls and the operator procedure for custody of
 retained Light backups and original keys.
+
+## Template editor recovery and image gallery
+
+The authenticated gallery uses the existing template-editing authority and
+returns at most 24 assets per page with strict UUID cursors and safe generated
+image references. It reveals no raw storage path or uploader identity. Public
+image links remain intentionally available to email readers; upload remains
+CSRF-protected, size/dimension-bounded and re-encoded by the existing store.
+
+The page-local editor stores only five content fields, cursor and selected image
+controls in per-tab session storage, scoped to account and editor context, with
+a 12-hour inactivity expiry and size limit. It stores no CSRF token, password or
+upload file. This client recovery copy is subject to the browser profile's local
+privacy boundary and is not encrypted server backup material. Separate tabs do
+not overwrite one another. Recovery failure leaves unsaved-change protection
+and visible guidance. Fetched metadata is rendered with DOM text APIs; image
+HTML uses a fixed supported URL, numeric dimensions and escaped alt text.

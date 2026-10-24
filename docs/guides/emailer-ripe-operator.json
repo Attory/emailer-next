@@ -1,6 +1,6 @@
 {
   "title": "Ripe operator and troubleshooting reference",
-  "subtitle": "Version 1.3.1 | Exceptional hosting, updates and recovery",
+  "subtitle": "Version 1.3.2 | Exceptional hosting, updates and recovery",
   "blocks": [
     {
       "type": "p",
@@ -12,7 +12,7 @@
     },
     {
       "type": "p",
-      "text": "Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 on Ubuntu 26.04 upgrades directly to Ripe 1.3.1; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance."
+      "text": "Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.5 on Ubuntu 26.04 upgrade directly to Ripe 1.3.2; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance."
     },
     {
       "type": "p",
@@ -162,7 +162,7 @@
     },
     {
       "type": "p",
-      "text": "Fresh redacted diagnostics are under <code>/var/lib/emailer-installer/last-error.json</code>. Managed operations use <code>/etc/emailer/installer/&lt;edition&gt;/1.3.1/last-error.json</code>. These contain a bounded failed step/category and blocker codes. Full management receipts and runtime settings contain secrets: do not dump them into logs, tickets, screenshots or chat. Share only named redacted error codes and service status."
+      "text": "Fresh redacted diagnostics are under <code>/var/lib/emailer-installer/last-error.json</code>. Managed operations use <code>/etc/emailer/installer/&lt;edition&gt;/1.3.2/last-error.json</code>. These contain a bounded failed step/category and blocker codes. Full management receipts and runtime settings contain secrets: do not dump them into logs, tickets, screenshots or chat. Share only named redacted error codes and service status."
     },
     {
       "type": "h2",
@@ -304,7 +304,7 @@
     },
     {
       "type": "p",
-      "text": "If 1.2.1 stopped during Checking this server with Existing Nginx/Caddy was preserved, download the official 1.3.1 setup file and start it with sudo sh as in the installation guide. That check occurs before installation initialization or database creation. Keep the existing installer state directory and its operation lock; no state or database deletion is needed. An operation that progressed beyond this check remains bound to its original signed package; complete it with that package before a normal update. If 1.2.2 stopped during the address-specific Apache check before initialization, start this Ripe 1.3.1 file to retry; no state or database deletion is needed. An initialized Light installation uses the guided Light upgrade action; an uninitialized server uses fresh Ripe setup."
+      "text": "If 1.2.1 stopped during Checking this server with Existing Nginx/Caddy was preserved, download the official 1.3.2 setup file and start it with sudo sh as in the installation guide. That check occurs before installation initialization or database creation. Keep the existing installer state directory and its operation lock; no state or database deletion is needed. An operation that progressed beyond this check remains bound to its original signed package; complete it with that package before a normal update. If 1.2.2 stopped during the address-specific Apache check before initialization, start this Ripe 1.3.2 file to retry; no state or database deletion is needed. An initialized Light installation uses the guided Light upgrade action; an uninitialized server uses fresh Ripe setup."
     },
     {
       "type": "h2",
@@ -325,6 +325,59 @@
     {
       "type": "p",
       "text": "Appearance mutations share the installation maintenance lock with backup, restore and release operations. Fetching happens outside that lock; a newer manual branding save prevents an older in-flight refresh from replacing it. If private storage is unreadable, the shell uses Classic and a safe neutral Website palette. Use Appearance to return to Classic during recovery; repair the specific private permissions reported by the health or backup command rather than making the directory public."
+    },
+    {
+      "type": "h2",
+      "text": "Template images and unsaved editor recovery"
+    },
+    {
+      "type": "p",
+      "text": "The image gallery lists this installation’s persistent template assets under the existing template-editing permissions. Earlier validated uploads remain discoverable. Missing files appear unavailable; restore the matching application asset backup rather than uploading different bytes under an existing link. The gallery is paginated and thumbnails are bounded. Assets and their metadata use the existing backup contributors; no new database migration is needed for this patch."
+    },
+    {
+      "type": "table",
+      "head": [
+        "What you see",
+        "What to do"
+      ],
+      "rows": [
+        [
+          "Choose a JPEG, PNG or WebP image",
+          "Use a supported raster image at most 2 MB and 2400 pixels on each side."
+        ],
+        [
+          "Upload not confirmed",
+          "Keep the editor open. Refresh the gallery before retrying; the server may have saved the image despite a lost response."
+        ],
+        [
+          "Image file unavailable",
+          "Restore the corresponding persistent asset file from a verified backup. Existing metadata and other gallery entries are retained."
+        ],
+        [
+          "Place the HTML cursor in text or between tags",
+          "Move the cursor outside attributes, comments, raw-text elements and merge fields; insertion has not changed your HTML."
+        ],
+        [
+          "Save could not be confirmed",
+          "Keep the entries here and inspect Templates in another tab before retrying. A lost response can follow a successful save."
+        ],
+        [
+          "Browser recovery is unavailable",
+          "Save or copy the fields before leaving. Browser storage can be disabled or full."
+        ]
+      ]
+    },
+    {
+      "type": "p",
+      "text": "Recovery uses per-tab session storage scoped to the signed-in account and editor. It allowlists the five content fields, cursor and image controls; it does not store passwords, CSRF tokens or selected upload files. Copies expire after 12 hours and are size-bounded. Do not rely on that copy after closing the tab. Recovery is a convenience rather than a server backup. The normal unsaved-changes warning remains available when storage cannot be used."
+    },
+    {
+      "type": "p",
+      "text": "The image URL is intentionally public for email readers; the saved-asset gallery and uploads require authentication and the existing editing authority. Upload POSTs retain CSRF checks. Saving remains separate from publication. SMTP transport resolves supported relative image references against the canonical HTTPS installation address. Do not change that address casually after sending messages."
+    },
+    {
+      "type": "p",
+      "text": "Earlier uploaded images become visible in the updated gallery. Browser draft recovery protects work entered in the updated editor; it cannot reconstruct text that an older page already discarded before recovery existed."
     }
   ]
 }
