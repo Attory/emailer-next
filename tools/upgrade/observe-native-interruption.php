@@ -17,7 +17,7 @@ while (microtime(true) < $deadline) {
     if ([] !== $files) {
         sort($files, SORT_STRING);
         $journal = json_decode((string) file_get_contents($files[array_key_last($files)]), true, 512, JSON_THROW_ON_ERROR);
-        if (($journal['source_version'] ?? null) !== (getenv('EMAILER_REHEARSAL_NATIVE_SOURCE') ?: '1.0.6') || '1.3.0' !== ($journal['target_version'] ?? null)) {
+        if (($journal['source_version'] ?? null) !== (getenv('EMAILER_REHEARSAL_NATIVE_SOURCE') ?: '1.0.6') || '1.3.1' !== ($journal['target_version'] ?? null)) {
             throw new RuntimeException('Native journal belongs to another release pair.');
         }
         if ('operation' === $argv[1]) {

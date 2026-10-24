@@ -1,7 +1,7 @@
 # Emailer Ripe
 
-Emailer Ripe 1.3.0 includes guided Ubuntu 22.04/24.04 Apache and Debian 13 Nginx VPS installers,
-ordinary Ripe 1.0.6/1.1.0/1.2.1/1.2.2 updates, and Light 1.0.0/1.1.0/1.2.0/1.2.1/1.2.2/1.2.3 upgrades with verified recovery and
+Emailer Ripe 1.3.1 includes guided Ubuntu 22.04/24.04/26.04 Apache and Debian 13 Nginx VPS installers,
+ordinary Ripe 1.0.6/1.1.0/1.2.1/1.2.2/1.3.0 updates, and Light 1.0.0/1.1.0/1.2.0/1.2.1/1.2.2/1.2.3/1.2.4 upgrades with verified recovery and
 explicit acceptance/resume. SMTP is optional during fresh setup.
 
 - [Beginner installation](docs/guides/emailer-ripe-install.md)
@@ -10,8 +10,8 @@ explicit acceptance/resume. SMTP is optional during fresh setup.
 - [Operator and troubleshooting reference](docs/guides/emailer-ripe-operator.md)
 - [HTML/PDF downloads](docs/guides/README.md)
 
-Download the private official `emailer-ripe-1.3.0-setup.run` through an authorized
-channel, upload that one file to the server, then start `sudo sh emailer-ripe-1.3.0-setup.run`.
+Download the private official `emailer-ripe-1.3.1-setup.run` through an authorized
+channel, upload that one file to the server, then start `sudo sh emailer-ripe-1.3.1-setup.run`.
 The guide explains DNS and host permission. The installer supplies runtime,
 verification, database, secrets, isolated services, HTTPS, backups and launcher.
 Customers do not need Docker, Composer, Mailpit or manual service definitions.
@@ -73,3 +73,5 @@ log, backup, export, or key in the tree, history, fixtures, screenshots,
 prompts, or test output.
 
 Apache installations on Ubuntu can coexist with an unrelated Nginx service on port 8081. Setup verifies Apache owns all listeners on 80/443 and preserves Nginx configuration, listener and service. Use the new setup file to retry the 1.2.1 initial-check rejection; keep installation state and database files.
+
+Ubuntu 26.04.1 amd64/systemd with Apache 2.4.66 and Virtualmin 8.3.0 is supported by Ripe 1.3.1. This profile uses distribution PHP 8.5.4 and MariaDB 11.8.6. See the beginner guide for scope and the public ACME limitation.

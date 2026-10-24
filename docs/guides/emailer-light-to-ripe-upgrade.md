@@ -1,25 +1,32 @@
 # Upgrade Emailer Light to Ripe
 
-Ripe 1.3.0 | Beginner guide for Light 1.0.0, 1.1.0, 1.2.0, 1.2.1, 1.2.2 and 1.2.3
+Ripe 1.3.1 | Beginner guide for Light 1.0.0, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3 and 1.2.4
 
-Upgrade with the private Ripe 1.3.0 setup file. Your Light administrator becomes an Owner and keeps the same password. Delivery remains held until you accept the validated upgrade, check the result and deliberately resume.
+Upgrade with the private Ripe 1.3.1 setup file. Your Light administrator becomes an Owner and keeps the same password. Delivery remains held until you accept the validated upgrade, check the result and deliberately resume.
+
+Ubuntu 26.04 uses its maintained distribution PHP 8.5 packages; no external PHP source is added. A compatible existing MariaDB 10.11 or 11.8 service is reused without a major upgrade. Setup adds a dedicated Emailer PHP-FPM pool and keeps existing website pools, PHP alternatives and Virtualmin-managed websites in place. Missing PHP extension packages add their standard extension configuration; existing PHP settings are retained and shared PHP services are not restarted.
+
+Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 on Ubuntu 26.04 upgrades directly to Ripe 1.3.1; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance.
+
+Ubuntu 26.04.1 HTTPS acceptance used a local ACME server with real HTTP challenge validation and strict certificate/name verification. Public certificate issuance remains unverified because no dedicated non-production hostname and DNS authority were available. Customer setup uses the normal public ACME service; DNS must point to the server and Apache must be reachable on ports 80 and 443.
 
 ## Supported sources
 
 | Installed source | Target and route |
 | --- | --- |
-| Original published Light 1.0.0 | Ripe 1.3.0, direct guided upgrade. |
-| Official Light 1.1.0 | Ripe 1.3.0, direct guided upgrade. |
-| Official Light 1.2.0 | Ripe 1.3.0, direct guided upgrade. |
-| Official Light 1.2.1 | Ripe 1.3.0, direct guided upgrade. |
-| Official Light 1.2.2 | Ripe 1.3.0, direct guided upgrade. |
-| Official Light 1.2.3 | Ripe 1.3.0, direct guided upgrade. |
-| Light updated through a supported path to 1.1.0, 1.2.0, 1.2.1, 1.2.2 or 1.2.3 | Ripe 1.3.0, same guided edition upgrade. |
-| Ripe 1.0.6, 1.1.0, 1.2.1 or 1.2.2 | Ripe 1.3.0, normal Update menu instead. |
+| Original published Light 1.0.0 | Ripe 1.3.1, direct guided upgrade. |
+| Official Light 1.1.0 | Ripe 1.3.1, direct guided upgrade. |
+| Official Light 1.2.0 | Ripe 1.3.1, direct guided upgrade. |
+| Official Light 1.2.1 | Ripe 1.3.1, direct guided upgrade. |
+| Official Light 1.2.2 | Ripe 1.3.1, direct guided upgrade. |
+| Official Light 1.2.3 | Ripe 1.3.1, direct guided upgrade. |
+| Official Light 1.2.4 | Ripe 1.3.1, direct guided upgrade. Ripe 1.3.0 does not support this newer Light source. |
+| Light updated through a supported path to 1.1.0, 1.2.0, 1.2.1, 1.2.2 or 1.2.3 | Ripe 1.3.1, same guided edition upgrade. |
+| Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2 or 1.3.0 | Ripe 1.3.1, normal Update menu instead. |
 
-Use the new Ripe 1.3.0 installer for all six Light sources. Earlier Ripe 1.0.6 does not recognize Light 1.1.0/1.2.0/1.2.1/1.2.2/1.2.3, and Ripe 1.1.0 does not add Light 1.2.0/1.2.1/1.2.2/1.2.3 support. Original Light 1.0.0 remains supported. There is no general Ripe-to-Light downgrade.
+Use the new Ripe 1.3.1 installer for all seven Light sources. Earlier Ripe 1.0.6 does not recognize Light 1.1.0/1.2.0/1.2.1/1.2.2/1.2.3/1.2.4, and Ripe 1.1.0 does not add Light 1.2.0/1.2.1/1.2.2/1.2.3/1.2.4 support. Original Light 1.0.0 remains supported. There is no general Ripe-to-Light downgrade.
 
-Use Ubuntu 22.04/24.04 amd64/systemd with Apache, or Debian 13 with Nginx, PHP 8.4 and supported MariaDB 10.11/11.8. Ubuntu 22.04 fresh installations use an isolated MariaDB 10.11.19 beside any existing host database. The installer discovers protected standard settings under /etc/emailer-light or /etc/emailer, a dedicated application database account, private/key storage and an existing trusted HTTPS hostname without a custom port/subfolder. A dedicated Emailer virtual-host file must not also serve unrelated routes or applications. Unknown customized targets stop before handoff; keep their existing configuration.
+Use Ubuntu 22.04/24.04/26.04 amd64/systemd with Apache, or Debian 13 with Nginx, PHP 8.4 (PHP 8.5 on Ubuntu 26.04) and supported MariaDB 10.11/11.8. Ubuntu 22.04 fresh installations use an isolated MariaDB 10.11.19 beside any existing host database. The installer discovers protected standard settings under /etc/emailer-light or /etc/emailer, a dedicated application database account, private/key storage and an existing trusted HTTPS hostname without a custom port/subfolder. A dedicated Emailer virtual-host file must not also serve unrelated routes or applications. Unknown customized targets stop before handoff; keep their existing configuration.
 
 ## 1. Prepare for maintenance
 
@@ -27,19 +34,19 @@ Finish intentional sending and allow a short maintenance period. Keep the curren
 
 ## 2. Download and start Ripe setup
 
-While signed in with access, download **emailer-ripe-1.3.0-setup.run** from the [official private release](https://github.com/Attory/emailer-next/releases/tag/v1.3.0), or use an authorized private copy. Upload that one file to the existing server through your provider's file-transfer facility. Do not put a GitHub token in a shell command. In the folder containing the file, run:
+While signed in with access, download **emailer-ripe-1.3.1-setup.run** from the [official private release](https://github.com/Attory/emailer-next/releases/tag/v1.3.1), or use an authorized private copy. Upload that one file to the existing server through your provider's file-transfer facility. Do not put a GitHub token in a shell command. In the folder containing the file, run:
 
 ```bash
-sudo sh emailer-ripe-1.3.0-setup.run
+sudo sh emailer-ripe-1.3.1-setup.run
 ```
 
-Initial trust comes from the official HTTPS or authorized private delivery channel. Embedded established signing identities authenticate the Ripe package and all six supported Light predecessor packages. You do not need to assemble verifier source, sidecars, version arguments or commit hashes.
+Initial trust comes from the official HTTPS or authorized private delivery channel. Embedded established signing identities authenticate the Ripe package and all seven supported Light predecessor packages. You do not need to assemble verifier source, sidecars, version arguments or commit hashes.
 
 ## 3. Select and upgrade
 
 If asked about an existing Light installation, choose **Upgrade this Light installation to Ripe**. If both standard installations are found, select the intended address when asked. A custom or unrecognized target stops without adoption. Check the displayed Light version and address, then choose **Upgrade with verified recovery material**. Wait for named progress and validation. Retain the printed recovery location.
 
-![Actual Light to Ripe management menu and successful upgrade output.](images/emailer-ripe-upgrade.png)
+![Actual Ubuntu 26.04 / Virtualmin upgrade from published Light 1.2.4 to Ripe 1.3.1.](images/emailer-ripe-upgrade.png)
 
 If interrupted, start the same file and choose **Recover an interrupted upgrade** before retrying. If the message says conversion committed, follow its Accept instruction. Never delete operation journals or edit migration records to retry.
 
@@ -63,7 +70,7 @@ Open Mail settings. Existing SMTP settings should be retained. Choose **Test con
 
 Resolve Doctor's sending blockers and review previously approved or scheduled campaigns: lifting the hold can allow existing due work to continue. Start the same setup file, choose **Resume delivery after reviewing readiness** and answer yes. All normal sending checks must pass. The action does not approve any draft.
 
-![Actual acceptance output. Sign in and complete MFA, then review Doctor before choosing Resume delivery.](images/emailer-ripe-resume.png)
+![Actual Ripe 1.3.1 acceptance output. Sign in and complete MFA, then review Doctor before choosing Resume delivery.](images/emailer-ripe-resume.png)
 
 If you are not ready, exit; drafting remains available. Keep recovery material after acceptance.
 
