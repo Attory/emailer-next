@@ -13,7 +13,7 @@ use Symfony\Component\Lock\LockFactory;
 
 final readonly class ReleaseManager
 {
-    private const NATIVE_RECOVERY_SOURCES = ['1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0'];
+    private const NATIVE_RECOVERY_SOURCES = ['1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1'];
 
     public function __construct(private PackageInspector $inspector, private BackupOperations $backups, private Connection $connection, private LockFactory $locks, private MaintenanceOperationLock $maintenance, private InterruptedDeliveryRecovery $recovery, private string $releasesDirectory, private string $currentVersion, private int $rollbackReserveBytes = 536870912, private string $environment = 'test', private ?EditionRecoverySet $completeRecovery = null, private string $privateDirectory = '', private string $masterKeyFile = '', private string $runtimeConfigurationFile = '', private ?\App\Module\Health\Application\Contract\RuntimeVerification $runtimeVerification = null, private bool $retainSourceFence = false, private string $replacementRuntimeFile = '')
     {
@@ -206,7 +206,7 @@ final readonly class ReleaseManager
             } else {
                 $this->runConsole($target, ['emailer:health:verify-runtime', '--offline-maintenance'], [0]);
             }
-            if (\in_array($targetVersion, ['1.1.0', '1.2.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1'], true) && null !== $nativeJournal) {
+            if (\in_array($targetVersion, ['1.1.0', '1.2.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2'], true) && null !== $nativeJournal) {
                 $this->synchronizeNativeIdentity($targetVersion);
             }
             $this->connection->update('release_operation', ['status' => 'succeeded', 'detail_code' => 'health_passed', 'finished_at' => Identity::now()], ['id' => $operationId]);
@@ -502,7 +502,7 @@ final readonly class ReleaseManager
 
     private function completeNativePair(string $source, string $target): bool
     {
-        return (\in_array($source, ['1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0'], true) && '1.3.1' === $target) || (\in_array($source, ['1.0.6', '1.1.0', '1.2.1', '1.2.2'], true) && '1.3.0' === $target) || ('1.2.1' === $source && '1.2.2' === $target) || ('1.0.5' === $source && '1.0.6' === $target) || ('1.0.6' === $source && '1.1.0' === $target) || (\in_array($source, ['1.0.6', '1.1.0'], true) && \in_array($target, ['1.2.0', '1.2.1', '1.2.2'], true));
+        return (\in_array($source, ['1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1'], true) && '1.3.2' === $target) || (\in_array($source, ['1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0'], true) && '1.3.1' === $target) || (\in_array($source, ['1.0.6', '1.1.0', '1.2.1', '1.2.2'], true) && '1.3.0' === $target) || ('1.2.1' === $source && '1.2.2' === $target) || ('1.0.5' === $source && '1.0.6' === $target) || ('1.0.6' === $source && '1.1.0' === $target) || (\in_array($source, ['1.0.6', '1.1.0'], true) && \in_array($target, ['1.2.0', '1.2.1', '1.2.2'], true));
     }
 
     private function nativeDatabaseBinding(): string

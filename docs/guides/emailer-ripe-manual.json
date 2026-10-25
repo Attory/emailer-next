@@ -1,6 +1,6 @@
 {
   "title": "Emailer Ripe user manual",
-  "subtitle": "Version 1.3.1 | Accounts, setup and everyday newsletters",
+  "subtitle": "Version 1.3.2 | Accounts, setup and everyday newsletters",
   "blocks": [
     {
       "type": "p",
@@ -12,7 +12,7 @@
     },
     {
       "type": "p",
-      "text": "Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 on Ubuntu 26.04 upgrades directly to Ripe 1.3.1; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance."
+      "text": "Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.5 on Ubuntu 26.04 upgrade directly to Ripe 1.3.2; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance."
     },
     {
       "type": "p",
@@ -24,7 +24,7 @@
     },
     {
       "type": "p",
-      "text": "The 1.3.1 setup file supports Ubuntu 22.04/24.04/26.04 with Apache and Debian 13 with Nginx. It creates a dedicated PHP runtime, application services, backups and a command launcher. Ubuntu 22.04 gets an isolated supported database beside existing sites. Administrator email is the default login name on fresh setup; existing accounts keep their identifier and password. You can sign in, prepare templates and campaigns, and configure SMTP later. See the beginner installation guide for the tested hosting profile and one-file setup action."
+      "text": "The 1.3.2 setup file supports Ubuntu 22.04/24.04/26.04 with Apache and Debian 13 with Nginx. It creates a dedicated PHP runtime, application services, backups and a command launcher. Ubuntu 22.04 gets an isolated supported database beside existing sites. Administrator email is the default login name on fresh setup; existing accounts keep their identifier and password. You can sign in, prepare templates and campaigns, and configure SMTP later. See the beginner installation guide for the tested hosting profile and one-file setup action."
     },
     {
       "type": "h2",
@@ -224,7 +224,7 @@
     },
     {
       "type": "h2",
-      "text": "Progress, templates and reports"
+      "text": "Progress and reports"
     },
     {
       "type": "ul",
@@ -233,14 +233,60 @@
         "Pause stops new claims; in-flight messages can finish. Adjust the rate while paused and resume deliberately. Cancellation cannot recall messages already sent. Uncertain outcomes are not automatically resent.",
         "Owners adjust installation limits under Settings &amp; tools &gt; Delivery limits. Campaign rates cannot bypass them.",
         "Refresh the page or sign in again if counts stop refreshing. Without JavaScript use Refresh page.",
-        "Template versions are immutable. Upload images through the asset controls; unsafe HTML, remote image sources and unsupported styling are removed. Use supported merge fields such as {{ contact.first_name }} and {{ unsubscribe_url }}.",
         "Unsubscribe actions suppress the represented address globally. Forwarded links affect their original recipient. Open/click tracking is approximate because of privacy tools and scanners."
       ]
     },
     {
+      "type": "h2",
+      "text": "Create or edit a template with images"
+    },
+    {
+      "type": "p",
+      "text": "Open Templates to create a draft, or choose Edit for an existing template. Enter the name, subject, optional preheader and HTML. Plain text is optional; leave it blank to generate it when saving. Your image controls are part of this same editor."
+    },
+    {
+      "type": "ol",
+      "items": [
+        "In Images, choose a JPEG, PNG or WebP file and select Upload and re-encode image. Stay on this page: progress is shown while Emailer validates and saves the image. Uploading keeps your five template fields and HTML cursor position.",
+        "Choose the saved thumbnail in the gallery. Earlier uploads are available here too; use Refresh gallery or Load more images when needed. You do not need to upload the same image again.",
+        "Enter a useful Description (alt text), or leave it blank for a decorative image. Adjust Display width if needed; Keep proportions adjusts the height. New selections fit within 600 pixels without enlarging a small image.",
+        "Place the HTML cursor in text or between tags, then choose Insert image. The supported image reference is generated for you. Copy image HTML copies the complete image tag; Copy image path copies only its address. Neither copy action changes your template.",
+        "Choose Create template, Save template or Create new version, as appropriate. Saving stores an unpublished draft. Publication, campaign approval and sending remain separate actions."
+      ]
+    },
+    {
       "type": "image",
-      "file": "emailer-ripe-templates.png",
-      "caption": "The installed Ripe templates screen."
+      "file": "emailer-ripe-image-library.png",
+      "caption": "The editor's image controls after inline upload. Your template fields remain on the same page."
+    },
+    {
+      "type": "image",
+      "file": "emailer-ripe-image-insert.png",
+      "caption": "Select an image, set its description and dimensions, then insert at the HTML cursor or copy its HTML/path."
+    },
+    {
+      "type": "p",
+      "text": "Images must be at most 2 MB and 2400 pixels on each side. Emailer validates and re-encodes them. SVG and other unsupported files are rejected with an explanation. On failure, your entries stay here; correct the file and use Retry upload. If a connection fails after upload started, refresh the gallery before retrying because the image may already have been saved. Cancel also does not remove an image that already reached the server."
+    },
+    {
+      "type": "p",
+      "text": "Saved image links can be opened without signing in so recipients can see them. Upload only images that are safe to share. The editor uses a relative /template-assets/ image reference; delivered messages automatically use your installation’s HTTPS address. Keep that address and HTTPS working while recipients use those images."
+    },
+    {
+      "type": "h3",
+      "text": "Recover unsaved work"
+    },
+    {
+      "type": "p",
+      "text": "The editor keeps an unsaved recovery copy in this browser tab for up to 12 hours. After refresh or returning, choose Restore draft to bring back the five fields and HTML cursor, or Discard recovered draft to use the saved version. Each tab has its own copy. Use Save for durable storage; closing the tab may remove browser recovery. Close the tab when finished on a shared computer."
+    },
+    {
+      "type": "p",
+      "text": "If browser storage is unavailable, the editor says so and warns before you leave with unsaved changes. Keep a copy of your content or save it before leaving. If saving fails validation, your submitted fields remain visible with the error; correct them and save again. Insertion errors leave the HTML unchanged. Uploading, recovering and saving a draft send no messages."
+    },
+    {
+      "type": "p",
+      "text": "Template versions are immutable. Use supported merge fields such as <code>{{ contact.first_name }}</code> and <code>{{ unsubscribe_url }}</code>. Unsafe HTML, remote image sources and unsupported styling are removed when a valid draft is saved."
     },
     {
       "type": "h2",
@@ -256,7 +302,7 @@
     },
     {
       "type": "p",
-      "text": "For Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2 or 1.3.0 to 1.3.1, start the new official setup file, choose Update with a verified backup and follow any Finish instruction. This includes Ripe 1.1.0 installations previously converted from Light. Existing MFA, password, recipients, tracking, SMTP encryption contexts and recovery history are retained. Review Doctor before Resume. Earlier Ripe versions must follow their published supported path to 1.0.6 first. Interrupted operations use Recover; committed operations use Finish and cannot be downgraded by recovery. See the <a href=\"emailer-ripe-operator.html\">operator reference</a>."
+      "text": "For Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2, 1.3.0 or 1.3.1 to 1.3.2, start the new official setup file, choose Update with a verified backup and follow any Finish instruction. This includes Ripe 1.1.0 installations previously converted from Light. Existing MFA, password, recipients, tracking, SMTP encryption contexts and recovery history are retained. Review Doctor before Resume. Earlier Ripe versions must follow their published supported path to 1.0.6 first. Interrupted operations use Recover; committed operations use Finish and cannot be downgraded by recovery. See the <a href=\"emailer-ripe-operator.html\">operator reference</a>."
     }
   ]
 }

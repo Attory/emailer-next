@@ -258,3 +258,12 @@ The existing `emailer:release:update` command also accepts
 It recovers only a bound unfinished native 1.0.5 operation, verifies the source
 before closing its control record, retains delivery hold and refuses completed
 update downgrades. See CLIENT-UPDATE-1.0.6.md for the full command/prerequisites.
+
+## Template editor image maintenance
+
+`GET|HEAD /admin/templates/assets` is an authenticated, no-store read of the
+installation's shared template asset library, paginated at 24 items. It uses
+the existing upload/editing authority. `POST /admin/templates/assets/upload`
+retains CSRF/file validation and returns JSON to the page-local editor, or the
+retained editor form for non-JavaScript clients. Upload and unpublished draft
+save do not publish templates, approve campaigns or send messages.
