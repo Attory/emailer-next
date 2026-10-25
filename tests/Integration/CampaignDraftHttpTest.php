@@ -33,7 +33,14 @@ final class CampaignDraftHttpTest extends WebTestCase
         $database = self::getContainer()->get(Connection::class);
         self::assertInstanceOf(Connection::class, $database);
         $database->beginTransaction();
+        // A clean migration has no policy row until setup. Do not depend on a
+        // prior local installation or another test having created that row.
+        $database->delete('privacy_policy', ['singleton_key' => '1']);
         $this->preparePhase4State($database);
+        $database->insert('privacy_policy', ['singleton_key' => '1', 'open_tracking' => 0,
+            'click_tracking' => 0, 'rsvp_enabled' => 0, 'operational_retention_days' => 30,
+            'delivery_retention_days' => 90, 'suppression_mode' => 'global',
+            'unsubscribe_footer' => 'Unsubscribe: {{ unsubscribe_url }}']);
         $server = ['HTTPS' => 'on', 'HTTP_HOST' => 'emailer.example.test', 'REMOTE_ADDR' => '198.51.100.77'];
         try {
             $id = Identity::uuidV7();
@@ -59,7 +66,11 @@ final class CampaignDraftHttpTest extends WebTestCase
 
             $source = $private.'/recipients.csv';
             file_put_contents($source, "email,first_name\nalex@example.test,Alex\n");
+            // Expose infrastructure failures for this authenticated form read
+            // without bypassing the earlier anonymous-access redirect check.
+            $client->catchExceptions(false);
             $form = $client->request('GET', '/admin/campaigns', server: $server);
+            $client->catchExceptions(true);
             self::assertSame(200, $client->getResponse()->getStatusCode());
             self::assertSame(0, $form->filter('[name="template_mode"], [name="html"], [name="template_file"]')->count());
             $create = ['name' => 'A retained campaign', 'messages_per_minute' => '17', 'template_version' => '', 'audience_mode' => 'upload', '_destination' => 'templates', '_token' => self::token($form, '[data-campaign-editor] [name="_token"]')];
