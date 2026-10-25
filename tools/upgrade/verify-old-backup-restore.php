@@ -52,7 +52,15 @@ if (!hash_equals((string) hash_file('sha256', '/rehearsal/keys/master.key'), (st
     throw new RuntimeException('Legacy recovery key did not preserve original source material.');
 }
 $mail = json_decode((string) file_get_contents('http://mailpit:8025/api/v1/messages'), true, 512, JSON_THROW_ON_ERROR);
-if (is_file('/rehearsal/old-backup-messages-before') && (int) trim((string) file_get_contents('/rehearsal/old-backup-messages-before')) !== $mail['total']) {
+$baselinePath = '/rehearsal/old-backup-messages-before';
+if (!is_file($baselinePath) || is_link($baselinePath) || filesize($baselinePath) > 32) {
+    throw new RuntimeException('Legacy restore has no trustworthy pre-restore mail count.');
+}
+$baseline = filter_var(trim((string) file_get_contents($baselinePath)), FILTER_VALIDATE_INT, ['options' => ['min_range' => 0]]);
+if (false === $baseline || !is_array($mail) || !isset($mail['total']) || !is_int($mail['total']) || $mail['total'] < 0) {
+    throw new RuntimeException('Legacy restore mail-count evidence is invalid.');
+}
+if ($baseline !== $mail['total']) {
     throw new RuntimeException('Legacy restore emitted a new message.');
 }
 echo json_encode(['retained_light_backup_authenticated_and_restored' => true, 'unchanged_light_runtime_and_schema' => true, 'retained_original_key' => true, 'delivery_quiesced' => true, 'original_archive_unchanged' => true, 'accepted_ripe_unchanged' => true, 'new_emitted_messages' => 0], JSON_THROW_ON_ERROR)."\n";
