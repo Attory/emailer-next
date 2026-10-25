@@ -96,7 +96,7 @@ if [ -n "${EMAILER_REHEARSAL_NATIVE_INTERRUPT:-}" ]; then
     case "$EMAILER_REHEARSAL_NATIVE_INTERRUPT" in
         journal) fault_table=release_operation ;;
         preparing) fault_table=backup_record ;;
-        migrating) printf 'This pair has no schema mutation; use journal/preparing interruption tests.\n' >&2; exit 2 ;;
+        migrating) fault_table=doctrine_migration_versions ;;
         *) printf 'Unsupported native interruption phase.\n' >&2; exit 2 ;;
     esac
     fault_lock="ripe106-native-lock-$iteration"

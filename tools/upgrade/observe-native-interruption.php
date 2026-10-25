@@ -40,12 +40,14 @@ while (microtime(true) < $deadline) {
         }
         if ('recovering' !== $argv[1] && $argv[1] === ($journal['phase'] ?? null) && 'started' === $c->fetchOne('SELECT status FROM release_operation WHERE id=?', [$journal['operation_id']])) {
             if ('migrating' === $argv[1]) {
-                $audience = $c->fetchOne("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='campaign' AND COLUMN_NAME='audience_model'");
-                $cipher = $c->fetchOne("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='encrypted_secret' AND COLUMN_NAME='cipher_edition'");
-                if ('audience_model' !== $audience || false !== $cipher) {
+                $nullable = $c->fetchOne("SELECT IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='campaign' AND COLUMN_NAME='template_version_id'");
+                $baseline = json_decode((string) file_get_contents('/rehearsal/native-before.json'), true, 512, JSON_THROW_ON_ERROR);
+                $sourceLedgerCount = count($baseline['tables']['doctrine_migration_versions']['rows']);
+                if ('YES' !== $nullable || $sourceLedgerCount !== (int) $c->fetchOne('SELECT COUNT(*) FROM doctrine_migration_versions') || false !== $c->fetchOne('SELECT version FROM doctrine_migration_versions WHERE version=?', ['DoctrineMigrations\\Version20261025000000'])) {
                     usleep(10000);
                     continue;
                 }
+                echo "Current nullable-column DDL committed before target migration ledger write.\n";
             }
             $account = $journal['database_account'];
             $locked = $c->fetchOne("SELECT JSON_VALUE(Priv, '$.account_locked') FROM mysql.global_priv WHERE User=? AND Host=?", [$account['name'], $account['host']]);

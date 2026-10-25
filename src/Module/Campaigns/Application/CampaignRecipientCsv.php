@@ -65,7 +65,7 @@ final readonly class CampaignRecipientCsv
             if ('headered' === $mode) {
                 $header = array_map(static fn (?string $value): string => strtolower(trim($value ?? '')), $header);
                 if (\count(array_unique($header)) !== $width) {
-                    throw new \InvalidArgumentException('CSV headings must be unique. Correct duplicate headings or use column mapping.');
+                    throw new \InvalidArgumentException('CSV headings must be unique. Give each column a different heading, then upload the corrected file.');
                 }
                 $automatic = array_intersect_key(array_flip($header), array_flip(self::COLUMNS));
                 $columns = array_replace($automatic, $mapping);

@@ -177,7 +177,7 @@ for mode in success fault journal preparing; do
         *) rehearse env EMAILER_REHEARSAL_NATIVE_SOURCE=1.3.1 EMAILER_REHEARSAL_NATIVE_INTERRUPT="$mode" bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native131-package/emailer-next-1.3.1.zip" "$state_root" "$source_commit" ;;
     esac
 done
-for mode in success fault journal preparing; do
+for mode in success fault journal preparing migrating; do
     case "$mode" in
         success) rehearse env EMAILER_REHEARSAL_NATIVE_SOURCE=1.3.2 bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native132-package/emailer-next-1.3.2.zip" "$state_root" "$source_commit" ;;
         fault) rehearse env EMAILER_REHEARSAL_NATIVE_SOURCE=1.3.2 EMAILER_REHEARSAL_NATIVE_FAULT=1 bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native132-package/emailer-next-1.3.2.zip" "$state_root" "$source_commit" ;;
@@ -192,7 +192,7 @@ for light_version in 1.1.0 1.2.0 1.2.1 1.2.2 1.2.3 1.2.4 1.2.5 1.2.6; do
         curl --fail --silent --show-error --location "https://github.com/Attory/emailer-light/releases/download/v$light_version/emailer-light-$light_version.zip$suffix" --output "$state_root/published-light/emailer-light-$light_version.zip$suffix"
     done
 done
-for mode in success fault journal preparing; do
+for mode in success fault journal preparing migrating; do
     case "$mode" in
         success) rehearse bash tools/upgrade/run-converted-native-rehearsal.sh "$target" "$key" "$state_root/native110-package/emailer-next-1.1.0.zip" "$state_root/published-light/emailer-light-1.1.0.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit" "$state_root/source110" ;;
         fault) rehearse env EMAILER_REHEARSAL_NATIVE_FAULT=1 bash tools/upgrade/run-converted-native-rehearsal.sh "$target" "$key" "$state_root/native110-package/emailer-next-1.1.0.zip" "$state_root/published-light/emailer-light-1.1.0.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit" "$state_root/source110" ;;
