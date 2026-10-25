@@ -13,9 +13,9 @@ use Symfony\Component\Lock\LockFactory;
 
 final readonly class ReleaseManager
 {
-    private const NATIVE_RECOVERY_SOURCES = ['1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1'];
+    private const NATIVE_RECOVERY_SOURCES = ['1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2'];
 
-    public function __construct(private PackageInspector $inspector, private BackupOperations $backups, private Connection $connection, private LockFactory $locks, private MaintenanceOperationLock $maintenance, private InterruptedDeliveryRecovery $recovery, private string $releasesDirectory, private string $currentVersion, private int $rollbackReserveBytes = 536870912, private string $environment = 'test', private ?EditionRecoverySet $completeRecovery = null, private string $privateDirectory = '', private string $masterKeyFile = '', private string $runtimeConfigurationFile = '', private ?\App\Module\Health\Application\Contract\RuntimeVerification $runtimeVerification = null, private bool $retainSourceFence = false, private string $replacementRuntimeFile = '')
+    public function __construct(private PackageInspector $inspector, private BackupOperations $backups, private Connection $connection, private LockFactory $locks, private MaintenanceOperationLock $maintenance, private InterruptedDeliveryRecovery $recovery, private string $releasesDirectory, private string $currentVersion, private int $rollbackReserveBytes = 536870912, private string $environment = 'test', private ?EditionRecoverySet $completeRecovery = null, private string $privateDirectory = '', private string $masterKeyFile = '', private string $runtimeConfigurationFile = '', private bool $retainSourceFence = false, private string $replacementRuntimeFile = '')
     {
     }
 
@@ -144,6 +144,9 @@ final readonly class ReleaseManager
             }
             $this->assertPlatformAndSchemaCompatibility($manifest);
             $this->assertDiskCapacity($archive, $manifest);
+            if ('1.3.3' === $targetVersion) {
+                $this->assertNativeSourceIdentity(EditionData::text($sourceManifest['schema_version']));
+            }
             $sourceSchemaFingerprint = $this->schemaFingerprint();
             $operationId = Identity::uuidV7();
             if ($this->completeNativePair($this->currentVersion, $targetVersion) && null !== $this->completeRecovery) {
@@ -206,8 +209,8 @@ final readonly class ReleaseManager
             } else {
                 $this->runConsole($target, ['emailer:health:verify-runtime', '--offline-maintenance'], [0]);
             }
-            if (\in_array($targetVersion, ['1.1.0', '1.2.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2'], true) && null !== $nativeJournal) {
-                $this->synchronizeNativeIdentity($targetVersion);
+            if (\in_array($targetVersion, ['1.1.0', '1.2.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2', '1.3.3'], true) && null !== $nativeJournal) {
+                $this->synchronizeNativeIdentity($targetVersion, EditionData::text($sourceManifest['schema_version']), EditionData::text($manifest['schema_version']));
             }
             $this->connection->update('release_operation', ['status' => 'succeeded', 'detail_code' => 'health_passed', 'finished_at' => Identity::now()], ['id' => $operationId]);
             if (null !== $nativeJournal) {
@@ -290,7 +293,28 @@ final readonly class ReleaseManager
         }
     }
 
-    private function synchronizeNativeIdentity(string $version): void
+    private function assertNativeSourceIdentity(string $schema): void
+    {
+        $path = $this->privateDirectory.'/install.lock';
+        EditionRecoverySet::safe($path, false);
+        $lock = EditionData::read($path);
+        $uuid = EditionData::text($this->connection->fetchOne("SELECT installation_uuid FROM installation_state WHERE singleton_key='1'"));
+        if ('DoctrineMigrations\\Version'.$schema !== $this->connection->fetchOne('SELECT version FROM doctrine_migration_versions ORDER BY version DESC LIMIT 1')) {
+            throw new \RuntimeException('The live source schema disagrees with its authenticated package. No update was started.');
+        }
+        $identity = null;
+        if ($this->connection->createSchemaManager()->tablesExist(['product_identity'])) {
+            $rows = $this->connection->fetchAllAssociative('SELECT * FROM product_identity');
+            if (1 !== \count($rows)) {
+                throw new \RuntimeException('The converted source installation identity is missing or ambiguous.');
+            }
+            $identity = $rows[0];
+        }
+        $legacy = '1.0.6' === $this->currentVersion && false !== $this->connection->fetchOne("SELECT 1 FROM release_operation WHERE source_version='1.0.5' AND target_version='1.0.6' AND status='succeeded' LIMIT 1");
+        NativeIdentityBinding::source($this->currentVersion, $schema, $uuid, $lock, $identity, $legacy);
+    }
+
+    private function synchronizeNativeIdentity(string $version, string $sourceSchema, string $targetSchema): void
     {
         $path = $this->privateDirectory.'/install.lock';
         EditionRecoverySet::safe($path, false);
@@ -304,12 +328,34 @@ final readonly class ReleaseManager
         if (null !== $recorded && $this->currentVersion !== $recorded && !$legacy) {
             throw new \RuntimeException('Native installation version disagrees with its authenticated source.');
         }
+        if ('1.3.3' === $version) {
+            NativeIdentityBinding::source($this->currentVersion, $sourceSchema, EditionData::text($uuid), $lock, null, $legacy);
+        } elseif (isset($lock['schema_version']) && $lock['schema_version'] !== $sourceSchema) {
+            throw new \RuntimeException('The native source lock schema is inconsistent.');
+        }
+        if ('DoctrineMigrations\\Version'.$targetSchema !== $this->connection->fetchOne('SELECT version FROM doctrine_migration_versions ORDER BY version DESC LIMIT 1')) {
+            throw new \RuntimeException('The source lock and migrated schema do not match the authenticated source and target manifests.');
+        }
         $lock['product_id'] = 'emailer-ripe';
         $lock['product_version'] = $version;
-        $lock['schema_version'] = '20261015000000';
+        $lock['schema_version'] = $targetSchema;
         EditionRecoverySet::write($path, json_encode($lock, JSON_THROW_ON_ERROR), true);
         if ($this->connection->createSchemaManager()->tablesExist(['product_identity'])) {
-            $this->connection->update('product_identity', ['product_version' => $version], ['singleton_key' => '1', 'product_id' => 'emailer-ripe', 'installation_uuid' => $uuid]);
+            if ('1.3.3' === $version) {
+                $before = $this->connection->fetchAssociative('SELECT * FROM product_identity');
+                if (false === $before) {
+                    throw new \RuntimeException('The converted installation identity disappeared during migration.');
+                }
+                NativeIdentityBinding::row($before, $this->currentVersion, $targetSchema, EditionData::text($uuid));
+            }
+            $changed = $this->connection->update('product_identity', ['product_version' => $version, 'schema_version' => $targetSchema], ['singleton_key' => '1', 'product_id' => 'emailer-ripe', 'installation_uuid' => $uuid]);
+            if ('1.3.3' === $version) {
+                $after = $this->connection->fetchAssociative('SELECT * FROM product_identity');
+                if (1 !== $changed || false === $after) {
+                    throw new \RuntimeException('The converted installation identity could not be published exactly.');
+                }
+                NativeIdentityBinding::row($after, $version, $targetSchema, EditionData::text($uuid));
+            }
         }
     }
 
@@ -460,14 +506,11 @@ final readonly class ReleaseManager
             EditionRecoverySet::directory($runtime);
             $this->runConsole($source, ['about', '--no-interaction'], [0], $runtime);
             $this->runConsole($source, ['doctrine:schema:validate', '--skip-sync', '--no-interaction'], [0], $runtime);
-            if ('1.0.5' === $this->currentVersion) {
+            if (version_compare($this->currentVersion, '1.1.0', '<')) {
                 $this->runConsole($source, ['emailer:doctor:run', '--json', '--maintenance-verification'], [0, 1], $runtime);
             } else {
-                // The authenticated target contains the structural verifier; the
-                // predecessor schema is identical for this pair.
-                if (null === $this->runtimeVerification || true !== $this->runtimeVerification->verifyRuntime(true)['runtime_verified']) {
-                    throw new \RuntimeException('Recovered source failed structural runtime verification.');
-                }
+                // Use the source's own schema expectation, even when this recovery coordinator is newer.
+                $this->runConsole($source, ['emailer:health:verify-runtime', '--offline-maintenance'], [0], $runtime);
             }
             if (is_dir($this->releasesDirectory.'/'.$targetVersion)) {
                 $this->assertInstalledReleaseMatchesManifest($this->releasesDirectory.'/'.$targetVersion, $manifest, $targetVersion);
@@ -502,7 +545,7 @@ final readonly class ReleaseManager
 
     private function completeNativePair(string $source, string $target): bool
     {
-        return (\in_array($source, ['1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1'], true) && '1.3.2' === $target) || (\in_array($source, ['1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0'], true) && '1.3.1' === $target) || (\in_array($source, ['1.0.6', '1.1.0', '1.2.1', '1.2.2'], true) && '1.3.0' === $target) || ('1.2.1' === $source && '1.2.2' === $target) || ('1.0.5' === $source && '1.0.6' === $target) || ('1.0.6' === $source && '1.1.0' === $target) || (\in_array($source, ['1.0.6', '1.1.0'], true) && \in_array($target, ['1.2.0', '1.2.1', '1.2.2'], true));
+        return (\in_array($source, ['1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2'], true) && '1.3.3' === $target) || (\in_array($source, ['1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1'], true) && '1.3.2' === $target) || (\in_array($source, ['1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0'], true) && '1.3.1' === $target) || (\in_array($source, ['1.0.6', '1.1.0', '1.2.1', '1.2.2'], true) && '1.3.0' === $target) || ('1.2.1' === $source && '1.2.2' === $target) || ('1.0.5' === $source && '1.0.6' === $target) || ('1.0.6' === $source && '1.1.0' === $target) || (\in_array($source, ['1.0.6', '1.1.0'], true) && \in_array($target, ['1.2.0', '1.2.1', '1.2.2'], true));
     }
 
     private function nativeDatabaseBinding(): string

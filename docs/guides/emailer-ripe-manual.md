@@ -1,18 +1,18 @@
 # Emailer Ripe user manual
 
-Version 1.3.2 | Accounts, setup and everyday newsletters
+Version 1.3.3 | Accounts, setup and everyday newsletters
 
 Prepare, test, approve, then send. Saving a draft sends nothing. A campaign is one newsletter, a template is reusable content, and a list is a group of contacts.
 
 Ubuntu 26.04 uses its maintained distribution PHP 8.5 packages; no external PHP source is added. A compatible existing MariaDB 10.11 or 11.8 service is reused without a major upgrade. Setup adds a dedicated Emailer PHP-FPM pool and keeps existing website pools, PHP alternatives and Virtualmin-managed websites in place. Missing PHP extension packages add their standard extension configuration; existing PHP settings are retained and shared PHP services are not restarted.
 
-Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.5 on Ubuntu 26.04 upgrade directly to Ripe 1.3.2; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance.
+Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.6 on Ubuntu 26.04 upgrade directly to Ripe 1.3.3; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance.
 
 Ubuntu 26.04.1 HTTPS acceptance used a local ACME server with real HTTP challenge validation and strict certificate/name verification. Public certificate issuance remains unverified because no dedicated non-production hostname and DNS authority were available. Customer setup uses the normal public ACME service; DNS must point to the server and Apache must be reachable on ports 80 and 443.
 
 Ripe’s Ubuntu Apache installer supports wildcard and literal address-specific virtual hosts on explicit ports 80 and 443. Light retains a wildcard-only Apache profile. An existing Nginx service on a separate port, such as 8081, remains unchanged.
 
-The 1.3.2 setup file supports Ubuntu 22.04/24.04/26.04 with Apache and Debian 13 with Nginx. It creates a dedicated PHP runtime, application services, backups and a command launcher. Ubuntu 22.04 gets an isolated supported database beside existing sites. Administrator email is the default login name on fresh setup; existing accounts keep their identifier and password. You can sign in, prepare templates and campaigns, and configure SMTP later. See the beginner installation guide for the tested hosting profile and one-file setup action.
+The 1.3.3 setup file supports Ubuntu 22.04/24.04/26.04 with Apache and Debian 13 with Nginx. It creates a dedicated PHP runtime, application services, backups and a command launcher. Ubuntu 22.04 gets an isolated supported database beside existing sites. Administrator email is the default login name on fresh setup; existing accounts keep their identifier and password. You can sign in, prepare templates and campaigns, and configure SMTP later. See the beginner installation guide for the tested hosting profile and one-file setup action.
 
 ## Your installed account
 
@@ -84,19 +84,38 @@ A blank SMTP password retains the saved password only for the same server and us
 
 An Owner or Administrator opens Settings & tools > Users, enters the new account email and initial password, selects Operator and creates it. Identity confirmation uses your own current password and code, not the new account password. At least one active Owner remains.
 
-## Create and edit a newsletter
+## Create a campaign
 
-1. Open Campaigns > Create newsletter. You can also use Send to beside a list or Send beside a template.
-2. Recipients: give the campaign an internal name and choose existing lists, or upload CSV into a new named list and map its email column. This name is not the subject. Only contact people you have permission to email.
-3. Content: choose and preview a saved template, or upload/paste HTML. New content needs a template name and subject. The optional preheader is the preview beside the subject in many inboxes.
-4. Sending rate: leave blank to inherit the installation maximum or enter a lower messages-per-minute rate. Domain limits and retries can add time.
-5. Review and save. For uploaded CSV, review counts and choose Add reviewed recipients before testing or approval.
+1. Open Your campaigns. Under Create a campaign enter an internal campaign name, optionally set a sending rate and choose a saved template. The name is not the email subject. Leave the rate blank to use the installation maximum.
+2. Choose a recipient CSV. It belongs only to this campaign; saving it does not create a reusable contact or recipient list. Use a headered CSV, or open CSV options for a headerless file and 1-based column mappings. Alternatively select Existing lists to use your saved contact lists.
+3. Choose Save draft. You can save before selecting a template, and even before giving the campaign a name. Review imported, duplicate, invalid and suppressed counts after saving. Existing saved recipients remain when you save without choosing a replacement CSV. Only contact people you have permission to email.
+4. Open the campaign summary to see anything still required. Review and approval remain unavailable until there is a name, a published template and eligible recipients. A saved template draft appears in the selector but must be explicitly published in Templates before testing or review.
 
-![Actual Ripe campaign preparation without configured email delivery.](images/emailer-ripe-campaigns.png)
+![The saved campaign editor retains its name, rate and campaign-owned recipients while showing the selected template version.](images/emailer-ripe-campaigns.png)
 
-Duplicates and global unsubscribes are excluded. Reimporting or duplicating lists does not remove unsubscribe protection. Upgraded Light campaigns keep their campaign-owned recipient snapshots; conversion does not manufacture reusable contacts or lists.
+### Create a template and return
 
-For Draft or Review, open the campaign and choose Edit draft after committing pending imports. Edit its name, lists, template version or rate; saving Review returns it to Draft. For wording changes, save a new template version, explicitly select it in Edit draft and send a fresh test. Approval locks content and audience; changed approved work needs a new campaign.
+Next to the template selector choose **or create new Template**. A blank, unchanged campaign opens Templates directly. With unsaved changes the dialog asks **Save your Campaign draft before leaving?**
+
+- Save draft and open Templates saves the name, rate and selected CSV, even without a template. After successful saving, Templates shows Return to campaign draft.
+- Leave without saving opens Templates and discards your unsaved changes. Previously saved campaign data remains.
+- Stay here, or Escape, closes the dialog and keeps the form and selected file.
+
+![The actual three-choice navigation dialog. Save is confirmed before Templates opens.](images/emailer-ripe-campaign-leave.png)
+
+In Templates use the dedicated editor to enter or import HTML, add images from the persistent gallery and choose Save template draft. Choose Publish explicitly when ready. Then choose Return to campaign draft. The campaign reopens with its saved name, rate and recipients and fresh template choices. Choose the new version and Save draft. If Templates is open in another tab, return to the campaign tab and choose Refresh template choices; this refreshes only the selector and keeps your unsaved fields and selected CSV.
+
+![The same navigation choices fit a phone screen.](images/emailer-ripe-campaign-leave-mobile.png)
+
+### If campaign saving fails
+
+Stay on the form, read the specific error, correct it and try Save draft again. With JavaScript enabled, validation and connection failures keep the actual selected CSV and entered fields. If your session expired, sign in in another tab, return here and choose Refresh security check before retrying. A connection failure may mean the result could not be confirmed; check Your campaigns in another tab before creating a second campaign.
+
+![A real rate-validation failure stays on the campaign form and keeps the selected CSV.](images/emailer-ripe-campaign-error.png)
+
+Save draft before refreshing or closing the campaign tab: unsaved navigation triggers a browser warning. Campaign files are not stored in browser draft recovery. Without JavaScript, a failed full-page submission retains text but the browser requires you to select the CSV again. Template editor recovery is separate and retains its five text fields per tab. Saving or navigating never publishes content, approves a campaign or sends email.
+
+While Draft or Review, use Edit draft to change the campaign. Saving Review returns it to Draft and invalidates its earlier test. A replacement CSV replaces only that campaign's owned recipients. Approved content and audience snapshots stay immutable; changed approved work needs a new campaign.
 
 ## Test, approve and send
 
@@ -121,7 +140,7 @@ Open Templates to create a draft, or choose Edit for an existing template. Enter
 2. Choose the saved thumbnail in the gallery. Earlier uploads are available here too; use Refresh gallery or Load more images when needed. You do not need to upload the same image again.
 3. Enter a useful Description (alt text), or leave it blank for a decorative image. Adjust Display width if needed; Keep proportions adjusts the height. New selections fit within 600 pixels without enlarging a small image.
 4. Place the HTML cursor in text or between tags, then choose Insert image. The supported image reference is generated for you. Copy image HTML copies the complete image tag; Copy image path copies only its address. Neither copy action changes your template.
-5. Choose Create template, Save template or Create new version, as appropriate. Saving stores an unpublished draft. Publication, campaign approval and sending remain separate actions.
+5. Choose **Save template draft**. Saving stores an unpublished draft. Publication, campaign approval and sending remain separate actions.
 
 ![The editor's image controls after inline upload. Your template fields remain on the same page.](images/emailer-ripe-image-library.png)
 
@@ -133,11 +152,23 @@ Saved image links can be opened without signing in so recipients can see them. U
 
 ### Recover unsaved work
 
-The editor keeps an unsaved recovery copy in this browser tab for up to 12 hours. After refresh or returning, choose Restore draft to bring back the five fields and HTML cursor, or Discard recovered draft to use the saved version. Each tab has its own copy. Use Save for durable storage; closing the tab may remove browser recovery. Close the tab when finished on a shared computer.
+The editor keeps an unsaved recovery copy in this browser tab for up to 12 hours. After refresh or returning, choose Restore draft to bring back the five fields and HTML cursor, or Discard recovered draft to use the saved version. Each tab has its own copy. Use Save template draft for durable storage; closing the tab may remove browser recovery. Close the tab when finished on a shared computer.
 
 If browser storage is unavailable, the editor says so and warns before you leave with unsaved changes. Keep a copy of your content or save it before leaving. If saving fails validation, your submitted fields remain visible with the error; correct them and save again. Insertion errors leave the HTML unchanged. Uploading, recovering and saving a draft send no messages.
 
-Template versions are immutable. Use supported merge fields such as `{{ contact.first_name }}` and `{{ unsubscribe_url }}`. Unsafe HTML, remote image sources and unsupported styling are removed when a valid draft is saved.
+### Placeholders and importing HTML
+
+The Supported placeholders panel beside the editor lists every available placeholder, a sample result and an Insert button. Put the cursor in Subject, Preheader, HTML or Plain text, then choose Insert. The Insert into selector lets you choose the destination explicitly. For example, `{{ recipient.first_name }}` becomes the reader's first name. URL placeholders insert a complete link in HTML, or the URL placeholder itself in Plain text; they cannot be used in Subject or Preheader.
+
+To bring in an existing HTML file, use Import HTML in Templates. The file must be UTF-8 and at most 200 KB. Confirm replacement if HTML is already entered. Importing does not replace the name, subject, preheader or plain text, and does not save or publish anything.
+
+![Actual supported-placeholder controls beside the editor: the first choices, examples and insertion buttons.](images/emailer-ripe-placeholders.png)
+
+If saving fails, the message names the input field, line and exact offending placeholder, then gives a correction. For example, Subject, line 1, `{{ first_name }}`: use `{{ recipient.first_name }}`. Your five fields remain entered; correct the indicated text and choose Save template draft again. Older `{{name}}` and `{{email}}` forms are unsupported.
+
+![A real validation error identifies the field, line and unsupported placeholder while retaining the entered content.](images/emailer-ripe-placeholder-error.png)
+
+Save template draft stores an unpublished version. Preview it and choose Publish separately when the content is ready for campaign tests and review. Saving, importing HTML and uploading images do not publish a template, approve a campaign or send email. A new template version never silently replaces an existing campaign's chosen version.
 
 ## Health, backups and updates
 
@@ -145,4 +176,6 @@ Doctor shows each sending blocker and repair action. Native updates and edition 
 
 Fresh setup enables daily encrypted local backup copies. Under Backups inspect verification and transfer evidence, adjust policy or create and verify an on-demand backup. Keep the recovery-key package and its password separately. Same-server copies do not protect against server loss; arrange an independent backup destination. Restore drills are supervised, never automatic.
 
-For Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2, 1.3.0 or 1.3.1 to 1.3.2, start the new official setup file, choose Update with a verified backup and follow any Finish instruction. This includes Ripe 1.1.0 installations previously converted from Light. Existing MFA, password, recipients, tracking, SMTP encryption contexts and recovery history are retained. Review Doctor before Resume. Earlier Ripe versions must follow their published supported path to 1.0.6 first. Interrupted operations use Recover; committed operations use Finish and cannot be downgraded by recovery. See the [operator reference](emailer-ripe-operator.md).
+For Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2, 1.3.0, 1.3.1 or 1.3.2 to 1.3.3, start the new official setup file, choose Update with a verified backup and follow any Finish instruction. This includes Ripe 1.1.0 installations previously converted from Light. Existing MFA, password, recipients, tracking, SMTP encryption contexts and recovery history are retained. Review Doctor before Resume. Earlier Ripe versions must follow their published supported path to 1.0.6 first. Interrupted operations use Recover; committed operations use Finish and cannot be downgraded by recovery. See the [operator reference](emailer-ripe-operator.md).
+
+This release adds a database migration. Update with the guided setup file and keep its recovery material. Normal restore needs the same database schema. Recover older backups with their matching release in an isolated environment. For interrupted updates choose Recover in setup; a completed update cannot be downgraded through recovery.

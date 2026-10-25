@@ -33,6 +33,7 @@ final readonly class CampaignManager
         private DeliveryConfiguration $configuration,
         private CampaignDeliveryGateway $delivery,
         private SendingGate $sendingGate,
+        private CampaignRecipientCsv $recipientCsv,
     ) {
     }
 
@@ -41,7 +42,7 @@ final readonly class CampaignManager
     {
         $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Auditor, 'campaign.list');
 
-        return $this->connection->fetchAllAssociative("SELECT c.id, c.name, c.state, c.scheduled_at, c.approved_at, c.updated_at, COALESCE(a.recipient_count, 0) recipient_count, SUM(r.state = 'accepted') accepted_count, SUM(r.state IN ('permanent_failure', 'ambiguous')) failure_count FROM campaign c LEFT JOIN campaign_audience_snapshot a ON a.campaign_id = c.id LEFT JOIN campaign_recipient r ON r.campaign_id = c.id GROUP BY c.id, c.name, c.state, c.scheduled_at, c.approved_at, c.updated_at, a.recipient_count ORDER BY c.updated_at DESC");
+        return $this->connection->fetchAllAssociative("SELECT c.id, c.name, c.state, c.scheduled_at, c.approved_at, c.updated_at, COALESCE(a.recipient_count, (SELECT COUNT(*) FROM campaign_audience_recipient ar WHERE ar.campaign_id = c.id)) recipient_count, SUM(r.state = 'accepted') accepted_count, SUM(r.state IN ('permanent_failure', 'ambiguous')) failure_count FROM campaign c LEFT JOIN campaign_audience_snapshot a ON a.campaign_id = c.id LEFT JOIN campaign_recipient r ON r.campaign_id = c.id GROUP BY c.id, c.name, c.state, c.scheduled_at, c.approved_at, c.updated_at, a.recipient_count ORDER BY c.updated_at DESC");
     }
 
     /** @return array{templates: list<array<string, mixed>>, lists: list<array<string, mixed>>} */
@@ -60,7 +61,7 @@ final readonly class CampaignManager
     {
         $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Auditor, 'campaign.view');
         $this->uuid($id);
-        $row = $this->connection->fetchAssociative('SELECT c.*, COALESCE(a.recipient_count, 0) recipient_count, a.audience_sha256, t.name template_name, v.version_number template_version, s.open_tracking snapshot_open_tracking, s.click_tracking snapshot_click_tracking, s.rsvp_enabled snapshot_rsvp_enabled, s.rsvp_repeat_policy snapshot_rsvp_repeat_policy FROM campaign c INNER JOIN template_version v ON v.id = c.template_version_id INNER JOIN email_template t ON t.id = v.template_id LEFT JOIN campaign_audience_snapshot a ON a.campaign_id = c.id LEFT JOIN campaign_content_snapshot s ON s.campaign_id = c.id WHERE c.id = ?', [$id]);
+        $row = $this->connection->fetchAssociative('SELECT c.*, COALESCE(a.recipient_count, (SELECT COUNT(*) FROM campaign_audience_recipient ar WHERE ar.campaign_id = c.id)) recipient_count, a.audience_sha256, t.name template_name, v.version_number template_version, v.published_at template_published_at, t.status template_status, s.open_tracking snapshot_open_tracking, s.click_tracking snapshot_click_tracking, s.rsvp_enabled snapshot_rsvp_enabled, s.rsvp_repeat_policy snapshot_rsvp_repeat_policy FROM campaign c LEFT JOIN template_version v ON v.id = c.template_version_id LEFT JOIN email_template t ON t.id = v.template_id LEFT JOIN campaign_audience_snapshot a ON a.campaign_id = c.id LEFT JOIN campaign_content_snapshot s ON s.campaign_id = c.id WHERE c.id = ?', [$id]);
         if (false === $row) {
             throw new \InvalidArgumentException('Campaign is unavailable.');
         }
@@ -94,6 +95,20 @@ final readonly class CampaignManager
             'rsvp' => (is_numeric($row['snapshot_rsvp_enabled']) ? 1 === $this->intValue($row['snapshot_rsvp_enabled']) : 1 === $this->intValue($row['rsvp_enabled'])) ? 'Enabled; repeat policy: '.(\is_string($row['snapshot_rsvp_repeat_policy']) ? $row['snapshot_rsvp_repeat_policy'] : $configuration['rsvp_repeat_policy']) : 'Off',
             'time_zone' => \is_string($timeZone) && '' !== $timeZone ? $timeZone : 'UTC',
         ];
+
+        $row['can_test'] = null !== $row['template_published_at'] && 'published' === $row['template_status'];
+        $missing = [];
+        if (!\is_string($row['name']) || '' === trim($row['name'])) {
+            $missing[] = 'Add a campaign name.';
+        }
+        if (!$row['can_test']) {
+            $missing[] = 'Choose a published template. Create and explicitly publish it in Templates first.';
+        }
+        if ($selected - $suppressed < 1) {
+            $missing[] = 'Add at least one eligible recipient.';
+        }
+        $row['missing_for_review'] = $missing;
+        $row['can_review'] = [] === $missing;
 
         return $row;
     }
@@ -258,6 +273,70 @@ final readonly class CampaignManager
         });
     }
 
+    /** Save incomplete business state without publishing content, taking approval snapshots or dispatching work.
+     * @param list<string>       $listIds
+     * @param array<string, int> $csvMapping
+     *
+     * @return array{id: string, csv_counts: array{total: int, imported: int, duplicate: int, invalid: int, suppressed: int}|null}
+     */
+    public function saveDraft(AdministrativeActor $actor, ?string $id, string $name, string $version, ?int $rate, ?string $csvPath = null, array $listIds = [], bool $campaignOwned = false, string $csvMode = 'headered', array $csvMapping = []): array
+    {
+        $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'campaign.draft.save');
+        $name = trim($name);
+        if (mb_strlen($name) > 160 || 1 === preg_match('/[\x00-\x1F\x7F]/', $name)) {
+            throw new \InvalidArgumentException('Enter a campaign name of up to 160 characters without control characters.');
+        }
+        $this->validateRate($rate);
+        if ('' !== $version && !\in_array($version, array_column($this->preparation->campaignOptions($actor), 'id'), true)) {
+            // Keep a previously selected immutable version, even if it is no longer the newest.
+            if (null === $id || $version !== $this->connection->fetchOne('SELECT template_version_id FROM campaign WHERE id = ?', [$id])) {
+                throw new \InvalidArgumentException('That template is no longer selectable. Refresh the template choices and select an available version.');
+            }
+        }
+        $listIds = array_values(array_unique($listIds));
+        if ($campaignOwned && [] !== $listIds) {
+            throw new \InvalidArgumentException('Choose campaign CSV recipients or reusable lists, not both.');
+        }
+        if ([] !== $listIds) {
+            $this->audiences->snapshot($listIds);
+        }
+
+        return $this->connection->transactional(function () use ($actor, $id, $name, $version, $rate, $csvPath, $listIds, $campaignOwned, $csvMode, $csvMapping): array {
+            $now = Identity::now();
+            if (null === $id) {
+                $id = Identity::uuidV7();
+                $row = ['id' => $id, 'name' => $name, 'template_version_id' => '' === $version ? null : $version, 'state' => 'draft', 'operation_version' => 1, 'created_by' => $actor->id(), 'created_at' => $now, 'updated_at' => $now, 'messages_per_minute' => $rate];
+                $row['audience_model'] = $campaignOwned ? 'campaign_owned' : 'list';
+                $this->connection->insert('campaign', $row);
+            } else {
+                $this->uuid($id);
+                $state = $this->connection->fetchOne('SELECT state FROM campaign WHERE id = ? FOR UPDATE', [$id]);
+                if (!\in_array($state, ['draft', 'review'], true) || false !== $this->connection->fetchOne('SELECT 1 FROM campaign_content_snapshot WHERE campaign_id = ?', [$id])) {
+                    throw new \DomainException('Only unapproved campaign drafts can be changed. The saved campaign is unchanged.');
+                }
+                $storedModel = $this->connection->fetchOne('SELECT audience_model FROM campaign WHERE id = ?', [$id]);
+                if (($campaignOwned ? 'campaign_owned' : 'list') !== $storedModel) {
+                    throw new \DomainException('Keep this campaign’s existing recipient type. Its audience provenance cannot be changed.');
+                }
+                $this->connection->update('campaign', ['name' => $name, 'template_version_id' => '' === $version ? null : $version, 'messages_per_minute' => $rate, 'state' => 'draft', 'updated_at' => $now], ['id' => $id]);
+                $this->connection->executeStatement('UPDATE campaign SET operation_version = operation_version + 1 WHERE id = ?', [$id]);
+            }
+            if (!$campaignOwned) {
+                $this->connection->delete('campaign_list_selection', ['campaign_id' => $id]);
+                foreach ($listIds as $listId) {
+                    $this->connection->insert('campaign_list_selection', ['campaign_id' => $id, 'list_id' => $listId]);
+                }
+            }
+            $csvCounts = null;
+            if (null !== $csvPath) {
+                $csvCounts = $this->recipientCsv->replace($actor, $id, $csvPath, $csvMode, $csvMapping);
+            }
+            $this->audit->append(new AuditRecord($actor->id(), 'campaign.draft.saved', $id, 'success', ['incomplete' => '' === $version || '' === $name]));
+
+            return ['id' => $id, 'csv_counts' => $csvCounts];
+        });
+    }
+
     public function configureRsvp(AdministrativeActor $actor, string $id, bool $enabled): void
     {
         $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'campaign.rsvp.configure');
@@ -273,7 +352,21 @@ final readonly class CampaignManager
 
     public function submitForReview(AdministrativeActor $actor, string $id): void
     {
-        $this->transition($actor, $id, ['draft'], 'review', 'campaign.review.submitted');
+        $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'campaign.review.submit');
+        $this->uuid($id);
+        $this->connection->transactional(function () use ($actor, $id): void {
+            $draft = $this->connection->fetchAssociative('SELECT name, template_version_id FROM campaign WHERE id = ? FOR UPDATE', [$id]);
+            if (false === $draft || '' === trim(\is_string($draft['name']) ? $draft['name'] : '') || !\is_string($draft['template_version_id'])) {
+                throw new \DomainException('Add a campaign name and select a published template before review.');
+            }
+            $this->templates->get($draft['template_version_id']);
+            $detail = $this->detail($actor, $id);
+            $review = $detail['review'];
+            if (!\is_array($review) || !is_numeric($review['eligible_count'] ?? null) || (int) $review['eligible_count'] < 1) {
+                throw new \DomainException('Add at least one eligible campaign recipient before review.');
+            }
+            $this->transition($actor, $id, ['draft'], 'review', 'campaign.review.submitted');
+        });
     }
 
     public function commitAudienceUpload(AdministrativeActor $actor, string $campaignId, string $importId): void
@@ -297,10 +390,14 @@ final readonly class CampaignManager
         $address = new EmailAddress($actor->loginIdentifier());
         $id = Identity::uuidV7();
         $this->connection->transactional(function () use ($actor, $campaignId, $address, $id): void {
-            $campaign = $this->connection->fetchAssociative('SELECT state, operation_version FROM campaign WHERE id = ? FOR UPDATE', [$campaignId]);
+            $campaign = $this->connection->fetchAssociative('SELECT state, operation_version, template_version_id FROM campaign WHERE id = ? FOR UPDATE', [$campaignId]);
             if (false === $campaign || !\in_array($campaign['state'], ['draft', 'review'], true)) {
                 throw new \DomainException('Campaign test is not available in this state.');
             }
+            if (!\is_string($campaign['template_version_id'])) {
+                throw new \DomainException('Select a published template before sending a test.');
+            }
+            $this->templates->get($campaign['template_version_id']);
             $this->connection->insert('campaign_test_delivery', ['id' => $id, 'campaign_id' => $campaignId, 'draft_version' => $this->intValue($campaign['operation_version']), 'requested_by' => $actor->id(), 'recipient_address' => $address->canonical, 'state' => 'pending', 'failure_class' => null, 'requested_at' => Identity::now(), 'accepted_at' => null]);
             $this->audit->append(new AuditRecord($actor->id(), 'campaign.test.queued', $campaignId, 'success'));
         });
@@ -407,7 +504,7 @@ final readonly class CampaignManager
         $this->uuid($id);
         $version = 0;
         $this->connection->transactional(function () use ($actor, $id, &$version): void {
-            $row = $this->connection->fetchAssociative('SELECT state, operation_version FROM campaign WHERE id = ? FOR UPDATE', [$id]);
+            $row = $this->connection->fetchAssociative('SELECT state, operation_version, template_version_id FROM campaign WHERE id = ? FOR UPDATE', [$id]);
             if (false === $row || !\in_array($row['state'], ['approved', 'scheduled'], true)) {
                 throw new \DomainException('Campaign cannot be queued.');
             }

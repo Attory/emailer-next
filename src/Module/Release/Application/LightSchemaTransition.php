@@ -15,7 +15,7 @@ final readonly class LightSchemaTransition
 
     public function apply(): void
     {
-        $native = EditionData::read($this->projectDirectory.'/config/upgrade/ripe-native-schema-1.0.6.json');
+        $native = EditionData::read($this->projectDirectory.'/config/upgrade/ripe-native-schema-1.3.3.json');
         $tables = EditionData::strings($native['tables']);
         $triggers = EditionData::strings($native['triggers']);
         $contract = EditionData::read($this->projectDirectory.'/config/upgrade/light-contract-1.0.json');
@@ -53,6 +53,7 @@ final readonly class LightSchemaTransition
         ] as $sql) {
             $this->connection->executeStatement($sql);
         }
+        $this->connection->executeStatement('ALTER TABLE campaign MODIFY template_version_id CHAR(36) DEFAULT NULL');
         $this->connection->executeStatement('ALTER TABLE suppression ADD UNIQUE INDEX uniq_suppression_identity_match (id,email_match_key)');
         $this->connection->executeStatement($tables['suppression_match']);
         $this->connection->executeStatement('INSERT INTO suppression_match (email_match_key,suppression_id) SELECT email_match_key,id FROM suppression');

@@ -82,9 +82,9 @@ docker run --rm --user root --network none -v "$project_root:/tools:ro" -v "$sta
     mkdir -m0700 /rehearsals/test-keys
     mkdir -m0755 /rehearsals/target-package
     php /tools/tools/release/generate-test-keypair.php /rehearsals/test-keys/signing.key /rehearsals/target-package/ripe.pub
-    php /tools/tools/release/build-package.php --artifact=/tools/build/artifact --output=/rehearsals/target-package --version=1.3.2 --source="$1" --minimum-source=1.0.6 --supported-sources=1.0.6,1.1.0,1.2.1,1.2.2,1.3.0,1.3.1 --minimum-schema=20261015000000 --schema=20261015000000 --rollback-schema-compatible=true --signing-key=/rehearsals/test-keys/signing.key --source-date-epoch="$2" >/dev/null
+    php /tools/tools/release/build-package.php --artifact=/tools/build/artifact --output=/rehearsals/target-package --version=1.3.3 --source="$1" --minimum-source=1.0.6 --supported-sources=1.0.6,1.1.0,1.2.1,1.2.2,1.3.0,1.3.1,1.3.2 --minimum-schema=20261015000000 --schema=20261025000000 --rollback-schema-compatible=false --signing-key=/rehearsals/test-keys/signing.key --source-date-epoch="$2" >/dev/null
 ' bash "$source_commit" "$source_epoch"
-for version in 105 106 110 121 122 130 131; do
+for version in 105 106 110 121 122 130 131 132; do
     case "$version" in
         105) historical_commit=3927f17d73190b9e99861a8e3b34b572226665a1 ;;
         106) historical_commit=e522f8ae007c4232b170f4717247378c4b897863 ;;
@@ -93,6 +93,7 @@ for version in 105 106 110 121 122 130 131; do
         122) historical_commit=25e703c14b3f9ac6b864e3ad1f7e35b3cc2b74d8 ;;
         130) historical_commit=7d031aed9cfacaececef83498871330e664e1a62 ;;
         131) historical_commit=485999a788cb75277f8cc67a2ec811ad249c0614 ;;
+        132) historical_commit=2a8603f460aa2326faa79c570b5e52782c3a1bb6 ;;
     esac
     mkdir -p "$state_root/source$version" "$state_root/native$version-package"
     git archive "$historical_commit" | tar -x -C "$state_root/source$version"
@@ -110,7 +111,7 @@ for version in 105 106 110 121 122 130 131; do
     '
     docker run --rm --user root --network none -v "$project_root:/tools:ro" -v "$state_root:/rehearsals" "$app_image" bash -euc '
         bash "/rehearsals/source$1/tools/artifact/build.sh" >"/rehearsals/native$1-build.log" 2>&1 || { tail -n100 "/rehearsals/native$1-build.log"; exit 1; }
-        if [ "$1" = 105 ]; then release=1.0.5; schema=20261013000000; elif [ "$1" = 106 ]; then release=1.0.6; schema=20261015000000; elif [ "$1" = 110 ]; then release=1.1.0; schema=20261015000000; elif [ "$1" = 121 ]; then release=1.2.1; schema=20261015000000; elif [ "$1" = 122 ]; then release=1.2.2; schema=20261015000000; elif [ "$1" = 130 ]; then release=1.3.0; schema=20261015000000; else release=1.3.1; schema=20261015000000; fi
+        if [ "$1" = 105 ]; then release=1.0.5; schema=20261013000000; elif [ "$1" = 106 ]; then release=1.0.6; schema=20261015000000; elif [ "$1" = 110 ]; then release=1.1.0; schema=20261015000000; elif [ "$1" = 121 ]; then release=1.2.1; schema=20261015000000; elif [ "$1" = 122 ]; then release=1.2.2; schema=20261015000000; elif [ "$1" = 130 ]; then release=1.3.0; schema=20261015000000; elif [ "$1" = 131 ]; then release=1.3.1; schema=20261015000000; else release=1.3.2; schema=20261015000000; fi
         php /tools/tools/release/build-package.php --artifact="/rehearsals/source$1/build/artifact" --output="/rehearsals/native$1-package" --version="$release" --source="$2" --minimum-source=1.0.5 --supported-sources=1.0.5 --minimum-schema=20261013000000 --schema="$schema" --rollback-schema-compatible=false --signing-key=/rehearsals/test-keys/signing.key --source-date-epoch="$3" >/dev/null
     ' bash "$version" "$historical_commit" "$source_epoch"
     cp "$state_root/target-package/ripe.pub" "$state_root/native$version-package/ripe.pub"
@@ -131,9 +132,9 @@ rehearse env EMAILER_REHEARSAL_NATIVE_FAULT=1 bash "$legacy/run-native-update-re
 for phase in journal preparing migrating; do
     rehearse env EMAILER_REHEARSAL_NATIVE_INTERRUPT="$phase" bash "$legacy/run-native-update-rehearsal.sh" "$legacy_target" "$legacy_key" "$state_root/native105-package/emailer-next-1.0.5.zip" "$state_root" e522f8ae007c4232b170f4717247378c4b897863
 done
-# Current schema-preserving update: real process interruption before checkpoint,
-# plus post-activation failure. There is no intermediate1.1 ALTER to fabricate.
-target="$state_root/target-package/emailer-next-1.3.2.zip"
+# Current bounded nullable-column update: real process interruption before checkpoint,
+# plus post-activation failure and full source-schema checkpoint recovery.
+target="$state_root/target-package/emailer-next-1.3.3.zip"
 key="$state_root/target-package/ripe.pub"
 rehearse bash tools/upgrade/run-fresh-ripe-rehearsal.sh "$target" "$key" "$state_root" "$source_commit"
 rehearse bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$legacy_target" "$state_root" "$source_commit"
@@ -176,10 +177,17 @@ for mode in success fault journal preparing; do
         *) rehearse env EMAILER_REHEARSAL_NATIVE_SOURCE=1.3.1 EMAILER_REHEARSAL_NATIVE_INTERRUPT="$mode" bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native131-package/emailer-next-1.3.1.zip" "$state_root" "$source_commit" ;;
     esac
 done
+for mode in success fault journal preparing; do
+    case "$mode" in
+        success) rehearse env EMAILER_REHEARSAL_NATIVE_SOURCE=1.3.2 bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native132-package/emailer-next-1.3.2.zip" "$state_root" "$source_commit" ;;
+        fault) rehearse env EMAILER_REHEARSAL_NATIVE_SOURCE=1.3.2 EMAILER_REHEARSAL_NATIVE_FAULT=1 bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native132-package/emailer-next-1.3.2.zip" "$state_root" "$source_commit" ;;
+        *) rehearse env EMAILER_REHEARSAL_NATIVE_SOURCE=1.3.2 EMAILER_REHEARSAL_NATIVE_INTERRUPT="$mode" bash tools/upgrade/run-native-update-rehearsal.sh "$target" "$key" "$state_root/native132-package/emailer-next-1.3.2.zip" "$state_root" "$source_commit" ;;
+    esac
+done
 # Light's production pin is never substituted to accommodate a CI signer.
 # Publish the fully accepted Light release before enabling the corresponding
 # private Ripe release: public release sidecars are authenticated by current code.
-for light_version in 1.1.0 1.2.0 1.2.1 1.2.2 1.2.3 1.2.4 1.2.5; do
+for light_version in 1.1.0 1.2.0 1.2.1 1.2.2 1.2.3 1.2.4 1.2.5 1.2.6; do
     for suffix in '' .manifest.json .sha256 .spdx.json .sig; do
         curl --fail --silent --show-error --location "https://github.com/Attory/emailer-light/releases/download/v$light_version/emailer-light-$light_version.zip$suffix" --output "$state_root/published-light/emailer-light-$light_version.zip$suffix"
     done
@@ -191,7 +199,7 @@ for mode in success fault journal preparing; do
         *) rehearse env EMAILER_REHEARSAL_NATIVE_INTERRUPT="$mode" bash tools/upgrade/run-converted-native-rehearsal.sh "$target" "$key" "$state_root/native110-package/emailer-next-1.1.0.zip" "$state_root/published-light/emailer-light-1.1.0.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit" "$state_root/source110" ;;
     esac
 done
-for light_version in 1.2.5 1.2.4 1.0.0 1.1.0 1.2.0 1.2.1 1.2.2 1.2.3; do
+for light_version in 1.2.6 1.2.5 1.2.4 1.0.0 1.1.0 1.2.0 1.2.1 1.2.2 1.2.3; do
     printf 'Checking rich and minimal published Light %s fixtures.\n' "$light_version"
     rehearse env EMAILER_REHEARSAL_LIGHT_VERSION="$light_version" bash tools/upgrade/run-light-rehearsal.sh "$target" "$key" "$state_root/published-light/emailer-light-$light_version.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit"
     rehearse env EMAILER_REHEARSAL_LIGHT_VERSION="$light_version" EMAILER_REHEARSAL_MINIMAL=1 bash tools/upgrade/run-light-rehearsal.sh "$target" "$key" "$state_root/published-light/emailer-light-$light_version.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit"
