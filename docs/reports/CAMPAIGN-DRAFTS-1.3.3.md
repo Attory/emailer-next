@@ -98,3 +98,8 @@ health-history rows during source verification. Source recovery now uses its
 published --read-only option, preserving the frozen historical dataset. The
 complete51-case matrix is repeated against rebuilt signed packages; expectations
 are retained rather than allowing unexpected health-row mutations.
+
+The new native132 fixture reached genuine installation, then exposed two stale
+source-version allowlists in rehearsal seeding/observation. Both now explicitly
+include132, with original archive signature and exact source-commit gates
+unchanged. The132 success/fault/journal/preparing cases remain mandatory.
