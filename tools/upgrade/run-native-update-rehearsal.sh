@@ -69,6 +69,10 @@ if [ "$converted" = 1 ]; then
     # The source was actually converted by the historical1.1 installer; do not
     # manufacture list contacts or replace its credentials/MFA/recovery keys.
     run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /tools/tools/upgrade/observe-native-update.php before; test ! -e /rehearsal/retained-conversion-target; mv /rehearsal/target /rehearsal/retained-conversion-target' >> "$log_root/preservation.log"
+    # The historical conversion warmed a container against its older executable
+    # at the same /rehearsal/target path. Retain that evidence, but give the new
+    # executable a fresh writable cache; never reuse compiled source services.
+    run bash -euc 'test -d /rehearsal/updater-runtime; test ! -e /rehearsal/retained-conversion-updater-runtime; mv /rehearsal/updater-runtime /rehearsal/retained-conversion-updater-runtime; mkdir -m0755 /rehearsal/updater-runtime'
 else
 run php /tools/tools/upgrade/prepare-ripe-rehearsal.php "ripe106_${iteration}_native" "/native-source/emailer-next-$source_version.zip" /pinned-ripe.pub "$source_version"
 rehearsal_user=1000 run bash -euc 'set -a; source /rehearsal/runtime.env; set +a; php /rehearsal/source-releases/${EMAILER_REHEARSAL_NATIVE_SOURCE_ROOT}/bin/console emailer:setup:install --complete < /rehearsal/install-input' > "$log_root/source-install.log" 2>&1
