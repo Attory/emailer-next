@@ -92,3 +92,9 @@ include the exact new handoff paths, with regressions for supported reentry and
 continued rejection of unlisted versions, unrelated roots and path traversal.
 Final rebuilt packages must repeat these checks before publication. No production
 was accessed. These are candidate observations, not final release publication.
+
+The exact-package source106 journal-kill rehearsal caught legacy Doctor adding
+health-history rows during source verification. Source recovery now uses its
+published --read-only option, preserving the frozen historical dataset. The
+complete51-case matrix is repeated against rebuilt signed packages; expectations
+are retained rather than allowing unexpected health-row mutations.

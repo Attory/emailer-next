@@ -507,7 +507,7 @@ final readonly class ReleaseManager
             $this->runConsole($source, ['about', '--no-interaction'], [0], $runtime);
             $this->runConsole($source, ['doctrine:schema:validate', '--skip-sync', '--no-interaction'], [0], $runtime);
             if (version_compare($this->currentVersion, '1.1.0', '<')) {
-                $this->runConsole($source, ['emailer:doctor:run', '--json', '--maintenance-verification'], [0, 1], $runtime);
+                $this->runConsole($source, ['emailer:doctor:run', '--read-only', '--json', '--maintenance-verification'], [0, 1], $runtime);
             } else {
                 // Use the source's own schema expectation, even when this recovery coordinator is newer.
                 $this->runConsole($source, ['emailer:health:verify-runtime', '--offline-maintenance'], [0], $runtime);
