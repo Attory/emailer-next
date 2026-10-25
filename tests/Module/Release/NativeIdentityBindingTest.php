@@ -46,6 +46,12 @@ final class NativeIdentityBindingTest extends TestCase
         NativeIdentityBinding::source('1.3.2', '20261015000000', $uuid, ['installation_uuid' => $uuid], null, true);
     }
 
+    public function testConvertedSourceCannotLoseItsIdentityAndBeTreatedAsNative(): void
+    {
+        $this->expectException(\RuntimeException::class);
+        NativeIdentityBinding::source('1.3.2', '20261015000000', 'synthetic', ['product_id' => 'emailer-ripe', 'product_version' => '1.3.2', 'schema_version' => '20261015000000', 'installation_uuid' => 'synthetic'], null, false, true);
+    }
+
     public function testLegacy105VersionRequiresTheActualPriorSuccessfulTransition(): void
     {
         $this->expectException(\RuntimeException::class);

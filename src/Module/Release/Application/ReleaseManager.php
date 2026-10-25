@@ -311,7 +311,8 @@ final readonly class ReleaseManager
             $identity = $rows[0];
         }
         $legacy = '1.0.6' === $this->currentVersion && false !== $this->connection->fetchOne("SELECT 1 FROM release_operation WHERE source_version='1.0.5' AND target_version='1.0.6' AND status='succeeded' LIMIT 1");
-        NativeIdentityBinding::source($this->currentVersion, $schema, $uuid, $lock, $identity, $legacy);
+        $converted = $this->connection->createSchemaManager()->tablesExist(['ripe_edition_transition']) && 0 < EditionData::integer($this->connection->fetchOne('SELECT COUNT(*) FROM ripe_edition_transition'));
+        NativeIdentityBinding::source($this->currentVersion, $schema, $uuid, $lock, $identity, $legacy, $converted);
     }
 
     private function synchronizeNativeIdentity(string $version, string $sourceSchema, string $targetSchema): void
