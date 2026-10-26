@@ -11,6 +11,7 @@ def isolate(source):
     source = source.replace('iteration="$(date +%s)_${RANDOM}"', 'readonly iteration="$(date +%s)_${RANDOM}"')
     source = source.replace('for iteration in {1..100}', 'for poll in {1..100}')
     source = source.replace('case_root="$output_directory/light-$iteration"', 'case_root="$output_directory/light-$iteration"\nreadonly case_key="$(printf %s "$case_root" | sha256sum | cut -c1-16)"\nrehearsal_actor_tool="${EMAILER_REHEARSAL_ACTOR_TOOL:-$project_root/tools/ci/rehearsal-actors.py}"')
+    source = source.replace('    local options=()', '    local options=()\n    if [ -n "${EMAILER_REHEARSAL_PHASE_OBSERVER:-}" ]; then options+=(-v "$EMAILER_REHEARSAL_PHASE_OBSERVER:/tools/tools/upgrade/observe-rehearsal-phase.php:ro"); fi')
     source = source.replace('docker run --rm "${options[@]}"', 'python3 "$rehearsal_actor_tool" run "$case_root" "$network" -- run --rm "${options[@]}"')
     for role in ('conflict', 'fault', 'upgrade'):
         source = source.replace('ripe106-' + role + '-$iteration', 'ripe106-' + role + '-${iteration}-${case_key}')

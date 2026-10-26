@@ -22,7 +22,7 @@ log="$(mktemp "$output/converted-source-XXXXXX.log")"
 historical_directory="$(mktemp -d "$output/historical110-actors-XXXXXXXX")"
 historical_runner="$historical_directory/run.sh"
 python3 "$project_root/tools/ci/prepare-historical-rehearsal.py" "$historical/tools/upgrade/run-light-rehearsal.sh" "$historical_runner"
-EMAILER_HISTORICAL_REHEARSAL_ROOT="$historical" EMAILER_REHEARSAL_ACTOR_TOOL="$project_root/tools/ci/rehearsal-actors.py" EMAILER_REHEARSAL_LIGHT_VERSION=1.1.0 bash "$historical_runner" "$source" "$key" "$light" "$light_key" "$output" 171d6aa658e3aca77c60fb9c7803303d8f4788cd >"$log" 2>&1
+EMAILER_REHEARSAL_PHASE_OBSERVER="$project_root/tools/upgrade/observe-rehearsal-phase.php" EMAILER_HISTORICAL_REHEARSAL_ROOT="$historical" EMAILER_REHEARSAL_ACTOR_TOOL="$project_root/tools/ci/rehearsal-actors.py" EMAILER_REHEARSAL_LIGHT_VERSION=1.1.0 bash "$historical_runner" "$source" "$key" "$light" "$light_key" "$output" 171d6aa658e3aca77c60fb9c7803303d8f4788cd >"$log" 2>&1
 case_root="$(sed -n 's/^Packaged synthetic Light transition completed: //p' "$log")"
 test -n "$case_root"
 # The historical acceptance script ends by restoring its earlier native backup,

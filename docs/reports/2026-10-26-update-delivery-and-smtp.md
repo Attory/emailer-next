@@ -81,3 +81,15 @@ when the database retention command fails. Completed authoritative receipts are
 terminal and never reacquire a hold after a later diagnostic/save error. File
 errors use bounded categories, not paths or raw exception text; a failure to write
 the protected record itself exits nonzero with a fixed recovery instruction.
+
+The historical partial-schema observer also used a fixed three-second delay after
+`mutating`, although that phase is journaled before recovery-key processing and
+DDL. It now polls for the same actual role-present/cipher-absent boundary within
+one monotonic deadline, with bounded connection/query timeouts. Recovery similarly
+requires actual table absence. SQL errors remain failures. Six isolated CLI tests
+cover delayed boundaries, timeout, unexpected target schema, SQL failure, recovery
+and refusal of non-harness database access. The original SHA-pinned historical
+application and all its runtime invocations remain unchanged; only the read-only
+test observer is mounted into its private control adapter. Independent review and
+all 55 preliminary signed-package lifecycle cases pass. A new clean-head package
+build and exact-artifact acceptance remain required before release.
