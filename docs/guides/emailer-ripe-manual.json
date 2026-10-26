@@ -380,6 +380,10 @@
     },
     {
       "type": "p",
+      "text": "Setup creates and verifies its recovery backup. If automatic backups are enabled, it also refreshes and verifies that same encrypted backup at the already-configured destination before changing the application. It keeps your backup policy and does not run retention or send email. If the approved copy cannot be verified, sending remains held and setup names the blocker. Keep the recovery material; follow the displayed Recover or Finish action after correcting the backup folder or storage problem."
+    },
+    {
+      "type": "p",
       "text": "Doctor shows sending blockers and their repair actions. A normal update preserves the prior operational state after verification: an idle installation needs no SMTP just to complete its update; a pre-existing delivery hold remains held. Previously active approved campaigns continue only when normal readiness checks pass. Drafts are never approved or started. A Light-to-Ripe edition upgrade still requires the separate guided readiness acceptance."
     },
     {

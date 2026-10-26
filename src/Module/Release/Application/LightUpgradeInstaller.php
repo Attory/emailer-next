@@ -14,7 +14,7 @@ use Doctrine\DBAL\Tools\DsnParser;
 /** Edition orchestration is deliberately separate from native Ripe version updates. */
 final readonly class LightUpgradeInstaller implements EditionUpgrade
 {
-    public function __construct(private Connection $connection, private \App\Module\Audit\Application\Contract\AuditSink $audit, private PackageInspector $packages, private ReleaseManager $releases, private LightSourceInspection $source, private LightSchemaTransition $schema, private EditionRecoverySet $recovery, private MaintenanceOperationLock $maintenance, private string $projectDirectory, private string $privateDirectory, private string $masterKeyFile, private string $releasesDirectory, private string $recoveryDatabaseUrl, private string $environment, private SourceDatabaseFence $fence, private string $runtimeConfigurationFile, private string $ripePublicKeyFile, private string $ripeRecoveryKeyFile, private \App\Module\Secrets\Application\Contract\RipeRecoveryKeyProvisioning $recoveryKeys, private \App\Module\Backup\Application\Contract\BackupOperations $backups, private bool $retainSourceFence = false, private string $sourceServicePrefix = 'emailer-light', private string $operationReceiptFile = '')
+    public function __construct(private Connection $connection, private \App\Module\Audit\Application\Contract\AuditSink $audit, private PackageInspector $packages, private ReleaseManager $releases, private LightSourceInspection $source, private LightSchemaTransition $schema, private EditionRecoverySet $recovery, private MaintenanceOperationLock $maintenance, private string $projectDirectory, private string $privateDirectory, private string $masterKeyFile, private string $releasesDirectory, private string $recoveryDatabaseUrl, private string $environment, private SourceDatabaseFence $fence, private string $runtimeConfigurationFile, private string $ripePublicKeyFile, private string $ripeRecoveryKeyFile, private \App\Module\Secrets\Application\Contract\RipeRecoveryKeyProvisioning $recoveryKeys, private \App\Module\Backup\Application\Contract\BackupOperations $backups, private bool $retainSourceFence = false, private string $sourceServicePrefix = 'emailer-light', private string $operationReceiptFile = '', private ?RecoveryBackupCopy $backupCopy = null)
     {
     }
 
@@ -201,7 +201,9 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
                 EditionRecoverySet::write($this->privateDirectory.'/install.lock', json_encode($lock, JSON_THROW_ON_ERROR), true);
                 $this->updateRuntimeConfiguration();
                 $this->console($target, ['about', '--no-interaction']);
-                $this->backups->create();
+                $safety = $this->backups->create();
+                SafetyBackupOwnership::transfer($safety['path'], $this->environment);
+                $this->backupCopy?->preserve($safety);
                 $this->console($target, ['doctrine:migrations:up-to-date']);
                 $this->console($target, ['doctrine:schema:validate', '--skip-sync']);
                 $this->console($target, ['emailer:health:verify-runtime', '--offline-maintenance'], [0]);
@@ -224,7 +226,7 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
                     EditionRecoverySet::write($recoveryDirectory.'/recovery-failure.json', json_encode(['exception_class' => $recoveryFailure::class, 'message' => $recoveryFailure->getMessage()], JSON_THROW_ON_ERROR));
                     throw new \RuntimeException('Edition transition failed; complete recovery requires operator repair. Delivery remains held. Detailed diagnostics remain protected in the recovery set.');
                 }
-                throw new \RuntimeException('Edition transition failed; verified Light recovery completed. Delivery remains held. Detailed diagnostics remain protected in the recovery set.');
+                throw new \RuntimeException('Edition transition failed; verified Light recovery completed. Delivery remains held. Detailed diagnostics remain protected in the recovery set.', previous: $failure);
             }
         } catch (\Throwable $failure) {
             $pending = $this->receipt(false);
@@ -652,7 +654,17 @@ final readonly class LightUpgradeInstaller implements EditionUpgrade
         $runtime = EditionData::text($receipt['recovery_directory']).'/validation-'.hash('sha256', $release);
         EditionRecoverySet::directory($runtime);
         $log = $runtime.'/validation-'.str_replace(':', '-', $arguments[0]).'.log';
-        $this->process(array_merge([PHP_BINARY, $release.'/bin/console'], $arguments), $accepted, LegacyDatabaseEnvironment::forRelease($release, ['DATABASE_URL' => EditionData::text(getenv('DATABASE_URL')), 'EMAILER_RUNTIME_DIR' => $runtime]), $log);
+        try {
+            $this->process(array_merge([PHP_BINARY, $release.'/bin/console'], $arguments), $accepted, LegacyDatabaseEnvironment::forRelease($release, ['DATABASE_URL' => EditionData::text(getenv('DATABASE_URL')), 'EMAILER_RUNTIME_DIR' => $runtime]), $log);
+        } catch (\Throwable $failure) {
+            if ('emailer:health:verify-runtime' === $arguments[0] && is_file($log) && filesize($log) <= 1048576) {
+                $report = json_decode((string) file_get_contents($log), true);
+                if (\is_array($report) && \is_array($report['runtime_blockers'] ?? null)) {
+                    throw new Contract\RuntimeVerificationFailed($report['runtime_blockers']);
+                }
+            }
+            throw $failure;
+        }
         if ('emailer:doctor:run' === $arguments[0]) {
             $report = EditionData::read($log);
             $findings = $report['findings'] ?? null;

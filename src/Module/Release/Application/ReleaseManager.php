@@ -15,7 +15,7 @@ final readonly class ReleaseManager
 {
     private const NATIVE_RECOVERY_SOURCES = ['1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2'];
 
-    public function __construct(private PackageInspector $inspector, private BackupOperations $backups, private Connection $connection, private LockFactory $locks, private MaintenanceOperationLock $maintenance, private InterruptedDeliveryRecovery $recovery, private string $releasesDirectory, private string $currentVersion, private int $rollbackReserveBytes = 536870912, private string $environment = 'test', private ?EditionRecoverySet $completeRecovery = null, private string $privateDirectory = '', private string $masterKeyFile = '', private string $runtimeConfigurationFile = '', private bool $retainSourceFence = false, private string $replacementRuntimeFile = '')
+    public function __construct(private PackageInspector $inspector, private BackupOperations $backups, private Connection $connection, private LockFactory $locks, private MaintenanceOperationLock $maintenance, private InterruptedDeliveryRecovery $recovery, private string $releasesDirectory, private string $currentVersion, private int $rollbackReserveBytes = 536870912, private string $environment = 'test', private ?EditionRecoverySet $completeRecovery = null, private string $privateDirectory = '', private string $masterKeyFile = '', private string $runtimeConfigurationFile = '', private bool $retainSourceFence = false, private string $replacementRuntimeFile = '', private ?RecoveryBackupCopy $backupCopy = null)
     {
     }
 
@@ -172,7 +172,10 @@ final readonly class ReleaseManager
                 (new SourceDatabaseFence($this->connection, $this->runtimeConfigurationFile, $this->replacementRuntimeFile))->lock(SourceDatabaseFence::account($nativeJournal['database_account']));
             }
             $safety = $this->backups->create();
-            $this->transferSafetyBackupToServiceOwner($safety['path']);
+            SafetyBackupOwnership::transfer($safety['path'], $this->environment);
+            if ('1.3.3' === $targetVersion) {
+                $this->backupCopy?->preserve($safety);
+            }
             if ($this->completeNativePair($this->currentVersion, $targetVersion) && null !== $this->completeRecovery) {
                 if ('' === $this->privateDirectory || '' === $this->masterKeyFile) {
                     throw new \RuntimeException('Native update requires complete private-state recovery configuration.');
@@ -743,12 +746,31 @@ final readonly class ReleaseManager
         $command = array_merge([PHP_BINARY, $release.'/bin/console'], $arguments);
         $pipes = [];
         $environment = LegacyDatabaseEnvironment::forRelease($release, '' === $runtime ? getenv() : array_replace(getenv(), ['EMAILER_RUNTIME_DIR' => $runtime]));
-        $process = proc_open(LegacyDatabaseEnvironment::command($command, $environment), [['file', '/dev/null', 'r'], ['file', '/dev/null', 'w'], ['file', '/dev/null', 'w']], $pipes, $release, $environment);
+        $health = 'emailer:health:verify-runtime' === ($arguments[0] ?? null);
+        $process = proc_open(LegacyDatabaseEnvironment::command($command, $environment), [['file', '/dev/null', 'r'], $health ? ['pipe', 'w'] : ['file', '/dev/null', 'w'], ['file', '/dev/null', 'w']], $pipes, $release, $environment);
         if (!\is_resource($process)) {
             throw new \RuntimeException('Release command could not start.');
         }
+        $diagnostic = '';
+        if ($health && isset($pipes[1])) {
+            while (!feof($pipes[1])) {
+                $chunk = fread($pipes[1], 8192);
+                if (false === $chunk) {
+                    break;
+                }
+                if (1048576 >= \strlen($diagnostic)) {
+                    $diagnostic .= $chunk;
+                }
+            }
+            fclose($pipes[1]);
+        }
         $status = proc_close($process);
         if (!\in_array($status, $acceptedStatuses, true)) {
+            if ($health) {
+                $report = 1048576 >= \strlen($diagnostic) ? json_decode($diagnostic, true) : null;
+                $blockers = \is_array($report) ? ($report['runtime_blockers'] ?? []) : [];
+                throw new Contract\RuntimeVerificationFailed(\is_array($blockers) ? $blockers : []);
+            }
             throw new \RuntimeException('Release command failed with redacted status '.$status.'.');
         }
     }
@@ -801,41 +823,6 @@ final readonly class ReleaseManager
             if (!\is_array($metadata) || 0 !== $metadata['uid'] || 0 !== ($metadata['mode'] & 0o222)) {
                 throw new \RuntimeException('Production release is not root-owned and immutable.');
             }
-        }
-    }
-
-    private function transferSafetyBackupToServiceOwner(string $path): void
-    {
-        if ('prod' !== $this->environment) {
-            return;
-        }
-        $before = @lstat($path);
-        $parent = @lstat(\dirname($path));
-        if (!\is_array($before)
-            || !\is_array($parent)
-            || 0o100000 !== ($before['mode'] & 0o170000)
-            || 0 !== $before['uid']
-            || 0o600 !== ($before['mode'] & 0o777)
-            || 1 !== $before['nlink']
-            || 0o040000 !== ($parent['mode'] & 0o170000)
-            || 0 === $parent['uid']
-            || 0o700 !== ($parent['mode'] & 0o777)
-            || !\function_exists('lchown')
-            || !\function_exists('lchgrp')
-            || !@lchown($path, $parent['uid'])
-            || !@lchgrp($path, $parent['gid'])
-        ) {
-            throw new \RuntimeException('Verified update safety-backup ownership cannot be returned to the service identity.');
-        }
-        $after = @lstat($path);
-        if ($before['ino'] !== $after['ino']
-            || $before['dev'] !== $after['dev']
-            || $parent['uid'] !== $after['uid']
-            || $parent['gid'] !== $after['gid']
-            || 0o600 !== ($after['mode'] & 0o777)
-            || 1 !== $after['nlink']
-        ) {
-            throw new \RuntimeException('Verified update safety-backup ownership changed unsafely.');
         }
     }
 

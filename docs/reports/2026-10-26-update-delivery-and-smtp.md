@@ -37,3 +37,22 @@ without reloading unsaved fields. Server sending gates remain authoritative.
 Auditor receives no sending capability. Light 1.2.7 uses the authenticated existing
 1.2.6 schema proof and both migration ledgers when upgrading to Ripe 1.3.3; exact
 signed source-package rehearsals are required before release.
+
+
+Exact-package native acceptance also exposed an aged configured backup-copy
+receipt blocking verification after a fresh local safety backup was created.
+The repair now verifies that same encrypted backup at the existing approved
+destination before checkpoint/publication when the existing policy enables it.
+No destination, policy or Doctor severity is changed, and no retention or mail
+operation is run. A saved transfer receipt is rechecked against actual bytes,
+private mode and ownership. Root copies retain service ownership and sync file
+metadata and the destination directory before success. Changed existing objects
+are retained and their stale receipt is marked failed. Only bounded structural
+blocker codes cross child-console and installer error boundaries.
+
+The edition transition also copies its existing post-conversion verified backup
+before runtime checks, after assigning both backup and copy to the trusted
+service identity. Copy failure retains the full Light recovery set and restores
+the source; bounded categories survive the failure wrapper and the host guide
+requires Recover rather than Finish or Accept. Root source/copy custody and the
+edition failure action have dedicated regression coverage.
