@@ -24,8 +24,10 @@ fi
 test -d "$project_root/vendor"
 test -d "$output_directory"
 
-iteration="$(date +%s)_${RANDOM}"
+readonly iteration="$(date +%s)_${RANDOM}"
 case_root="$output_directory/light-$iteration"
+readonly case_key="$(printf %s "$case_root" | sha256sum | cut -c1-16)"
+rehearsal_actor_tool="${EMAILER_REHEARSAL_ACTOR_TOOL:-$project_root/tools/ci/rehearsal-actors.py}"
 mkdir -m 0755 "$case_root"
 phase() { printf '%s\n' "$1" > "$case_root/rehearsal-phase"; }
 phase source-install
@@ -36,7 +38,7 @@ run() {
     if [ -n "${rehearsal_detach:-}" ]; then options+=(--detach); fi
     if [ -n "${rehearsal_container:-}" ]; then options+=(--name "$rehearsal_container"); fi
     if [ -d "$case_root/legacy-export" ]; then options+=(-v "$case_root/legacy-export:/old-export:ro"); fi
-    docker run --rm "${options[@]}" --user "${rehearsal_user:-root}" --network "$network" \
+    python3 "$rehearsal_actor_tool" run "$case_root" "$network" -- run --rm "${options[@]}" --user "${rehearsal_user:-root}" --network "$network" \
         -v "$project_root:/tools:ro" \
         -v "$case_root:/original-rehearsal" \
         -v "${rehearsal_case_root_override:-$case_root}:/rehearsal" \
@@ -79,19 +81,16 @@ if run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /rehearsal/
     printf 'A tampered package was accepted.\n' >&2
     exit 1
 fi
-conflicting_operation="ripe106-conflict-$iteration"
+conflicting_operation="ripe106-conflict-${iteration}-${case_key}"
 rehearsal_detach=1 rehearsal_container="$conflicting_operation" run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /tools/tools/upgrade/hold-edition-operation.php' > /dev/null
-run bash -euc 'for iteration in {1..100}; do test ! -f /rehearsal/conflicting-operation-ready || exit 0; sleep 0.1; done; exit 1'
+run bash -euc 'for poll in {1..100}; do test ! -f /rehearsal/conflicting-operation-ready || exit 0; sleep 0.1; done; exit 1'
 if run bash -euc 'set -a; source /rehearsal/updater.env; set +a; printf "%s\n%s\n" "Synthetic recovery rehearsal passphrase only" "Synthetic recovery rehearsal passphrase only" | php /rehearsal/target/bin/console emailer:setup:install --upgrade-light --edition-action=execute --target-package=/package/emailer-next-1.3.3.zip --source-package=/published-light/emailer-light-${EMAILER_REHEARSAL_LIGHT_VERSION}.zip --recovery-directory=/rehearsal/recovery' >> "$case_root/rejections.log" 2>&1; then
-    docker rm --force "$conflicting_operation" >/dev/null
+    python3 "$rehearsal_actor_tool" remove "$case_root" "$network" "$conflicting_operation" >/dev/null
     printf 'A conflicting database operation was accepted.\n' >&2
     exit 1
 fi
 run php -r 'file_put_contents("/rehearsal/release-conflicting-operation", "release");chmod("/rehearsal/release-conflicting-operation",0600);'
-for iteration in {1..100}; do
-    if ! docker container inspect "$conflicting_operation" >/dev/null 2>&1; then break; fi
-    sleep 0.1
-done
+python3 "$rehearsal_actor_tool" wait "$case_root" "$network" "$conflicting_operation"
 run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /rehearsal/target/bin/console emailer:setup:install --upgrade-light --edition-action=inspect --target-package=/package/emailer-next-1.3.3.zip --source-package=/published-light/emailer-light-${EMAILER_REHEARSAL_LIGHT_VERSION}.zip --recovery-directory=/rehearsal/recovery' > "$case_root/inspection.log" 2>&1
 run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /tools/tools/upgrade/active-claim-refusal.php prepare'
 if run bash -euc 'set -a; source /rehearsal/updater.env; set +a; printf "%s\n%s\n" "Synthetic recovery rehearsal passphrase only" "Synthetic recovery rehearsal passphrase only" | php /rehearsal/target/bin/console emailer:setup:install --upgrade-light --edition-action=execute --target-package=/package/emailer-next-1.3.3.zip --source-package=/published-light/emailer-light-${EMAILER_REHEARSAL_LIGHT_VERSION}.zip --recovery-directory=/rehearsal/recovery' >> "$case_root/rejections.log" 2>&1; then
@@ -110,25 +109,25 @@ run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /tools/tools/u
 # Recover after atomic activation, preserving the same signed operation package.
 run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /rehearsal/target/bin/console emailer:setup:install --upgrade-light --edition-action=recover --target-package=/package/emailer-next-1.3.3.zip --source-package=/published-light/emailer-light-${EMAILER_REHEARSAL_LIGHT_VERSION}.zip --recovery-directory=/rehearsal/recovery; php /tools/tools/upgrade/observe-light-rehearsal.php restored' > "$case_root/recovery.log" 2>&1
 
-fault_lock="ripe106-fault-$iteration"
-fault_upgrade="ripe106-upgrade-$iteration"
+fault_lock="ripe106-fault-${iteration}-${case_key}"
+fault_upgrade="ripe106-upgrade-${iteration}-${case_key}"
 cleanup_faults() {
-    docker rm --force "$fault_upgrade" "$fault_lock" >/dev/null 2>&1 || true
+    local failed=0
+    python3 "$rehearsal_actor_tool" remove "$case_root" "$network" "$fault_upgrade" || failed=1
+    python3 "$rehearsal_actor_tool" remove "$case_root" "$network" "$fault_lock" || failed=1
+    return "$failed"
 }
-trap cleanup_faults EXIT
+trap 'status=$?; cleanup_faults || status=1; exit "$status"' EXIT
 # A READ table lock allows complete source inspection/backup but blocks a real
 # ALTER after earlier DDL has committed. No migration SQL is injected by tests.
 rehearsal_detach=1 rehearsal_container="$fault_lock" run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /tools/tools/upgrade/hold-rehearsal-table.php encrypted_secret' > /dev/null
-run bash -euc 'for iteration in {1..100}; do test ! -f /rehearsal/fault-lock-ready || exit 0; sleep 0.1; done; exit 1'
+run bash -euc 'for poll in {1..100}; do test ! -f /rehearsal/fault-lock-ready || exit 0; sleep 0.1; done; exit 1'
 rehearsal_detach=1 rehearsal_container="$fault_upgrade" run bash -euc 'set -a; source /rehearsal/updater.env; set +a; printf "%s\n%s\n" "Synthetic recovery rehearsal passphrase only" "Synthetic recovery rehearsal passphrase only" | php /rehearsal/target/bin/console emailer:setup:install --upgrade-light --edition-action=execute --target-package=/package/emailer-next-1.3.3.zip --source-package=/published-light/emailer-light-${EMAILER_REHEARSAL_LIGHT_VERSION}.zip --recovery-directory=/rehearsal/recovery' > /dev/null
 run php /tools/tools/upgrade/observe-rehearsal-phase.php mutating > "$case_root/fault.log"
-docker kill "$fault_upgrade" >/dev/null
+python3 "$rehearsal_actor_tool" kill "$case_root" "$network" "$fault_upgrade" >/dev/null
 run php /tools/tools/upgrade/release-fault-lock.php
 # Wait for the fault lock to disappear before the real recovery invocation.
-for iteration in {1..100}; do
-    if ! docker container inspect "$fault_lock" >/dev/null 2>&1; then break; fi
-    sleep 0.1
-done
+python3 "$rehearsal_actor_tool" wait "$case_root" "$network" "$fault_lock"
 run bash -euc 'set -a; source /rehearsal/updater.env; set +a; printf "%s\n%s\n" "Synthetic recovery rehearsal passphrase only" "Synthetic recovery rehearsal passphrase only" | php /rehearsal/target/bin/console emailer:setup:install --upgrade-light --edition-action=execute --target-package=/package/emailer-next-1.3.3.zip --source-package=/published-light/emailer-light-${EMAILER_REHEARSAL_LIGHT_VERSION}.zip --recovery-directory=/rehearsal/recovery; php /tools/tools/upgrade/observe-light-rehearsal.php after' > "$case_root/rerun.log" 2>&1
 cleanup_faults
 # A wrong passphrase for the retained target recovery package fails before
@@ -144,15 +143,12 @@ run bash -euc 'set -a; source /rehearsal/updater.env; set +a; printf "%s\n%s\n" 
 # recovering decision must survive and restore the source again on the next run.
 run php -r 'unlink("/rehearsal/fault-lock-ready");unlink("/rehearsal/release-fault-lock");'
 rehearsal_detach=1 rehearsal_container="$fault_lock" run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /tools/tools/upgrade/hold-rehearsal-table.php encrypted_secret' > /dev/null
-run bash -euc 'for iteration in {1..100}; do test ! -f /rehearsal/fault-lock-ready || exit 0; sleep 0.1; done; exit 1'
+run bash -euc 'for poll in {1..100}; do test ! -f /rehearsal/fault-lock-ready || exit 0; sleep 0.1; done; exit 1'
 rehearsal_detach=1 rehearsal_container="$fault_upgrade" run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /rehearsal/target/bin/console emailer:setup:install --upgrade-light --edition-action=recover --target-package=/package/emailer-next-1.3.3.zip --source-package=/published-light/emailer-light-${EMAILER_REHEARSAL_LIGHT_VERSION}.zip --recovery-directory=/rehearsal/recovery' > /dev/null
 run php /tools/tools/upgrade/observe-rehearsal-phase.php recovering >> "$case_root/fault.log"
-docker kill "$fault_upgrade" >/dev/null
+python3 "$rehearsal_actor_tool" kill "$case_root" "$network" "$fault_upgrade" >/dev/null
 run php /tools/tools/upgrade/release-fault-lock.php
-for iteration in {1..100}; do
-    if ! docker container inspect "$fault_lock" >/dev/null 2>&1; then break; fi
-    sleep 0.1
-done
+python3 "$rehearsal_actor_tool" wait "$case_root" "$network" "$fault_lock"
 run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /rehearsal/target/bin/console emailer:setup:install --upgrade-light --edition-action=recover --target-package=/package/emailer-next-1.3.3.zip --source-package=/published-light/emailer-light-${EMAILER_REHEARSAL_LIGHT_VERSION}.zip --recovery-directory=/rehearsal/recovery; php /tools/tools/upgrade/observe-light-rehearsal.php restored' >> "$case_root/recovery.log" 2>&1
 # Fail Doctor after the atomic pointer switch; the exact source key is retained
 # by the injector, while the installer must restore its verified checkpoint.
@@ -168,15 +164,12 @@ run bash -euc 'set -a; source /rehearsal/updater.env; set +a; printf "%s\n%s\n" 
 # the durable hold. HTTP checks are separate from conversion/recovery evidence.
 run php -r 'unlink("/rehearsal/fault-lock-ready");unlink("/rehearsal/release-fault-lock");'
 rehearsal_detach=1 rehearsal_container="$fault_lock" run bash -euc 'set -a; source /rehearsal/updater.env; export DATABASE_URL="$EMAILER_TRANSITION_RECOVERY_DATABASE_URL"; set +a; php /tools/tools/upgrade/hold-rehearsal-table.php encrypted_secret' > /dev/null
-run bash -euc 'for iteration in {1..100}; do test ! -f /rehearsal/fault-lock-ready || exit 0; sleep 0.1; done; exit 1'
+run bash -euc 'for poll in {1..100}; do test ! -f /rehearsal/fault-lock-ready || exit 0; sleep 0.1; done; exit 1'
 rehearsal_detach=1 rehearsal_container="$fault_upgrade" run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /rehearsal/target/bin/console emailer:setup:install --upgrade-light --edition-action=accept --target-package=/package/emailer-next-1.3.3.zip --source-package=/published-light/emailer-light-${EMAILER_REHEARSAL_LIGHT_VERSION}.zip --recovery-directory=/rehearsal/recovery' > /dev/null
 run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /tools/tools/upgrade/observe-scratch-cleanup.php' >> "$case_root/fault.log"
-docker kill "$fault_upgrade" >/dev/null
+python3 "$rehearsal_actor_tool" kill "$case_root" "$network" "$fault_upgrade" >/dev/null
 run php /tools/tools/upgrade/release-fault-lock.php
-for iteration in {1..100}; do
-    if ! docker container inspect "$fault_lock" >/dev/null 2>&1; then break; fi
-    sleep 0.1
-done
+python3 "$rehearsal_actor_tool" wait "$case_root" "$network" "$fault_lock"
 run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /rehearsal/target/bin/console emailer:setup:install --upgrade-light --edition-action=accept --target-package=/package/emailer-next-1.3.3.zip --source-package=/published-light/emailer-light-${EMAILER_REHEARSAL_LIGHT_VERSION}.zip --recovery-directory=/rehearsal/recovery' > "$case_root/acceptance.log" 2>&1
 run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /tools/tools/upgrade/verify-scratch-cleanup.php' >> "$case_root/acceptance.log" 2>&1
 if [ "${EMAILER_REHEARSAL_MINIMAL:-0}" != 1 ]; then

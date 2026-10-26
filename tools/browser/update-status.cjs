@@ -102,7 +102,16 @@ const login = async context => {
     await waitText(editor, /Update in progress/);
     assert.equal(await editor.locator('[name=name]').inputValue(), 'Unsaved during update');
     await editor.unroute('**/admin/update-status');
+    await editor.route('**/admin/update-status', route => route.fulfill({status: 503, headers: {'X-Emailer-Update-State': 'failed', 'X-Emailer-Update-Reason': 'host_services'}, body: 'Setup stopped'}));
+    await waitText(editor, /dedicated Emailer services could not start/);
+    assert.equal(await editor.locator('[name=name]').inputValue(), 'Unsaved during update');
+    await editor.unroute('**/admin/update-status');
+    await editor.route('**/admin/update-status', route => route.fulfill({status: 503, headers: {'X-Emailer-Update-State': 'failed', 'X-Emailer-Update-Reason': 'host_storage'}, body: 'Setup stopped'}));
+    await waitText(editor, /host files or storage could not be accessed/);
+    assert.equal(await editor.locator('[name=name]').inputValue(), 'Unsaved during update');
+    await editor.unroute('**/admin/update-status');
     await waitText(editor, /certificate validation failed/);
+    record('Scoped host-service and storage failures remain accurately blocked on already-open pages without losing unsaved fields');
     record('Only the scoped installer header identifies an update; generic HTTP503 stays unknown, preserves work and recovers without false completion');
     phase = 'each permitted role and auditor access';
     for (const role of ['ROLE_OPERATOR', 'ROLE_ADMINISTRATOR', 'ROLE_OWNER', 'ROLE_AUDITOR']) {

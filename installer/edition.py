@@ -35,7 +35,8 @@ def native_source_root(releases, version, recorded):
 class EditionManager(Manager):
     def run(self):
         if self.product == 'emailer-light' or self.record.get('mode') == 'light-to-ripe':
-            return self.transition_menu()
+            with self.guarded_action():
+                return self.transition_menu()
         return super().run()
 
     def native_action(self, choice):

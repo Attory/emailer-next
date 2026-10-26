@@ -187,6 +187,8 @@ Doctor shows sending blockers and their repair actions. A normal update preserve
 
 ### When an update blocks sending
 
+If host setup stops, sending stays blocked and the saved operation records the failure. A committed update can be finished with the same setup file after correcting its reported service or storage problem. Do not delete its state or database. Already-open Ripe pages distinguish a stopped setup from an update still running; if the web server cannot refresh that notice, use the installer’s protected failure report.
+
 A prominent notification on the dashboard and campaign screens explains whether an update is in progress, an active campaign was paused, or sending remains blocked after a failure. Send campaign is dimmed and disabled with the reason beside it; the server enforces the same restriction. Only a campaign actually sending when the installer acquired the hold is marked Paused during update. Drafts, completed campaigns and previously paused campaigns keep their real state.
 
 Already-open pages update within a few seconds without reloading your unsaved fields. Hidden tabs check when you return. After the first update that introduces this feature, refresh pages opened by an older release once to load it. A completed update clears its notification; an intentional pre-existing delivery hold still appears in Doctor.

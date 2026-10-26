@@ -37,6 +37,14 @@ if (banner) {
             const response = await fetch(banner.dataset.statusUrl, {credentials: 'same-origin', cache: 'no-store', headers: {Accept: 'application/json'}, signal: controller.signal});
             if (response.status === 503 && response.headers.get('X-Emailer-Update-State') === 'in-progress') {
                 apply({blocked: true, phase: 'in_progress', message: 'Update in progress; sending temporarily unavailable. Your unsaved work is retained.', paused_campaign_ids: []});
+            } else if (response.status === 503 && response.headers.get('X-Emailer-Update-State') === 'failed') {
+                const reasons = {
+                    host_services: 'Update stopped because the dedicated Emailer services could not start.',
+                    host_storage: 'Update stopped because required host files or storage could not be accessed.',
+                    verification: 'Update stopped during setup verification.',
+                };
+                const reason = reasons[response.headers.get('X-Emailer-Update-Reason')] || 'Update stopped before setup completed.';
+                apply({blocked: true, phase: 'failed', message: reason + ' Sending remains blocked. Start the same setup file and use Finish or Recover as indicated. Your unsaved work is retained.', paused_campaign_ids: []});
             } else {
                 if (!response.ok || response.redirected || !response.headers.get('content-type')?.includes('application/json')) throw new Error('unavailable');
                 const status = await response.json();

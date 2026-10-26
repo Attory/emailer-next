@@ -61,3 +61,23 @@ Native systemd acceptance caught the supervised scheduler treating the new
 update hold as a startup failure. Its existing wait-for-configuration mode now
 also reports this specific closed gate as waiting (zero queued/reconciled),
 while explicit runs still fail and database/application errors remain errors.
+
+Parallel exact-package rehearsals exposed a test-control defect: an outer polling
+counter replaced the case ID and reused fault-container names. The helper now
+keeps an immutable case ID, adds a case-path namespace, records immutable Docker
+IDs outside application-mounted data, and proves labels, both case mounts and
+the exact internal network before kill/removal. A replacement or foreign actor
+is retained. Docker uncertainty is an error, never proof of absence. The original
+historical1.1 helper remains unchanged: an exact-hash-authenticated private test
+copy applies the same control-only adapter, using the original historical tools
+and signed runtime packages. Conversion, recovery and no-send assertions remain.
+
+Final failure-path review confirmed that host SetupError/filesystem failures
+could bypass the narrower management handler and leave a false in-progress
+receipt. One guarded action boundary now covers menu early returns, host adoption,
+service startup and delivery restoration. Expected readiness blocks and unexpected
+host failures both retain the update restriction and record a safe reason even
+when the database retention command fails. Completed authoritative receipts are
+terminal and never reacquire a hold after a later diagnostic/save error. File
+errors use bounded categories, not paths or raw exception text; a failure to write
+the protected record itself exits nonzero with a fixed recovery instruction.
