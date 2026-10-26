@@ -14,3 +14,7 @@ table{border-collapse:collapse;width:100%;font-size:.93rem;background:var(--surf
 
 .guide-copy{max-width:78ch;margin-inline:auto}.guide-copy section{scroll-margin-top:2rem;margin-block:2rem}.guide-copy li{margin-block:.75rem}.guide-copy dt{font-weight:700;margin-top:1rem}.guide-copy dd{margin-left:0}.guide-copy nav{line-height:2}
 @media print{.admin-header,.skip-link,.page-heading>a,.guide-copy>nav{display:none}.guide-copy{border:0;max-width:none;padding:0}.admin-content{max-width:none;padding:0}body{background:white;color:black}}
+
+/* Update maintenance affects application controls, never newsletter content. */
+button.update-disabled, button[data-update-send]:disabled { opacity: .55; cursor: not-allowed; }
+.update-maintenance[hidden], [data-update-campaign][hidden], [data-update-send-explanation][hidden] { display: none; }

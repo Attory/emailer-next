@@ -17,7 +17,7 @@ app_image="${EMAILER_REHEARSAL_APP_IMAGE:-emailer-next-app:latest}"
 network="${EMAILER_REHEARSAL_NETWORK:?An internal disposable network is required}"
 test "$(docker network inspect --format '{{.Internal}}' "$network")" = true
 light_version="${EMAILER_REHEARSAL_LIGHT_VERSION:-1.0.0}"
-case "$light_version" in 1.0.0|1.1.0|1.2.0|1.2.1|1.2.2|1.2.3|1.2.4|1.2.5|1.2.6) ;; *) exit 2 ;; esac
+case "$light_version" in 1.0.0|1.1.0|1.2.0|1.2.1|1.2.2|1.2.3|1.2.4|1.2.5|1.2.6|1.2.7) ;; *) exit 2 ;; esac
 if [ "$light_version" = 1.0.0 ]; then
     test "$(sha256sum "$light_archive" | cut -d' ' -f1)" = cfd9afb133c3bbfe7da6053aa2d121d325200c46f4db51e784699356d28d0e77
 fi

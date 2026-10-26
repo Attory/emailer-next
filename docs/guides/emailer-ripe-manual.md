@@ -64,14 +64,23 @@ High is the fresh and Light-upgrade default. Sensitive actions ask for your own 
 
 ## Configure email now or later
 
+SMTP is optional until you want to send. Sign in, edit templates and prepare campaign drafts without it.
+
 1. Open Settings & tools > Mail settings. Enter your provider server, port, STARTTLS/direct TLS, username, SMTP password/key and permitted sender address. Sender name and reply-to are optional.
-2. Choose Store secure SMTP configuration. If asked, enter your own Owner password and authenticator/recovery code, then Confirm and store. Saving encrypts settings and sends nothing.
-3. Choose Test connection without sending to validate the certificate and sign-in without emailing anyone.
-4. For one message, enter your own address in Test destination, check it, then choose Send test email. This never approves or sends a campaign.
+2. Choose <strong>Test connection without sending</strong>. It tests the fields currently visible, including a password you entered. It neither sends a message nor saves changes. You can test while delivery is held.
+3. If the result says <strong>Current settings tested successfully—save to apply</strong>, choose <strong>Save SMTP settings</strong> to apply those settings. A matching recent successful test is carried into that explicit save. Changing the connection fields or password requires another test. Ripe may ask for your Owner password and authenticator or recovery code before saving.
+4. <strong>Test saved connection</strong> is a separate check of the already-saved configuration; it does not apply a different form. A current-form test that exactly matches the saved configuration says so.
+5. To send one message, enter your own address in <strong>Test destination</strong>, check that address, and explicitly choose <strong>Send test email</strong>. This uses saved settings and never approves or sends a campaign. An operational delivery hold still blocks this sending action.
 
-![Mail settings before a provider is configured.](images/emailer-ripe-mail.png)
+![Actual current-form connection-test success. Saving is a separate action; the password field was cleared before capture.](images/emailer-ripe-smtp-current.png)
 
-A blank SMTP password retains the saved password only for the same server and username. A new server or login needs its password. Provider suggestions are conveniences. Leave the optional one-click DKIM attestation unticked unless your provider confirms signing both unsubscribe headers.
+Leave the SMTP password blank only to reuse the saved password for the same server hostname and username. If either changes, enter the password. A new password is tested directly even if the old stored credential cannot be read. Passwords stay in the form during in-place test errors and retries; they are never echoed in responses or saved in browser storage.
+
+If a test fails, correct the named problem: incomplete settings, hostname/DNS, connection refusal or timeout, certificate validation, authentication, or an internal application error. Internal failures show a reference for investigation. Your current fields remain entered. If you edit while a test is running, the result describes the earlier values and asks you to test the current entries.
+
+![Actual certificate-error feedback on a mobile-sized screen. The entered provider details remain in the form; no message was sent.](images/emailer-ripe-smtp-error-mobile.png)
+
+A full-page Save validation error retains non-secret fields and explains that the settings were not saved. Passwords are not redisplayed; enter the SMTP password again if needed. Keep the optional one-click DKIM attestation unticked unless your provider confirms signing both unsubscribe headers.
 
 ## Roles and additional accounts
 
@@ -172,10 +181,20 @@ Save template draft stores an unpublished version. Preview it and choose Publish
 
 ## Health, backups and updates
 
-Doctor shows each sending blocker and repair action. Native updates and edition upgrades also leave an operational hold. Use the installer's explicit Resume action after readiness passes. Previously approved due campaigns may continue when you resume; drafts are never approved automatically.
+Doctor shows sending blockers and their repair actions. A normal update preserves the prior operational state after verification: an idle installation needs no SMTP just to complete its update; a pre-existing delivery hold remains held. Previously active approved campaigns continue only when normal readiness checks pass. Drafts are never approved or started. A Light-to-Ripe edition upgrade still requires the separate guided readiness acceptance.
+
+### When an update blocks sending
+
+A prominent notification on the dashboard and campaign screens explains whether an update is in progress, an active campaign was paused, or sending remains blocked after a failure. Send campaign is dimmed and disabled with the reason beside it; the server enforces the same restriction. Only a campaign actually sending when the installer acquired the hold is marked Paused during update. Drafts, completed campaigns and previously paused campaigns keep their real state.
+
+Already-open pages update within a few seconds without reloading your unsaved fields. Hidden tabs check when you return. After the first update that introduces this feature, refresh pages opened by an older release once to load it. A completed update clears its notification; an intentional pre-existing delivery hold still appears in Doctor.
+
+![Actual campaign screen after an update begins: the sending action is dimmed and disabled, with the reason shown.](images/emailer-ripe-update-active.png)
+
+![Actual retained update hold on mobile, including the specific readiness failure.](images/emailer-ripe-update-blocked-mobile.png)
 
 Fresh setup enables daily encrypted local backup copies. Under Backups inspect verification and transfer evidence, adjust policy or create and verify an on-demand backup. Keep the recovery-key package and its password separately. Same-server copies do not protect against server loss; arrange an independent backup destination. Restore drills are supervised, never automatic.
 
-For Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2, 1.3.0, 1.3.1 or 1.3.2 to 1.3.3, start the new official setup file, choose Update with a verified backup and follow any Finish instruction. This includes Ripe 1.1.0 installations previously converted from Light. Existing MFA, password, recipients, tracking, SMTP encryption contexts and recovery history are retained. Review Doctor before Resume. Earlier Ripe versions must follow their published supported path to 1.0.6 first. Interrupted operations use Recover; committed operations use Finish and cannot be downgraded by recovery. See the [operator reference](emailer-ripe-operator.md).
+For Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2, 1.3.0, 1.3.1 or 1.3.2 to 1.3.3, start the new official setup file and choose Update with a verified backup. Successful completion says Update successful. Sign in: followed by your address. Follow Finish only if the installer explicitly reports a committed operation that needs completion. If verification or sending readiness fails, the hold remains and the installer gives the actual reason and next action. Earlier Ripe releases must follow their supported path to 1.0.6 first. Recovery never automatically retries an uncertain message. See the [operator reference](emailer-ripe-operator.md).
 
 This release adds a database migration. Update with the guided setup file and keep its recovery material. Normal restore needs the same database schema. Recover older backups with their matching release in an isolated environment. For interrupted updates choose Recover in setup; a completed update cannot be downgraded through recovery.

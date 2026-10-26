@@ -20,7 +20,7 @@ use App\Shared\EmailAddress;
 use App\Shared\Identity;
 use Doctrine\DBAL\Connection;
 
-final readonly class CampaignManager
+final readonly class CampaignManager implements Contract\CampaignUpdateStatus
 {
     public function __construct(
         private Connection $connection,
@@ -34,7 +34,33 @@ final readonly class CampaignManager
         private CampaignDeliveryGateway $delivery,
         private SendingGate $sendingGate,
         private CampaignRecipientCsv $recipientCsv,
+        private ?\App\Shared\UpdateDeliveryState $updateState = null,
+        private ?\App\Shared\MaintenanceOperationLock $maintenance = null,
     ) {
+    }
+
+    /** @param list<string> $ids
+     * @return list<string>
+     */
+    public function stillSending(array $ids): array
+    {
+        if ([] === $ids) {
+            return [];
+        }
+        if (1000 < \count($ids)) {
+            throw new \InvalidArgumentException('Update campaign status exceeds its bounded scope.');
+        }
+        $placeholders = implode(',', array_fill(0, \count($ids), '?'));
+        $rows = $this->connection->fetchFirstColumn("SELECT id FROM campaign WHERE state='sending' AND id IN ($placeholders)", $ids);
+        $result = [];
+        foreach ($rows as $id) {
+            if (!\is_string($id)) {
+                throw new \UnexpectedValueException('Campaign update identity is unavailable.');
+            }
+            $result[] = $id;
+        }
+
+        return $result;
     }
 
     /** @return list<array<string, mixed>> */
@@ -386,6 +412,17 @@ final readonly class CampaignManager
     public function requestTest(AdministrativeActor $actor, string $campaignId): string
     {
         $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'campaign.test.request');
+        $this->maintenance?->acquire();
+        try {
+            return $this->requestTestWithMaintenance($actor, $campaignId);
+        } finally {
+            $this->maintenance?->release();
+        }
+    }
+
+    private function requestTestWithMaintenance(AdministrativeActor $actor, string $campaignId): string
+    {
+        $this->updateState?->assertSendingAllowed();
         $this->uuid($campaignId);
         $address = new EmailAddress($actor->loginIdentifier());
         $id = Identity::uuidV7();

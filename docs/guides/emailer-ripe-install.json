@@ -174,7 +174,7 @@
     },
     {
       "type": "p",
-      "text": "When ready, open <b>Settings &amp; tools &gt; Mail settings</b>. Use your provider's outgoing-mail server, port, encryption, username, SMTP password/key and permitted sender address. The sender name is optional. Saving encrypts the settings; it sends nothing. Choose <b>Test connection without sending</b> to check secure connection and sign-in. To send one message, enter your own address in <b>Test destination</b> and explicitly choose <b>Send test email</b>."
+      "text": "When ready, open <b>Settings &amp; tools &gt; Mail settings</b> and enter your provider details. <b>Test connection without sending</b> tests the current visible fields without saving or emailing anyone. If it says Current settings tested successfully—save to apply, choose <b>Save SMTP settings</b>. A blank password reuses a saved password only for the same host and username. <b>Test saved connection</b> checks only the already-saved configuration. To send one requested message, enter your own address in <b>Test destination</b> and explicitly choose <b>Send test email</b>. See the <a href=\"emailer-ripe-manual.html\">user manual</a> for examples and error guidance."
     },
     {
       "type": "image",

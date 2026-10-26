@@ -14,7 +14,7 @@ class ConfigurationReached(Exception):
 
 class ActivePointer(unittest.TestCase):
     def test_completed_new_handoff_can_be_opened_again(self):
-        for prefix, product, suffix in [('emailer-light', 'emailer-light', '126'), ('emailer', 'emailer-ripe', '133'), ('emailer-light', 'emailer-ripe', '133')]:
+        for prefix, product, suffix in [('emailer-light', 'emailer-light', '126'), ('emailer-light', 'emailer-light', '127'), ('emailer', 'emailer-ripe', '133'), ('emailer-light', 'emailer-ripe', '133')]:
             with self.subTest(prefix=prefix, product=product), tempfile.TemporaryDirectory() as directory:
                 root = Path(directory) / prefix
                 root.mkdir()

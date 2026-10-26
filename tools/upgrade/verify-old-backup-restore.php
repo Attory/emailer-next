@@ -45,7 +45,7 @@ if (['product_id' => 'emailer-light', 'product_version' => $sourceVersion, 'sche
     throw new RuntimeException('Legacy restore did not use the exact Light schema/edition.');
 }
 if (App\Module\Release\Application\LightSourcePackage::migrationsFor($sourceVersion) !== $c->fetchFirstColumn('SELECT version FROM doctrine_migration_versions ORDER BY version')
-    || ('1.2.6' === $sourceVersion ? 'YES' : 'NO') !== $c->fetchOne("SELECT IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='campaign' AND COLUMN_NAME='template_version_id'")) {
+    || (in_array($sourceVersion, ['1.2.6', '1.2.7'], true) ? 'YES' : 'NO') !== $c->fetchOne("SELECT IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='campaign' AND COLUMN_NAME='template_version_id'")) {
     throw new RuntimeException('Restored Light ledger or nullable-template profile differs from its authenticated source.');
 }
 if (!hash_equals((string) hash_file('sha256', '/rehearsal/keys/master.key'), (string) hash_file('sha256', '/old-export/keys/master.key'))) {

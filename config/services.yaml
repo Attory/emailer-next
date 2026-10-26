@@ -388,3 +388,14 @@ services:
 
     App\Module\Configuration\Application\Contract\PublicDnsResolver:
         alias: App\Module\Configuration\Infrastructure\BoundedPublicDnsResolver
+
+    App\Shared\UpdateDeliveryState:
+        arguments:
+            $privateDirectory: '%emailer.private_dir%'
+
+    App\Module\Campaigns\Application\Contract\CampaignUpdateStatus: '@App\Module\Campaigns\Application\CampaignManager'
+
+    App\Module\Configuration\Application\MailConnectionEvidence:
+        arguments:
+            $applicationSecret: '%kernel.secret%'
+            $stateDirectory: '%emailer.private_dir%/mail-connection-tests'

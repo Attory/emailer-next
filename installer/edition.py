@@ -98,12 +98,13 @@ class EditionManager(Manager):
         operation = pending[-1]
         self.console(['emailer:release:update', str(self.package), '--source-package=' + str(source), '--approved-target=' + self.installer.version, '--finish-native-operation=' + operation['operation_id'], '--no-interaction'])
         handoff.complete()
+        handoff.restore_update_delivery()
         return {'delivery_held': True}
 
     def transition_menu(self):
         source_version = self.record.get('transition_source', self.source_version)
-        if source_version not in ('1.0.0', '1.1.0', '1.2.0', '1.2.1', '1.2.2', '1.2.3', '1.2.4', '1.2.5', '1.2.6'):
-            raise ManagementError('Only Light 1.0.0, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.2.5 and 1.2.6 are supported sources.')
+        if source_version not in ('1.0.0', '1.1.0', '1.2.0', '1.2.1', '1.2.2', '1.2.3', '1.2.4', '1.2.5', '1.2.6', '1.2.7'):
+            raise ManagementError('Only Light 1.0.0, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.2.5, 1.2.6 and 1.2.7 are supported sources.')
         print(f'\nLight {source_version} → Ripe {self.installer.version}')
         print('Application address: ' + installation_address(self.values))
         print('Protected settings: ' + str(self.configuration))

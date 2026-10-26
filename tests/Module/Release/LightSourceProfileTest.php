@@ -1,0 +1,23 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Tests\Module\Release;
+
+use App\Module\Release\Application\LightSourcePackage;
+use PHPUnit\Framework\TestCase;
+
+final class LightSourceProfileTest extends TestCase
+{
+    public function testNewLightUsesTheExactExistingDraftSchemaAndBothMigrationLedgers(): void
+    {
+        self::assertContains('1.2.7', LightSourcePackage::SUPPORTED_VERSIONS);
+        self::assertSame('20261025000000', LightSourcePackage::schemaFor('1.2.7'));
+        self::assertSame('1.2.6', LightSourcePackage::proofFor('1.2.7'));
+        self::assertSame(LightSourcePackage::migrationsFor('1.2.6'), LightSourcePackage::migrationsFor('1.2.7'));
+        self::assertCount(2, LightSourcePackage::migrationsFor('1.2.7'));
+        self::assertSame('20261014000000', LightSourcePackage::schemaFor('1.0.0'));
+        $this->expectException(\RuntimeException::class);
+        LightSourcePackage::schemaFor('1.2.8');
+    }
+}

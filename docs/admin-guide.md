@@ -201,7 +201,7 @@ To send a newsletter:
    is still checked before every attempt.
 
 Mail settings show the complete nonsecret configuration to Owners. Clicking
-**Store secure SMTP configuration** asks for current Owner password and MFA
+**Save SMTP settings** asks for current Owner password and MFA
 when the five-minute SMTP confirmation has expired. Confirm and store completes
 the same form. Cancel clears only confirmation credentials and leaves unsaved
 SMTP fields on the page. Without JavaScript, confirmation fields appear in the
@@ -217,3 +217,20 @@ in [CLIENT-LIGHT-UPGRADE-1.0.6.md](CLIENT-LIGHT-UPGRADE-1.0.6.md) and
 recovery, acceptance and isolated old-Light-backup export. No HTTP update or
 restore route is introduced. Contacts/lists remain independent of campaign-owned
 Light recipients. Delivery remains held until explicit accepted readiness/resume.
+
+
+### Test the SMTP fields you are editing
+
+**Test connection without sending** uses the current form, including an entered
+password. It performs verified TLS and authentication without sending a message
+or silently saving settings. **Current settings tested successfully—save to
+apply** means the tested connection still needs an explicit **Save SMTP
+settings**. A different saved configuration is not marked ready by that test.
+**Test saved connection** checks only the already-saved configuration.
+
+A blank password can reuse the stored credential only for the same hostname and
+username. Test failures preserve the form and explain incomplete settings, DNS,
+connection refusal/timeout, TLS certificate, authentication or internal failure.
+Passwords are never redisplayed or persisted in browser storage. Connection-only
+testing is available while delivery is held; sending a test message is separate
+and still respects the hold.

@@ -57,12 +57,18 @@ final class CampaignDraftHttpTest extends WebTestCase
             self::assertTrue($client->getResponse()->isRedirection());
             $loginRedirect = $client->getResponse()->headers->get('location');
             self::assertSame('/login', $loginRedirect);
+            $client->request('GET', '/', server: $server);
+            self::assertResponseRedirects('/login', 303);
             $login = $client->request('GET', '/login', server: $server);
             $client->request('POST', '/login', ['login_identifier' => 'editor@example.test', 'password' => $password,
                 '_token' => self::token($login, 'form input[name="_token"]')], server: $server);
             self::assertSame(303, $client->getResponse()->getStatusCode());
             $authenticatedRedirect = $client->getResponse()->headers->get('location');
             self::assertSame('https://emailer.example.test/admin/templates/assets', $authenticatedRedirect);
+            $client->request('GET', '/', server: $server);
+            self::assertResponseRedirects('/admin', 303);
+            $client->request('GET', '/admin', server: $server);
+            self::assertResponseIsSuccessful();
 
             $source = $private.'/recipients.csv';
             file_put_contents($source, "email,first_name\nalex@example.test,Alex\n");

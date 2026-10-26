@@ -132,22 +132,40 @@
       "text": "Configure email now or later"
     },
     {
+      "type": "p",
+      "text": "SMTP is optional until you want to send. Sign in, edit templates and prepare campaign drafts without it."
+    },
+    {
       "type": "ol",
       "items": [
         "Open Settings &amp; tools &gt; Mail settings. Enter your provider server, port, STARTTLS/direct TLS, username, SMTP password/key and permitted sender address. Sender name and reply-to are optional.",
-        "Choose Store secure SMTP configuration. If asked, enter your own Owner password and authenticator/recovery code, then Confirm and store. Saving encrypts settings and sends nothing.",
-        "Choose Test connection without sending to validate the certificate and sign-in without emailing anyone.",
-        "For one message, enter your own address in Test destination, check it, then choose Send test email. This never approves or sends a campaign."
+        "Choose <strong>Test connection without sending</strong>. It tests the fields currently visible, including a password you entered. It neither sends a message nor saves changes. You can test while delivery is held.",
+        "If the result says <strong>Current settings tested successfully—save to apply</strong>, choose <strong>Save SMTP settings</strong> to apply those settings. A matching recent successful test is carried into that explicit save. Changing the connection fields or password requires another test. Ripe may ask for your Owner password and authenticator or recovery code before saving.",
+        "<strong>Test saved connection</strong> is a separate check of the already-saved configuration; it does not apply a different form. A current-form test that exactly matches the saved configuration says so.",
+        "To send one message, enter your own address in <strong>Test destination</strong>, check that address, and explicitly choose <strong>Send test email</strong>. This uses saved settings and never approves or sends a campaign. An operational delivery hold still blocks this sending action."
       ]
     },
     {
       "type": "image",
-      "file": "emailer-ripe-mail.png",
-      "caption": "Mail settings before a provider is configured."
+      "file": "emailer-ripe-smtp-current.png",
+      "caption": "Actual current-form connection-test success. Saving is a separate action; the password field was cleared before capture."
     },
     {
       "type": "p",
-      "text": "A blank SMTP password retains the saved password only for the same server and username. A new server or login needs its password. Provider suggestions are conveniences. Leave the optional one-click DKIM attestation unticked unless your provider confirms signing both unsubscribe headers."
+      "text": "Leave the SMTP password blank only to reuse the saved password for the same server hostname and username. If either changes, enter the password. A new password is tested directly even if the old stored credential cannot be read. Passwords stay in the form during in-place test errors and retries; they are never echoed in responses or saved in browser storage."
+    },
+    {
+      "type": "p",
+      "text": "If a test fails, correct the named problem: incomplete settings, hostname/DNS, connection refusal or timeout, certificate validation, authentication, or an internal application error. Internal failures show a reference for investigation. Your current fields remain entered. If you edit while a test is running, the result describes the earlier values and asks you to test the current entries."
+    },
+    {
+      "type": "image",
+      "file": "emailer-ripe-smtp-error-mobile.png",
+      "caption": "Actual certificate-error feedback on a mobile-sized screen. The entered provider details remain in the form; no message was sent."
+    },
+    {
+      "type": "p",
+      "text": "A full-page Save validation error retains non-secret fields and explains that the settings were not saved. Passwords are not redisplayed; enter the SMTP password again if needed. Keep the optional one-click DKIM attestation unticked unless your provider confirms signing both unsubscribe headers."
     },
     {
       "type": "h2",
@@ -362,7 +380,29 @@
     },
     {
       "type": "p",
-      "text": "Doctor shows each sending blocker and repair action. Native updates and edition upgrades also leave an operational hold. Use the installer's explicit Resume action after readiness passes. Previously approved due campaigns may continue when you resume; drafts are never approved automatically."
+      "text": "Doctor shows sending blockers and their repair actions. A normal update preserves the prior operational state after verification: an idle installation needs no SMTP just to complete its update; a pre-existing delivery hold remains held. Previously active approved campaigns continue only when normal readiness checks pass. Drafts are never approved or started. A Light-to-Ripe edition upgrade still requires the separate guided readiness acceptance."
+    },
+    {
+      "type": "h3",
+      "text": "When an update blocks sending"
+    },
+    {
+      "type": "p",
+      "text": "A prominent notification on the dashboard and campaign screens explains whether an update is in progress, an active campaign was paused, or sending remains blocked after a failure. Send campaign is dimmed and disabled with the reason beside it; the server enforces the same restriction. Only a campaign actually sending when the installer acquired the hold is marked Paused during update. Drafts, completed campaigns and previously paused campaigns keep their real state."
+    },
+    {
+      "type": "p",
+      "text": "Already-open pages update within a few seconds without reloading your unsaved fields. Hidden tabs check when you return. After the first update that introduces this feature, refresh pages opened by an older release once to load it. A completed update clears its notification; an intentional pre-existing delivery hold still appears in Doctor."
+    },
+    {
+      "type": "image",
+      "file": "emailer-ripe-update-active.png",
+      "caption": "Actual campaign screen after an update begins: the sending action is dimmed and disabled, with the reason shown."
+    },
+    {
+      "type": "image",
+      "file": "emailer-ripe-update-blocked-mobile.png",
+      "caption": "Actual retained update hold on mobile, including the specific readiness failure."
     },
     {
       "type": "p",
@@ -370,7 +410,7 @@
     },
     {
       "type": "p",
-      "text": "For Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2, 1.3.0, 1.3.1 or 1.3.2 to 1.3.3, start the new official setup file, choose Update with a verified backup and follow any Finish instruction. This includes Ripe 1.1.0 installations previously converted from Light. Existing MFA, password, recipients, tracking, SMTP encryption contexts and recovery history are retained. Review Doctor before Resume. Earlier Ripe versions must follow their published supported path to 1.0.6 first. Interrupted operations use Recover; committed operations use Finish and cannot be downgraded by recovery. See the <a href=\"emailer-ripe-operator.html\">operator reference</a>."
+      "text": "For Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2, 1.3.0, 1.3.1 or 1.3.2 to 1.3.3, start the new official setup file and choose Update with a verified backup. Successful completion says Update successful. Sign in: followed by your address. Follow Finish only if the installer explicitly reports a committed operation that needs completion. If verification or sending readiness fails, the hold remains and the installer gives the actual reason and next action. Earlier Ripe releases must follow their supported path to 1.0.6 first. Recovery never automatically retries an uncertain message. See the <a href=\"emailer-ripe-operator.html\">operator reference</a>."
     },
     {
       "type": "callout",

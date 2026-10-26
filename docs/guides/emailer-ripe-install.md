@@ -78,7 +78,7 @@ Wait for **Installation successful**. Open the printed HTTPS login address in yo
 
 You can prepare templates and draft campaigns immediately. **Email delivery is not configured** means actual sending is blocked. No campaign is approved or sent during installation.
 
-When ready, open **Settings & tools > Mail settings**. Use your provider's outgoing-mail server, port, encryption, username, SMTP password/key and permitted sender address. The sender name is optional. Saving encrypts the settings; it sends nothing. Choose **Test connection without sending** to check secure connection and sign-in. To send one message, enter your own address in **Test destination** and explicitly choose **Send test email**.
+When ready, open **Settings & tools > Mail settings** and enter your provider details. **Test connection without sending** tests the current visible fields without saving or emailing anyone. If it says Current settings tested successfully—save to apply, choose **Save SMTP settings**. A blank password reuses a saved password only for the same host and username. **Test saved connection** checks only the already-saved configuration. To send one requested message, enter your own address in **Test destination** and explicitly choose **Send test email**. See the [user manual](emailer-ripe-manual.md) for examples and error guidance.
 
 ![Actual Mail settings screen. A connection test sends no message; sending a test email is a separate explicit action.](images/emailer-ripe-mail.png)
 

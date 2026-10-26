@@ -105,7 +105,15 @@ A lost master key uses the separately stored encrypted recovery package and the 
 
 ## Update and interruption procedure
 
-Keep the downloaded signed setup file and all operation journals. Choose Update (or the private edition Upgrade action), allow backup/quiescence and follow its status. Recover unfinished operations before retrying; Finish/Accept committed operations. On successful completion review Doctor and the previously approved due campaigns before explicit Resume. A completed update cannot be downgraded by replaying old recovery files.
+Keep the signed setup file and operation journals. Normal same-edition updates acquire the application maintenance lock and the worker claim-row lock, capture the prior delivery state and acquire the hold atomically. The installer fences the dedicated web runtime, drains campaign and explicit-test work, verifies recovery material, then updates. A shared or unrecorded PHP-FPM service cannot be drained safely by this automatic path: setup stops before hold/site mutation and requires a supervised update with verified instance quiescence. Never stop a shared PHP service to work around that check.
+
+The root-owned update-maintenance.json journal lives beside the private application directory and outside immutable runtime checkpoints. It records prior accepting_work, campaign IDs, per-state recipient counts and in-flight recipient/attempt IDs. Sent means SMTP accepted; remaining means pending + retry + processing, excluding terminal failure, suppression, cancellation and uncertain outcomes. Capture itself never schedules delivery. Only prior accepting_work=1 with a sending campaign and remaining recipients produces the paused-delivery announcement.
+
+After successful verification, an originally idle accepting installation is restored without requiring optional SMTP. A prior operational hold stays held. Active approved delivery uses normal readiness before continuation. Uncertain in-flight outcomes are held for explicit investigation, never automatically retried. Verification failures retain the hold and a specific action. Recover deliberately leaves delivery held; an explicit guided Resume requires readiness and never approves drafts. A completed operation is terminal and cannot be replayed as recovery.
+
+### SMTP form tests and safe diagnostics
+
+Current-form tests run EHLO, mandatory verified TLS and AUTH, with no MAIL/RCPT/DATA. They do not replace encrypted credentials or save provider fields. Matching saved configuration may record verification; a different configuration receives a ten-minute actor-bound test receipt for the separate explicit Save. A newer test, including failure, invalidates earlier evidence through an owner-only authoritative attempt file under private/mail-connection-tests; stale database-session writes cannot revive it. Missing or unsafe evidence fails closed. Passwords and provider dialogues are omitted from diagnostics; retain the shown reference, category, phase and numeric failure code for investigation.
 
 Operations track created resources and preserve pre-existing databases, websites and shared dependencies. Do not clean up a retained work directory or rewrite a receipt while investigating. Service-account transfers and source database fencing ensure an old application process cannot resume writing after conversion.
 

@@ -305,6 +305,8 @@ final class CampaignsController extends AbstractController
             }
             $operation();
             $this->addFlash('success', $success);
+        } catch (\DomainException $exception) {
+            $this->addFlash('error', $exception->getMessage());
         } catch (\Throwable) {
             $this->addFlash('error', match ($token) {
                 'campaign-approve' => 'Approval was not accepted. Refresh the review if this draft changed. Send an accepted test of the current draft, check its audience size, and confirm its RSVP setting matches the template.',
