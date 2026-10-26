@@ -56,3 +56,8 @@ service identity. Copy failure retains the full Light recovery set and restores
 the source; bounded categories survive the failure wrapper and the host guide
 requires Recover rather than Finish or Accept. Root source/copy custody and the
 edition failure action have dedicated regression coverage.
+
+Native systemd acceptance caught the supervised scheduler treating the new
+update hold as a startup failure. Its existing wait-for-configuration mode now
+also reports this specific closed gate as waiting (zero queued/reconciled),
+while explicit runs still fail and database/application errors remain errors.
