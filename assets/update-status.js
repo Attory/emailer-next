@@ -1,3 +1,4 @@
+// An expired background poll must not replace Symfony's post-login page target.
 // Poll only bounded, authenticated status. Never reload a form or replace its contents.
 const banner = document.querySelector('[data-update-status]');
 if (banner) {
@@ -34,7 +35,7 @@ if (banner) {
         const controller = new AbortController();
         const timeout = setTimeout(() => controller.abort(), 7000);
         try {
-            const response = await fetch(banner.dataset.statusUrl, {credentials: 'same-origin', cache: 'no-store', headers: {Accept: 'application/json'}, signal: controller.signal});
+            const response = await fetch(banner.dataset.statusUrl, {credentials: 'same-origin', cache: 'no-store', headers: {Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest'}, signal: controller.signal});
             if (response.status === 503 && response.headers.get('X-Emailer-Update-State') === 'in-progress') {
                 apply({blocked: true, phase: 'in_progress', message: 'Update in progress; sending temporarily unavailable. Your unsaved work is retained.', paused_campaign_ids: []});
             } else if (response.status === 503 && response.headers.get('X-Emailer-Update-State') === 'failed') {

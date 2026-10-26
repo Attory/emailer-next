@@ -139,6 +139,38 @@ const login = async context => {
     await banner(lastPage).waitFor({ state: 'hidden', timeout: 40000 });
     assert.equal(await lastPage.getByRole('button', { name: 'Send campaign', exact: true }).isDisabled(), false);
     record('A confirmed completion removes the update notice and restores only controls originally enabled');
+    phase = 'expired background polling does not become the next login destination';
+    const expiredContext = await browser.newContext();
+    const expiredEditor = await login(expiredContext);
+    const statusRequest = expiredEditor.waitForRequest(request => new URL(request.url()).pathname === '/admin/update-status');
+    await expiredEditor.goto(config.url + '/admin/campaigns');
+    const observedStatus = await statusRequest;
+    assert.equal(observedStatus.headers()['x-requested-with'], 'XMLHttpRequest');
+    await expiredEditor.locator('[data-campaign-enhanced=true]').waitFor();
+    await expiredEditor.locator('[name=name]').fill('Retained across expired polling');
+    await expiredEditor.locator('[name=recipient_csv]').setInputFiles({name: 'still-retained.csv', mimeType: 'text/csv', buffer: Buffer.from('email\nretained@example.test\n')});
+    const expiredSummary = await expiredContext.newPage();
+    const progressRequest = expiredSummary.waitForRequest(request => new URL(request.url()).pathname.endsWith('/progress'));
+    await expiredSummary.goto(config.url + '/admin/campaigns/' + ids.approved);
+    const observedProgress = await progressRequest;
+    assert.equal(observedProgress.headers()['x-requested-with'], 'XMLHttpRequest');
+    await expiredContext.clearCookies();
+    // Reproduce both real poll requests after expiry, with the headers actually
+    // emitted by the application. Their redirects must not save a JSON target.
+    for (const observed of [observedStatus, observedProgress]) {
+        const response = await expiredSummary.evaluate(async ({url, requestedWith}) => {
+            const result = await fetch(url, {credentials: 'same-origin', headers: {Accept: 'application/json', 'X-Requested-With': requestedWith}});
+            return {redirected: result.redirected, path: new URL(result.url).pathname};
+        }, {url: observed.url(), requestedWith: observed.headers()['x-requested-with']});
+        assert.equal(response.redirected, true); assert.equal(response.path, '/login');
+    }
+    const renewed = await login(expiredContext);
+    assert.equal(new URL(renewed.url()).pathname, '/admin');
+    assert.equal(await expiredEditor.locator('[name=name]').inputValue(), 'Retained across expired polling');
+    assert.equal(await expiredEditor.locator('[name=recipient_csv]').evaluate(node => node.files[0].name), 'still-retained.csv');
+    await expiredEditor.bringToFront(); await banner(expiredEditor).waitFor({state: 'hidden', timeout: 40000});
+    await expiredContext.close();
+    record('Expired update and campaign-progress polls cannot become the post-login destination; dashboard login and unsaved fields CSV recover without reload');
     const noSend = JSON.parse(fixture('verify'));
     assert.equal(noSend.no_unintended_send, true); assert.equal(noSend.blocked_requests_created_no_work, true);
     result.no_send = noSend;

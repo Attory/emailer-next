@@ -93,3 +93,16 @@ application and all its runtime invocations remain unchanged; only the read-only
 test observer is mounted into its private control adapter. Independent review and
 all 55 preliminary signed-package lifecycle cases pass. A new clean-head package
 build and exact-artifact acceptance remain required before release.
+
+Native installed-package browser acceptance exposed expired background polling
+being saved as the next login destination by Symfony. Update and campaign-progress
+polls now identify themselves as XMLHttpRequests, preserving normal page return
+paths without relaxing route authorization. A real-browser regression expires the
+session, repeats both emitted poll requests, signs in again and verifies dashboard
+navigation, restored status polling and unchanged unsaved campaign fields/CSV.
+
+The complete browser suite passes with that correction:15 template,17 campaign,
+11 update-status and9 SMTP cases, plus the separately identifiable synthetic
+worker/MIME delivery test and no-unintended-send receipts. The superseded native
+candidate demonstrated the failure and is retained; only rebuilt signed artifacts
+from the repaired head can satisfy final release acceptance.

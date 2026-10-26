@@ -1,3 +1,4 @@
+// An expired background poll must not replace Symfony's post-login page target.
 const panel = document.querySelector('[data-campaign-progress]');
 if (panel) {
     let timer;
@@ -14,7 +15,7 @@ if (panel) {
         const controller = new AbortController();
         const abortTimer = setTimeout(() => controller.abort(), 8000);
         try {
-            const response = await fetch(panel.dataset.progressUrl, {credentials: 'same-origin', cache: 'no-store', headers: {Accept: 'application/json'}, signal: controller.signal});
+            const response = await fetch(panel.dataset.progressUrl, {credentials: 'same-origin', cache: 'no-store', headers: {Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest'}, signal: controller.signal});
             if (!response.ok || !response.headers.get('content-type')?.includes('application/json')) throw new Error('unavailable');
             const data = await response.json();
             if (typeof data.state !== 'string' || !Number.isInteger(data.percent) || data.percent < 0 || data.percent > 100 || !Number.isInteger(data.total) || data.total < 0 || !Number.isInteger(data.processed) || data.processed < 0 || data.processed > data.total || !countKeys.every(key => Number.isInteger(data.counts?.[key]) && data.counts[key] >= 0)) throw new Error('invalid');
