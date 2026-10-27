@@ -234,7 +234,7 @@ final class SecurityLevelHttpTest extends WebTestCase
 
         $normalMail = $client->request('GET', '/admin/settings/mail', server: $server);
         self::assertSelectorNotExists('form[action="/admin/settings/mail/update"] [name="owner_password"]');
-        $mail = $normalMail->selectButton('Store secure SMTP configuration')->form([
+        $mail = $normalMail->selectButton('Save SMTP settings')->form([
             'host' => 'smtp.example.test',
             'port' => '587',
             'encryption' => 'starttls',

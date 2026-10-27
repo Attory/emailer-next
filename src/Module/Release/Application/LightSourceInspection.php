@@ -13,7 +13,7 @@ final readonly class LightSourceInspection
     {
     }
 
-    /** @return array{identity: array<string, mixed>, migration: array<string, mixed>, administrator_id: mixed, tables: list<string>} */
+    /** @return array{identity: array<string, mixed>, migration: array<string, mixed>, migrations: list<array<string, mixed>>, administrator_id: mixed, tables: list<string>} */
     public function inspect(bool $requireIdle): array
     {
         $server = $this->connection->fetchOne('SELECT VERSION()');
@@ -21,7 +21,7 @@ final readonly class LightSourceInspection
             throw new \RuntimeException('Light transition requires supported MariaDB 10.11 or 11.8.');
         }
         $identity = $this->connection->fetchAssociative("SELECT * FROM product_identity WHERE singleton_key = '1'");
-        if (false === $identity || 'emailer-light' !== ($identity['product_id'] ?? null) || !\in_array($identity['product_version'] ?? null, LightSourcePackage::SUPPORTED_VERSIONS, true) || '20261014000000' !== ($identity['schema_version'] ?? null) || '1.0' !== ($identity['upgrade_contract_version'] ?? null) || 1 !== EditionData::integer($this->connection->fetchOne('SELECT COUNT(*) FROM product_identity'))) {
+        if (false === $identity || 'emailer-light' !== ($identity['product_id'] ?? null) || !\in_array($identity['product_version'] ?? null, LightSourcePackage::SUPPORTED_VERSIONS, true) || LightSourcePackage::schemaFor(EditionData::text($identity['product_version'])) !== ($identity['schema_version'] ?? null) || '1.0' !== ($identity['upgrade_contract_version'] ?? null) || 1 !== EditionData::integer($this->connection->fetchOne('SELECT COUNT(*) FROM product_identity'))) {
             throw new \RuntimeException('Unsupported or malformed Light product identity.');
         }
         $installation = $this->connection->fetchAssociative("SELECT installation_uuid, completed_at FROM installation_state WHERE singleton_key = '1'");
@@ -44,15 +44,15 @@ final readonly class LightSourceInspection
                 throw new \RuntimeException('Protected installation lock identity disagrees with database.');
             }
         }
-        $ledger = $this->connection->fetchAllAssociative('SELECT version, executed_at, execution_time FROM doctrine_migration_versions');
-        if (1 !== \count($ledger) || 'DoctrineMigrations\\Version20261014000000' !== $ledger[0]['version']) {
+        $ledger = $this->connection->fetchAllAssociative('SELECT version, executed_at, execution_time FROM doctrine_migration_versions ORDER BY version');
+        if (array_column($ledger, 'version') !== LightSourcePackage::migrationsFor(EditionData::text($identity['product_version']))) {
             throw new \RuntimeException('Source migration ledger is unsupported.');
         }
         $users = $this->connection->fetchAllAssociative('SELECT id, active, singleton_key, password_hash FROM app_user');
         if (1 !== \count($users) || '1' !== $users[0]['singleton_key'] || 1 !== EditionData::integer($users[0]['active']) || 'argon2id' !== password_get_info(EditionData::text($users[0]['password_hash']))['algoName']) {
             throw new \RuntimeException('Light administrator invariant is invalid.');
         }
-        $manifest = EditionData::read($this->projectDirectory.'/config/upgrade/light-schema-1.0.0.json');
+        $manifest = EditionData::read($this->projectDirectory.'/config/upgrade/light-schema-'.LightSourcePackage::proofFor(EditionData::text($identity['product_version'])).'.json');
         $columns = [];
         foreach ($this->connection->fetchAllAssociative('SELECT TABLE_NAME, COLUMN_NAME, COLUMN_TYPE, IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA = DATABASE() ORDER BY TABLE_NAME, ORDINAL_POSITION') as $row) {
             $columns[EditionData::text($row['TABLE_NAME'])][] = ['name' => $row['COLUMN_NAME'], 'type' => $row['COLUMN_TYPE'], 'nullable' => 'YES' === $row['IS_NULLABLE']];
@@ -89,7 +89,7 @@ final readonly class LightSourceInspection
         if (1 !== preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/D', EditionData::text($identity['installation_uuid']))) {
             throw new \RuntimeException('Source installation identity is malformed.');
         }
-        $this->verifyCompleteSchema();
+        $this->verifyCompleteSchema(EditionData::text($identity['product_version']));
         EditionIntegrity::assertForeignKeys($this->connection);
         if (file_exists($this->masterKeyFile.'.rotation-journal') || is_link($this->masterKeyFile.'.rotation-journal')) {
             throw new \RuntimeException('An unfinished key operation prevents read-only source inspection.');
@@ -103,7 +103,7 @@ final readonly class LightSourceInspection
             $this->assertIdle();
         }
 
-        return ['identity' => $identity, 'migration' => $ledger[0], 'administrator_id' => $users[0]['id'], 'tables' => $tables];
+        return ['identity' => $identity, 'migration' => $ledger[\count($ledger) - 1], 'migrations' => $ledger, 'administrator_id' => $users[0]['id'], 'tables' => $tables];
     }
 
     private function verifyAudienceSnapshots(): void
@@ -127,9 +127,9 @@ final readonly class LightSourceInspection
         }
     }
 
-    private function verifyCompleteSchema(): void
+    private function verifyCompleteSchema(string $version): void
     {
-        $expected = EditionData::read($this->projectDirectory.'/config/upgrade/light-schema-details-1.0.0.json');
+        $expected = EditionData::read($this->projectDirectory.'/config/upgrade/light-schema-details-'.LightSourcePackage::proofFor($version).'.json');
         foreach (EditionData::strings($expected['tables']) as $table => $ddl) {
             $actual = $this->connection->fetchAssociative('SHOW CREATE TABLE '.$this->connection->quoteSingleIdentifier($table));
             if (false === $actual || EditionSchemaProof::baselineTable($table, $ddl) !== EditionSchemaProof::baselineTable($table, EditionData::text($actual['Create Table']))) {

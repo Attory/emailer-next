@@ -57,7 +57,7 @@ final class Phase13OwnerWorkflowHttpTest extends WebTestCase
         $crawler = $client->request('GET', '/admin/lists/'.$list.'/duplicate', server: $server);
         self::assertSame('', $crawler->filter('input[name="name"]')->attr('value'));
         $client->request('GET', '/admin/templates', server: $server);
-        foreach (['Preview', 'Edit', 'Send', 'Duplicate', 'Archive'] as $action) {
+        foreach (['Preview', 'Edit', 'Use in campaign', 'Duplicate', 'Archive'] as $action) {
             self::assertSelectorTextContains('table', $action);
         }
         $client->request('GET', '/admin/campaigns?list='.$list.'&template='.$version, server: $server);
@@ -66,47 +66,37 @@ final class Phase13OwnerWorkflowHttpTest extends WebTestCase
         self::assertSame(0, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM campaign')));
         self::assertSame('draft', $db->fetchOne('SELECT status FROM email_template WHERE id = ?', [$template]));
         $csv = tempnam(sys_get_temp_dir(), 'emailer-http-csv-');
-        $html = tempnam(sys_get_temp_dir(), 'emailer-http-html-');
         self::assertIsString($csv);
-        self::assertIsString($html);
         file_put_contents($csv, "email\nnew@example.test\ninvalid\n");
-        file_put_contents($html, '<p>Synthetic uploaded content</p>');
         try {
             $token = $this->phase4String($client->getCrawler()->filter('form[action="/admin/campaigns/create"] input[name="_token"]')->first()->attr('value'));
             $client->request('POST', '/admin/campaigns/create', [
-                '_token' => $token, 'name' => 'Uploaded draft', 'audience_mode' => 'upload', 'list_name' => 'Uploaded list', 'csv_mode' => 'headered', 'column_email' => '0',
-                'template_mode' => 'upload', 'template_name' => 'Uploaded template', 'subject' => 'Uploaded subject',
-            ], ['audience_file' => new UploadedFile($csv, 'synthetic.csv', 'text/csv', test: true), 'template_file' => new UploadedFile($html, 'synthetic.html', 'text/html', test: true)], $server);
+                '_token' => $token, 'name' => 'Uploaded draft', 'audience_mode' => 'upload', 'csv_mode' => 'headered', 'template_version' => '',
+            ], ['recipient_csv' => new UploadedFile($csv, 'synthetic.csv', 'text/csv', test: true)], $server);
             self::assertResponseStatusCodeSame(303);
             $client->followRedirect();
-            self::assertSelectorTextContains('h1', 'Uploaded draft');
-            self::assertSelectorTextContains('#upload-review', 'Review uploaded recipients');
-            self::assertSelectorTextContains('main', 'Valid 1');
-            self::assertSelectorNotExists('form[action$="/review"]');
-            self::assertSelectorNotExists('form[action$="/test"]');
+            self::assertSelectorExists('[data-campaign-editor] input[name="name"][value="Uploaded draft"]');
+            self::assertSelectorTextContains('main', '1 recipients already saved');
+            self::assertSelectorTextContains('main', '1 invalid rows left out');
+            self::assertSelectorNotExists('[name="template_mode"], [name="html"], [name="template_file"]');
             self::assertSame(1, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM list_membership')));
-            $client->submit($client->getCrawler()->selectButton('Add reviewed recipients')->form(), [], $server);
-            self::assertResponseStatusCodeSame(303);
-            $client->followRedirect();
-            self::assertSelectorTextContains('main', 'Reviewed recipients imported');
-            self::assertSelectorExists('form[action$="/review"]');
-            self::assertSame(2, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM list_membership')));
-            self::assertSame(0, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM campaign_test_delivery')));
-            self::assertSame(0, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM campaign_recipient')));
-            $campaignUrl = $client->getRequest()->getPathInfo();
-            $session = $client->getRequest()->getSession();
-            $session->set('campaign.pending_imports', [basename($campaignUrl) => \App\Shared\Identity::uuidV7()]);
-            $session->save();
-            $client->request('GET', $campaignUrl, server: $server);
+            self::assertSame(1, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM contact_list')));
+            self::assertSame(1, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM contact')));
+            self::assertSame(0, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM contact_import')));
+            self::assertSame(1, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM campaign_audience_recipient')));
+            $campaignId = $this->phase4String($db->fetchOne('SELECT id FROM campaign'));
+            self::assertNull($db->fetchOne('SELECT template_version_id FROM campaign WHERE id=?', [$campaignId]));
+            $client->request('GET', '/admin/campaigns/'.$campaignId, server: $server);
             self::assertResponseIsSuccessful();
-            self::assertSelectorTextContains('main', 'preview expired or is unavailable');
-            self::assertSelectorExists('form[action$="/review"]');
+            self::assertSelectorExists('form[action$="/review"] button[disabled]');
+            self::assertSelectorExists('form[action$="/test"] button[disabled]');
+            self::assertSame('draft', $db->fetchOne('SELECT status FROM email_template WHERE id=?', [$template]));
+            foreach (['campaign_test_delivery', 'campaign_recipient', 'messenger_messages', 'delivery_attempt'] as $table) {
+                self::assertSame(0, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM '.$table)));
+            }
         } finally {
             if (is_file($csv)) {
                 unlink($csv);
-            }
-            if (is_file($html)) {
-                unlink($html);
             }
         }
     }
@@ -157,13 +147,19 @@ final class Phase13OwnerWorkflowHttpTest extends WebTestCase
         $crawler = $client->request('GET', '/admin/settings/mail', server: $server);
         self::assertSelectorNotExists('a[href*="reauthenticate?purpose=mail_configuration"]');
         self::assertSelectorExists('dialog[aria-label="Confirm Owner identity"]');
-        $client->submit($crawler->selectButton('Store secure SMTP configuration')->form($config + ['owner_password' => 'incorrect', 'owner_mfa_code' => $enrollment->recoveryCodes[1]]), [], $server);
-        self::assertResponseRedirects('/admin/settings/mail', 303);
+        $client->submit($crawler->selectButton('Save SMTP settings')->form($config + ['owner_password' => 'incorrect', 'owner_mfa_code' => $enrollment->recoveryCodes[1]]), [], $server);
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorExists('input[name=host][value="smtp.example.test"]');
+        self::assertSelectorExists('input[name=username][value="sender@example.test"]');
+        self::assertSelectorNotExists('input[type=password][value]');
         self::assertSame($before, $db->fetchAssociative('SELECT * FROM sender_identity'));
         $db->executeStatement('DELETE FROM login_throttle');
         $crawler = $client->request('GET', '/admin/settings/mail', server: $server);
-        $client->submit($crawler->selectButton('Store secure SMTP configuration')->form($config + ['owner_password' => $password, 'owner_mfa_code' => '']), [], $server);
-        self::assertResponseRedirects('/admin/settings/mail', 303);
+        $client->submit($crawler->selectButton('Save SMTP settings')->form($config + ['owner_password' => $password, 'owner_mfa_code' => '']), [], $server);
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorExists('input[name=host][value="smtp.example.test"]');
+        self::assertSelectorExists('input[name=username][value="sender@example.test"]');
+        self::assertSelectorNotExists('input[type=password][value]');
         self::assertSame($before, $db->fetchAssociative('SELECT * FROM sender_identity'));
         $client->request('POST', '/admin/settings/mail/update', $config + ['_token' => 'invalid', 'owner_password' => $password, 'owner_mfa_code' => $enrollment->recoveryCodes[1]], server: $server);
         self::assertResponseStatusCodeSame(400);
@@ -172,13 +168,13 @@ final class Phase13OwnerWorkflowHttpTest extends WebTestCase
         self::assertNotNull($sessionBefore);
         $db->executeStatement('DELETE FROM login_throttle');
         $crawler = $client->request('GET', '/admin/settings/mail', server: $server);
-        $client->submit($crawler->selectButton('Store secure SMTP configuration')->form($config + ['owner_password' => $password, 'owner_mfa_code' => $enrollment->recoveryCodes[1]]), [], $server);
+        $client->submit($crawler->selectButton('Save SMTP settings')->form($config + ['owner_password' => $password, 'owner_mfa_code' => $enrollment->recoveryCodes[1]]), [], $server);
         self::assertResponseRedirects('/admin/settings/mail', 303);
         $sessionAfter = $client->getCookieJar()->get('EMAILERSESSID');
         self::assertNotNull($sessionAfter);
         self::assertNotSame($sessionBefore->getValue(), $sessionAfter->getValue());
         $client->followRedirect();
-        self::assertSelectorTextContains('main', 'Secure SMTP configuration updated');
+        self::assertSelectorTextContains('main', 'SMTP settings saved.');
         self::assertSelectorExists('dialog');
         self::assertSelectorExists('form[data-mail-settings-confirmation-expires-at-value]');
         self::assertSelectorExists('input[name="username"][value="sender@example.test"]');
@@ -193,10 +189,10 @@ final class Phase13OwnerWorkflowHttpTest extends WebTestCase
         $session = $client->getRequest()->getSession();
         $session->set('identity.reauthenticated_at', time() - 301);
         $session->save();
-        $client->submit($client->getCrawler()->selectButton('Store secure SMTP configuration')->form($config), [], $server);
-        self::assertResponseRedirects('/admin/settings/mail', 303);
+        $client->submit($client->getCrawler()->selectButton('Save SMTP settings')->form($config), [], $server);
+        self::assertResponseStatusCodeSame(422);
+        self::assertSelectorTextContains('[data-mail-connection-result]', 'Owner identity confirmation failed');
         self::assertSame(0, $this->phase4Int($db->fetchOne("SELECT COUNT(*) FROM audit_event WHERE action = 'authentication.reauthentication' AND result = 'failure' AND occurred_at > (SELECT MAX(occurred_at) FROM audit_event WHERE action = 'mail.configuration.updated')")));
-        $client->followRedirect();
         self::assertSelectorExists('dialog');
         self::assertSelectorExists('form[data-mail-settings-confirmation-expires-at-value="0"]');
         self::assertSame(0, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM campaign_test_delivery')));
@@ -220,14 +216,17 @@ final class Phase13OwnerWorkflowHttpTest extends WebTestCase
         $crawler = $client->request('GET', '/login', server: $server);
         $client->submit($crawler->selectButton('Sign in')->form(['login_identifier' => 'composer@example.test', 'password' => $password, 'mfa_code' => '']), [], $server);
         $crawler = $client->request('GET', '/admin/campaigns', server: $server);
-        self::assertSelectorExists('[data-newsletter-composer]');
-        $client->submit($crawler->selectButton('Save newsletter draft')->form(['name' => 'Keep my work', 'template_version' => $version, 'messages_per_minute' => '20']), [], $server);
+        self::assertSelectorExists('[data-campaign-editor]');
+        $client->submit($crawler->selectButton('Save draft')->form(['name' => 'Keep my work', 'template_version' => $version, 'messages_per_minute' => '0', 'audience_mode' => 'existing', 'lists' => [$list]]), [], $server);
         self::assertResponseStatusCodeSame(422);
         self::assertSelectorExists('input[name="name"][value="Keep my work"]');
         self::assertSame(0, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM campaign')));
-        $client->submit($client->getCrawler()->selectButton('Save newsletter draft')->form(['lists' => [$list]]), [], $server);
+        $client->submit($client->getCrawler()->selectButton('Save draft')->form(['lists' => [$list], 'messages_per_minute' => '20']), [], $server);
         self::assertResponseStatusCodeSame(303);
         $client->followRedirect();
+        $editPath = $client->getRequest()->getPathInfo();
+        $campaignId = basename(\dirname($editPath));
+        $client->request('GET', '/admin/campaigns/'.$campaignId, server: $server);
         self::assertSelectorExists('progress[max="100"][value="0"]');
         self::assertSelectorTextContains('main', '20');
         $url = $client->getRequest()->getPathInfo();
@@ -248,7 +247,7 @@ final class Phase13OwnerWorkflowHttpTest extends WebTestCase
         $client->request('GET', '/admin/campaigns/00000000-0000-0000-0000-000000000000/edit', server: $server);
         self::assertResponseStatusCodeSame(404);
         $crawler = $client->request('GET', '/admin/campaigns', server: $server);
-        $token = $crawler->filter('form[data-newsletter-composer] input[name="_token"]')->attr('value');
+        $token = $crawler->filter('form[data-campaign-editor] input[name="_token"]')->attr('value');
         $client->request('POST', '/admin/campaigns/create', ['_token' => $token, 'name' => ['unexpected'], 'template_version' => ['unexpected'], 'html' => ['unexpected'], 'lists' => 'unexpected'], server: $server);
         self::assertResponseStatusCodeSame(422);
         self::assertSame(1, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM campaign')));

@@ -129,7 +129,7 @@ final class UserManagementConfirmationHttpTest extends WebTestCase
         $client->request('GET', '/admin/campaigns/guide', server: $server);
         self::assertResponseIsSuccessful();
         self::assertResponseHeaderSame('Cache-Control', 'max-age=0, must-revalidate, no-store, private');
-        self::assertSelectorTextContains('h1', 'Create and edit a newsletter');
+        self::assertSelectorTextContains('h1', 'Create and edit a campaign');
         self::assertSelectorTextContains('#edit', 'Send a fresh test');
         self::assertSelectorTextContains('#edit', 'select that new version');
         self::assertSelectorTextContains('#send', 'Approval does not start delivery');

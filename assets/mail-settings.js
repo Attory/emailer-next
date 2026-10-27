@@ -17,6 +17,7 @@ class MailSettings {
     }
 
     submit(event) {
+        if (event.submitter?.hasAttribute('data-mail-connection-test')) return;
         if (Math.floor(Date.now() / 1000) < this.confirmationExpiresAtValue || this.confirmed || typeof this.dialogTarget.showModal !== 'function') return;
         event.preventDefault();
         this.passwordTarget.disabled = false;

@@ -8,6 +8,7 @@ final class RoutePolicyRegistry
 {
     /** @var array<string, array{role: AdministrativeRole, methods: list<string>, sensitive: bool}> */
     private const POLICIES = [
+        'admin_update_status' => ['role' => AdministrativeRole::Auditor, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
         'admin_appearance' => ['role' => AdministrativeRole::Auditor, 'methods' => ['GET', 'HEAD', 'POST'], 'sensitive' => false],
         'admin_appearance_branding' => ['role' => AdministrativeRole::Administrator, 'methods' => ['POST'], 'sensitive' => false],
         'admin_appearance_logo' => ['role' => AdministrativeRole::Auditor, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],

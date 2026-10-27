@@ -1,12 +1,12 @@
 # Ripe operator and troubleshooting reference
 
-Version 1.3.2 | Exceptional hosting, updates and recovery
+Version 1.3.3 | Exceptional hosting, updates and recovery
 
 This reference covers exceptional hosting, update and recovery work. Start with the [beginner installation guide](emailer-ripe-install.md) for the normal path. The installer supplies the runtime, verifier, launcher, database provisioning, keys, services, backup defaults and HTTPS configuration; customers do not assemble these pieces.
 
 Ubuntu 26.04 uses its maintained distribution PHP 8.5 packages; no external PHP source is added. A compatible existing MariaDB 10.11 or 11.8 service is reused without a major upgrade. Setup adds a dedicated Emailer PHP-FPM pool and keeps existing website pools, PHP alternatives and Virtualmin-managed websites in place. Missing PHP extension packages add their standard extension configuration; existing PHP settings are retained and shared PHP services are not restarted.
 
-Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.5 on Ubuntu 26.04 upgrade directly to Ripe 1.3.2; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance.
+Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.6 on Ubuntu 26.04 upgrade directly to Ripe 1.3.3; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance.
 
 Ubuntu 26.04.1 HTTPS acceptance used a local ACME server with real HTTP challenge validation and strict certificate/name verification. Public certificate issuance remains unverified because no dedicated non-production hostname and DNS authority were available. Customer setup uses the normal public ACME service; DNS must point to the server and Apache must be reachable on ports 80 and 443.
 
@@ -64,7 +64,7 @@ sudo emailer emailer:doctor:run --json
 
 The health command distinguishes structural installation completion from sending readiness. Deferred SMTP is compatible with structural completion and blocks actual sending. Doctor retains its original sending gates and severity. Open Doctor after changing mail or MFA settings; installer Check does not remove the operational hold.
 
-Fresh redacted diagnostics are under `/var/lib/emailer-installer/last-error.json`. Managed operations use `/etc/emailer/installer/<edition>/1.3.2/last-error.json`. These contain a bounded failed step/category and blocker codes. Full management receipts and runtime settings contain secrets: do not dump them into logs, tickets, screenshots or chat. Share only named redacted error codes and service status.
+Fresh redacted diagnostics are under `/var/lib/emailer-installer/last-error.json`. Managed operations use `/etc/emailer/installer/<edition>/1.3.3/last-error.json`. These contain a bounded failed step/category and blocker codes. Full management receipts and runtime settings contain secrets: do not dump them into logs, tickets, screenshots or chat. Share only named redacted error codes and service status.
 
 ## Error reference
 
@@ -82,6 +82,7 @@ Fresh redacted diagnostics are under `/var/lib/emailer-installer/last-error.json
 | recovery_required / interrupted | Restart the exact same package and choose Recover before retrying. |
 | finish_required / committed | Choose Finish, or Accept for the edition transition. Never restore a committed operation as a downgrade. |
 | Missing SMTP / MFA / sender | Complete the named authenticated application setting, then recheck. A failed connection test sends no DATA. |
+| backup_destination / backup_external_recency | The configured verified copy is unavailable or failed its integrity/custody check. Check the dedicated backup folder, mounted storage and free space. Preserve the existing object and recovery material; the installer does not overwrite a changed copy. Use the displayed Recover or Finish action before retrying. |
 
 ## Backups and protected recovery material
 
@@ -105,7 +106,19 @@ A lost master key uses the separately stored encrypted recovery package and the 
 
 ## Update and interruption procedure
 
-Keep the downloaded signed setup file and all operation journals. Choose Update (or the private edition Upgrade action), allow backup/quiescence and follow its status. Recover unfinished operations before retrying; Finish/Accept committed operations. On successful completion review Doctor and the previously approved due campaigns before explicit Resume. A completed update cannot be downgraded by replaying old recovery files.
+If host setup stops, sending stays blocked and the saved operation records the failure. A committed update can be finished with the same setup file after correcting its reported service or storage problem. Do not delete its state or database. Already-open Ripe pages distinguish a stopped setup from an update still running; if the web server cannot refresh that notice, use the installer’s protected failure report.
+
+Setup creates and verifies its recovery backup. If automatic backups are enabled, it also refreshes and verifies that same encrypted backup at the already-configured destination before changing the application. It keeps your backup policy and does not run retention or send email. If the approved copy cannot be verified, sending remains held and setup names the blocker. Keep the recovery material; follow the displayed Recover or Finish action after correcting the backup folder or storage problem.
+
+Keep the signed setup file and operation journals. Normal same-edition updates acquire the application maintenance lock and the worker claim-row lock, capture the prior delivery state and acquire the hold atomically. The installer fences the dedicated web runtime, drains campaign and explicit-test work, verifies recovery material, then updates. A shared or unrecorded PHP-FPM service cannot be drained safely by this automatic path: setup stops before hold/site mutation and requires a supervised update with verified instance quiescence. Never stop a shared PHP service to work around that check.
+
+The root-owned update-maintenance.json journal lives beside the private application directory and outside immutable runtime checkpoints. It records prior accepting_work, campaign IDs, per-state recipient counts and in-flight recipient/attempt IDs. Sent means SMTP accepted; remaining means pending + retry + processing, excluding terminal failure, suppression, cancellation and uncertain outcomes. Capture itself never schedules delivery. Only prior accepting_work=1 with a sending campaign and remaining recipients produces the paused-delivery announcement.
+
+After successful verification, an originally idle accepting installation is restored without requiring optional SMTP. A prior operational hold stays held. Active approved delivery uses normal readiness before continuation. Uncertain in-flight outcomes are held for explicit investigation, never automatically retried. Verification failures retain the hold and a specific action. Recover deliberately leaves delivery held; an explicit guided Resume requires readiness and never approves drafts. A completed operation is terminal and cannot be replayed as recovery.
+
+### SMTP form tests and safe diagnostics
+
+Current-form tests run EHLO, mandatory verified TLS and AUTH, with no MAIL/RCPT/DATA. They do not replace encrypted credentials or save provider fields. Matching saved configuration may record verification; a different configuration receives a ten-minute actor-bound test receipt for the separate explicit Save. A newer test, including failure, invalidates earlier evidence through an owner-only authoritative attempt file under private/mail-connection-tests; stale database-session writes cannot revive it. Missing or unsafe evidence fails closed. Passwords and provider dialogues are omitted from diagnostics; retain the shown reference, category, phase and numeric failure code for investigation.
 
 Operations track created resources and preserve pre-existing databases, websites and shared dependencies. Do not clean up a retained work directory or rewrite a receipt while investigating. Service-account transfers and source database fencing ensure an old application process cannot resume writing after conversion.
 
@@ -125,7 +138,7 @@ If setup says a reserved host resource is occupied or changed, it has kept that 
 
 ## Resume after the 1.2.1 web-server check
 
-If 1.2.1 stopped during Checking this server with Existing Nginx/Caddy was preserved, download the official 1.3.2 setup file and start it with sudo sh as in the installation guide. That check occurs before installation initialization or database creation. Keep the existing installer state directory and its operation lock; no state or database deletion is needed. An operation that progressed beyond this check remains bound to its original signed package; complete it with that package before a normal update. If 1.2.2 stopped during the address-specific Apache check before initialization, start this Ripe 1.3.2 file to retry; no state or database deletion is needed. An initialized Light installation uses the guided Light upgrade action; an uninitialized server uses fresh Ripe setup.
+If 1.2.1 stopped during Checking this server with Existing Nginx/Caddy was preserved, download the official 1.3.3 setup file and start it with sudo sh as in the installation guide. That check occurs before installation initialization or database creation. Keep the existing installer state directory and its operation lock; no state or database deletion is needed. An operation that progressed beyond this check remains bound to its original signed package; complete it with that package before a normal update. If 1.2.2 stopped during the address-specific Apache check before initialization, start this Ripe 1.3.3 file to retry; no state or database deletion is needed. An initialized Light installation uses the guided Light upgrade action; an uninitialized server uses fresh Ripe setup.
 
 ## Appearance storage and website refresh
 
@@ -155,3 +168,11 @@ Recovery uses per-tab session storage scoped to the signed-in account and editor
 The image URL is intentionally public for email readers; the saved-asset gallery and uploads require authentication and the existing editing authority. Upload POSTs retain CSRF checks. Saving remains separate from publication. SMTP transport resolves supported relative image references against the canonical HTTPS installation address. Do not change that address casually after sending messages.
 
 Earlier uploaded images become visible in the updated gallery. Browser draft recovery protects work entered in the updated editor; it cannot reconstruct text that an older page already discarded before recovery existed.
+
+## Incomplete-draft schema update and recovery
+
+Light 1.2.6 and Ripe 1.3.3 allow campaign drafts without a selected template. Their schema is 20261025000000. The guided setup file authenticates both installed and target releases, fences application writers, creates verified recovery material, applies the reviewed migration and checks the final runtime. Publication, approval and delivery remain explicit.
+
+Use the same setup file and its Recover action after interruption. Light recovery admits only the recorded complete source or intermediate schema/ledger/identity states and unchanged business data; it never deletes or coerces new incomplete drafts to fit an older schema. Ripe uses its verified complete source schema checkpoint. A completed update cannot be rolled back with an interruption recovery command.
+
+Normal backup restore requires archive, current database and running application to share the same schema. Older archives remain verifiable and retained but must be recovered with their matching signed release in an isolated recovery environment, or through the recorded guided update recovery. Do not apply an old row-only archive over the new nullable schema. A refusal occurs before maintenance state, restore safety copies or database rows are changed.

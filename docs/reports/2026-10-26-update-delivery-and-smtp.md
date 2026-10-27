@@ -1,0 +1,108 @@
+# Update delivery state, root navigation and current-form SMTP testing
+
+This maintenance change fixes anonymous/authenticated root navigation, preserves
+operational delivery state across native updates and corrects SMTP testing of
+unsaved form values. It does not approve campaigns or initiate delivery from
+saving or navigation. No new dependencies or database migrations are introduced
+by these repairs; the existing incomplete-draft schema remains unchanged.
+
+The updater captures its prior accepting-work state under the same row lock as
+worker claims, alongside campaign counters and in-flight identities. Dedicated
+FPM requests drain gracefully before application replacement. A successful idle
+update does not require optional SMTP. Existing holds remain held; previously
+active approved delivery resumes only through normal readiness. Uncertain
+outcomes are not automatically retried. Interrupted or blocked operations retain
+bounded root-owned recovery evidence and a specific next action.
+
+SMTP current-form tests use the entered fields and password without saving or
+sending. Blank-password reuse is limited to the saved host/login. A short-lived
+HMAC-bound receipt is usable only by a later matching explicit Save. Its private
+per-actor attempt generation prevents a failed retest from being undone by a
+stale database-session write. Raw provider dialogue, passwords and credentials
+are excluded from failure responses and diagnostic details.
+
+Focused real-browser tests use owned internal networks, a strict local TLS CA,
+synthetic AUTH and fake SMTP only. Cases cover current versus saved settings,
+credential reuse, real certificate/DNS/refusal/authentication failures, editing
+while a test runs, failed-retest invalidation, explicit Save, CSRF, field retention,
+mobile layout and no SMTP DATA from connection tests. Complete application,
+privileged delivery/schema and root installer suites are required separately.
+Exact reviewed-head CI and original-key final-package acceptance remain release
+gates; passing source tests alone is not a published or deployed fix.
+
+Ripe additionally provides authenticated, no-store lightweight update status for
+Owner, Administrator and Operator dashboard/campaign screens. Already-open pages
+update their notice, disabled sending controls and actual campaign pause badges
+without reloading unsaved fields. Server sending gates remain authoritative.
+Auditor receives no sending capability. Light 1.2.7 uses the authenticated existing
+1.2.6 schema proof and both migration ledgers when upgrading to Ripe 1.3.3; exact
+signed source-package rehearsals are required before release.
+
+
+Exact-package native acceptance also exposed an aged configured backup-copy
+receipt blocking verification after a fresh local safety backup was created.
+The repair now verifies that same encrypted backup at the existing approved
+destination before checkpoint/publication when the existing policy enables it.
+No destination, policy or Doctor severity is changed, and no retention or mail
+operation is run. A saved transfer receipt is rechecked against actual bytes,
+private mode and ownership. Root copies retain service ownership and sync file
+metadata and the destination directory before success. Changed existing objects
+are retained and their stale receipt is marked failed. Only bounded structural
+blocker codes cross child-console and installer error boundaries.
+
+The edition transition also copies its existing post-conversion verified backup
+before runtime checks, after assigning both backup and copy to the trusted
+service identity. Copy failure retains the full Light recovery set and restores
+the source; bounded categories survive the failure wrapper and the host guide
+requires Recover rather than Finish or Accept. Root source/copy custody and the
+edition failure action have dedicated regression coverage.
+
+Native systemd acceptance caught the supervised scheduler treating the new
+update hold as a startup failure. Its existing wait-for-configuration mode now
+also reports this specific closed gate as waiting (zero queued/reconciled),
+while explicit runs still fail and database/application errors remain errors.
+
+Parallel exact-package rehearsals exposed a test-control defect: an outer polling
+counter replaced the case ID and reused fault-container names. The helper now
+keeps an immutable case ID, adds a case-path namespace, records immutable Docker
+IDs outside application-mounted data, and proves labels, both case mounts and
+the exact internal network before kill/removal. A replacement or foreign actor
+is retained. Docker uncertainty is an error, never proof of absence. The original
+historical1.1 helper remains unchanged: an exact-hash-authenticated private test
+copy applies the same control-only adapter, using the original historical tools
+and signed runtime packages. Conversion, recovery and no-send assertions remain.
+
+Final failure-path review confirmed that host SetupError/filesystem failures
+could bypass the narrower management handler and leave a false in-progress
+receipt. One guarded action boundary now covers menu early returns, host adoption,
+service startup and delivery restoration. Expected readiness blocks and unexpected
+host failures both retain the update restriction and record a safe reason even
+when the database retention command fails. Completed authoritative receipts are
+terminal and never reacquire a hold after a later diagnostic/save error. File
+errors use bounded categories, not paths or raw exception text; a failure to write
+the protected record itself exits nonzero with a fixed recovery instruction.
+
+The historical partial-schema observer also used a fixed three-second delay after
+`mutating`, although that phase is journaled before recovery-key processing and
+DDL. It now polls for the same actual role-present/cipher-absent boundary within
+one monotonic deadline, with bounded connection/query timeouts. Recovery similarly
+requires actual table absence. SQL errors remain failures. Six isolated CLI tests
+cover delayed boundaries, timeout, unexpected target schema, SQL failure, recovery
+and refusal of non-harness database access. The original SHA-pinned historical
+application and all its runtime invocations remain unchanged; only the read-only
+test observer is mounted into its private control adapter. Independent review and
+all 55 preliminary signed-package lifecycle cases pass. A new clean-head package
+build and exact-artifact acceptance remain required before release.
+
+Native installed-package browser acceptance exposed expired background polling
+being saved as the next login destination by Symfony. Update and campaign-progress
+polls now identify themselves as XMLHttpRequests, preserving normal page return
+paths without relaxing route authorization. A real-browser regression expires the
+session, repeats both emitted poll requests, signs in again and verifies dashboard
+navigation, restored status polling and unchanged unsaved campaign fields/CSV.
+
+The complete browser suite passes with that correction:15 template,17 campaign,
+11 update-status and9 SMTP cases, plus the separately identifiable synthetic
+worker/MIME delivery test and no-unintended-send receipts. The superseded native
+candidate demonstrated the failure and is retained; only rebuilt signed artifacts
+from the repaired head can satisfy final release acceptance.

@@ -10,12 +10,13 @@ use Doctrine\DBAL\Connection;
 
 final readonly class DeliveryResumer
 {
-    public function __construct(private Connection $connection, private SendingGate $sendingGate, private MaintenanceOperationLock $maintenance, private ?\App\Shared\EditionDeliveryHold $editionHold = null)
+    public function __construct(private Connection $connection, private SendingGate $sendingGate, private MaintenanceOperationLock $maintenance, private ?\App\Shared\EditionDeliveryHold $editionHold = null, private ?\App\Shared\UpdateDeliveryState $updateState = null)
     {
     }
 
     public function resume(): void
     {
+        $this->updateState?->assertResumeAllowed();
         $this->maintenance->acquire();
         try {
             $lastUpdate = $this->connection->fetchAssociative("SELECT status, detail_code FROM release_operation WHERE operation = 'update' ORDER BY started_at DESC, id DESC LIMIT 1");
@@ -30,6 +31,7 @@ final readonly class DeliveryResumer
                 if (false === $runtime || !is_numeric($runtime['schema_version']) || !is_numeric($runtime['accepting_work']) || 1 !== (int) $runtime['schema_version'] || 0 !== (int) $runtime['accepting_work']) {
                     throw new \RuntimeException('Delivery runtime was not quiesced or compatible.');
                 }
+                $this->updateState?->assertResumeAllowed();
                 // A crash or failed unlink leaves accepting_work = 0. Claims can only
                 // become available after the durable hold has been removed successfully.
                 $this->editionHold?->releaseAfterResume();

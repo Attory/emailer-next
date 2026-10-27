@@ -46,6 +46,11 @@ foreach ($f['campaigns'] as $x) {
     $a = 'draft' !== $x['state'];
     $c->insert('campaign', ['id' => $x['id'], 'name' => 'Synthetic '.$x['state'], 'template_version_id' => 'paused' === $x['state'] ? $rv : $v, 'state' => $x['state'], 'scheduled_at' => 'scheduled' === $x['state'] ? '2026-01-01 00:00:00.000000' : null, 'approved_at' => $a ? $n : null, 'approved_by' => $a ? $u : null, 'approval_waived_test' => $a ? 1 : 0, 'rsvp_enabled' => 'paused' === $x['state'] ? 1 : 0, 'operation_version' => 1, 'created_by' => $u, 'created_at' => $n, 'updated_at' => $n, 'messages_per_minute' => null, 'rate_window_started_at' => null, 'rate_window_count' => 0]);
 }
+if (in_array($c->fetchOne("SELECT product_version FROM product_identity WHERE singleton_key='1'"), ['1.2.6', '1.2.7'], true)) {
+    $incomplete = '01990101-0000-7000-8000-000000000126';
+    $c->insert('campaign', ['id' => $incomplete, 'name' => '', 'template_version_id' => null, 'state' => 'draft', 'created_by' => $u, 'created_at' => $n, 'updated_at' => $n, 'messages_per_minute' => 23, 'operation_version' => 3]);
+    $f['recipients'][] = ['id' => '01990101-0000-7000-8000-000000000127', 'campaign_id' => $incomplete, 'email' => 'incomplete-draft@example.test', 'profile' => ['first_name' => 'Draft']];
+}
 $f['recipients'][] = ['id' => '01990101-0000-7000-8000-000000000025', 'campaign_id' => '01990101-0000-7000-8000-000000000006', 'email' => 'retry-person@example.test', 'profile' => ['first_name' => 'Retry', 'display_name' => 'Synthetic Retry']];
 foreach ($f['recipients'] as $x) {
     $c->insert('campaign_audience_recipient', ['campaign_id' => $x['campaign_id'], 'recipient_id' => $x['id'], 'email_canonical' => $x['email'], 'profile_json' => json_encode($x['profile'], JSON_THROW_ON_ERROR)]);

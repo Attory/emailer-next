@@ -25,7 +25,7 @@ final readonly class AppearanceSubscriber implements EventSubscriberInterface
 
     public function load(ControllerEvent $event): void
     {
-        if (!$event->isMainRequest() || !str_starts_with($event->getRequest()->getPathInfo(), '/admin')) {
+        if ('admin_update_status' === $event->getRequest()->attributes->get('_route') || !$event->isMainRequest() || !str_starts_with($event->getRequest()->getPathInfo(), '/admin')) {
             return;
         }
         $actor = $this->tokens->getToken()?->getUser();

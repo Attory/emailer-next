@@ -4,6 +4,7 @@
         <link rel="stylesheet" href="{{ asset('styles/skins.css') }}">
         <link rel="stylesheet" href="{{ path('admin_appearance_tokens') }}">
         <script type="module" src="{{ asset('appearance.js') }}"></script>
+        <script type="module" src="{{ asset('update-status.js') }}"></script>
 {% endblock %}
 {% block body_attributes %}{% set appearance = app.request.attributes.get('appearance')|default({}) %}{% set skin = appearance.skin|default('classic') %} data-skin="{{ skin in ['classic', 'website', 'studio', 'warm'] ? skin : 'classic' }}" data-motion="{{ appearance.motion|default('system') == 'reduced' ? 'reduced' : 'system' }}"{% if appearance.branding.logo_url|default(null) %} data-brand-logo="present"{% endif %}{% endblock %}
 {% block body %}
@@ -34,6 +35,9 @@
     {% include 'admin/_appearance.html.twig' with {appearance: appearance} only %}
 </header>
 <main id="main-content" class="admin-content" tabindex="-1">
+    {% set update_delivery = app.request.attributes.get('update_delivery')|default({blocked: false, message: ''}) %}
+    <aside id="update-maintenance-notice" class="alert update-maintenance" role="status" aria-live="polite" aria-atomic="true" data-update-status data-status-url="{{ path('admin_update_status') }}" data-blocked="{{ update_delivery.blocked ? 'true' : 'false' }}"{% if not update_delivery.blocked %} hidden{% endif %}>{{ update_delivery.message }}</aside>
+    <p id="update-send-explanation" class="help" data-update-send-explanation{% if not update_delivery.blocked %} hidden{% endif %}>{{ update_delivery.message }}</p>
     {% set doctor_findings = app.request.attributes.get('doctor_active_findings')|default([]) %}
     {% if doctor_findings|filter(finding => finding.severity == 'critical')|length > 0 %}
         <aside class="alert" role="alert">

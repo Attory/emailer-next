@@ -59,6 +59,27 @@ final class Phase8OperationsTest extends KernelTestCase
             self::fail('Corrupted backup was accepted.');
         } catch (\RuntimeException) {
         }
+        $newMigration = $connection->fetchAssociative('SELECT * FROM doctrine_migration_versions WHERE version = ?', ['DoctrineMigrations\\Version20261025000000']);
+        self::assertIsArray($newMigration);
+        $connection->delete('doctrine_migration_versions', ['version' => 'DoctrineMigrations\\Version20261025000000']);
+        try {
+            $oldSchemaBackup = $backups->create();
+        } finally {
+            $connection->insert('doctrine_migration_versions', $newMigration);
+        }
+        $this->files[] = $oldSchemaBackup['path'];
+        $connection->executeStatement("UPDATE delivery_runtime SET accepting_work=0, active_claims=0 WHERE singleton_key='1'");
+        $runtimeBefore = $connection->fetchAllAssociative('SELECT * FROM delivery_runtime');
+        $recordsBefore = $connection->fetchAllAssociative('SELECT * FROM backup_record ORDER BY id');
+        try {
+            $backups->restore($oldSchemaBackup['path']);
+            self::fail('Cross-schema row-only restore was accepted.');
+        } catch (\RuntimeException $failure) {
+            self::assertStringContainsString('different database schema', $failure->getMessage());
+        }
+        self::assertSame($runtimeBefore, $connection->fetchAllAssociative('SELECT * FROM delivery_runtime'));
+        self::assertSame($recordsBefore, $connection->fetchAllAssociative('SELECT * FROM backup_record ORDER BY id'));
+        self::assertSame('20261015000000', $backups->verify($oldSchemaBackup['path'])['schema_version']);
         $connection->delete('suppression', ['id' => $suppressionId]);
         $connection->executeStatement("UPDATE delivery_runtime SET accepting_work = 0, active_claims = 0 WHERE singleton_key = '1'");
         $backups->restore($backup['path']);
@@ -75,7 +96,8 @@ final class Phase8OperationsTest extends KernelTestCase
         $connection->executeStatement('DELETE FROM health_check_run');
         $connection->executeStatement("UPDATE delivery_runtime SET accepting_work = 1, active_claims = 0, circuit_state = 'closed' WHERE singleton_key = '1'");
         $doctor = $this->phase4Service(Doctor::class);
-        self::assertSame('healthy', $doctor->run()['status']);
+        $report = $doctor->run();
+        self::assertSame('healthy', $report['status'], json_encode(array_column($report['findings'], 'code'), JSON_THROW_ON_ERROR));
         self::assertSame('healthy', $doctor->run()['status']);
         $housekeeper = $this->phase4Service(Housekeeper::class);
         self::assertSame(['imports' => 0, 'sessions' => 0, 'queue' => 0, 'dead_letter' => 0, 'delivery_attempts' => 0, 'health' => 0, 'analytics' => 0, 'rsvp' => 0, 'backups' => 0], $housekeeper->run(true));

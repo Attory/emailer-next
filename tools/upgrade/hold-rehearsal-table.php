@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL') || 2 !== $argc || !in_array($argv[1], ['encrypted_secret', 'backup_record', 'release_operation'], true)) {
+if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL') || 2 !== $argc || !in_array($argv[1], ['encrypted_secret', 'backup_record', 'release_operation', 'doctrine_migration_versions'], true)) {
     throw new RuntimeException('Fault injection is restricted to isolated rehearsal tables.');
 }
 require '/tools/vendor/autoload.php';

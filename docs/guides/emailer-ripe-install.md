@@ -1,12 +1,12 @@
 # Install Emailer Ripe
 
-Version 1.3.2 | Beginner guide | Ubuntu Apache or Debian Nginx VPS
+Version 1.3.3 | Beginner guide | Ubuntu Apache or Debian Nginx VPS
 
 Install a usable Emailer Ripe website with one guided server setup. You need your administrator email, a new password, and the address you want people to use. Email delivery can wait.
 
 Ubuntu 26.04 uses its maintained distribution PHP 8.5 packages; no external PHP source is added. A compatible existing MariaDB 10.11 or 11.8 service is reused without a major upgrade. Setup adds a dedicated Emailer PHP-FPM pool and keeps existing website pools, PHP alternatives and Virtualmin-managed websites in place. Missing PHP extension packages add their standard extension configuration; existing PHP settings are retained and shared PHP services are not restarted.
 
-Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.5 on Ubuntu 26.04 upgrade directly to Ripe 1.3.2; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance.
+Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.6 on Ubuntu 26.04 upgrade directly to Ripe 1.3.3; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance.
 
 Ubuntu 26.04.1 HTTPS acceptance used a local ACME server with real HTTP challenge validation and strict certificate/name verification. Public certificate issuance remains unverified because no dedicated non-production hostname and DNS authority were available. Customer setup uses the normal public ACME service; DNS must point to the server and Apache must be reachable on ports 80 and 443.
 
@@ -39,7 +39,7 @@ Choose a spare address such as `news.your-domain.com`. In your domain provider's
 
 ## 2. Download the official setup package
 
-While signed in to GitHub with access to the private [Emailer Ripe release](https://github.com/Attory/emailer-next/releases/tag/v1.3.2), download **emailer-ripe-1.3.2-setup.run**. Upload that one file to the server using your provider's file-transfer facility. An authorized privately supplied copy of the same signed setup file also works. Keep the file private. Do not paste a GitHub token or repository password into a download command.
+While signed in to GitHub with access to the private [Emailer Ripe release](https://github.com/Attory/emailer-next/releases/tag/v1.3.3), download **emailer-ripe-1.3.3-setup.run**. Upload that one file to the server using your provider's file-transfer facility. An authorized privately supplied copy of the same signed setup file also works. Keep the file private. Do not paste a GitHub token or repository password into a download command.
 
 You do not need a source checkout, Composer, a public-key file or separate verification sidecars. Those components are inside the setup package.
 
@@ -52,7 +52,7 @@ Ubuntu 22.04 also retrieves an authenticated MariaDB runtime of about 360 MB. Al
 From the folder containing the downloaded file, paste this single setup action:
 
 ```bash
-sudo sh emailer-ripe-1.3.2-setup.run
+sudo sh emailer-ripe-1.3.3-setup.run
 ```
 
 If setup finds an existing Light installation, choose **Install a separate fresh Ripe application** for this fresh-install guide. Choose its upgrade option only when you intend to convert Light, following the separate upgrade guide. The fresh Ripe site needs a different dedicated hostname.
@@ -78,7 +78,7 @@ Wait for **Installation successful**. Open the printed HTTPS login address in yo
 
 You can prepare templates and draft campaigns immediately. **Email delivery is not configured** means actual sending is blocked. No campaign is approved or sent during installation.
 
-When ready, open **Settings & tools > Mail settings**. Use your provider's outgoing-mail server, port, encryption, username, SMTP password/key and permitted sender address. The sender name is optional. Saving encrypts the settings; it sends nothing. Choose **Test connection without sending** to check secure connection and sign-in. To send one message, enter your own address in **Test destination** and explicitly choose **Send test email**.
+When ready, open **Settings & tools > Mail settings** and enter your provider details. **Test connection without sending** tests the current visible fields without saving or emailing anyone. If it says Current settings tested successfully—save to apply, choose **Save SMTP settings**. A blank password reuses a saved password only for the same host and username. **Test saved connection** checks only the already-saved configuration. To send one requested message, enter your own address in **Test destination** and explicitly choose **Send test email**. See the [user manual](emailer-ripe-manual.md) for examples and error guidance.
 
 ![Actual Mail settings screen. A connection test sends no message; sending a test email is a separate explicit action.](images/emailer-ripe-mail.png)
 

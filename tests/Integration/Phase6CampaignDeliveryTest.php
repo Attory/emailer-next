@@ -735,6 +735,128 @@ final class Phase6CampaignDeliveryTest extends KernelTestCase
         $this->phase4Service(CampaignManager::class)->scheduleTime('2027-04-04T02:30');
     }
 
+    public function testUpdateCapturesInFlightSmtpAndContinuesWithoutDuplicateDelivery(): void
+    {
+        if (0 !== posix_geteuid()) {
+            self::markTestSkipped('The actual installer helper requires root; exercised by the root installer acceptance gate.');
+        }
+        self::bootKernel();
+        $db = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($db);
+        $db->executeStatement("INSERT IGNORE INTO privacy_policy (singleton_key, open_tracking, click_tracking, rsvp_enabled, operational_retention_days, delivery_retention_days, suppression_mode, unsubscribe_footer) VALUES ('1',0,0,0,30,90,'global','Unsubscribe: {{ unsubscribe_url }}')");
+        $actor = $this->createPhase4User($db, 'update-hold@example.test', 'synthetic-update-'.bin2hex(random_bytes(12)));
+        [$campaigns, $id] = $this->campaign($db, $actor);
+        $contacts = $this->phase4Service(\App\Module\Contacts\Application\ContactManager::class);
+        $other = $contacts->create($actor, 'update-second@example.test', ['consent_source' => 'synthetic']);
+        $list = $this->phase4String($db->fetchOne('SELECT list_id FROM campaign_list_selection WHERE campaign_id=?', [$id]));
+        $contacts->addMembership($actor, $list, $other);
+        $campaigns->submitForReview($actor, $id);
+        $campaigns->approve($actor, $id, $this->phase4Int($campaigns->detail($actor, $id)['operation_version']), true);
+        $this->transport()->reset();
+        $campaigns->queue($actor, $id);
+        $work = $this->transport()->getSent();
+        self::assertCount(2, $work);
+        $first = $work[0]->getMessage();
+        $second = $work[1]->getMessage();
+        self::assertInstanceOf(DeliverCampaignRecipient::class, $first);
+        self::assertInstanceOf(DeliverCampaignRecipient::class, $second);
+        $directory = sys_get_temp_dir().'/emailer-update-snapshot-'.bin2hex(random_bytes(8));
+        mkdir($directory, 0o700);
+        $stateFile = $directory.'/update-maintenance.json';
+        $databaseUrl = $_SERVER['DATABASE_URL'] ?? getenv('DATABASE_URL');
+        self::assertIsString($databaseUrl);
+        $captured = [];
+        $checkpoint = function () use ($databaseUrl, $stateFile, &$captured): void {
+            $process = new Process([PHP_BINARY, \dirname(__DIR__, 2).'/installer/host-database.php']);
+            $process->setInput(json_encode(['action' => 'begin-update', 'bootstrap' => \dirname(__DIR__, 2), 'maintenance_url' => $databaseUrl, 'source_url' => $databaseUrl, 'state_file' => $stateFile, 'operation' => 'synthetic-in-flight-update'], JSON_THROW_ON_ERROR));
+            $process->mustRun();
+            $value = json_decode($process->getOutput(), true, flags: JSON_THROW_ON_ERROR);
+            self::assertIsArray($value);
+            $captured = $value;
+        };
+        $delivery = new UpdateCheckpointTransport($checkpoint, $this->phase4Service(DeliveryTransport::class));
+        $handler = new DeliverCampaignRecipientHandler($db, $this->phase4Service(DeliveryConfiguration::class), $this->phase4Service(SuppressionLookup::class), $delivery, $this->phase4Service(CampaignDeliveryGateway::class), $this->phase4Service(RecipientUnsubscribeLinks::class), $this->phase4Service(AuditSink::class), $this->phase4Service(\App\Module\Delivery\Application\Contract\SendingGate::class));
+        try {
+            $handler($first); // Capture occurs after claim commit, before real isolated SMTP.
+            self::assertSame(1, $captured['prior_accepting_work']);
+            self::assertSame(1, $captured['active_claims']);
+            self::assertIsArray($captured['inflight']);
+            self::assertCount(1, $captured['inflight']);
+            self::assertIsArray($captured['campaigns']);
+            self::assertCount(1, $captured['campaigns']);
+            $snapshots = $captured['campaigns'];
+            self::assertIsArray($snapshots[0]);
+            self::assertSame(0, $snapshots[0]['sent']);
+            self::assertSame(2, $snapshots[0]['remaining']);
+            self::assertSame('accepted', $db->fetchOne('SELECT state FROM campaign_recipient WHERE id=?', [$first->recipientId]));
+            self::assertSame(0, $this->phase4Int($db->fetchOne('SELECT active_claims FROM delivery_runtime')));
+            ($this->phase4Service(DeliverCampaignRecipientHandler::class))($second);
+            self::assertSame('pending', $db->fetchOne('SELECT state FROM campaign_recipient WHERE id=?', [$second->recipientId]));
+            self::assertSame(1, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM delivery_attempt')));
+            $state = new \App\Shared\UpdateDeliveryState($directory.'/private');
+            self::assertSame([$id], $state->status()['paused_campaign_ids']);
+            $captured['phase'] = 'resuming';
+            file_put_contents($stateFile, json_encode($captured, JSON_THROW_ON_ERROR));
+            (new \App\Module\Delivery\Application\DeliveryResumer($db, $this->phase4Service(\App\Module\Delivery\Application\Contract\SendingGate::class), $this->phase4Service(\App\Shared\MaintenanceOperationLock::class), updateState: $state))->resume();
+            $captured['phase'] = 'complete';
+            file_put_contents($stateFile, json_encode($captured, JSON_THROW_ON_ERROR));
+            self::assertFalse($state->status()['blocked']);
+            ($this->phase4Service(DeliverCampaignRecipientHandler::class))($second);
+            ($this->phase4Service(DeliverCampaignRecipientHandler::class))($first);
+            self::assertSame(2, $this->phase4Int($db->fetchOne("SELECT COUNT(*) FROM delivery_attempt WHERE state='accepted'")));
+            self::assertSame(2, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM delivery_attempt')));
+            self::assertSame('completed', $db->fetchOne('SELECT state FROM campaign WHERE id=?', [$id]));
+        } finally {
+            if (is_file($stateFile)) {
+                unlink($stateFile);
+            }
+            rmdir($directory);
+        }
+    }
+
+    public function testUpdateBetweenTestReadinessAndClaimDoesNotStartSmtp(): void
+    {
+        if (0 !== posix_geteuid()) {
+            self::markTestSkipped('The actual installer helper requires root; exercised by the root installer acceptance gate.');
+        }
+        self::bootKernel();
+        $db = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($db);
+        $actor = $this->createPhase4User($db, 'update-test-race@example.test', 'synthetic-update-'.bin2hex(random_bytes(12)));
+        [$campaigns, $id] = $this->campaign($db, $actor);
+        $test = $campaigns->requestTest($actor, $id);
+        $directory = sys_get_temp_dir().'/emailer-update-claim-race-'.bin2hex(random_bytes(8));
+        mkdir($directory, 0o700);
+        $file = $directory.'/update-maintenance.json';
+        $url = $_SERVER['DATABASE_URL'] ?? getenv('DATABASE_URL');
+        self::assertIsString($url);
+        $gate = self::createMock(\App\Module\Delivery\Application\Contract\SendingGate::class);
+        $gate->expects(self::once())->method('assertReady')->willReturnCallback(static function () use ($url, $file): void {
+            $process = new Process([PHP_BINARY, \dirname(__DIR__, 2).'/installer/host-database.php']);
+            $process->setInput(json_encode(['action' => 'begin-update', 'bootstrap' => \dirname(__DIR__, 2), 'maintenance_url' => $url, 'source_url' => $url, 'state_file' => $file, 'operation' => 'synthetic-test-claim-race'], JSON_THROW_ON_ERROR));
+            $process->mustRun(); // A distinct database connection acquires/commits the hold.
+        });
+        $transport = self::createMock(DeliveryTransport::class);
+        $transport->expects(self::never())->method('send');
+        $handler = new DeliverCampaignTestHandler($db, $this->phase4Service(\App\Module\Templates\Application\Contract\PublishedTemplateProvider::class), $this->phase4Service(DeliveryConfiguration::class), $transport, $this->phase4Service(SuppressionLookup::class), $gate, $this->phase4Service(CampaignDeliveryGateway::class));
+        try {
+            $handler(new DeliverCampaignTest($test));
+            self::assertSame('pending', $db->fetchOne('SELECT state FROM campaign_test_delivery WHERE id=?', [$test]));
+            self::assertSame(0, $this->phase4Int($db->fetchOne('SELECT accepting_work FROM delivery_runtime')));
+            $snapshot = json_decode((string) file_get_contents($file), true, flags: JSON_THROW_ON_ERROR);
+            self::assertIsArray($snapshot);
+            self::assertSame([], $snapshot['campaigns']);
+            self::assertIsArray($snapshot['test_work']);
+            self::assertCount(1, $snapshot['test_work']);
+            self::assertSame(0, $this->phase4Int($db->fetchOne('SELECT COUNT(*) FROM delivery_attempt')));
+        } finally {
+            if (is_file($file)) {
+                unlink($file);
+            }
+            rmdir($directory);
+        }
+    }
+
     /** @return array{CampaignManager, string, string} */
     private function campaign(Connection $connection, AuthenticatedUser $actor): array
     {
@@ -809,5 +931,19 @@ final readonly class Phase102CallbackTransport implements DeliveryTransport
         ($this->callback)();
 
         return $message->messageId;
+    }
+}
+
+final readonly class UpdateCheckpointTransport implements DeliveryTransport
+{
+    public function __construct(private \Closure $checkpoint, private DeliveryTransport $transport)
+    {
+    }
+
+    public function send(OutboundMessage $message): string
+    {
+        ($this->checkpoint)();
+
+        return $this->transport->send($message);
     }
 }

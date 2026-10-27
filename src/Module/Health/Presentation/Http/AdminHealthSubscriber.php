@@ -39,7 +39,7 @@ final readonly class AdminHealthSubscriber implements EventSubscriberInterface
     public function onController(ControllerEvent $event): void
     {
         $route = $event->getRequest()->attributes->get('_route');
-        if (!\is_string($route) || !str_starts_with($route, 'admin_')) {
+        if ('admin_update_status' === $route || !\is_string($route) || !str_starts_with($route, 'admin_')) {
             return;
         }
         try {
