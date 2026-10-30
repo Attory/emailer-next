@@ -202,3 +202,14 @@ Updated positive128 coverage and moved the unknown-version negative case to129;
 the unlisted-root/edition/traversal negatives remain. Local installer tests pass.
 A Composer Flex importmap side effect was preserved as a private patch receipt
 and reversed; no unrelated frontend dependency change enters the repair.
+
+Final mutable completion evidence is maintained outside immutable candidate source
+in /home/soul/devstation/operations/emailer-admin/handoffs/development-2026-10-30/STATUS.md.
+That record will name final heads, terminal checks, candidate digests, package/
+browser acceptance, cleanup and exact Administration steps. This source file is
+an implementation checkpoint, not deployment authorization.
+
+Review found that Ripe's shared active-pointer allowlist also needs the newly
+supported Light128 source path. Added that exact path with positive128/134 and
+unknown129/other-edition/path negatives. Both default CI browser suites now run
+the compact action regression and sink/count checks, in addition to local focus.

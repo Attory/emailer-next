@@ -204,6 +204,12 @@ try:
         stage = 'SMTP current-form browser regressions'
         command(['node', str(root / 'tools/browser/mail-settings.cjs')], env=node_environment)
     if focus == '':
+        stage = 'compact template action browser regressions'
+        php('tools/browser/verify-editor-delivery.php', 'snapshot')
+        command(['node', str(root / 'tools/browser/template-actions.cjs')], env=node_environment)
+        php('tools/browser/verify-editor-delivery.php', 'actions')
+        shutil.copyfile(private / 'actions-no-send-result.json', output / 'actions-no-send-result.json')
+    if focus == '':
         stage = 'MFA session continuity browser regressions'
         php('tools/browser/verify-editor-delivery.php', 'snapshot')
         command(['node', str(root / 'tools/browser/mfa-management.cjs')], env=node_environment)
