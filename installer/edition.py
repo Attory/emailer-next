@@ -110,7 +110,7 @@ class EditionManager(Manager):
     def transition_menu(self):
         source_version = self.record.get('transition_source', self.source_version)
         if source_version not in ('1.0.0', '1.1.0', '1.2.0', '1.2.1', '1.2.2', '1.2.3', '1.2.4', '1.2.5', '1.2.6', '1.2.7', '1.2.8', '1.2.9', '1.2.10'):
-            raise ManagementError('Only Light 1.0.0, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.2.5, 1.2.6, 1.2.7 and 1.2.8 are supported sources.')
+            raise ManagementError('Only Light 1.0.0, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.2.5, 1.2.6, 1.2.7, 1.2.8, 1.2.9 and 1.2.10 are supported sources.')
         print(f'\nLight {source_version} → Ripe {self.installer.version}')
         print('Application address: ' + installation_address(self.values))
         print('Protected settings: ' + str(self.configuration))
