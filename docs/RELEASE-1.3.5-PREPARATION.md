@@ -92,3 +92,13 @@ Doctor findings, or discard the original recovery material.
 
 
 Standalone native updates that reopen an older source writer before Finish cannot prove whether that source acknowledged a database-only Pause. Finish releases its completed installer hold but leaves inferred owner intent unknown for explicit review and supported Resume. Newer independently recorded owner actions are preserved. Guided host updates keep the source continuously fenced through completion and can restore proven enabled intent automatically.
+
+
+The independent PHP QR reader's default fast finder search missed8 of2048
+public deterministic layouts. Every emitted pixel matched the standard encoded
+matrix, and its full TRY_HARDER search decoded all8 to the exact expected URI.
+HTTP acceptance now uses that full search with unchanged format/ECC and payload
+checks. Nine deterministic layouts additionally verify every module pixel and
+the complete four-module quiet zone. No runtime renderer, enrollment flow or
+credential is changed; the successful private Google Authenticator attestation
+remains bound to unchanged source hashes. No seed/image diagnostic was saved.

@@ -76,7 +76,9 @@ final class MfaManagementHttpTest extends WebTestCase
         self::assertTrue(\is_string($pixels) && str_starts_with($pixels, "\x89PNG\r\n\x1a\n"));
         // Never use assertions that dump generated MFA material on failure.
         $manualSeed = $page->filter('p code')->first()->text();
-        $decoded = (new QrReader($pixels, QrReader::SOURCE_TYPE_BLOB, false))->text();
+        // The reader's fast finder search can miss valid synthetic patterns.
+        // Its full search retains format/ECC checks and exact payload equality.
+        $decoded = (new QrReader($pixels, QrReader::SOURCE_TYPE_BLOB, false))->text(['TRY_HARDER' => true]);
         self::assertTrue(\is_string($decoded) && str_starts_with($decoded, 'otpauth://totp/'));
         $query = parse_url($decoded, PHP_URL_QUERY);
         self::assertTrue(\is_string($query));
