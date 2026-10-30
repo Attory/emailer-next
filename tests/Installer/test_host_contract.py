@@ -239,6 +239,34 @@ class PrivateRuntimePermissionContract(unittest.TestCase):
         handoff = HostHandoff(manager)
         return manager, handoff
 
+    @unittest.skipUnless(os.geteuid() == 0, 'Root-owned historical metadata requires root fixture')
+    def test_one_time_105_preflight_preserves_root_lock_owner_and_asset_bytes(self):
+        with tempfile.TemporaryDirectory() as directory:
+            manager, handoff = self.instance(Path(directory))
+            manager.source_version = '1.0.5'
+            manager.account = types.SimpleNamespace(pw_uid=1000, pw_gid=1000)
+            cache, locks, assets = [manager.private / name for name in ('cache', 'locks', 'template-assets')]
+            for path in (cache, locks, assets):
+                path.mkdir(mode=0o755)
+            lock = locks / 'historical.lock'
+            lock.write_bytes(b'historical lock bytes')
+            lock.chmod(0o666)
+            asset = assets / 'image.png'
+            asset.write_bytes(b'synthetic image bytes')
+            asset.chmod(0o644)
+            original = lock.stat()
+            saved = []
+            manager.save = lambda: saved.append(dict(handoff.state))
+            handoff.secure_runtime_metadata()
+            current = lock.stat()
+            self.assertEqual((original.st_uid, original.st_gid, original.st_ino), (current.st_uid, current.st_gid, current.st_ino))
+            self.assertEqual(0o600, current.st_mode & 0o777)
+            self.assertEqual(b'historical lock bytes', lock.read_bytes())
+            self.assertEqual(0o644, asset.stat().st_mode & 0o777)
+            self.assertEqual(b'synthetic image bytes', asset.read_bytes())
+            self.assertTrue(saved)
+            self.assertEqual(0o666, saved[0]['runtime_metadata_before']['locks/historical.lock']['mode'])
+
     def test_new_updater_lock_is_private_and_an_existing_inode_is_never_replaced(self):
         with tempfile.TemporaryDirectory() as directory:
             manager, handoff = self.instance(Path(directory))

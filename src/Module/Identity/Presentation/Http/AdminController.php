@@ -85,7 +85,11 @@ final class AdminController extends AbstractController
         $this->addFlash('success', 'Identity confirmed for five minutes in this browser session.');
 
         return $this->redirectToRoute(
-            'backup_management' === $purpose ? 'admin_backups' : 'admin_dashboard',
+            match ($purpose) {
+                'mfa_management' => 'admin_mfa',
+                'backup_management' => 'admin_backups',
+                default => 'admin_dashboard',
+            },
             status: Response::HTTP_SEE_OTHER,
         );
     }
@@ -157,9 +161,9 @@ final class AdminController extends AbstractController
     }
 
     #[Route('/mfa', name: 'admin_mfa', methods: ['GET', 'HEAD'])]
-    public function mfa(): Response
+    public function mfa(Request $request): Response
     {
-        return $this->render('admin/mfa.html.twig', ['status' => $this->mfa->status($this->user())]);
+        return $this->render('admin/mfa.html.twig', ['status' => $this->mfa->status($this->user()), 'confirmation_expires_at' => $this->reauthentication->expiresAt($request->getSession(), 'mfa_management')]);
     }
 
     #[Route('/mfa/start', name: 'admin_mfa_start', methods: ['POST'])]

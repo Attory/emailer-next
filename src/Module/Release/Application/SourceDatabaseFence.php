@@ -83,6 +83,18 @@ final readonly class SourceDatabaseFence
     }
 
     /** @param array{name: string, host: string, originally_locked: bool} $account */
+    public function assertQuiesced(array $account): void
+    {
+        $quoted = $this->connection->quote($account['name']).'@'.$this->connection->quote($account['host']);
+        $definition = $this->connection->fetchAssociative('SHOW CREATE USER '.$quoted);
+        if (false === $definition || !str_contains(EditionData::text(reset($definition)), 'ACCOUNT LOCK')
+            || false !== $this->connection->fetchOne('SELECT 1 FROM information_schema.PROCESSLIST WHERE USER = ? AND ID <> CONNECTION_ID()', [$account['name']])
+        ) {
+            throw new \RuntimeException('Native offline verification requires the source writer fence and zero source connections.');
+        }
+    }
+
+    /** @param array{name: string, host: string, originally_locked: bool} $account */
     public function restore(array $account): void
     {
         $quoted = $this->connection->quote($account['name']).'@'.$this->connection->quote($account['host']);

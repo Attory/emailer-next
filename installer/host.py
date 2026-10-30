@@ -280,7 +280,7 @@ class HostHandoff:
             print('The live maintenance notice could not be refreshed. The protected failure receipt and installer diagnostics remain authoritative.', flush=True)
         return reason
 
-    def restore_update_delivery(self):
+    def restore_update_delivery(self, *, preserve_hold=False):
         # Edition transitions retain their separate, explicit acceptance contract.
         if self.m.product != self.host.product:
             return
@@ -300,6 +300,10 @@ class HostHandoff:
             inspection = json.loads(self.database('inspect-update'))
             if inspection['active_claims'] or inspection['processing'] or inspection['test_processing'] or inspection['uncertain']:
                 raise self.m.error('Delivery has in-flight or uncertain messages. Sending remains blocked. Review delivery history; uncertain messages will not be retried. Use Resume delivery only after this review.')
+            if preserve_hold:
+                self.database('retain-update-hold')
+                self.update_delivery_phase('complete', 'The one-time repair retains delivery hold. Resume requires an explicit readiness review.')
+                return
             if snapshot['prior_accepting_work'] == 0:
                 self.update_delivery_phase('complete')
                 return  # Preserve an existing operational hold without another prompt.
@@ -490,6 +494,10 @@ class HostHandoff:
                 os.close(descriptor)
                 raise
 
+        preserve_owners = getattr(m, 'source_version', '') == '1.0.5'
+        def owners(recorded):
+            return (recorded['uid'], recorded['gid']) if preserve_owners else (m.account.pw_uid, m.account.pw_gid)
+
         entries = {}
         private = directory(m.private)
         try:
@@ -527,8 +535,8 @@ class HostHandoff:
                     current = entries[name]
                     identity = ('device', 'inode', 'directory', 'sha256')
                     original_mode = (original['uid'], original['gid'], original['mode'])
-                    repaired_mode = (m.account.pw_uid, m.account.pw_gid, 0o700 if original['directory'] else 0o600)
-                    intermediate_mode = (m.account.pw_uid, m.account.pw_gid, original['mode'])
+                    repaired_mode = (*owners(original), 0o700 if original['directory'] else 0o600)
+                    intermediate_mode = (*owners(original), original['mode'])
                     if any(current[key] != original[key] for key in identity) or (current['uid'], current['gid'], current['mode']) not in (original_mode, intermediate_mode, repaired_mode):
                         self.fail('A saved runtime file drifted after interrupted permission preparation. Choose Recover; the old receipt was retained unchanged.')
             else:
@@ -539,10 +547,11 @@ class HostHandoff:
                 try:
                     if inspect(descriptor) != recorded:
                         self.fail('A generated runtime object changed during permission preparation. Keep the saved operation; no business data was converted.')
-                    os.fchown(descriptor, m.account.pw_uid, m.account.pw_gid)
+                    if not preserve_owners:
+                        os.fchown(descriptor, *owners(recorded))
                     os.fchmod(descriptor, 0o700 if recorded['directory'] else 0o600)
                     info = os.fstat(descriptor)
-                    if (info.st_dev, info.st_ino, info.st_uid, info.st_gid, stat.S_IMODE(info.st_mode)) != (recorded['device'], recorded['inode'], m.account.pw_uid, m.account.pw_gid, 0o700 if recorded['directory'] else 0o600) or (not recorded['directory'] and (info.st_nlink != 1 or digest(descriptor) != recorded['sha256'])):
+                    if (info.st_dev, info.st_ino, info.st_uid, info.st_gid, stat.S_IMODE(info.st_mode)) != (recorded['device'], recorded['inode'], *owners(recorded), 0o700 if recorded['directory'] else 0o600) or (not recorded['directory'] and (info.st_nlink != 1 or digest(descriptor) != recorded['sha256'])):
                         self.fail('A generated runtime file changed while its permissions were secured. Keep the operation for recovery.')
                 finally:
                     os.close(descriptor)
@@ -550,7 +559,7 @@ class HostHandoff:
                 descriptor = open_relative(private, Path(name).parts)
                 try:
                     current = inspect(descriptor)
-                    if any(current[key] != recorded[key] for key in ('device', 'inode', 'directory', 'sha256')) or (current['uid'], current['gid'], current['mode']) != (m.account.pw_uid, m.account.pw_gid, 0o700 if current['directory'] else 0o600):
+                    if any(current[key] != recorded[key] for key in ('device', 'inode', 'directory', 'sha256')) or (current['uid'], current['gid'], current['mode']) != (*owners(recorded), 0o700 if current['directory'] else 0o600):
                         self.fail('The generated runtime inventory moved or changed during preparation.')
                     if current['directory']:
                         expected_children = {Path(other).name for other in entries if Path(other).parent == Path(name)}

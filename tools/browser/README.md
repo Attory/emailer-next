@@ -54,3 +54,10 @@ keys, raw test MIME and diagnostics. Do not upload that private directory.
 No HAR, raw request trace, browser console or credential screenshot is recorded.
 Failures print only a fixed phase. Application containers and the internal
 network are removed after the run; no pre-existing service is reused.
+
+The explicit source-only focus `EMAILER_BROWSER_FOCUS=mfa` runs the real native
+DB-session reauthentication/enrollment flow without the unrelated editor/send
+suite. It retains an old-cookie background status request across rotation,
+releases it afterward, and checks browser continuity, allowlisted return,
+enrollment and existing MFA login. Receipts contain paths/status/booleans only;
+no cookie values, MFA screens, setup keys or recovery codes are recorded.

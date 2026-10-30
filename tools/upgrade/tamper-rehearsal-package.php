@@ -6,10 +6,10 @@ if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL')) {
     throw new RuntimeException('Tamper fixture is isolated-only.');
 }
 mkdir('/rehearsal/tampered', 0o700);
-foreach (glob('/package/emailer-next-1.3.3.zip*') as $source) {
+foreach (glob('/package/emailer-next-1.3.4.zip*') as $source) {
     copy($source, '/rehearsal/tampered/'.basename($source));
 }
-$file = fopen('/rehearsal/tampered/emailer-next-1.3.3.zip', 'r+b');
+$file = fopen('/rehearsal/tampered/emailer-next-1.3.4.zip', 'r+b');
 if (false === $file) {
     throw new RuntimeException('Disposable package fixture is unavailable.');
 }

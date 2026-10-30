@@ -369,3 +369,11 @@ in [CLIENT-LIGHT-UPGRADE-1.0.6.md](CLIENT-LIGHT-UPGRADE-1.0.6.md) and
 recovery, acceptance and isolated old-Light-backup export. No HTTP update or
 restore route is introduced. Contacts/lists remain independent of campaign-owned
 Light recipients. Delivery remains held until explicit accepted readiness/resume.
+
+The 1.3.4 native verifier binds offline structural health to the activated latest
+operation, exact signed source/target packages, installed target tree, installation
+UUID, database and complete recovery set. It proves idle held delivery before
+calling runtime verification. The guided host handoff starts fresh target services
+under hold and requires live heartbeats before reopening HTTP. The one-time
+1.0.5 route retains the hold even after successful host handoff; future releases
+need not accept 1.0.5. Full Doctor severities and sending gates remain unchanged.
