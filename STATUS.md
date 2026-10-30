@@ -181,3 +181,24 @@ operational hold even if the old installation accepted work. The original prior
 acceptance evidence and campaign states are not rewritten; repeat Finish cannot
 resume delivery. Focused installer coverage added. Non-root168 tests PASS,58
 root-dependent skips; corrected root test receipt indexing, root rerun pending.
+
+## Draft PR and first CI repair
+
+Ripe draft PR32: https://github.com/Attory/emailer-next/pull/32
+Initial head326d2b9eb25c8867df2f7e92326058215ac50686 (confirmed before repair).
+Light draft PR15: https://github.com/Attory/emailer-light/pull/15
+Initial head2a194f7f395184755c7965dc8048380f562df519 (confirmed before repair).
+Final local Ripe suite PASS508 tests/6442 assertions,8 root-dependent skips.
+
+CI correctly blocks the newly updated advisory CVE-2026-45070. Symfony's
+2026-10-29 maintainer notice corrects the earlier fix claim:7.4.22 contains the
+actual MIME fix. Both lockfiles now change ONLY symfony/mime7.4.17→7.4.22,
+within existing7.4 constraints; both update audits report no advisories. Earlier
+statements of no dependency change are superseded by this required security fix.
+No security/audit control is relaxed. Original historical inputs stay immutable.
+
+Light's first CI failed an obsolete negative guard expecting128 to be rejected.
+Updated positive128 coverage and moved the unknown-version negative case to129;
+the unlisted-root/edition/traversal negatives remain. Local installer tests pass.
+A Composer Flex importmap side effect was preserved as a private patch receipt
+and reversed; no unrelated frontend dependency change enters the repair.

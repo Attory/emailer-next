@@ -26,7 +26,10 @@ to Ripe, with scoped Website/Studio/Warm rules, keyboard focus and mobile spacin
 Preview remains GET; fake-only test and Publish remain separate POST/CSRF forms.
 Light 1.2.8 uses the unchanged draft schema profile and its original signer.
 
-No dependency or database migration is added. Current target/release/installer
+No database migration is added. The sole dependency change is symfony/mime
+7.4.17 to7.4.22 for CVE-2026-45070, required by the unchanged dependency audit.
+The maintainer confirms the corrected fixed version in
+https://symfony.com/blog/about-the-security-entries-in-symfony-5-4-55-6-4-49-7-4-22-and-8-1-10. Current target/release/installer
 plumbing advances to1.3.4 and preserves the prior compatibility roster.
 
 Observed local verification is recorded durably in STATUS.md: focused MFA native
