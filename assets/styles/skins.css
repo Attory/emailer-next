@@ -1049,3 +1049,28 @@ body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .appearance-e
     body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) { display: block; background: #fff; color: #000; }
     .appearance-trigger, .appearance-dialog { display: none !important; }
 }
+
+/* Version table actions stay text controls in every administration skin. */
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .template-version-actions .template-text-action {
+    min-height: 2rem;
+    padding: .25rem 0;
+    border: 0;
+    border-radius: 0;
+    background: none;
+    color: var(--sk-link);
+    box-shadow: none;
+    font: inherit;
+    font-weight: 500;
+    letter-spacing: normal;
+    text-decoration: underline;
+    text-underline-offset: .18em;
+}
+body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .template-version-actions .template-text-action:hover {
+    background: none;
+    color: var(--sk-ink);
+    box-shadow: none;
+    text-decoration-thickness: 2px;
+}
+@media (max-width: 600px) {
+    body:is([data-skin=studio], [data-skin=warm], [data-skin=website]) .template-version-actions .template-text-action { min-height: 2.75rem; }
+}

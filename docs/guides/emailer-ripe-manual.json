@@ -1,6 +1,6 @@
 {
   "title": "Emailer Ripe user manual",
-  "subtitle": "Version 1.3.3 | Accounts, setup and everyday newsletters",
+  "subtitle": "Version 1.3.4 | Accounts, setup and everyday newsletters",
   "blocks": [
     {
       "type": "p",
@@ -12,7 +12,7 @@
     },
     {
       "type": "p",
-      "text": "Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.6 on Ubuntu 26.04 upgrade directly to Ripe 1.3.3; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance."
+      "text": "Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.6 on Ubuntu 26.04 upgrade directly to Ripe 1.3.4; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance."
     },
     {
       "type": "p",
@@ -24,7 +24,7 @@
     },
     {
       "type": "p",
-      "text": "The 1.3.3 setup file supports Ubuntu 22.04/24.04/26.04 with Apache and Debian 13 with Nginx. It creates a dedicated PHP runtime, application services, backups and a command launcher. Ubuntu 22.04 gets an isolated supported database beside existing sites. Administrator email is the default login name on fresh setup; existing accounts keep their identifier and password. You can sign in, prepare templates and campaigns, and configure SMTP later. See the beginner installation guide for the tested hosting profile and one-file setup action."
+      "text": "The 1.3.4 setup file supports Ubuntu 22.04/24.04/26.04 with Apache and Debian 13 with Nginx. It creates a dedicated PHP runtime, application services, backups and a command launcher. Ubuntu 22.04 gets an isolated supported database beside existing sites. Administrator email is the default login name on fresh setup; existing accounts keep their identifier and password. You can sign in, prepare templates and campaigns, and configure SMTP later. See the beginner installation guide for the tested hosting profile and one-file setup action."
     },
     {
       "type": "h2",
@@ -418,11 +418,23 @@
     },
     {
       "type": "p",
-      "text": "For Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2, 1.3.0, 1.3.1 or 1.3.2 to 1.3.3, start the new official setup file and choose Update with a verified backup. Successful completion says Update successful. Sign in: followed by your address. Follow Finish only if the installer explicitly reports a committed operation that needs completion. If verification or sending readiness fails, the hold remains and the installer gives the actual reason and next action. Earlier Ripe releases must follow their supported path to 1.0.6 first. Recovery never automatically retries an uncertain message. See the <a href=\"emailer-ripe-operator.html\">operator reference</a>."
+      "text": "For Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2, 1.3.0, 1.3.1 or 1.3.2 to 1.3.4, start the new official setup file and choose Update with a verified backup. Successful completion says Update successful. Sign in: followed by your address. Follow Finish only if the installer explicitly reports a committed operation that needs completion. If verification or sending readiness fails, the hold remains and the installer gives the actual reason and next action. Earlier Ripe releases must follow their supported path to 1.0.6 first. Recovery never automatically retries an uncertain message. See the <a href=\"emailer-ripe-operator.html\">operator reference</a>."
     },
     {
       "type": "callout",
       "text": "This release adds a database migration. Update with the guided setup file and keep its recovery material. Normal restore needs the same database schema. Recover older backups with their matching release in an isolated environment. For interrupted updates choose Recover in setup; a completed update cannot be downgraded through recovery."
+    },
+    {
+      "type": "h2",
+      "text": "MFA authentication and return"
+    },
+    {
+      "type": "p",
+      "text": "Open Settings & tools → MFA. At High security, use Re-authenticate for MFA management and enter your current account password and, if already enrolled, your authenticator or unused recovery code. You return to MFA in the same browser with confirmation valid for five minutes. Use Start or restart enrollment on that page, privately store recovery codes, then confirm the authenticator code and recovery acknowledgement. Do not enter /admin/mfa/start in the address bar: enrollment starts only through its protected POST form. If confirmation expires, confirm your credentials again. Never send setup keys or recovery codes to support."
+    },
+    {
+      "type": "p",
+      "text": "Template version actions use compact text controls in Website, Studio and Warm. Preview is read-only; fake-only testing and publication remain separate protected form actions. Keyboard focus stays visible, and controls wrap with comfortable spacing on phones."
     }
   ]
 }

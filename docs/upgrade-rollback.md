@@ -173,3 +173,22 @@ in [CLIENT-LIGHT-UPGRADE-1.0.6.md](CLIENT-LIGHT-UPGRADE-1.0.6.md) and
 recovery, acceptance and isolated old-Light-backup export. No HTTP update or
 restore route is introduced. Contacts/lists remain independent of campaign-owned
 Light recipients. Delivery remains held until explicit accepted readiness/resume.
+
+## One-time 1.0.5 repair candidate
+
+Only 1.3.4 adds the exact-original 1.0.5 source route. It supersedes the blocked
+1.0.6 attempt without modifying any historical package. This exception is not a
+future support commitment. The new signed setup contains the original source
+archive and sidecars. Its native core uses the complete checkpoint and records
+operation-bound offline structural verification, followed by held target service
+startup and live runtime verification. Full Doctor findings keep their severity.
+The 1.0.5 route never automatically resumes delivery, including when the prior
+source was accepting work. The separate administration session owns deployment.
+
+The host preflight tightens only generated cache/log/lock modes after quiescence,
+using descriptor/inode/content checks and a durable before-state receipt. For
+1.0.5 it preserves every original UID/GID, lock inode and byte. Existing assets
+with application-produced 0755/0644 metadata remain protected by the mandatory
+private ancestor and existing scoped recovery policy. Unknown layouts, links,
+unsafe ownership, shared locks or changed content fail closed; do not apply a
+recursive chmod/chown workaround or relax the checkpoint verifier.

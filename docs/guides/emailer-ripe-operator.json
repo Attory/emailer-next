@@ -1,6 +1,6 @@
 {
   "title": "Ripe operator and troubleshooting reference",
-  "subtitle": "Version 1.3.3 | Exceptional hosting, updates and recovery",
+  "subtitle": "Version 1.3.4 | Exceptional hosting, updates and recovery",
   "blocks": [
     {
       "type": "p",
@@ -12,7 +12,7 @@
     },
     {
       "type": "p",
-      "text": "Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.6 on Ubuntu 26.04 upgrade directly to Ripe 1.3.3; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance."
+      "text": "Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.6 on Ubuntu 26.04 upgrade directly to Ripe 1.3.4; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance."
     },
     {
       "type": "p",
@@ -162,7 +162,7 @@
     },
     {
       "type": "p",
-      "text": "Fresh redacted diagnostics are under <code>/var/lib/emailer-installer/last-error.json</code>. Managed operations use <code>/etc/emailer/installer/&lt;edition&gt;/1.3.3/last-error.json</code>. These contain a bounded failed step/category and blocker codes. Full management receipts and runtime settings contain secrets: do not dump them into logs, tickets, screenshots or chat. Share only named redacted error codes and service status."
+      "text": "Fresh redacted diagnostics are under <code>/var/lib/emailer-installer/last-error.json</code>. Managed operations use <code>/etc/emailer/installer/&lt;edition&gt;/1.3.4/last-error.json</code>. These contain a bounded failed step/category and blocker codes. Full management receipts and runtime settings contain secrets: do not dump them into logs, tickets, screenshots or chat. Share only named redacted error codes and service status."
     },
     {
       "type": "h2",
@@ -332,7 +332,7 @@
     },
     {
       "type": "p",
-      "text": "If 1.2.1 stopped during Checking this server with Existing Nginx/Caddy was preserved, download the official 1.3.3 setup file and start it with sudo sh as in the installation guide. That check occurs before installation initialization or database creation. Keep the existing installer state directory and its operation lock; no state or database deletion is needed. An operation that progressed beyond this check remains bound to its original signed package; complete it with that package before a normal update. If 1.2.2 stopped during the address-specific Apache check before initialization, start this Ripe 1.3.3 file to retry; no state or database deletion is needed. An initialized Light installation uses the guided Light upgrade action; an uninitialized server uses fresh Ripe setup."
+      "text": "If 1.2.1 stopped during Checking this server with Existing Nginx/Caddy was preserved, download the official 1.3.4 setup file and start it with sudo sh as in the installation guide. That check occurs before installation initialization or database creation. Keep the existing installer state directory and its operation lock; no state or database deletion is needed. An operation that progressed beyond this check remains bound to its original signed package; complete it with that package before a normal update. If 1.2.2 stopped during the address-specific Apache check before initialization, start this Ripe 1.3.4 file to retry; no state or database deletion is needed. An initialized Light installation uses the guided Light upgrade action; an uninitialized server uses fresh Ripe setup."
     },
     {
       "type": "h2",
@@ -413,7 +413,7 @@
     },
     {
       "type": "p",
-      "text": "Light 1.2.6 and Ripe 1.3.3 allow campaign drafts without a selected template. Their schema is 20261025000000. The guided setup file authenticates both installed and target releases, fences application writers, creates verified recovery material, applies the reviewed migration and checks the final runtime. Publication, approval and delivery remain explicit."
+      "text": "Light 1.2.6 and Ripe 1.3.4 allow campaign drafts without a selected template. Their schema is 20261025000000. The guided setup file authenticates both installed and target releases, fences application writers, creates verified recovery material, applies the reviewed migration and checks the final runtime. Publication, approval and delivery remain explicit."
     },
     {
       "type": "p",
@@ -422,6 +422,22 @@
     {
       "type": "p",
       "text": "Normal backup restore requires archive, current database and running application to share the same schema. Older archives remain verifiable and retained but must be recovered with their matching signed release in an isolated recovery environment, or through the recorded guided update recovery. Do not apply an old row-only archive over the new nullable schema. A refusal occurs before maintenance state, restore safety copies or database rows are changed."
+    },
+    {
+      "type": "h2",
+      "text": "One-time native 1.0.5 repair to 1.3.4"
+    },
+    {
+      "type": "p",
+      "text": "This candidate alone includes an exact authenticated 1.0.5 repair route. Retain the original signed source archive and sidecars. Do not retry 1.0.6, alter historical releases, replace migration journals or manufacture worker heartbeats. Upgrade first stops and fences the old application, verifies the full encrypted recovery checkpoint, migrates and activates the target. Its offline verification authenticates the retained operation, installation, database and exact packages while delivery is idle and held. Doctor findings retain their original severity and sending gates."
+    },
+    {
+      "type": "p",
+      "text": "Start only the dedicated target services under the retained delivery hold, then run Check the installation. Live verification requires actual worker and scheduler heartbeats. Keep the original Normal policy, MFA enrollment, SMTP credentials, tokens, failed messages and delivery hold. This one-time route never resumes delivery automatically. Only the separate administrator session may deploy it, and only an explicitly reviewed Resume action may lift a hold after all normal readiness checks pass."
+    },
+    {
+      "type": "p",
+      "text": "Recovery restores the complete source schema, data, private state, keys and pointer. The original 1.0.5 Doctor has no read-only mode and requires live services; offline recovery proves exact source fingerprints, source boot and mapping without writing historical health rows. After restarting the recovered source under hold, run its full Doctor. Never retry failed messages automatically."
     }
   ]
 }

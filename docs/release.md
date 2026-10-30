@@ -196,3 +196,11 @@ in [CLIENT-LIGHT-UPGRADE-1.0.6.md](CLIENT-LIGHT-UPGRADE-1.0.6.md) and
 recovery, acceptance and isolated old-Light-backup export. No HTTP update or
 restore route is introduced. Contacts/lists remain independent of campaign-owned
 Light recipients. Delivery remains held until explicit accepted readiness/resume.
+
+The 1.3.4 candidate adds a one-time, exact-original 1.0.5 native repair route,
+current native 1.3.3 maintenance, and the corresponding Light 1.2.8 schema profile.
+Do not replace 1.0.6 or 1.3.3 assets. Build only new candidate outputs from a clean
+reviewed commit with the established signer. Original-source package acceptance,
+complete failure/interruption recovery and live held-service verification are
+release gates; synthetic-key fixtures do not substitute for final candidate
+acceptance. Production deployment remains a separate Administration action.

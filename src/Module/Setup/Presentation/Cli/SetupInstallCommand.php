@@ -55,7 +55,7 @@ final class SetupInstallCommand extends Command
     protected function configure(): void
     {
         $this->addOption('recovery-passphrase-stdin', null, InputOption::VALUE_NONE, 'Read two protected recovery-passphrase lines from the automated host installer.');
-        $this->addOption('upgrade-light', null, InputOption::VALUE_NONE, 'Inspect or perform the supported Light 1.0.0/1.1.0/1.2.0/1.2.1/1.2.2/1.2.3/1.2.4/1.2.5 to Ripe 1.3.2 edition transition.');
+        $this->addOption('upgrade-light', null, InputOption::VALUE_NONE, 'Inspect or perform the supported Light 1.0.0/1.1.0/1.2.0 through 1.2.8 to Ripe 1.3.4 edition transition.');
         $this->addOption('edition-action', null, InputOption::VALUE_REQUIRED, 'inspect, execute, recover, accept or export-light-recovery.', 'inspect');
         $this->addOption('target-package', null, InputOption::VALUE_REQUIRED, 'Authenticated Ripe target package.');
         $this->addOption('source-package', null, InputOption::VALUE_REQUIRED, 'Exact published Light source package.');
@@ -99,7 +99,7 @@ final class SetupInstallCommand extends Command
                 if (!$input->isInteractive() && true !== $input->getOption('recovery-passphrase-stdin')) {
                     throw new \RuntimeException('Edition execution requires protected terminal or installer standard input. Inspection remains read-only and noninteractive.');
                 }
-                $io->note('This installer transitions supported Emailer Light 1.0.0, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4 or 1.2.5 to Emailer Ripe 1.3.2. It preserves your account password, leaves MFA unconfigured, and keeps delivery held. A separately configured Ripe recovery-key destination must retain the existing Light package.');
+                $io->note('This installer transitions supported Emailer Light 1.0.0, 1.1.0 and 1.2.0 through 1.2.8 to Emailer Ripe 1.3.4. It preserves your account password, leaves MFA unconfigured, and keeps delivery held. A separately configured Ripe recovery-key destination must retain the existing Light package.');
                 $helper = $this->getHelper('question');
                 if (!$helper instanceof QuestionHelper) {
                     throw new \RuntimeException('Protected edition input is unavailable.');

@@ -45,6 +45,21 @@ class UpdateDeliveryRestoration(unittest.TestCase):
         self.assertEqual(1,h.live.call_count)
         self.assertEqual('complete',h.state['delivery_snapshot']['phase'])
 
+    def test_one_time_repair_finishes_but_never_restores_prior_acceptance(self):
+        for active in (False, True):
+            with self.subTest(active=active):
+                h = self.fixture(prior=1, active=active)
+                original = copy.deepcopy(h.state['delivery_snapshot'])
+                h.restore_update_delivery(preserve_hold=True)
+                self.assertEqual(['inspect-update', 'retain-update-hold'], [call.args[0] for call in h.database.call_args_list])
+                self.assertEqual('complete', h.state['delivery_snapshot']['phase'])
+                self.assertEqual(1, h.state['delivery_snapshot']['prior_accepting_work'])
+                self.assertEqual(original['campaigns'], h.state['delivery_snapshot']['campaigns'])
+                self.assertEqual(1, h.live.call_count)
+                self.assertIn('explicit readiness review', h.state['delivery_snapshot']['reason'])
+                h.restore_update_delivery(preserve_hold=True)
+                self.assertEqual(1, h.live.call_count)
+
     def test_active_delivery_uses_normal_resume_and_never_queues_or_approves(self):
         h=self.fixture(active=True)
         h.restore_update_delivery()

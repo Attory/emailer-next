@@ -504,3 +504,10 @@ privacy boundary and is not encrypted server backup material. Separate tabs do
 not overwrite one another. Recovery failure leaves unsaved-change protection
 and visible guidance. Fetched metadata is rendered with DOM text APIs; image
 HTML uses a fixed supported URL, numeric dimensions and escaped alt text.
+
+Background update-status and campaign-progress responses never issue the session
+cookie. A poll sent before session rotation may complete afterward with a revoked
+ID; it still fails authentication but cannot replace the newer browser cookie.
+Reauthentication and MFA mutations retain ID rotation, revocation, purpose/expiry,
+authorization and CSRF checks. MFA uses a server-owned purpose-to-route return;
+no external return URL or enrollment POST is replayed.

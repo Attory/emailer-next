@@ -473,3 +473,16 @@ delivery held and requires repair using retained evidence, never automatic send.
 See [ADR 0014](adr/0014-light-recipient-provenance-and-edition-recovery.md) and the
 [operator procedure](CLIENT-LIGHT-UPGRADE-1.0.6.md). This candidate is not a
 production deployment authorization.
+
+A stale concurrent background request must not overwrite the post-rotation cookie.
+Update/progress GET/HEAD responses now strip session cookies after session save;
+their authorization and revoked-session rejection are unchanged. Actual native
+DB-session browser acceptance holds an old-cookie poll across reauthentication,
+then confirms return navigation, enrollment and later MFA login without exporting
+request traces or MFA material.
+
+The one-time 1.0.5 native route authenticates the original package digest/commit,
+keeps recovery and ownership controls, and binds offline verification to the
+activated operation and installation. An idle maintenance report grants no
+sending authority. Live target heartbeats and ordinary fail-closed sending gates
+remain mandatory, with explicit administration-only delivery resume.

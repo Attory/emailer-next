@@ -17,7 +17,7 @@ while (microtime(true) < $deadline) {
     if ([] !== $files) {
         sort($files, SORT_STRING);
         $journal = json_decode((string) file_get_contents($files[array_key_last($files)]), true, 512, JSON_THROW_ON_ERROR);
-        if (($journal['source_version'] ?? null) !== (getenv('EMAILER_REHEARSAL_NATIVE_SOURCE') ?: '1.0.6') || '1.3.3' !== ($journal['target_version'] ?? null)) {
+        if (($journal['source_version'] ?? null) !== (getenv('EMAILER_REHEARSAL_NATIVE_SOURCE') ?: '1.0.6') || '1.3.4' !== ($journal['target_version'] ?? null)) {
             throw new RuntimeException('Native journal belongs to another release pair.');
         }
         if ('operation' === $argv[1]) {
@@ -43,11 +43,25 @@ while (microtime(true) < $deadline) {
                 $nullable = $c->fetchOne("SELECT IS_NULLABLE FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='campaign' AND COLUMN_NAME='template_version_id'");
                 $baseline = json_decode((string) file_get_contents('/rehearsal/native-before.json'), true, 512, JSON_THROW_ON_ERROR);
                 $sourceLedgerCount = count($baseline['tables']['doctrine_migration_versions']['rows']);
-                if ('YES' !== $nullable || $sourceLedgerCount !== (int) $c->fetchOne('SELECT COUNT(*) FROM doctrine_migration_versions') || false !== $c->fetchOne('SELECT version FROM doctrine_migration_versions WHERE version=?', ['DoctrineMigrations\\Version20261025000000'])) {
+                $legacy105 = '1.0.5' === getenv('EMAILER_REHEARSAL_NATIVE_SOURCE');
+                $ddlCommitted = $legacy105
+                    ? false !== $c->fetchOne("SELECT COLUMN_NAME FROM information_schema.COLUMNS WHERE TABLE_SCHEMA=DATABASE() AND TABLE_NAME='campaign_recipient' AND COLUMN_NAME='recipient_id'")
+                    : 'YES' === $nullable;
+                $actualLedger = $c->fetchFirstColumn('SELECT version FROM doctrine_migration_versions ORDER BY version');
+                $sourceLedger = array_map(static fn (array $row): string => (string) base64_decode($row['version'], true), $baseline['tables']['doctrine_migration_versions']['rows']);
+                sort($sourceLedger, SORT_STRING);
+                $ledgerMatches = count($actualLedger) === $sourceLedgerCount;
+                if ($legacy105) {
+                    // This source crosses the separate recipient-identity migration
+                    // before the nullable-draft migration. Its committed intermediate
+                    // ledger is also a genuine interrupted forward migration.
+                    $ledgerMatches = $actualLedger === $sourceLedger || $actualLedger === [...$sourceLedger, 'DoctrineMigrations\\Version20261015000000'];
+                }
+                if (!$ddlCommitted || !$ledgerMatches || false !== $c->fetchOne('SELECT version FROM doctrine_migration_versions WHERE version=?', ['DoctrineMigrations\\Version20261025000000'])) {
                     usleep(10000);
                     continue;
                 }
-                echo "Current nullable-column DDL committed before target migration ledger write.\n";
+                echo "Reviewed native DDL committed before its migration ledger write.\n";
             }
             $account = $journal['database_account'];
             $locked = $c->fetchOne("SELECT JSON_VALUE(Priv, '$.account_locked') FROM mysql.global_priv WHERE User=? AND Host=?", [$account['name'], $account['host']]);

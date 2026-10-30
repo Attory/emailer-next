@@ -6,7 +6,7 @@ if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL')) {
     throw new RuntimeException('Native fixture is isolated-only.');
 }
 $sourceVersion = getenv('EMAILER_REHEARSAL_NATIVE_SOURCE') ?: '1.0.6';
-if (!in_array($sourceVersion, ['1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2'], true)) {
+if (!in_array($sourceVersion, ['1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2', '1.3.3'], true)) {
     throw new RuntimeException('Unsupported isolated native source.');
 }
 require '/rehearsal/source-releases/'.$sourceVersion.'/vendor/autoload.php';

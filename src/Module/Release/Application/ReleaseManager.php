@@ -13,7 +13,7 @@ use Symfony\Component\Lock\LockFactory;
 
 final readonly class ReleaseManager
 {
-    private const NATIVE_RECOVERY_SOURCES = ['1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2'];
+    private const NATIVE_RECOVERY_SOURCES = ['1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2', '1.3.3'];
 
     public function __construct(private PackageInspector $inspector, private BackupOperations $backups, private Connection $connection, private LockFactory $locks, private MaintenanceOperationLock $maintenance, private InterruptedDeliveryRecovery $recovery, private string $releasesDirectory, private string $currentVersion, private int $rollbackReserveBytes = 536870912, private string $environment = 'test', private ?EditionRecoverySet $completeRecovery = null, private string $privateDirectory = '', private string $masterKeyFile = '', private string $runtimeConfigurationFile = '', private bool $retainSourceFence = false, private string $replacementRuntimeFile = '', private ?RecoveryBackupCopy $backupCopy = null)
     {
@@ -144,8 +144,14 @@ final readonly class ReleaseManager
             }
             $this->assertPlatformAndSchemaCompatibility($manifest);
             $this->assertDiskCapacity($archive, $manifest);
-            if ('1.3.3' === $targetVersion) {
+            if (\in_array($targetVersion, ['1.3.3', '1.3.4'], true)) {
                 $this->assertNativeSourceIdentity(EditionData::text($sourceManifest['schema_version']));
+            }
+            if ('1.0.5' === $this->currentVersion && '1.3.4' === $targetVersion) {
+                Native105Repair::assertSource($sourceManifest);
+            }
+            if ('1.3.4' === $targetVersion && null === $this->completeRecovery) {
+                throw new \RuntimeException('Native maintenance requires the complete recovery service before any mutation.');
             }
             $sourceSchemaFingerprint = $this->schemaFingerprint();
             $operationId = Identity::uuidV7();
@@ -173,7 +179,7 @@ final readonly class ReleaseManager
             }
             $safety = $this->backups->create();
             SafetyBackupOwnership::transfer($safety['path'], $this->environment);
-            if ('1.3.3' === $targetVersion) {
+            if (\in_array($targetVersion, ['1.3.3', '1.3.4'], true)) {
                 $this->backupCopy?->preserve($safety);
             }
             if ($this->completeNativePair($this->currentVersion, $targetVersion) && null !== $this->completeRecovery) {
@@ -207,12 +213,14 @@ final readonly class ReleaseManager
                 $nativeJournal['phase'] = 'activated';
                 $this->nativeJournal(EditionData::text($completeCheckpoint), $nativeJournal);
             }
-            if (version_compare($targetVersion, '1.1.0', '<')) {
+            if ('1.3.4' === $targetVersion) {
+                $this->runConsole($target, ['emailer:release:verify-native-maintenance', $operationId, $archive, $sourceArchive], [0]);
+            } elseif (version_compare($targetVersion, '1.1.0', '<')) {
                 $this->runConsole($target, ['emailer:doctor:run', '--json', '--maintenance-verification'], [0, 1]);
             } else {
                 $this->runConsole($target, ['emailer:health:verify-runtime', '--offline-maintenance'], [0]);
             }
-            if (\in_array($targetVersion, ['1.1.0', '1.2.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2', '1.3.3'], true) && null !== $nativeJournal) {
+            if (\in_array($targetVersion, ['1.1.0', '1.2.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2', '1.3.3', '1.3.4'], true) && null !== $nativeJournal) {
                 $this->synchronizeNativeIdentity($targetVersion, EditionData::text($sourceManifest['schema_version']), EditionData::text($manifest['schema_version']));
             }
             $this->connection->update('release_operation', ['status' => 'succeeded', 'detail_code' => 'health_passed', 'finished_at' => Identity::now()], ['id' => $operationId]);
@@ -296,6 +304,43 @@ final readonly class ReleaseManager
         }
     }
 
+    public function assertNativeMaintenance(string $operationId, string $archive, string $sourceArchive): void
+    {
+        if (1 !== preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-7[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/D', $operationId) || null === $this->completeRecovery) {
+            throw new \RuntimeException('Native offline verification requires a retained operation.');
+        }
+        $directory = \dirname($this->privateDirectory).'/native-update-recovery/'.$operationId;
+        EditionRecoverySet::safe($directory.'/native-operation.json', false);
+        $journal = EditionData::read($directory.'/native-operation.json');
+        $target = $this->inspector->inspect($archive);
+        $source = $this->inspector->inspectInstalledSource($sourceArchive);
+        $row = $this->connection->fetchAssociative("SELECT id, status, source_version, target_version, package_sha256 FROM release_operation WHERE operation='update' ORDER BY started_at DESC, id DESC LIMIT 1");
+        $runtime = $this->connection->fetchAssociative("SELECT accepting_work, active_claims FROM delivery_runtime WHERE singleton_key='1'");
+        if ('emailer-native-update-recovery-v1' !== ($journal['format'] ?? null) || 'activated' !== ($journal['phase'] ?? null)
+            || $operationId !== ($journal['operation_id'] ?? null) || $this->privateDirectory !== ($journal['private_directory'] ?? null)
+            || $this->nativeDatabaseBinding() !== ($journal['database_binding'] ?? null)
+            || $this->currentVersion !== ($journal['source_version'] ?? null) || '1.3.4' !== ($journal['target_version'] ?? null)
+            || '1.3.4' !== ($target['version'] ?? null) || $this->currentVersion !== ($source['version'] ?? null)
+            || ($journal['target_archive_sha256'] ?? null) !== hash_file('sha256', $archive)
+            || ($journal['source_archive_sha256'] ?? null) !== hash_file('sha256', $sourceArchive)
+            || ($journal['installation_uuid'] ?? null) !== $this->connection->fetchOne("SELECT installation_uuid FROM installation_state WHERE singleton_key='1'")
+            || false === $row || $operationId !== $row['id'] || 'started' !== $row['status']
+            || $row['source_version'] !== $this->currentVersion || $row['target_version'] !== $target['version'] || $row['package_sha256'] !== $journal['target_archive_sha256']
+            || false === $runtime || 0 !== EditionData::integer($runtime['accepting_work']) || 0 !== EditionData::integer($runtime['active_claims'])
+            || realpath($this->releasesDirectory.'/current') !== $this->releasesDirectory.'/1.3.4'
+        ) {
+            throw new \RuntimeException('Native offline verification evidence does not match the activated idle installation.');
+        }
+        if ('prod' === $this->environment && 0 !== fileowner($directory.'/native-operation.json')) {
+            throw new \RuntimeException('Native maintenance evidence must be updater-owned.');
+        }
+        $this->assertNativeOperationOwnership($operationId);
+        (new SourceDatabaseFence($this->connection, $this->runtimeConfigurationFile))->assertQuiesced(SourceDatabaseFence::account($journal['database_account'] ?? null));
+        $this->assertPublishedOwnership($this->releasesDirectory.'/1.3.4');
+        $this->assertInstalledReleaseMatchesManifest($this->releasesDirectory.'/1.3.4', $target, '1.3.4');
+        $this->completeRecovery->verify($directory);
+    }
+
     private function assertNativeSourceIdentity(string $schema): void
     {
         $path = $this->privateDirectory.'/install.lock';
@@ -315,7 +360,7 @@ final readonly class ReleaseManager
         }
         $legacy = '1.0.6' === $this->currentVersion && false !== $this->connection->fetchOne("SELECT 1 FROM release_operation WHERE source_version='1.0.5' AND target_version='1.0.6' AND status='succeeded' LIMIT 1");
         $converted = $this->connection->createSchemaManager()->tablesExist(['ripe_edition_transition']) && 0 < EditionData::integer($this->connection->fetchOne('SELECT COUNT(*) FROM ripe_edition_transition'));
-        NativeIdentityBinding::source($this->currentVersion, $schema, $uuid, $lock, $identity, $legacy, $converted);
+        NativeIdentityBinding::source($this->currentVersion, $schema, $uuid, $lock, $identity, $legacy, $converted, '1.0.5' === $this->currentVersion);
     }
 
     private function synchronizeNativeIdentity(string $version, string $sourceSchema, string $targetSchema): void
@@ -332,8 +377,8 @@ final readonly class ReleaseManager
         if (null !== $recorded && $this->currentVersion !== $recorded && !$legacy) {
             throw new \RuntimeException('Native installation version disagrees with its authenticated source.');
         }
-        if ('1.3.3' === $version) {
-            NativeIdentityBinding::source($this->currentVersion, $sourceSchema, EditionData::text($uuid), $lock, null, $legacy);
+        if (\in_array($version, ['1.3.3', '1.3.4'], true)) {
+            NativeIdentityBinding::source($this->currentVersion, $sourceSchema, EditionData::text($uuid), $lock, null, $legacy, false, '1.0.5' === $this->currentVersion);
         } elseif (isset($lock['schema_version']) && $lock['schema_version'] !== $sourceSchema) {
             throw new \RuntimeException('The native source lock schema is inconsistent.');
         }
@@ -345,7 +390,7 @@ final readonly class ReleaseManager
         $lock['schema_version'] = $targetSchema;
         EditionRecoverySet::write($path, json_encode($lock, JSON_THROW_ON_ERROR), true);
         if ($this->connection->createSchemaManager()->tablesExist(['product_identity'])) {
-            if ('1.3.3' === $version) {
+            if (\in_array($version, ['1.3.3', '1.3.4'], true)) {
                 $before = $this->connection->fetchAssociative('SELECT * FROM product_identity');
                 if (false === $before) {
                     throw new \RuntimeException('The converted installation identity disappeared during migration.');
@@ -353,7 +398,7 @@ final readonly class ReleaseManager
                 NativeIdentityBinding::row($before, $this->currentVersion, $targetSchema, EditionData::text($uuid));
             }
             $changed = $this->connection->update('product_identity', ['product_version' => $version, 'schema_version' => $targetSchema], ['singleton_key' => '1', 'product_id' => 'emailer-ripe', 'installation_uuid' => $uuid]);
-            if ('1.3.3' === $version) {
+            if (\in_array($version, ['1.3.3', '1.3.4'], true)) {
                 $after = $this->connection->fetchAssociative('SELECT * FROM product_identity');
                 if (1 !== $changed || false === $after) {
                     throw new \RuntimeException('The converted installation identity could not be published exactly.');
@@ -510,7 +555,12 @@ final readonly class ReleaseManager
             EditionRecoverySet::directory($runtime);
             $this->runConsole($source, ['about', '--no-interaction'], [0], $runtime);
             $this->runConsole($source, ['doctrine:schema:validate', '--skip-sync', '--no-interaction'], [0], $runtime);
-            if (version_compare($this->currentVersion, '1.1.0', '<')) {
+            if ('1.0.5' === $this->currentVersion && '1.3.4' === $targetVersion) {
+                // The original 1.0.5 Doctor always persists and requires live
+                // services. Exact schema/data/key proofs above plus source boot
+                // and mapping validation are the offline recovery proof. The
+                // operator must run its full Doctor after held source restart.
+            } elseif (version_compare($this->currentVersion, '1.1.0', '<')) {
                 $this->runConsole($source, ['emailer:doctor:run', '--read-only', '--json', '--maintenance-verification'], [0, 1], $runtime);
             } else {
                 // Use the source's own schema expectation, even when this recovery coordinator is newer.
@@ -549,7 +599,7 @@ final readonly class ReleaseManager
 
     private function completeNativePair(string $source, string $target): bool
     {
-        return (\in_array($source, ['1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2'], true) && '1.3.3' === $target) || (\in_array($source, ['1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1'], true) && '1.3.2' === $target) || (\in_array($source, ['1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0'], true) && '1.3.1' === $target) || (\in_array($source, ['1.0.6', '1.1.0', '1.2.1', '1.2.2'], true) && '1.3.0' === $target) || ('1.2.1' === $source && '1.2.2' === $target) || ('1.0.5' === $source && '1.0.6' === $target) || ('1.0.6' === $source && '1.1.0' === $target) || (\in_array($source, ['1.0.6', '1.1.0'], true) && \in_array($target, ['1.2.0', '1.2.1', '1.2.2'], true));
+        return (\in_array($source, ['1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2', '1.3.3'], true) && '1.3.4' === $target) || (\in_array($source, ['1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2'], true) && '1.3.3' === $target) || (\in_array($source, ['1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1'], true) && '1.3.2' === $target) || (\in_array($source, ['1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0'], true) && '1.3.1' === $target) || (\in_array($source, ['1.0.6', '1.1.0', '1.2.1', '1.2.2'], true) && '1.3.0' === $target) || ('1.2.1' === $source && '1.2.2' === $target) || ('1.0.5' === $source && '1.0.6' === $target) || ('1.0.6' === $source && '1.1.0' === $target) || (\in_array($source, ['1.0.6', '1.1.0'], true) && \in_array($target, ['1.2.0', '1.2.1', '1.2.2'], true));
     }
 
     private function nativeDatabaseBinding(): string
@@ -746,7 +796,7 @@ final readonly class ReleaseManager
         $command = array_merge([PHP_BINARY, $release.'/bin/console'], $arguments);
         $pipes = [];
         $environment = LegacyDatabaseEnvironment::forRelease($release, '' === $runtime ? getenv() : array_replace(getenv(), ['EMAILER_RUNTIME_DIR' => $runtime]));
-        $health = 'emailer:health:verify-runtime' === ($arguments[0] ?? null);
+        $health = \in_array($arguments[0] ?? null, ['emailer:health:verify-runtime', 'emailer:release:verify-native-maintenance'], true);
         $process = proc_open(LegacyDatabaseEnvironment::command($command, $environment), [['file', '/dev/null', 'r'], $health ? ['pipe', 'w'] : ['file', '/dev/null', 'w'], ['file', '/dev/null', 'w']], $pipes, $release, $environment);
         if (!\is_resource($process)) {
             throw new \RuntimeException('Release command could not start.');

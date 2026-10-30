@@ -48,3 +48,10 @@ If the private key is lost or suspected compromised, stop signing, publishing, a
   patch releases within those lines.
 
 An update from an older or unlisted line is rejected until the operator applies each supported intermediate release or follows a separately reviewed migration plan. Downgrades and same-version updates remain prohibited.
+
+The authorized client-upgrade maintenance prepares new 1.3.4 candidates under the
+existing Ripe key. Its 1.0.5 source exception is confined to this one-time route
+and the independently verified original archive digest; it is not a promise of
+future 1.0.5 support. Retain its original sidecars. Local disposable-key fixtures
+must be labeled synthetic and kept separate from original signed inputs and final
+operator-signed candidates. Never overwrite or silently re-sign a historical asset.
