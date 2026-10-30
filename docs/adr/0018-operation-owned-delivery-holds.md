@@ -32,3 +32,10 @@ protected `previous_operation_id` lineage, with matching installation, source
 identity and restored writer fence. Host completion retires only its own verified
 children. Independent operations and owner pauses remain. A successful terminal
 replay returns without re-projecting delivery over later claims or owner actions.
+
+A standalone retry from an old source with a zero database delivery flag cannot
+retain generation-zero inferred enabled intent: the recovered old source may
+have acknowledged Pause while its account was open. Authenticated source files
+distinguish protocol-aware sources. Invalidate only that unproven generation;
+never overwrite a newer independent pause or Resume. Real old-source Pause
+between recovery and retry is a release regression gate.

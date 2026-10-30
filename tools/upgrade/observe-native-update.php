@@ -58,6 +58,7 @@ if ($e['source_version'] !== $sourceVersion || $e['source_root'] !== $sourceName
     throw new RuntimeException('Native preservation evidence belongs to another fixture.');
 }
 $liveActors = null;
+$expectedAccepting = 0;
 if ('1' === getenv('EMAILER_REHEARSAL_NATIVE_LIVE_EVIDENCE')) {
     $path = '/rehearsal/native-live-actors.json';
     $metadata = lstat($path);
@@ -79,6 +80,28 @@ if ('1' === getenv('EMAILER_REHEARSAL_NATIVE_LIVE_EVIDENCE')) {
             throw new RuntimeException('Actual held worker/scheduler heartbeat is not verified.');
         }
     }
+    // Only the exact completed standalone Finish may project enabled intent.
+    // Before Finish and after source recovery, the unconditional hold remains.
+    $latest = $c->fetchAssociative("SELECT id,status FROM release_operation WHERE operation='update' ORDER BY started_at DESC,id DESC LIMIT 1");
+    $installation = $c->fetchOne("SELECT installation_uuid FROM installation_state WHERE singleton_key='1'");
+    if (!is_array($latest) || 'succeeded' !== $latest['status'] || !is_string($installation) || !is_string($latest['id'])) {
+        throw new RuntimeException('Native Finish lacks its exact successful operation.');
+    }
+    $path = '/rehearsal/native-update-recovery/'.$latest['id'].'/native-operation.json';
+    $proof = App\Module\Release\Application\EditionData::read($path);
+    $controls = new App\Shared\DeliveryControlFiles('/rehearsal/private', $installation);
+    $hold = $controls->operationState($latest['id']);
+    if ('completed' !== ($proof['phase'] ?? null) || true !== ($proof['fence_restored'] ?? null) || $latest['id'] !== ($proof['operation_id'] ?? null) || $installation !== ($proof['installation_uuid'] ?? null) || $sourceVersion !== ($proof['source_version'] ?? null) || '1.3.5' !== ($proof['target_version'] ?? null) || '/rehearsal/private' !== ($proof['private_directory'] ?? null) || hash_file('sha256', '/native-source/emailer-next-'.$sourceVersion.'.zip') !== ($proof['source_archive_sha256'] ?? null) || hash_file('sha256', '/package/emailer-next-1.3.5.zip') !== ($proof['target_archive_sha256'] ?? null) || 'native' !== $hold['kind'] || 'released' !== $hold['phase'] || ['proof_path' => $path, 'parent_operation' => ''] !== $hold['evidence']) {
+        throw new RuntimeException('Native Finish release provenance is not verified.');
+    }
+    $state = $controls->status();
+    if (is_file('/rehearsal/recovered-source-pause.json')) {
+        $pause = App\Module\Release\Application\EditionData::read('/rehearsal/recovered-source-pause.json');
+        if ('emailer-recovered-source-pause-v1' !== ($pause['format'] ?? null) || ($proof['previous_operation_id'] ?? null) !== ($pause['operation'] ?? null) || 'unknown' !== $state['owner']) {
+            throw new RuntimeException('A legacy source Pause after recovery lost its independent intent.');
+        }
+    }
+    $expectedAccepting = 'enabled' === $state['owner'] && [] === $state['holds'] ? 1 : 0;
 }
 $verified = 0;
 foreach ($e['tables'] as $table => $evidence) {
@@ -107,8 +130,8 @@ foreach ($e['tables'] as $table => $evidence) {
         foreach ($original as $key => $encoded) {
             $value = null === $encoded ? null : base64_decode($encoded, true);
             if ('delivery_runtime' === $table && 'accepting_work' === $key) {
-                if ('0' !== (string) $actual[$key]) {
-                    throw new RuntimeException('Native update or recovery lifted its delivery hold.');
+                if ((string) $expectedAccepting !== (string) $actual[$key]) {
+                    throw new RuntimeException('Native delivery projection differs from its verified operation and owner intent.');
                 }
                 continue;
             }
@@ -164,7 +187,7 @@ foreach (('1.0.5' === $sourceVersion && 'after' === $argv[1] ? [] : $e['schema']
         throw new RuntimeException('Native schema changed in '.$table.'.');
     }
 }
-if ($e['messages'] !== $mail['total'] || !hash_equals($e['master_key_sha256'], (string) hash_file('sha256', '/rehearsal/keys/master.key')) || 0 !== (int) $c->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key='1'")) {
+if ($e['messages'] !== $mail['total'] || !hash_equals($e['master_key_sha256'], (string) hash_file('sha256', '/rehearsal/keys/master.key')) || $expectedAccepting !== (int) $c->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key='1'")) {
     throw new RuntimeException('Native zero-send, key preservation or delivery hold proof failed.');
 }
 if ('restored' === $argv[1]) {

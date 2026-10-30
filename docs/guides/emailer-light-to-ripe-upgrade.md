@@ -1,6 +1,6 @@
 # Upgrade Emailer Light to Ripe
 
-Ripe 1.3.5 | Beginner guide for Light 1.0.0, 1.1.0 and 1.2.0 through 1.2.9
+Ripe 1.3.5 | Beginner guide for Light 1.0.0, 1.1.0 and 1.2.0 through 1.2.10
 
 Upgrade with the private Ripe 1.3.5 setup file. Your Light administrator becomes an Owner and keeps the same password. Accept the validated upgrade after verification. Successful acceptance retires only this installer’s hold; existing owner pauses remain and actual readiness still blocks sending.
 
@@ -26,10 +26,11 @@ Ubuntu 26.04.1 HTTPS acceptance used a local ACME server with real HTTP challeng
 | Official Light 1.2.7 | Ripe 1.3.5, direct guided upgrade. |
 | Official Light 1.2.8 | Ripe 1.3.5, direct guided upgrade. |
 | Official Light 1.2.9 | Ripe 1.3.5, direct guided upgrade. |
+| Official Light 1.2.10 | Ripe 1.3.5, direct guided upgrade. |
 | Light updated through a supported path to any supported source above | Ripe 1.3.5, same guided edition upgrade. |
 | Native Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2 and 1.3.0 through 1.3.4 | Ripe 1.3.5, normal Update menu. Original 1.0.5 first uses its signed 1.3.4 repair. |
 
-Use the Ripe 1.3.5 installer for original Light 1.0.0, 1.1.0 and signed 1.2.0 through 1.2.9. The installer authenticates each explicit source with the established Light identity and checks its exact schema. Native Ripe 1.0.5 first requires the published one-time 1.3.4 repair; other supported native releases retain their direct update route. There is no general Ripe-to-Light downgrade.
+Use the Ripe 1.3.5 installer for original Light 1.0.0, 1.1.0 and signed 1.2.0 through 1.2.10. The installer authenticates each explicit source with the established Light identity and checks its exact schema. Native Ripe 1.0.5 first requires the published one-time 1.3.4 repair; other supported native releases retain their direct update route. There is no general Ripe-to-Light downgrade.
 
 Use Ubuntu 22.04/24.04/26.04 amd64/systemd with Apache, or Debian 13 with Nginx, PHP 8.4 (PHP 8.5 on Ubuntu 26.04) and supported MariaDB 10.11/11.8. Ubuntu 22.04 fresh installations use an isolated MariaDB 10.11.19 beside any existing host database. The installer discovers protected standard settings under /etc/emailer-light or /etc/emailer, a dedicated application database account, private/key storage and an existing trusted HTTPS hostname without a custom port/subfolder. A dedicated Emailer virtual-host file must not also serve unrelated routes or applications. Unknown customized targets stop before handoff; keep their existing configuration. The automatic handoff requires the recorded dedicated Emailer PHP-FPM service so it can drain only this application. A shared/custom PHP service is preserved and rejected before hold or website mutation; use the operator reference for a supervised quiescent handoff.
 

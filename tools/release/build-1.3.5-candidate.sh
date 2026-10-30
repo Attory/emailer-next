@@ -50,7 +50,7 @@ cp "$documentation/"*.html "$documentation/"*.pdf \
 php -r '$z = new ZipArchive(); if (true !== $z->open($argv[1], ZipArchive::CREATE | ZipArchive::EXCL)) { exit(1); } foreach (glob($argv[2]."/*") as $p) { if (is_file($p)) { $z->addFile($p, basename($p)); $z->setMtimeName(basename($p), (int) $argv[3]); } } if (!$z->close()) { exit(1); }' \
     "$work/first/emailer-ripe-1.3.5-documentation.zip" "$documentation" "$source_epoch"
 light_assets="${EMAILER_LIGHT_RELEASE_ASSETS_DIR:?Use the authenticated final public Light release assets.}"
-cmp "$light_assets/emailer-light-1.2.9.zip" "$predecessors/emailer-light-1.2.9.zip"
+cmp "$light_assets/emailer-light-1.2.10.zip" "$predecessors/emailer-light-1.2.10.zip"
 for target in "$work/first" "$work/second"; do
     php "$project_root/tools/docs/combine-1.3.5-guides.php" "$light_assets" "$documentation" \
         "$target/emailer-1.3.5-complete-documentation-private.zip" "$source_epoch"

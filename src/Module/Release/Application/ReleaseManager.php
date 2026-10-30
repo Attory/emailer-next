@@ -182,6 +182,11 @@ final readonly class ReleaseManager
                         throw new \RuntimeException('The parent delivery operation does not match this updater.');
                     }
                 }
+                if ('' === $parent && 0 === $prior && (!\is_array($sourceManifest['files'] ?? null) || !isset($sourceManifest['files']['src/Shared/DeliveryControlFiles.php']))) {
+                    // A recovered old source could acknowledge Pause while its
+                    // account was open. Its zero flag cannot prove enabled intent.
+                    $controls->invalidateUnprovenLegacyIntent();
+                }
                 $controls->hold($operationId, 'native', ['proof_path' => EditionData::text($completeCheckpoint).'/native-operation.json', 'parent_operation' => $parent]);
                 $nativeJournal['delivery_control_owned'] = true;
                 $nativeJournal['delivery_control_parent'] = $parent;

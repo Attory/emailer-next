@@ -201,7 +201,7 @@ done
 # Light's production pin is never substituted to accommodate a CI signer.
 # Publish the fully accepted Light release before enabling the corresponding
 # private Ripe release: public release sidecars are authenticated by current code.
-for light_version in 1.1.0 1.2.0 1.2.1 1.2.2 1.2.3 1.2.4 1.2.5 1.2.6 1.2.7 1.2.8; do
+for light_version in 1.1.0 1.2.0 1.2.1 1.2.2 1.2.3 1.2.4 1.2.5 1.2.6 1.2.7 1.2.8 1.2.9; do
     for suffix in '' .manifest.json .sha256 .spdx.json .sig; do
         curl --fail --silent --show-error --location "https://github.com/Attory/emailer-light/releases/download/v$light_version/emailer-light-$light_version.zip$suffix" --output "$state_root/published-light/emailer-light-$light_version.zip$suffix"
     done
@@ -213,7 +213,7 @@ for mode in success fault journal preparing migrating; do
         *) rehearse env EMAILER_REHEARSAL_NATIVE_INTERRUPT="$mode" bash tools/upgrade/run-converted-native-rehearsal.sh "$target" "$key" "$state_root/native110-package/emailer-next-1.1.0.zip" "$state_root/published-light/emailer-light-1.1.0.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit" "$state_root/source110" ;;
     esac
 done
-for light_version in 1.2.8 1.2.7 1.2.6 1.2.5 1.2.4 1.0.0 1.1.0 1.2.0 1.2.1 1.2.2 1.2.3; do
+for light_version in 1.2.9 1.2.8 1.2.7 1.2.6 1.2.5 1.2.4 1.0.0 1.1.0 1.2.0 1.2.1 1.2.2 1.2.3; do
     printf 'Checking rich and minimal published Light %s fixtures.\n' "$light_version"
     rehearse env EMAILER_REHEARSAL_LIGHT_VERSION="$light_version" bash tools/upgrade/run-light-rehearsal.sh "$target" "$key" "$state_root/published-light/emailer-light-$light_version.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit"
     rehearse env EMAILER_REHEARSAL_LIGHT_VERSION="$light_version" EMAILER_REHEARSAL_MINIMAL=1 bash tools/upgrade/run-light-rehearsal.sh "$target" "$key" "$state_root/published-light/emailer-light-$light_version.zip" "$state_root/published-light/emailer-light-release.pub" "$state_root" "$source_commit"

@@ -98,7 +98,18 @@ final class MfaManagementHttpTest extends WebTestCase
         $credential = $db->fetchOne("SELECT encrypted_secret_id FROM mfa_credential WHERE user_id=? AND credential_type='totp' AND active=1", [$user->id()]);
         self::assertSelectorNotExists('img.mfa-enrollment-qr');
         self::assertSelectorNotExists('form[action="/admin/mfa/start"]');
-        self::assertTrue($credential === $db->fetchOne("SELECT encrypted_secret_id FROM mfa_credential WHERE user_id=? AND credential_type='totp' AND active=1", [$user->id()]));
+        $page = $client->getCrawler();
+        $client->submit($page->selectButton('Sign out')->form(), [], $server);
+        self::assertResponseRedirects('/login', 303);
+        $page = $client->request('GET', '/login', server: $server);
+        $freshCode = $totp->code($seed, intdiv(time(), 30) + 1);
+        $client->submit($page->selectButton('Sign in')->form(['login_identifier' => 'owner@example.test', 'password' => $password, 'mfa_code' => $freshCode]), [], $server);
+        $client->followRedirect();
+        $client->request('GET', '/admin/mfa', server: $server);
+        self::assertSelectorTextContains('main', 'Status: Enabled');
+        self::assertSelectorNotExists('img.mfa-enrollment-qr');
+        $afterLogin = $this->phase4Service(Connection::class);
+        self::assertTrue($credential === $afterLogin->fetchOne("SELECT encrypted_secret_id FROM mfa_credential WHERE user_id=? AND credential_type='totp' AND active=1", [$user->id()]));
         self::assertSame($mail, $db->fetchOne('SELECT COUNT(*) FROM delivery_attempt'));
     }
 }

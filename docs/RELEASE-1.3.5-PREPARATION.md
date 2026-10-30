@@ -46,7 +46,7 @@ New native hop: official 1.3.4 → 1.3.5. Existing native 1.0.6, 1.1.0, 1.2.1,
 1.2.2 and 1.3.0 through 1.3.3 retain their supported direct update; the one-time
 1.0.5 repair belongs only to
 the published signed 1.3.4 installer. Light conversions additionally authenticate
-1.2.9 using the established public Light signer and unchanged schema proof.
+1.2.10 using the established public Light signer and unchanged schema proof.
 Historical release artifacts and migration journals are not changed.
 
 Legacy zero delivery flags are unknown intent. Private accepted receipts alone
@@ -74,3 +74,10 @@ protected `previous_operation_id` lineage, with matching installation, source
 identity and restored writer fence. Host completion retires only its own verified
 children. Independent operations and owner pauses remain. A successful terminal
 replay returns without re-projecting delivery over later claims or owner actions.
+
+A standalone retry from an old source with a zero database delivery flag cannot
+retain generation-zero inferred enabled intent: the recovered old source may
+have acknowledged Pause while its account was open. Authenticated source files
+distinguish protocol-aware sources. Invalidate only that unproven generation;
+never overwrite a newer independent pause or Resume. Real old-source Pause
+between recovery and retry is a release regression gate.

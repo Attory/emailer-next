@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 // Private release tooling: authenticate public documents before combining editions.
 if (5 !== $argc || !ctype_digit($argv[4]) || file_exists($argv[3])) {
-    throw new RuntimeException('Expected official Light 1.2.9 runtime/documentation assets, verified Ripe guides, new ZIP and source epoch.');
+    throw new RuntimeException('Expected official Light 1.2.10 runtime/documentation assets, verified Ripe guides, new ZIP and source epoch.');
 }
 $read = static function (string $path): string {
     $stat = lstat($path);
@@ -42,21 +42,21 @@ $public = static function (string $name) use ($argv, $inventory, $read): string 
 $identity = json_decode($public('BUILD-IDENTITY.json'), true, 32, JSON_THROW_ON_ERROR);
 $originalDocs = json_decode($public('DOCS-MANIFEST.json'), true, 64, JSON_THROW_ON_ERROR);
 $ripe = json_decode($read($argv[2].'/DOCS-MANIFEST.json'), true, 64, JSON_THROW_ON_ERROR);
-if ('emailer-light' !== ($identity['product'] ?? null) || '1.2.9' !== ($identity['version'] ?? null) || false !== ($identity['test_only'] ?? null)
+if ('emailer-light' !== ($identity['product'] ?? null) || '1.2.10' !== ($identity['version'] ?? null) || false !== ($identity['test_only'] ?? null)
     || !is_string($identity['source_commit'] ?? null) || 1 !== preg_match('/^[a-f0-9]{40}$/D', $identity['source_commit']) || $identity['source_commit'] !== ($originalDocs['source_commit'] ?? null)
     || 'emailer-docs-v1' !== ($originalDocs['format'] ?? null) || 'emailer-docs-v1' !== ($ripe['format'] ?? null)) {
     throw new RuntimeException('The combined guides do not identify the supported official releases.');
 }
-$runtime = $argv[1].'/emailer-light-1.2.9.zip';
+$runtime = $argv[1].'/emailer-light-1.2.10.zip';
 $runtimeStat = lstat($runtime);
 if (!is_array($runtimeStat) || 0o100000 !== ($runtimeStat['mode'] & 0o170000)) {
     throw new RuntimeException('The Light runtime must be an unlinked regular release file.');
 }
 $runtimeHash = hash_file('sha256', $runtime);
-$runtimeManifest = json_decode($public('emailer-light-1.2.9.zip.manifest.json'), true, 64, JSON_THROW_ON_ERROR);
+$runtimeManifest = json_decode($public('emailer-light-1.2.10.zip.manifest.json'), true, 64, JSON_THROW_ON_ERROR);
 if (!is_string($runtimeHash)
-    || !isset($inventory['emailer-light-1.2.9.zip']) || !hash_equals($inventory['emailer-light-1.2.9.zip'], $runtimeHash)
-    || 'emailer-light-release-v1' !== ($runtimeManifest['format'] ?? null) || '1.2.9' !== ($runtimeManifest['version'] ?? null)
+    || !isset($inventory['emailer-light-1.2.10.zip']) || !hash_equals($inventory['emailer-light-1.2.10.zip'], $runtimeHash)
+    || 'emailer-light-release-v1' !== ($runtimeManifest['format'] ?? null) || '1.2.10' !== ($runtimeManifest['version'] ?? null)
     || $identity['source_commit'] !== ($runtimeManifest['source_commit'] ?? null)) {
     throw new RuntimeException('The Light runtime and documentation are not from the same authenticated release.');
 }
@@ -90,7 +90,7 @@ $files['LIGHT-RELEASE-SHA256SUMS'] = $checksums;
 $files['LIGHT-RELEASE-SHA256SUMS.sig'] = $read($argv[1].'/SHA256SUMS.sig');
 $files['LIGHT-RUNTIME-BUILD-IDENTITY.json'] = $public('BUILD-IDENTITY.json');
 $files['RIPE-DOCS-MANIFEST.json'] = $read($argv[2].'/DOCS-MANIFEST.json');
-$files['README.txt'] = "Emailer Light 1.2.9 and Ripe 1.3.5 complete documentation set\nPrivate: contains Ripe material. Do not publish this archive in the public Light repository.\nStart with emailer-light-install.html or emailer-ripe-install.html.\nFor existing Light, open emailer-light-to-ripe-upgrade.html.\nAll seven guides also have selectable-text PDF versions. Keep this folder together for offline HTML links.\nLight documentation identifies its authenticated 1.2.9 source; Ripe documentation identifies its authenticated 1.3.5 source.\n";
+$files['README.txt'] = "Emailer Light 1.2.10 and Ripe 1.3.5 complete documentation set\nPrivate: contains Ripe material. Do not publish this archive in the public Light repository.\nStart with emailer-light-install.html or emailer-ripe-install.html.\nFor existing Light, open emailer-light-to-ripe-upgrade.html.\nAll seven guides also have selectable-text PDF versions. Keep this folder together for offline HTML links.\nLight documentation identifies its authenticated 1.2.10 source; Ripe documentation identifies its authenticated 1.3.5 source.\n";
 ksort($files);
 $zip = new ZipArchive();
 if (true !== $zip->open($argv[3], ZipArchive::CREATE | ZipArchive::EXCL)) {
