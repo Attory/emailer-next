@@ -8,7 +8,7 @@ if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL') || 2 !== $argc || !in_array($ar
 $sourceVersion = getenv('EMAILER_REHEARSAL_NATIVE_SOURCE') ?: '1.0.6';
 $sourceName = getenv('EMAILER_REHEARSAL_NATIVE_SOURCE_ROOT') ?: $sourceVersion;
 $converted = '1' === getenv('EMAILER_REHEARSAL_NATIVE_CONVERTED');
-if (!in_array($sourceVersion, ['1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2'], true) || !in_array($sourceName, [$sourceVersion, 'ripe-'.$sourceVersion], true)) {
+if (!in_array($sourceVersion, ['1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2', '1.3.3'], true) || !in_array($sourceName, [$sourceVersion, 'ripe-'.$sourceVersion], true)) {
     throw new RuntimeException('Unsupported isolated native source.');
 }
 require '/tools/vendor/autoload.php';
