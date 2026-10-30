@@ -71,9 +71,11 @@ bash "$project_root/tools/ci/check-rehearsal-mailbox-isolation.sh" "$network" "$
 docker run --rm --user root --network none -v "$project_root:/workspace" "$app_image" \
     sh -euc 'mkdir -p /workspace/vendor; cp -a /opt/emailer-vendor/. /workspace/vendor/'
 mkdir "$state_root/published-light"
-curl --fail --silent --show-error --location https://github.com/Attory/emailer-light/releases/download/v1.0.0/emailer-light-1.0.0.zip --output "$state_root/published-light/emailer-light-1.0.0.zip"
-curl --fail --silent --show-error --location https://github.com/Attory/emailer-light/releases/download/v1.0.0/emailer-light-1.0.0-source.zip --output "$state_root/published-light/emailer-light-1.0.0-source.zip"
-curl --fail --silent --show-error --location https://raw.githubusercontent.com/Attory/emailer-light/b8705dc7ea8b42cea5af5ff89b4f8ed937da193a/release/emailer-light-release.pub --output "$state_root/published-light/emailer-light-release.pub"
+# Bound transient GitHub HTTP failures; persistent failures still stop before
+# authenticated package verification, never substituting another source.
+curl --fail --silent --show-error --location --retry 3 --retry-delay 2 --retry-max-time 60 https://github.com/Attory/emailer-light/releases/download/v1.0.0/emailer-light-1.0.0.zip --output "$state_root/published-light/emailer-light-1.0.0.zip"
+curl --fail --silent --show-error --location --retry 3 --retry-delay 2 --retry-max-time 60 https://github.com/Attory/emailer-light/releases/download/v1.0.0/emailer-light-1.0.0-source.zip --output "$state_root/published-light/emailer-light-1.0.0-source.zip"
+curl --fail --silent --show-error --location --retry 3 --retry-delay 2 --retry-max-time 60 https://raw.githubusercontent.com/Attory/emailer-light/b8705dc7ea8b42cea5af5ff89b4f8ed937da193a/release/emailer-light-release.pub --output "$state_root/published-light/emailer-light-release.pub"
 printf '%s  %s\n' cfd9afb133c3bbfe7da6053aa2d121d325200c46f4db51e784699356d28d0e77 "$state_root/published-light/emailer-light-1.0.0.zip" 55932cc1f15f4d78553c00415c968eb1af976c49a088d2aaefcf7925d7dc43da "$state_root/published-light/emailer-light-1.0.0-source.zip" 1279a3202e656378c18b0b303c7605ebd9a2aadf3cc7de548306a0cdab42b6a8 "$state_root/published-light/emailer-light-release.pub" | sha256sum --check
 source_commit="$(git rev-parse HEAD)"
 source_epoch="$(git show -s --format=%ct HEAD)"
@@ -203,7 +205,7 @@ done
 # private Ripe release: public release sidecars are authenticated by current code.
 for light_version in 1.1.0 1.2.0 1.2.1 1.2.2 1.2.3 1.2.4 1.2.5 1.2.6 1.2.7 1.2.8 1.2.9 1.2.10; do
     for suffix in '' .manifest.json .sha256 .spdx.json .sig; do
-        curl --fail --silent --show-error --location "https://github.com/Attory/emailer-light/releases/download/v$light_version/emailer-light-$light_version.zip$suffix" --output "$state_root/published-light/emailer-light-$light_version.zip$suffix"
+        curl --fail --silent --show-error --location --retry 3 --retry-delay 2 --retry-max-time 60 "https://github.com/Attory/emailer-light/releases/download/v$light_version/emailer-light-$light_version.zip$suffix" --output "$state_root/published-light/emailer-light-$light_version.zip$suffix"
     done
 done
 for mode in success fault journal preparing migrating; do
