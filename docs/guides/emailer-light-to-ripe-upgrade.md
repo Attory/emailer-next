@@ -1,6 +1,6 @@
 # Upgrade Emailer Light to Ripe
 
-Ripe 1.3.4 | Beginner guide for Light 1.0.0, 1.1.0 and 1.2.0 through 1.2.7
+Ripe 1.3.5 | Beginner guide for Light 1.0.0, 1.1.0 and 1.2.0 through 1.2.9
 
 Upgrade with the private Ripe 1.3.5 setup file. Your Light administrator becomes an Owner and keeps the same password. Accept the validated upgrade after verification. Successful acceptance retires only this installer’s hold; existing owner pauses remain and actual readiness still blocks sending.
 
