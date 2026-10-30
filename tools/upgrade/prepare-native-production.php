@@ -33,4 +33,4 @@ foreach (['/rehearsal/runtime.env', '/rehearsal/updater.env'] as $path) {
     }
     file_put_contents($path, str_replace("APP_ENV='dev'", "APP_ENV='prod'", $text));
 }
-echo "Synthetic production verification selected; source services absent and delivery held.\n";
+echo "Synthetic production verification selected; source services absent; case-specific source delivery intent selected.\n";
