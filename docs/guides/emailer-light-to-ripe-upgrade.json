@@ -31,57 +31,61 @@
       "rows": [
         [
           "Original published Light 1.0.0",
-          "Ripe 1.3.3, direct guided upgrade."
+          "Ripe 1.3.4, direct guided upgrade."
         ],
         [
           "Official Light 1.1.0",
-          "Ripe 1.3.3, direct guided upgrade."
+          "Ripe 1.3.4, direct guided upgrade."
         ],
         [
           "Official Light 1.2.0",
-          "Ripe 1.3.3, direct guided upgrade."
+          "Ripe 1.3.4, direct guided upgrade."
         ],
         [
           "Official Light 1.2.1",
-          "Ripe 1.3.3, direct guided upgrade."
+          "Ripe 1.3.4, direct guided upgrade."
         ],
         [
           "Official Light 1.2.2",
-          "Ripe 1.3.3, direct guided upgrade."
+          "Ripe 1.3.4, direct guided upgrade."
         ],
         [
           "Official Light 1.2.3",
-          "Ripe 1.3.3, direct guided upgrade."
+          "Ripe 1.3.4, direct guided upgrade."
         ],
         [
           "Official Light 1.2.4",
-          "Ripe 1.3.3, direct guided upgrade."
+          "Ripe 1.3.4, direct guided upgrade."
         ],
         [
           "Official Light 1.2.5",
-          "Ripe 1.3.3, direct guided upgrade."
+          "Ripe 1.3.4, direct guided upgrade."
         ],
         [
           "Official Light 1.2.6",
-          "Ripe 1.3.3, direct guided upgrade."
+          "Ripe 1.3.4, direct guided upgrade."
         ],
         [
           "Official Light 1.2.7",
-          "Ripe 1.3.3, direct guided upgrade."
+          "Ripe 1.3.4, direct guided upgrade."
+        ],
+        [
+          "Official Light 1.2.8",
+          "Ripe 1.3.4, direct guided upgrade."
         ],
         [
           "Light updated through a supported path to any supported source above",
-          "Ripe 1.3.3, same guided edition upgrade."
+          "Ripe 1.3.4, same guided edition upgrade."
         ],
         [
-          "Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2, 1.3.0, 1.3.1 or 1.3.2",
-          "Ripe 1.3.3, normal Update menu instead."
+          "Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2, 1.3.0, 1.3.1, 1.3.2 or 1.3.3",
+          "Ripe 1.3.4, normal Update menu instead."
         ]
       ]
     },
     {
       "type": "p",
-      "text": "Use the Ripe 1.3.4 installer for the ten supported Light versions: original 1.0.0, 1.1.0 and 1.2.0 through 1.2.7. Earlier Ripe releases do not automatically recognize newer Light packages. The new installer authenticates each explicit source with the established Light identity and checks its exact schema. Original Light 1.0.0 remains supported. There is no general Ripe-to-Light downgrade."
+      "text": "Use the Ripe 1.3.4 installer for the eleven supported Light versions: original 1.0.0, 1.1.0 and 1.2.0 through 1.2.8. Earlier Ripe releases do not automatically recognize newer Light packages. The new installer authenticates each explicit source with the established Light identity and checks its exact schema. Original Light 1.0.0 remains supported. There is no general Ripe-to-Light downgrade."
     },
     {
       "type": "p",

@@ -14,20 +14,21 @@ Ubuntu 26.04.1 HTTPS acceptance used a local ACME server with real HTTP challeng
 
 | Installed source | Target and route |
 | --- | --- |
-| Original published Light 1.0.0 | Ripe 1.3.3, direct guided upgrade. |
-| Official Light 1.1.0 | Ripe 1.3.3, direct guided upgrade. |
-| Official Light 1.2.0 | Ripe 1.3.3, direct guided upgrade. |
-| Official Light 1.2.1 | Ripe 1.3.3, direct guided upgrade. |
-| Official Light 1.2.2 | Ripe 1.3.3, direct guided upgrade. |
-| Official Light 1.2.3 | Ripe 1.3.3, direct guided upgrade. |
-| Official Light 1.2.4 | Ripe 1.3.3, direct guided upgrade. |
-| Official Light 1.2.5 | Ripe 1.3.3, direct guided upgrade. |
-| Official Light 1.2.6 | Ripe 1.3.3, direct guided upgrade. |
-| Official Light 1.2.7 | Ripe 1.3.3, direct guided upgrade. |
-| Light updated through a supported path to any supported source above | Ripe 1.3.3, same guided edition upgrade. |
-| Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2, 1.3.0, 1.3.1 or 1.3.2 | Ripe 1.3.3, normal Update menu instead. |
+| Original published Light 1.0.0 | Ripe 1.3.4, direct guided upgrade. |
+| Official Light 1.1.0 | Ripe 1.3.4, direct guided upgrade. |
+| Official Light 1.2.0 | Ripe 1.3.4, direct guided upgrade. |
+| Official Light 1.2.1 | Ripe 1.3.4, direct guided upgrade. |
+| Official Light 1.2.2 | Ripe 1.3.4, direct guided upgrade. |
+| Official Light 1.2.3 | Ripe 1.3.4, direct guided upgrade. |
+| Official Light 1.2.4 | Ripe 1.3.4, direct guided upgrade. |
+| Official Light 1.2.5 | Ripe 1.3.4, direct guided upgrade. |
+| Official Light 1.2.6 | Ripe 1.3.4, direct guided upgrade. |
+| Official Light 1.2.7 | Ripe 1.3.4, direct guided upgrade. |
+| Official Light 1.2.8 | Ripe 1.3.4, direct guided upgrade. |
+| Light updated through a supported path to any supported source above | Ripe 1.3.4, same guided edition upgrade. |
+| Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2, 1.3.0, 1.3.1, 1.3.2 or 1.3.3 | Ripe 1.3.4, normal Update menu instead. |
 
-Use the Ripe 1.3.4 installer for the ten supported Light versions: original 1.0.0, 1.1.0 and 1.2.0 through 1.2.7. Earlier Ripe releases do not automatically recognize newer Light packages. The new installer authenticates each explicit source with the established Light identity and checks its exact schema. Original Light 1.0.0 remains supported. There is no general Ripe-to-Light downgrade.
+Use the Ripe 1.3.4 installer for the eleven supported Light versions: original 1.0.0, 1.1.0 and 1.2.0 through 1.2.8. Earlier Ripe releases do not automatically recognize newer Light packages. The new installer authenticates each explicit source with the established Light identity and checks its exact schema. Original Light 1.0.0 remains supported. There is no general Ripe-to-Light downgrade.
 
 Use Ubuntu 22.04/24.04/26.04 amd64/systemd with Apache, or Debian 13 with Nginx, PHP 8.4 (PHP 8.5 on Ubuntu 26.04) and supported MariaDB 10.11/11.8. Ubuntu 22.04 fresh installations use an isolated MariaDB 10.11.19 beside any existing host database. The installer discovers protected standard settings under /etc/emailer-light or /etc/emailer, a dedicated application database account, private/key storage and an existing trusted HTTPS hostname without a custom port/subfolder. A dedicated Emailer virtual-host file must not also serve unrelated routes or applications. Unknown customized targets stop before handoff; keep their existing configuration. The automatic handoff requires the recorded dedicated Emailer PHP-FPM service so it can drain only this application. A shared/custom PHP service is preserved and rejected before hold or website mutation; use the operator reference for a supervised quiescent handoff.
 
