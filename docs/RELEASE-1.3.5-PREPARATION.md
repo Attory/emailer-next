@@ -81,3 +81,11 @@ have acknowledged Pause while its account was open. Authenticated source files
 distinguish protocol-aware sources. Invalidate only that unproven generation;
 never overwrite a newer independent pause or Resume. Real old-source Pause
 between recovery and retry is a release regression gate.
+
+The historical converted1.1.0 rehearsal retains the root-only Ripe recovery
+package produced by that original conversion. Before capturing the following
+native-update baseline, the source application's own CLI exports a separate
+package as the application identity and the bounded fixture launchers select it.
+This supplies genuine recovery readiness to the actual held target services;
+it does not change historical application bytes, relax key permissions, suppress
+Doctor findings, or discard the original recovery material.
