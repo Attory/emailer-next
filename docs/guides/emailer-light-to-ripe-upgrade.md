@@ -26,7 +26,7 @@ Ubuntu 26.04.1 HTTPS acceptance used a local ACME server with real HTTP challeng
 | Official Light 1.2.7 | Ripe 1.3.5, direct guided upgrade. |
 | Official Light 1.2.8 | Ripe 1.3.5, direct guided upgrade. |
 | Official Light 1.2.9 | Ripe 1.3.5, direct guided upgrade. |
-| Official Light 1.2.11 | Ripe 1.3.5, direct guided upgrade. |
+| Official Light 1.2.10 and 1.2.11 | Ripe 1.3.5, direct guided upgrade. |
 | Light updated through a supported path to any supported source above | Ripe 1.3.5, same guided edition upgrade. |
 | Native Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2 and 1.3.0 through 1.3.4 | Ripe 1.3.5, normal Update menu. Original 1.0.5 first uses its signed 1.3.4 repair. |
 
