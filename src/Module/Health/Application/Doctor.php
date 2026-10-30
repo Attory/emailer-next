@@ -138,7 +138,8 @@ final readonly class Doctor implements ScheduledHealthOperations, Contract\Runti
     {
         // Preserve every original severity and sending gate in the report.
         $result = $this->run($persist, false, 'full', 'update');
-        $expected = ['sender_identity'];
+        // MFA and SMTP configuration are sending prerequisites, not evidence of a broken runtime.
+        $expected = ['sender_identity', 'owner_mfa'];
         $blocking = [];
         foreach ($this->probes as $probe) {
             if ($probe instanceof Contract\MaintenanceReadinessProbe) {
@@ -147,7 +148,7 @@ final readonly class Doctor implements ScheduledHealthOperations, Contract\Runti
                 }
                 $codes = $probe->maintenanceFindings();
                 foreach ($codes as $code) {
-                    if ($offlineMaintenance || \in_array($code, ['sender_identity', 'smtp_transport_security'], true) || ($allowOperationalHold && $probe->offlineVerificationReady() && ('delivery_quiesced' === $code || ('edition_delivery_hold' === $code && true === $this->editionHold?->accepted())))) {
+                    if ($offlineMaintenance || \in_array($code, ['sender_identity', 'smtp_transport_security'], true) || ($allowOperationalHold && $probe->offlineVerificationReady() && (\in_array($code, ['delivery_quiesced', 'operation_delivery_hold', 'delivery_outcome_review'], true) || ('edition_delivery_hold' === $code && true === $this->editionHold?->accepted())))) {
                         $expected[] = $code;
                     }
                 }

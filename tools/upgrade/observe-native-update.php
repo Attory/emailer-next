@@ -8,7 +8,7 @@ if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL') || 2 !== $argc || !in_array($ar
 $sourceVersion = getenv('EMAILER_REHEARSAL_NATIVE_SOURCE') ?: '1.0.6';
 $sourceName = getenv('EMAILER_REHEARSAL_NATIVE_SOURCE_ROOT') ?: $sourceVersion;
 $converted = '1' === getenv('EMAILER_REHEARSAL_NATIVE_CONVERTED');
-if (!in_array($sourceVersion, ['1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2', '1.3.3'], true) || !in_array($sourceName, [$sourceVersion, 'ripe-'.$sourceVersion], true)) {
+if (!in_array($sourceVersion, ['1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2', '1.3.3', '1.3.4'], true) || !in_array($sourceName, [$sourceVersion, 'ripe-'.$sourceVersion], true)) {
     throw new RuntimeException('Unsupported isolated native source.');
 }
 require '/tools/vendor/autoload.php';
@@ -57,10 +57,39 @@ $e = json_decode((string) file_get_contents($file), true, 512, JSON_THROW_ON_ERR
 if ($e['source_version'] !== $sourceVersion || $e['source_root'] !== $sourceName || $e['converted'] !== $converted) {
     throw new RuntimeException('Native preservation evidence belongs to another fixture.');
 }
+$liveActors = null;
+if ('1' === getenv('EMAILER_REHEARSAL_NATIVE_LIVE_EVIDENCE')) {
+    $path = '/rehearsal/native-live-actors.json';
+    $metadata = lstat($path);
+    if (!is_array($metadata) || 0o100000 !== ($metadata['mode'] & 0o170000) || 0 !== $metadata['uid'] || 0o600 !== ($metadata['mode'] & 0o777) || 1 !== $metadata['nlink'] || $metadata['size'] > 4096) {
+        throw new RuntimeException('Live native actor receipt is unsafe.');
+    }
+    $liveActors = json_decode((string) file_get_contents($path), true, 16, JSON_THROW_ON_ERROR);
+    if (!is_array($liveActors) || 'emailer-native-live-actors-v1' !== ($liveActors['format'] ?? null) || !is_int($liveActors['started'] ?? null) || (time() - 90 > $liveActors['started'] || time() + 1 < $liveActors['started']) || !is_array($liveActors['actors'] ?? null) || 2 !== count($liveActors['actors'])) {
+        throw new RuntimeException('Live native actor receipt does not identify this bounded acceptance.');
+    }
+    $kinds = array_values($liveActors['actors']);
+    sort($kinds);
+    if (['scheduler', 'worker'] !== $kinds) {
+        throw new RuntimeException('Both actual native actor kinds are required.');
+    }
+    foreach ($liveActors['actors'] as $id => $kind) {
+        $row = $c->fetchAssociative('SELECT * FROM worker_heartbeat WHERE worker_id=?', [$id]);
+        if (false === $row || $kind !== $row['worker_kind'] || 1 !== (int) $row['schema_version'] || null !== $row['stopped_at'] || strtotime($row['started_at'].' UTC') < $liveActors['started'] - 1 || strtotime($row['heartbeat_at'].' UTC') < $liveActors['started'] - 1) {
+            throw new RuntimeException('Actual held worker/scheduler heartbeat is not verified.');
+        }
+    }
+}
 $verified = 0;
 foreach ($e['tables'] as $table => $evidence) {
     $count = (int) $c->fetchOne('SELECT COUNT(*) FROM '.$c->quoteSingleIdentifier($table));
     $appendOnly = in_array($table, ['release_operation', 'backup_record', 'audit_event'], true) || ('after' === $argv[1] && 'doctrine_migration_versions' === $table);
+    if ('worker_heartbeat' === $table && null !== $liveActors) {
+        if ($count !== count($evidence['rows']) + 2) {
+            throw new RuntimeException('Native live check changed unrelated actor rows.');
+        }
+        $appendOnly = true; // Only the two exact process IDs verified above may be new.
+    }
     if (($appendOnly && $count < count($evidence['rows'])) || (!$appendOnly && $count !== count($evidence['rows']))) {
         throw new RuntimeException('Native historical row count changed in '.$table.'.');
     }
@@ -96,7 +125,7 @@ foreach ($e['tables'] as $table => $evidence) {
                 continue;
             }
             if ('product_identity' === $table && 'product_version' === $key) {
-                if (('after' === $argv[1] ? '1.3.4' : $sourceVersion) !== $actual[$key]) {
+                if (('after' === $argv[1] ? '1.3.5' : $sourceVersion) !== $actual[$key]) {
                     throw new RuntimeException('Native product identity version is inconsistent.');
                 }
                 continue;
@@ -125,7 +154,7 @@ if ('1.0.5' === $sourceVersion && 'after' === $argv[1]) {
 }
 foreach (('1.0.5' === $sourceVersion && 'after' === $argv[1] ? [] : $e['schema']) as $table => $expected) {
     $ddl = $c->fetchAssociative('SHOW CREATE TABLE '.$c->quoteSingleIdentifier($table));
-    if ('after' === $argv[1] && 'campaign' === $table && !in_array($sourceVersion, ['1.3.3'], true)) {
+    if ('after' === $argv[1] && 'campaign' === $table && !in_array($sourceVersion, ['1.3.3', '1.3.4'], true)) {
         $expected = str_replace('`template_version_id` char(36) NOT NULL,', '`template_version_id` char(36) DEFAULT NULL,', $expected, $changes);
         if (1 !== $changes) {
             throw new RuntimeException('Source campaign nullable migration proof is not exact.');
@@ -159,7 +188,7 @@ if ($converted) {
         throw new RuntimeException('Native list workflow changed.');
     }
 }
-if (17 !== (int) $c->fetchOne('SELECT COUNT(*) FROM doctrine_migration_versions') || '/rehearsal/source-releases/1.3.4' !== realpath('/rehearsal/source-releases/current')) {
+if (17 !== (int) $c->fetchOne('SELECT COUNT(*) FROM doctrine_migration_versions') || '/rehearsal/source-releases/1.3.5' !== realpath('/rehearsal/source-releases/current')) {
     throw new RuntimeException('Native target schema or active root is inconsistent.');
 }
-echo json_encode(['actual_native_update' => true, 'source_version' => $sourceVersion, 'target_version' => '1.3.4', 'converted_source' => $converted, 'original_business_audit_and_backup_rows_verified' => $verified, 'original_crypto_unchanged' => true, 'new_emitted_messages' => 0], JSON_THROW_ON_ERROR)."\n";
+echo json_encode(['actual_native_update' => true, 'source_version' => $sourceVersion, 'target_version' => '1.3.5', 'converted_source' => $converted, 'original_business_audit_and_backup_rows_verified' => $verified, 'original_crypto_unchanged' => true, 'new_emitted_messages' => 0], JSON_THROW_ON_ERROR)."\n";

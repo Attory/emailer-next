@@ -28,7 +28,8 @@ final class Phase13FreshDatabaseSetupTest extends KernelTestCase
         $baseline = self::getContainer()->get(Connection::class);
         self::assertInstanceOf(Connection::class, $baseline);
         $params = $baseline->getParams();
-        self::assertSame('emailer_test', $params['dbname']);
+        self::assertIsString($params['dbname']);
+        self::assertMatchesRegularExpression('/^emailer(?:_(?:ripe|light))?_test$/D', $params['dbname']);
         $host = $params['host'];
         $port = $params['port'] ?? 3306;
         self::assertIsString($host);

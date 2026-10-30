@@ -33,6 +33,8 @@ class Ubuntu26Runtime(unittest.TestCase):
         selected = [('emailer-light', '/etc/emailer-light-light-124/runtime.env'), ('emailer-ripe', '/etc/emailer-light-ripe-131/runtime.env'), ('emailer-light', '/etc/emailer-light-light-125/runtime.env'), ('emailer-ripe', '/etc/emailer-light-ripe-132/runtime.env')]
         selected.append(('emailer-light', '/etc/emailer-light-light-127/runtime.env'))
         selected.append(('emailer-light', '/etc/emailer-light-light-128/runtime.env'))
+        selected.append(('emailer-light', '/etc/emailer-light-light-129/runtime.env'))
+        selected.append(('emailer-ripe', '/etc/emailer-light-ripe-135/runtime.env'))
         selected.append(('emailer-ripe', '/etc/emailer-light-ripe-134/runtime.env'))
         for product, runtime in selected:
             pointer = {'format': 'emailer-active-installation-v1', 'product': product, 'runtime': runtime}
@@ -40,7 +42,7 @@ class Ubuntu26Runtime(unittest.TestCase):
                 with self.assertRaises(SelectedConfiguration):
                     Manager(types.SimpleNamespace(), '/etc/emailer-light/runtime.env')
                 reader.assert_called_once_with(Path(runtime))
-        for runtime in ['/etc/emailer-light-light-129/runtime.env', '/etc/emailer-light-ripe-133/runtime.env', '/tmp/emailer-light-light-124/runtime.env', '/etc/emailer-light-light-124/../runtime.env']:
+        for runtime in ['/etc/emailer-light-light-130/runtime.env', '/etc/emailer-light-ripe-133/runtime.env', '/tmp/emailer-light-light-124/runtime.env', '/etc/emailer-light-light-124/../runtime.env']:
             pointer = {'format': 'emailer-active-installation-v1', 'product': 'emailer-light', 'runtime': runtime}
             with self.subTest(rejected=runtime), patch.object(Path, 'exists', return_value=True), patch('manage.protected', return_value=types.SimpleNamespace(read_text=lambda: json.dumps(pointer))), patch('manage.read_environment') as reader:
                 with self.assertRaisesRegex(ManagementError, 'active installation pointer is invalid'):

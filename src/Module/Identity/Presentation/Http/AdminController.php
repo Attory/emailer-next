@@ -8,6 +8,7 @@ use App\Module\Audit\Application\Contract\AuditRecord;
 use App\Module\Audit\Application\Contract\AuditSink;
 use App\Module\Identity\Application\AdministrativeRole;
 use App\Module\Identity\Application\AuthenticatedUser;
+use App\Module\Identity\Application\Contract\MfaQrCode;
 use App\Module\Identity\Application\Contract\SecurityLevelReader;
 use App\Module\Identity\Application\LoginThrottle;
 use App\Module\Identity\Application\MfaManagement;
@@ -33,6 +34,7 @@ final class AdminController extends AbstractController
         private readonly TokenStorageInterface $tokens,
         private readonly LoginThrottle $throttle,
         private readonly SecurityLevelReader $securityLevel,
+        private readonly MfaQrCode $mfaQrCode,
     ) {
     }
 
@@ -174,7 +176,12 @@ final class AdminController extends AbstractController
         }
         $this->reauthentication->assertRecent($request->getSession(), 'mfa_management');
         try {
-            return $this->render('admin/mfa-enrollment.html.twig', ['enrollment' => $this->mfa->start($this->user())]);
+            $enrollment = $this->mfa->start($this->user());
+            $response = $this->render('admin/mfa-enrollment.html.twig', ['enrollment' => $enrollment, 'enrollment_qr' => $this->mfaQrCode->dataUri($enrollment->provisioningUri)]);
+            $response->headers->set('Cache-Control', 'private, no-store, max-age=0');
+            $response->headers->set('Referrer-Policy', 'no-referrer');
+
+            return $response;
         } catch (\Throwable) {
             $this->addFlash('error', 'MFA enrollment was not accepted.');
 

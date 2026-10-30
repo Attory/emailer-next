@@ -2,11 +2,11 @@
 
 Ripe 1.3.4 | Beginner guide for Light 1.0.0, 1.1.0 and 1.2.0 through 1.2.7
 
-Upgrade with the private Ripe 1.3.4 setup file. Your Light administrator becomes an Owner and keeps the same password. Delivery remains held until you accept the validated upgrade, check the result and deliberately resume.
+Upgrade with the private Ripe 1.3.5 setup file. Your Light administrator becomes an Owner and keeps the same password. Accept the validated upgrade after verification. Successful acceptance retires only this installer’s hold; existing owner pauses remain and actual readiness still blocks sending.
 
 Ubuntu 26.04 uses its maintained distribution PHP 8.5 packages; no external PHP source is added. A compatible existing MariaDB 10.11 or 11.8 service is reused without a major upgrade. Setup adds a dedicated Emailer PHP-FPM pool and keeps existing website pools, PHP alternatives and Virtualmin-managed websites in place. Missing PHP extension packages add their standard extension configuration; existing PHP settings are retained and shared PHP services are not restarted.
 
-Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.6 on Ubuntu 26.04 upgrade directly to Ripe 1.3.4; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance.
+Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.6 on Ubuntu 26.04 upgrade directly to Ripe 1.3.5; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance.
 
 Ubuntu 26.04.1 HTTPS acceptance used a local ACME server with real HTTP challenge validation and strict certificate/name verification. Public certificate issuance remains unverified because no dedicated non-production hostname and DNS authority were available. Customer setup uses the normal public ACME service; DNS must point to the server and Apache must be reachable on ports 80 and 443.
 
@@ -14,21 +14,22 @@ Ubuntu 26.04.1 HTTPS acceptance used a local ACME server with real HTTP challeng
 
 | Installed source | Target and route |
 | --- | --- |
-| Original published Light 1.0.0 | Ripe 1.3.4, direct guided upgrade. |
-| Official Light 1.1.0 | Ripe 1.3.4, direct guided upgrade. |
-| Official Light 1.2.0 | Ripe 1.3.4, direct guided upgrade. |
-| Official Light 1.2.1 | Ripe 1.3.4, direct guided upgrade. |
-| Official Light 1.2.2 | Ripe 1.3.4, direct guided upgrade. |
-| Official Light 1.2.3 | Ripe 1.3.4, direct guided upgrade. |
-| Official Light 1.2.4 | Ripe 1.3.4, direct guided upgrade. |
-| Official Light 1.2.5 | Ripe 1.3.4, direct guided upgrade. |
-| Official Light 1.2.6 | Ripe 1.3.4, direct guided upgrade. |
-| Official Light 1.2.7 | Ripe 1.3.4, direct guided upgrade. |
-| Official Light 1.2.8 | Ripe 1.3.4, direct guided upgrade. |
-| Light updated through a supported path to any supported source above | Ripe 1.3.4, same guided edition upgrade. |
-| Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2, 1.3.0, 1.3.1, 1.3.2 or 1.3.3 | Ripe 1.3.4, normal Update menu instead. |
+| Original published Light 1.0.0 | Ripe 1.3.5, direct guided upgrade. |
+| Official Light 1.1.0 | Ripe 1.3.5, direct guided upgrade. |
+| Official Light 1.2.0 | Ripe 1.3.5, direct guided upgrade. |
+| Official Light 1.2.1 | Ripe 1.3.5, direct guided upgrade. |
+| Official Light 1.2.2 | Ripe 1.3.5, direct guided upgrade. |
+| Official Light 1.2.3 | Ripe 1.3.5, direct guided upgrade. |
+| Official Light 1.2.4 | Ripe 1.3.5, direct guided upgrade. |
+| Official Light 1.2.5 | Ripe 1.3.5, direct guided upgrade. |
+| Official Light 1.2.6 | Ripe 1.3.5, direct guided upgrade. |
+| Official Light 1.2.7 | Ripe 1.3.5, direct guided upgrade. |
+| Official Light 1.2.8 | Ripe 1.3.5, direct guided upgrade. |
+| Official Light 1.2.9 | Ripe 1.3.5, direct guided upgrade. |
+| Light updated through a supported path to any supported source above | Ripe 1.3.5, same guided edition upgrade. |
+| Native Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2 and 1.3.0 through 1.3.4 | Ripe 1.3.5, normal Update menu. Original 1.0.5 first uses its signed 1.3.4 repair. |
 
-Use the Ripe 1.3.4 installer for the eleven supported Light versions: original 1.0.0, 1.1.0 and 1.2.0 through 1.2.8. Earlier Ripe releases do not automatically recognize newer Light packages. The new installer authenticates each explicit source with the established Light identity and checks its exact schema. Original Light 1.0.0 remains supported. There is no general Ripe-to-Light downgrade.
+Use the Ripe 1.3.5 installer for original Light 1.0.0, 1.1.0 and signed 1.2.0 through 1.2.9. The installer authenticates each explicit source with the established Light identity and checks its exact schema. Native Ripe 1.0.5 first requires the published one-time 1.3.4 repair; other supported native releases retain their direct update route. There is no general Ripe-to-Light downgrade.
 
 Use Ubuntu 22.04/24.04/26.04 amd64/systemd with Apache, or Debian 13 with Nginx, PHP 8.4 (PHP 8.5 on Ubuntu 26.04) and supported MariaDB 10.11/11.8. Ubuntu 22.04 fresh installations use an isolated MariaDB 10.11.19 beside any existing host database. The installer discovers protected standard settings under /etc/emailer-light or /etc/emailer, a dedicated application database account, private/key storage and an existing trusted HTTPS hostname without a custom port/subfolder. A dedicated Emailer virtual-host file must not also serve unrelated routes or applications. Unknown customized targets stop before handoff; keep their existing configuration. The automatic handoff requires the recorded dedicated Emailer PHP-FPM service so it can drain only this application. A shared/custom PHP service is preserved and rejected before hold or website mutation; use the operator reference for a supervised quiescent handoff.
 
@@ -38,10 +39,10 @@ Finish intentional sending and allow a short maintenance period. Keep the curren
 
 ## 2. Download and start Ripe setup
 
-While signed in with access, download **emailer-ripe-1.3.4-setup.run** from the [official private release](https://github.com/Attory/emailer-next/releases/tag/v1.3.4), or use an authorized private copy. Upload that one file to the existing server through your provider's file-transfer facility. Do not put a GitHub token in a shell command. In the folder containing the file, run:
+While signed in with access, download **emailer-ripe-1.3.5-setup.run** from the [official private release](https://github.com/Attory/emailer-next/releases/tag/v1.3.5), or use an authorized private copy. Upload that one file to the existing server through your provider's file-transfer facility. Do not put a GitHub token in a shell command. In the folder containing the file, run:
 
 ```bash
-sudo sh emailer-ripe-1.3.4-setup.run
+sudo sh emailer-ripe-1.3.5-setup.run
 ```
 
 Initial trust comes from the official HTTPS or authorized private delivery channel. Embedded established signing identities authenticate the Ripe package and all ten supported Light predecessor packages. You do not need to assemble verifier source, sidecars, version arguments or commit hashes.
@@ -72,7 +73,7 @@ Open Mail settings. Existing SMTP settings should be retained. Choose **Test sav
 
 ## 6. Resume when ready
 
-Resolve Doctor's sending blockers and review previously approved or scheduled campaigns: lifting the hold can allow existing due work to continue. Start the same setup file, choose **Resume delivery after reviewing readiness** and answer yes. All normal sending checks must pass. The action does not approve any draft.
+Inspect approved and scheduled work before completing MFA or SMTP: previously enabled delivery may continue when the actual readiness requirement clears. A successful Accept has already retired its own installer hold. If Doctor reports an independent owner pause or unknown legacy intent, review that work, choose Resume delivery after reviewing readiness and answer yes. Resume does not approve drafts or retry failed messages.
 
 ![Recorded guided Ripe acceptance output; the same controls remain available in 1.3.4. Sign in and complete MFA, then review Doctor before choosing Resume delivery.](images/emailer-ripe-resume.png)
 
@@ -89,3 +90,13 @@ If you are not ready, exit; drafting remains available. Keep recovery material a
 | Resume blocked | Open Doctor, complete MFA/mail settings and resolve the named finding, then retry Resume. |
 
 Continue with the [Ripe manual](emailer-ripe-manual.md). Use the [operator reference](emailer-ripe-operator.md) for exceptional host and recovery cases.
+
+## Installer holds and owner pauses
+
+A successful operation releases only its own temporary installer hold after runtime verification and any required Accept action. An independent owner pause or another operation hold remains. Doctor reports the actual MFA, SMTP or other readiness requirement instead of calling a completed installation unfinished. Completing a requirement can allow previously approved due work to continue if the owner already enabled delivery; inspect that work before changing readiness.
+
+An interrupted or recovered operation retains its operation identifier, lifecycle and Finish or Recover action. Use the same verified setup and retained recovery material. Failed and uncertain messages are never retried by completion. An unattributed legacy hold remains unknown until its owner explicitly reviews and resumes it; a zero delivery flag alone never proves installer ownership.
+
+## Scan an authenticator QR code privately
+
+After confirming current credentials for MFA management, choose Start or restart enrollment. In a standard authenticator choose Add account and Scan QR code; scan the displayed code. If scanning is unavailable, choose manual entry and copy the adjacent setup key. Both represent the same account. Store recovery codes privately and confirm a current six-digit code. QR generation happens locally; no external QR service is contacted. Do not share or capture the enrollment screen. Existing enrolled accounts keep their factor and do not enrol again.

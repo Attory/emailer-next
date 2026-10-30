@@ -8,6 +8,7 @@ use App\Module\Identity\Application\Totp;
 use App\Tests\Support\Phase4State;
 use Doctrine\DBAL\Connection;
 use Symfony\Bundle\FrameworkBundle\Test\WebTestCase;
+use Zxing\QrReader;
 
 final class MfaManagementHttpTest extends WebTestCase
 {
@@ -64,9 +65,27 @@ final class MfaManagementHttpTest extends WebTestCase
         $client->submit($page->selectButton('Confirm current credentials')->form(['password' => $password, 'mfa_code' => '']), [], $server);
         $page = $client->followRedirect();
         $page = $client->submit($page->selectButton('Start or restart enrollment')->form(), [], $server);
-        self::assertResponseIsSuccessful();
+        self::assertTrue(200 === $client->getResponse()->getStatusCode());
+        self::assertTrue($client->getResponse()->headers->hasCacheControlDirective('no-store'));
+        self::assertTrue('no-referrer' === $client->getResponse()->headers->get('Referrer-Policy'));
+        self::assertSame(1, $page->filter('img.mfa-enrollment-qr')->count());
+        // Avoid assertion diffs that could serialize a secret-bearing image or seed.
+        $image = $page->filter('img.mfa-enrollment-qr')->attr('src');
+        self::assertTrue(\is_string($image) && str_starts_with($image, 'data:image/png;base64,'));
+        $pixels = base64_decode(substr($image, 22), true);
+        self::assertTrue(\is_string($pixels) && str_starts_with($pixels, "\x89PNG\r\n\x1a\n"));
         // Never use assertions that dump generated MFA material on failure.
-        $seed = $page->filter('p code')->first()->text();
+        $manualSeed = $page->filter('p code')->first()->text();
+        $decoded = (new QrReader($pixels, QrReader::SOURCE_TYPE_BLOB, false))->text();
+        self::assertTrue(\is_string($decoded) && str_starts_with($decoded, 'otpauth://totp/'));
+        $query = parse_url($decoded, PHP_URL_QUERY);
+        self::assertTrue(\is_string($query));
+        parse_str($query, $parameters);
+        $seed = $parameters['secret'] ?? null;
+        self::assertTrue(\is_string($seed) && hash_equals($manualSeed, $seed));
+        self::assertTrue('Emailer Next' === ($parameters['issuer'] ?? null));
+        self::assertTrue('SHA1' === ($parameters['algorithm'] ?? null));
+        self::assertTrue('6' === ($parameters['digits'] ?? null) && '30' === ($parameters['period'] ?? null));
         $totp = new Totp();
         $code = $totp->code($seed, intdiv(time(), 30));
         $client->request('POST', '/admin/mfa/confirm', ['_token' => 'invalid', 'totp_code' => $code, 'recovery_saved' => '1'], server: $server);
@@ -76,6 +95,10 @@ final class MfaManagementHttpTest extends WebTestCase
         $client->followRedirect();
         self::assertSelectorTextContains('main', 'Status: Enabled');
         self::assertSame(1, $this->phase4Int($db->fetchOne("SELECT COUNT(*) FROM mfa_credential WHERE user_id=? AND credential_type='totp' AND active=1", [$user->id()])));
+        $credential = $db->fetchOne("SELECT encrypted_secret_id FROM mfa_credential WHERE user_id=? AND credential_type='totp' AND active=1", [$user->id()]);
+        self::assertSelectorNotExists('img.mfa-enrollment-qr');
+        self::assertSelectorNotExists('form[action="/admin/mfa/start"]');
+        self::assertTrue($credential === $db->fetchOne("SELECT encrypted_secret_id FROM mfa_credential WHERE user_id=? AND credential_type='totp' AND active=1", [$user->id()]));
         self::assertSame($mail, $db->fetchOne('SELECT COUNT(*) FROM delivery_attempt'));
     }
 }

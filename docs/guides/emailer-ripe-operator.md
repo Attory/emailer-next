@@ -1,12 +1,12 @@
 # Ripe operator and troubleshooting reference
 
-Version 1.3.4 | Exceptional hosting, updates and recovery
+Version 1.3.5 | Exceptional hosting, updates and recovery
 
 This reference covers exceptional hosting, update and recovery work. Start with the [beginner installation guide](emailer-ripe-install.md) for the normal path. The installer supplies the runtime, verifier, launcher, database provisioning, keys, services, backup defaults and HTTPS configuration; customers do not assemble these pieces.
 
 Ubuntu 26.04 uses its maintained distribution PHP 8.5 packages; no external PHP source is added. A compatible existing MariaDB 10.11 or 11.8 service is reused without a major upgrade. Setup adds a dedicated Emailer PHP-FPM pool and keeps existing website pools, PHP alternatives and Virtualmin-managed websites in place. Missing PHP extension packages add their standard extension configuration; existing PHP settings are retained and shared PHP services are not restarted.
 
-Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.6 on Ubuntu 26.04 upgrade directly to Ripe 1.3.4; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance.
+Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.6 on Ubuntu 26.04 upgrade directly to Ripe 1.3.5; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance.
 
 Ubuntu 26.04.1 HTTPS acceptance used a local ACME server with real HTTP challenge validation and strict certificate/name verification. Public certificate issuance remains unverified because no dedicated non-production hostname and DNS authority were available. Customer setup uses the normal public ACME service; DNS must point to the server and Apache must be reachable on ports 80 and 443.
 
@@ -64,7 +64,7 @@ sudo emailer emailer:doctor:run --json
 
 The health command distinguishes structural installation completion from sending readiness. Deferred SMTP is compatible with structural completion and blocks actual sending. Doctor retains its original sending gates and severity. Open Doctor after changing mail or MFA settings; installer Check does not remove the operational hold.
 
-Fresh redacted diagnostics are under `/var/lib/emailer-installer/last-error.json`. Managed operations use `/etc/emailer/installer/<edition>/1.3.4/last-error.json`. These contain a bounded failed step/category and blocker codes. Full management receipts and runtime settings contain secrets: do not dump them into logs, tickets, screenshots or chat. Share only named redacted error codes and service status.
+Fresh redacted diagnostics are under `/var/lib/emailer-installer/last-error.json`. Managed operations use `/etc/emailer/installer/<edition>/1.3.5/last-error.json`. These contain a bounded failed step/category and blocker codes. Full management receipts and runtime settings contain secrets: do not dump them into logs, tickets, screenshots or chat. Share only named redacted error codes and service status.
 
 ## Error reference
 
@@ -114,7 +114,7 @@ Keep the signed setup file and operation journals. Normal same-edition updates a
 
 The root-owned update-maintenance.json journal lives beside the private application directory and outside immutable runtime checkpoints. It records prior accepting_work, campaign IDs, per-state recipient counts and in-flight recipient/attempt IDs. Sent means SMTP accepted; remaining means pending + retry + processing, excluding terminal failure, suppression, cancellation and uncertain outcomes. Capture itself never schedules delivery. Only prior accepting_work=1 with a sending campaign and remaining recipients produces the paused-delivery announcement.
 
-After successful verification, an originally idle accepting installation is restored without requiring optional SMTP. A prior operational hold stays held. Active approved delivery uses normal readiness before continuation. Uncertain in-flight outcomes are held for explicit investigation, never automatically retried. Verification failures retain the hold and a specific action. Recover deliberately leaves delivery held; an explicit guided Resume requires readiness and never approves drafts. A completed operation is terminal and cannot be replayed as recovery.
+After successful whole-operation verification, only the matching installer hold is released. Current independent owner intent determines whether delivery is enabled; normal readiness still blocks sending for required MFA, SMTP or another actual requirement. A prior owner pause stays paused. Uncertain in-flight outcomes retain a separate review hold and are never automatically retried. Verification failures retain the operation hold and a specific action. Recover deliberately leaves delivery held; finish the verified retry before guided Resume, which requires readiness and never approves drafts. A completed operation is terminal and cannot be replayed as recovery.
 
 ### SMTP form tests and safe diagnostics
 
@@ -138,7 +138,7 @@ If setup says a reserved host resource is occupied or changed, it has kept that 
 
 ## Resume after the 1.2.1 web-server check
 
-If 1.2.1 stopped during Checking this server with Existing Nginx/Caddy was preserved, download the official 1.3.4 setup file and start it with sudo sh as in the installation guide. That check occurs before installation initialization or database creation. Keep the existing installer state directory and its operation lock; no state or database deletion is needed. An operation that progressed beyond this check remains bound to its original signed package; complete it with that package before a normal update. If 1.2.2 stopped during the address-specific Apache check before initialization, start this Ripe 1.3.4 file to retry; no state or database deletion is needed. An initialized Light installation uses the guided Light upgrade action; an uninitialized server uses fresh Ripe setup.
+If 1.2.1 stopped during Checking this server with Existing Nginx/Caddy was preserved, download the official 1.3.5 setup file and start it with sudo sh as in the installation guide. That check occurs before installation initialization or database creation. Keep the existing installer state directory and its operation lock; no state or database deletion is needed. An operation that progressed beyond this check remains bound to its original signed package; complete it with that package before a normal update. If 1.2.2 stopped during the address-specific Apache check before initialization, start this Ripe 1.3.5 file to retry; no state or database deletion is needed. An initialized Light installation uses the guided Light upgrade action; an uninitialized server uses fresh Ripe setup.
 
 ## Appearance storage and website refresh
 
@@ -171,16 +171,28 @@ Earlier uploaded images become visible in the updated gallery. Browser draft rec
 
 ## Incomplete-draft schema update and recovery
 
-Light 1.2.6 and Ripe 1.3.4 allow campaign drafts without a selected template. Their schema is 20261025000000. The guided setup file authenticates both installed and target releases, fences application writers, creates verified recovery material, applies the reviewed migration and checks the final runtime. Publication, approval and delivery remain explicit.
+Light 1.2.6 and Ripe 1.3.5 allow campaign drafts without a selected template. Their schema is 20261025000000. The guided setup file authenticates both installed and target releases, fences application writers, creates verified recovery material, applies the reviewed migration and checks the final runtime. Publication, approval and delivery remain explicit.
 
 Use the same setup file and its Recover action after interruption. Light recovery admits only the recorded complete source or intermediate schema/ledger/identity states and unchanged business data; it never deletes or coerces new incomplete drafts to fit an older schema. Ripe uses its verified complete source schema checkpoint. A completed update cannot be rolled back with an interruption recovery command.
 
 Normal backup restore requires archive, current database and running application to share the same schema. Older archives remain verifiable and retained but must be recovered with their matching signed release in an isolated recovery environment, or through the recorded guided update recovery. Do not apply an old row-only archive over the new nullable schema. A refusal occurs before maintenance state, restore safety copies or database rows are changed.
 
-## One-time native 1.0.5 repair to 1.3.4
+## Historical one-time native 1.0.5 repair to 1.3.4
 
-This candidate alone includes an exact authenticated 1.0.5 repair route. Retain the original signed source archive and sidecars. Do not retry 1.0.6, alter historical releases, replace migration journals or manufacture worker heartbeats. Upgrade first stops and fences the old application, verifies the full encrypted recovery checkpoint, migrates and activates the target. Its offline verification authenticates the retained operation, installation, database and exact packages while delivery is idle and held. Doctor findings retain their original severity and sending gates.
+Only the published signed 1.3.4 package includes the one-time authenticated 1.0.5 repair. Use its retained original guide and recovery flow before updating 1.3.4 to 1.3.5. The 1.3.5 package refuses 1.0.5 as a native predecessor. Do not retry 1.0.6, edit migration journals or reset account state.
 
 Start only the dedicated target services under the retained delivery hold, then run Check the installation. Live verification requires actual worker and scheduler heartbeats. Keep the original Normal policy, MFA enrollment, SMTP credentials, tokens, failed messages and delivery hold. This one-time route never resumes delivery automatically. Only the separate administrator session may deploy it, and only an explicitly reviewed Resume action may lift a hold after all normal readiness checks pass.
 
 Recovery restores the complete source schema, data, private state, keys and pointer. The original 1.0.5 Doctor has no read-only mode and requires live services; offline recovery proves exact source fingerprints, source boot and mapping without writing historical health rows. After restarting the recovered source under hold, run its full Doctor. Never retry failed messages automatically.
+
+## Installer holds and owner pauses
+
+A successful operation releases only its own temporary installer hold after runtime verification and any required Accept action. An independent owner pause or another operation hold remains. Doctor reports the actual MFA, SMTP or other readiness requirement instead of calling a completed installation unfinished. Completing a requirement can allow previously approved due work to continue if the owner already enabled delivery; inspect that work before changing readiness.
+
+An interrupted or recovered operation retains its operation identifier, lifecycle and Finish or Recover action. Use the same verified setup and retained recovery material. Failed and uncertain messages are never retried by completion. An unattributed legacy hold remains unknown until its owner explicitly reviews and resumes it; a zero delivery flag alone never proves installer ownership.
+
+## Scan an authenticator QR code privately
+
+After confirming current credentials for MFA management, choose Start or restart enrollment. In a standard authenticator choose Add account and Scan QR code; scan the displayed code. If scanning is unavailable, choose manual entry and copy the adjacent setup key. Both represent the same account. Store recovery codes privately and confirm a current six-digit code. QR generation happens locally; no external QR service is contacted. Do not share or capture the enrollment screen. Existing enrolled accounts keep their factor and do not enrol again.
+
+For a supervised native service-unit update, prepare the root-owned delivery-control parent before starting a unit whose ReadWritePaths names it: sudo install -d -o root -g root -m 0755 /var/lib/emailer/delivery-control. Substitute the verified parent of the intended private directory when its installation path differs. Do not create owner intent or operation records by hand; the authenticated updater binds those records to the installation. Retain this directory with disaster-recovery material outside private/database checkpoint restoration. Never replace a newer live owner-intent generation with an older backup.

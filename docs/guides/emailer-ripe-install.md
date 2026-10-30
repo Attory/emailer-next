@@ -1,12 +1,12 @@
 # Install Emailer Ripe
 
-Version 1.3.4 | Beginner guide | Ubuntu Apache or Debian Nginx VPS
+Version 1.3.5 | Beginner guide | Ubuntu Apache or Debian Nginx VPS
 
 Install a usable Emailer Ripe website with one guided server setup. You need your administrator email, a new password, and the address you want people to use. Email delivery can wait.
 
 Ubuntu 26.04 uses its maintained distribution PHP 8.5 packages; no external PHP source is added. A compatible existing MariaDB 10.11 or 11.8 service is reused without a major upgrade. Setup adds a dedicated Emailer PHP-FPM pool and keeps existing website pools, PHP alternatives and Virtualmin-managed websites in place. Missing PHP extension packages add their standard extension configuration; existing PHP settings are retained and shared PHP services are not restarted.
 
-Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.6 on Ubuntu 26.04 upgrade directly to Ripe 1.3.4; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance.
+Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.6 on Ubuntu 26.04 upgrade directly to Ripe 1.3.5; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance.
 
 Ubuntu 26.04.1 HTTPS acceptance used a local ACME server with real HTTP challenge validation and strict certificate/name verification. Public certificate issuance remains unverified because no dedicated non-production hostname and DNS authority were available. Customer setup uses the normal public ACME service; DNS must point to the server and Apache must be reachable on ports 80 and 443.
 
@@ -39,7 +39,7 @@ Choose a spare address such as `news.your-domain.com`. In your domain provider's
 
 ## 2. Download the official setup package
 
-While signed in to GitHub with access to the private [Emailer Ripe release](https://github.com/Attory/emailer-next/releases/tag/v1.3.4), download **emailer-ripe-1.3.4-setup.run**. Upload that one file to the server using your provider's file-transfer facility. An authorized privately supplied copy of the same signed setup file also works. Keep the file private. Do not paste a GitHub token or repository password into a download command.
+While signed in to GitHub with access to the private [Emailer Ripe release](https://github.com/Attory/emailer-next/releases/tag/v1.3.5), download **emailer-ripe-1.3.5-setup.run**. Upload that one file to the server using your provider's file-transfer facility. An authorized privately supplied copy of the same signed setup file also works. Keep the file private. Do not paste a GitHub token or repository password into a download command.
 
 You do not need a source checkout, Composer, a public-key file or separate verification sidecars. Those components are inside the setup package.
 
@@ -52,7 +52,7 @@ Ubuntu 22.04 also retrieves an authenticated MariaDB runtime of about 360 MB. Al
 From the folder containing the downloaded file, paste this single setup action:
 
 ```bash
-sudo sh emailer-ripe-1.3.4-setup.run
+sudo sh emailer-ripe-1.3.5-setup.run
 ```
 
 If setup finds an existing Light installation, choose **Install a separate fresh Ripe application** for this fresh-install guide. Choose its upgrade option only when you intend to convert Light, following the separate upgrade guide. The fresh Ripe site needs a different dedicated hostname.
@@ -104,3 +104,13 @@ For a fresh Ripe installation, backups are under `/var/lib/emailer/private/backu
 | Setup interrupted | Run the same action again. It resumes the recorded setup; it does not create another administrator or reset an existing database. |
 
 Run setup again for installation management. **Check the installation** is safe to repeat; an installed update preserves settings and delivery state. For other errors, read the [operator and troubleshooting reference](emailer-ripe-operator.md). Keep installer state and database files when retrying. Next: [Ripe user manual](emailer-ripe-manual.md).
+
+## Installer holds and owner pauses
+
+A successful operation releases only its own temporary installer hold after runtime verification and any required Accept action. An independent owner pause or another operation hold remains. Doctor reports the actual MFA, SMTP or other readiness requirement instead of calling a completed installation unfinished. Completing a requirement can allow previously approved due work to continue if the owner already enabled delivery; inspect that work before changing readiness.
+
+An interrupted or recovered operation retains its operation identifier, lifecycle and Finish or Recover action. Use the same verified setup and retained recovery material. Failed and uncertain messages are never retried by completion. An unattributed legacy hold remains unknown until its owner explicitly reviews and resumes it; a zero delivery flag alone never proves installer ownership.
+
+## Scan an authenticator QR code privately
+
+After confirming current credentials for MFA management, choose Start or restart enrollment. In a standard authenticator choose Add account and Scan QR code; scan the displayed code. If scanning is unavailable, choose manual entry and copy the adjacent setup key. Both represent the same account. Store recovery codes privately and confirm a current six-digit code. QR generation happens locally; no external QR service is contacted. Do not share or capture the enrollment screen. Existing enrolled accounts keep their factor and do not enrol again.

@@ -1,6 +1,6 @@
 {
   "title": "Install Emailer Ripe",
-  "subtitle": "Version 1.3.4 | Beginner guide | Ubuntu Apache or Debian Nginx VPS",
+  "subtitle": "Version 1.3.5 | Beginner guide | Ubuntu Apache or Debian Nginx VPS",
   "blocks": [
     {
       "type": "p",
@@ -12,7 +12,7 @@
     },
     {
       "type": "p",
-      "text": "Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.6 on Ubuntu 26.04 upgrade directly to Ripe 1.3.4; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance."
+      "text": "Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.6 on Ubuntu 26.04 upgrade directly to Ripe 1.3.5; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance."
     },
     {
       "type": "p",
@@ -99,7 +99,7 @@
     },
     {
       "type": "p",
-      "text": "While signed in to GitHub with access to the private <a href=\"https://github.com/Attory/emailer-next/releases/tag/v1.3.4\">Emailer Ripe release</a>, download <b>emailer-ripe-1.3.4-setup.run</b>. Upload that one file to the server using your provider's file-transfer facility. An authorized privately supplied copy of the same signed setup file also works. Keep the file private. Do not paste a GitHub token or repository password into a download command."
+      "text": "While signed in to GitHub with access to the private <a href=\"https://github.com/Attory/emailer-next/releases/tag/v1.3.5\">Emailer Ripe release</a>, download <b>emailer-ripe-1.3.5-setup.run</b>. Upload that one file to the server using your provider's file-transfer facility. An authorized privately supplied copy of the same signed setup file also works. Keep the file private. Do not paste a GitHub token or repository password into a download command."
     },
     {
       "type": "p",
@@ -123,7 +123,7 @@
     },
     {
       "type": "code",
-      "text": "sudo sh emailer-ripe-1.3.4-setup.run"
+      "text": "sudo sh emailer-ripe-1.3.5-setup.run"
     },
     {
       "type": "p",
@@ -242,6 +242,26 @@
     {
       "type": "p",
       "text": "Run setup again for installation management. <b>Check the installation</b> is safe to repeat; an installed update preserves settings and delivery state. For other errors, read the <a href=\"emailer-ripe-operator.html\">operator and troubleshooting reference</a>. Keep installer state and database files when retrying. Next: <a href=\"emailer-ripe-manual.html\">Ripe user manual</a>."
+    },
+    {
+      "type": "h2",
+      "text": "Installer holds and owner pauses"
+    },
+    {
+      "type": "p",
+      "text": "A successful operation releases only its own temporary installer hold after runtime verification and any required Accept action. An independent owner pause or another operation hold remains. Doctor reports the actual MFA, SMTP or other readiness requirement instead of calling a completed installation unfinished. Completing a requirement can allow previously approved due work to continue if the owner already enabled delivery; inspect that work before changing readiness."
+    },
+    {
+      "type": "p",
+      "text": "An interrupted or recovered operation retains its operation identifier, lifecycle and Finish or Recover action. Use the same verified setup and retained recovery material. Failed and uncertain messages are never retried by completion. An unattributed legacy hold remains unknown until its owner explicitly reviews and resumes it; a zero delivery flag alone never proves installer ownership."
+    },
+    {
+      "type": "h2",
+      "text": "Scan an authenticator QR code privately"
+    },
+    {
+      "type": "p",
+      "text": "After confirming current credentials for MFA management, choose Start or restart enrollment. In a standard authenticator choose Add account and Scan QR code; scan the displayed code. If scanning is unavailable, choose manual entry and copy the adjacent setup key. Both represent the same account. Store recovery codes privately and confirm a current six-digit code. QR generation happens locally; no external QR service is contacted. Do not share or capture the enrollment screen. Existing enrolled accounts keep their factor and do not enrol again."
     }
   ]
 }
