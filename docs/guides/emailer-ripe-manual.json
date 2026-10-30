@@ -410,7 +410,7 @@
     {
       "type": "image",
       "file": "emailer-ripe-update-blocked-mobile.png",
-      "caption": "Actual retained update hold on mobile, including the specific readiness failure."
+      "caption": "Historical update failure on mobile. Current successful completion retires its own installer hold and reports the actual remaining readiness requirement."
     },
     {
       "type": "p",
@@ -422,7 +422,7 @@
     },
     {
       "type": "callout",
-      "text": "This release adds a database migration. Update with the guided setup file and keep its recovery material. Normal restore needs the same database schema. Recover older backups with their matching release in an isolated environment. For interrupted updates choose Recover in setup; a completed update cannot be downgraded through recovery."
+      "text": "This maintenance release keeps the existing database schema. Update with the guided setup file and keep its recovery material. Normal restore needs the same database schema. Recover older backups with their matching release in an isolated environment. For interrupted updates choose Recover in setup; a completed update cannot be downgraded through recovery."
     },
     {
       "type": "h2",
