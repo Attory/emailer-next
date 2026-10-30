@@ -95,6 +95,11 @@ let phase = 'login';
         await signedIn.goto(config.url + '/admin/mfa');
         assert.equal(new URL(signedIn.url()).pathname, '/admin/mfa');
         result.cases.push({ name: phase, status: 'PASS' });
+        // The later SMTP suite authenticates this same synthetic Owner. Keep
+        // only unused fixture codes in its existing protected credentials file,
+        // never in receipts, console output, screenshots or release artifacts.
+        fs.writeFileSync(config.credentials, JSON.stringify({ ...credentials, mfa_codes: recovery.slice(2) }), { mode: 0o600 });
+        fs.chmodSync(config.credentials, 0o600);
         result.status = 'PASS';
     } catch (error) {
         result.errorType = error.name;

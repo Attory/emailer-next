@@ -189,32 +189,23 @@ try:
     if focus == '':
         stage = 'update visibility browser regressions'
         command(['node', str(root / 'tools/browser/update-status.cjs')], env=node_environment)
-    if focus == 'actions':
+    if focus in ('', 'actions'):
         stage = 'compact template action browser regressions'
+        php('tools/browser/verify-editor-delivery.php', 'snapshot')
         command(['node', str(root / 'tools/browser/template-actions.cjs')], env=node_environment)
         php('tools/browser/verify-editor-delivery.php', 'actions')
         shutil.copyfile(private / 'actions-no-send-result.json', output / 'actions-no-send-result.json')
-    elif focus == 'mfa':
+    if focus in ('', 'mfa'):
+        # Enrollment needs an unenrolled Owner. SMTP then uses only the unused
+        # synthetic recovery codes left in the protected disposable fixture.
         stage = 'MFA session continuity browser regressions'
         php('tools/browser/verify-editor-delivery.php', 'snapshot')
         command(['node', str(root / 'tools/browser/mfa-management.cjs')], env=node_environment)
         php('tools/browser/verify-editor-delivery.php', 'mfa')
         shutil.copyfile(private / 'mfa-no-send-result.json', output / 'mfa-no-send-result.json')
-    else:
+    if focus in ('', 'smtp'):
         stage = 'SMTP current-form browser regressions'
         command(['node', str(root / 'tools/browser/mail-settings.cjs')], env=node_environment)
-    if focus == '':
-        stage = 'compact template action browser regressions'
-        php('tools/browser/verify-editor-delivery.php', 'snapshot')
-        command(['node', str(root / 'tools/browser/template-actions.cjs')], env=node_environment)
-        php('tools/browser/verify-editor-delivery.php', 'actions')
-        shutil.copyfile(private / 'actions-no-send-result.json', output / 'actions-no-send-result.json')
-    if focus == '':
-        stage = 'MFA session continuity browser regressions'
-        php('tools/browser/verify-editor-delivery.php', 'snapshot')
-        command(['node', str(root / 'tools/browser/mfa-management.cjs')], env=node_environment)
-        php('tools/browser/verify-editor-delivery.php', 'mfa')
-        shutil.copyfile(private / 'mfa-no-send-result.json', output / 'mfa-no-send-result.json')
     if (evidence / 'state.json').exists():
         raise RuntimeError('Connection form testing transmitted SMTP DATA.')
     print('PASS: isolated ' + edition + ' ' + (focus or 'complete') + ' browser suite; no unintended delivery; safe receipts in ' + str(output))

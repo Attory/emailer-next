@@ -60,4 +60,8 @@ DB-session reauthentication/enrollment flow without the unrelated editor/send
 suite. It retains an old-cookie background status request across rotation,
 releases it afterward, and checks browser continuity, allowlisted return,
 enrollment and existing MFA login. Receipts contain paths/status/booleans only;
-no cookie values, MFA screens, setup keys or recovery codes are recorded.
+no cookie values, MFA screens, setup keys or recovery codes enter those outputs.
+The default suite runs compact actions and MFA before SMTP, which requires an
+enrolled Owner. Unused synthetic recovery codes remain only in its existing
+mode0600 disposable credential fixture for that subsequent login; cleanup removes
+them with the fixture. This never uses a client account or production material.
