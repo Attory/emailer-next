@@ -97,7 +97,7 @@ $attempts = $before['tables']['delivery_attempt']['rows'];
 if (count($attempts) !== (int) $c->fetchOne('SELECT COUNT(*) FROM delivery_attempt')) {
     throw new RuntimeException('An operation created a delivery attempt.');
 }
-if (in_array($before['tables']['product_identity']['rows'][0]['product_version'], ['1.2.6', '1.2.7', '1.2.8', '1.2.9', '1.2.10'], true) && false !== $c->fetchOne("SELECT 1 FROM campaign WHERE id='01990101-0000-7000-8000-000000000126'")) {
+if (in_array($before['tables']['product_identity']['rows'][0]['product_version'], ['1.2.6', '1.2.7', '1.2.8', '1.2.9', '1.2.10', '1.2.11'], true) && false !== $c->fetchOne("SELECT 1 FROM campaign WHERE id='01990101-0000-7000-8000-000000000126'")) {
     $draft = $c->fetchAssociative("SELECT name,template_version_id,state,operation_version,messages_per_minute FROM campaign WHERE id='01990101-0000-7000-8000-000000000126'");
     if (null !== $draft['template_version_id'] || '' !== $draft['name'] || 'draft' !== $draft['state'] || 3 !== (int) $draft['operation_version'] || 23 !== (int) $draft['messages_per_minute'] || 1 !== (int) $c->fetchOne("SELECT COUNT(*) FROM campaign_audience_recipient WHERE campaign_id='01990101-0000-7000-8000-000000000126'")) {
         throw new RuntimeException('The genuine incomplete Light campaign or its owned CSV was changed.');
@@ -114,7 +114,7 @@ if ('after' === $argv[1]) {
         throw new RuntimeException('Target edition identity is not explicit.');
     }
     $receipt = $c->fetchAssociative('SELECT source_identity_json, source_migration_json FROM ripe_edition_transition');
-    if (false === $receipt || json_decode($receipt['source_identity_json'], true, 512, JSON_THROW_ON_ERROR) !== $before['tables']['product_identity']['rows'][0] || json_decode($receipt['source_migration_json'], true, 512, JSON_THROW_ON_ERROR) !== (in_array($before['tables']['product_identity']['rows'][0]['product_version'], ['1.2.6', '1.2.7', '1.2.8', '1.2.9', '1.2.10'], true) ? $before['tables']['doctrine_migration_versions']['rows'] : $before['tables']['doctrine_migration_versions']['rows'][0])) {
+    if (false === $receipt || json_decode($receipt['source_identity_json'], true, 512, JSON_THROW_ON_ERROR) !== $before['tables']['product_identity']['rows'][0] || json_decode($receipt['source_migration_json'], true, 512, JSON_THROW_ON_ERROR) !== (in_array($before['tables']['product_identity']['rows'][0]['product_version'], ['1.2.6', '1.2.7', '1.2.8', '1.2.9', '1.2.10', '1.2.11'], true) ? $before['tables']['doctrine_migration_versions']['rows'] : $before['tables']['doctrine_migration_versions']['rows'][0])) {
         throw new RuntimeException('Original migration or identity evidence was not retained.');
     }
     if (false !== $c->fetchOne("SELECT 1 FROM app_user WHERE role <> 'ROLE_OWNER' OR active <> 1 OR disabled_at IS NOT NULL OR mfa_changed_at IS NOT NULL") || 'high' !== $c->fetchOne("SELECT security_level FROM organisation_settings WHERE singleton_key = '1'")) {

@@ -162,9 +162,15 @@ final readonly class InstallerDeliveryControl
         if ('released' === $hold['phase']) {
             return;
         }
+        $current = $this->nativeProof($operation, $proof);
+        if (true !== ($current['delivery_control_source_aware'] ?? null) && true !== ($current['retain_source_fence'] ?? null)) {
+            // The old writer was reopened before Finish. A legacy Pause can
+            // acknowledge only a DB flag, indistinguishable from our own gate.
+            // Retire the installer hold, but require explicit intent review.
+            $this->files->invalidateUnprovenLegacyIntent();
+        }
         $lease = $this->files->projectionLease();
         try {
-            $current = $this->nativeProof($operation, $proof);
             $holds = [];
             foreach ($this->files->status()['holds'] as $record) {
                 $holds[$this->text($record, 'operation_id')] = $record;

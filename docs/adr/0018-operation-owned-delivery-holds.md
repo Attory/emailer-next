@@ -39,3 +39,6 @@ have acknowledged Pause while its account was open. Authenticated source files
 distinguish protocol-aware sources. Invalidate only that unproven generation;
 never overwrite a newer independent pause or Resume. Real old-source Pause
 between recovery and retry is a release regression gate.
+
+
+Standalone native updates that reopen an older source writer before Finish cannot prove whether that source acknowledged a database-only Pause. Finish releases its completed installer hold but leaves inferred owner intent unknown for explicit review and supported Resume. Newer independently recorded owner actions are preserved. Guided host updates keep the source continuously fenced through completion and can restore proven enabled intent automatically.

@@ -46,7 +46,7 @@ New native hop: official 1.3.4 → 1.3.5. Existing native 1.0.6, 1.1.0, 1.2.1,
 1.2.2 and 1.3.0 through 1.3.3 retain their supported direct update; the one-time
 1.0.5 repair belongs only to
 the published signed 1.3.4 installer. Light conversions additionally authenticate
-1.2.10 using the established public Light signer and unchanged schema proof.
+1.2.11 using the established public Light signer and unchanged schema proof.
 Historical release artifacts and migration journals are not changed.
 
 Legacy zero delivery flags are unknown intent. Private accepted receipts alone
@@ -89,3 +89,6 @@ package as the application identity and the bounded fixture launchers select it.
 This supplies genuine recovery readiness to the actual held target services;
 it does not change historical application bytes, relax key permissions, suppress
 Doctor findings, or discard the original recovery material.
+
+
+Standalone native updates that reopen an older source writer before Finish cannot prove whether that source acknowledged a database-only Pause. Finish releases its completed installer hold but leaves inferred owner intent unknown for explicit review and supported Resume. Newer independently recorded owner actions are preserved. Guided host updates keep the source continuously fenced through completion and can restore proven enabled intent automatically.

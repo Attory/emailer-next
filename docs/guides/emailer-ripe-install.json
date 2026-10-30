@@ -262,6 +262,10 @@
     {
       "type": "p",
       "text": "After confirming current credentials for MFA management, choose Start or restart enrollment. In a standard authenticator choose Add account and Scan QR code; scan the displayed code. If scanning is unavailable, choose manual entry and copy the adjacent setup key. Both represent the same account. Store recovery codes privately and confirm a current six-digit code. QR generation happens locally; no external QR service is contacted. Do not share or capture the enrollment screen. Existing enrolled accounts keep their factor and do not enrol again."
+    },
+    {
+      "type": "p",
+      "text": "Standalone native updates that reopen an older source writer before Finish cannot prove whether that source acknowledged a database-only Pause. Finish releases its completed installer hold but leaves inferred owner intent unknown for explicit review and supported Resume. Newer independently recorded owner actions are preserved. Guided host updates keep the source continuously fenced through completion and can restore proven enabled intent automatically."
     }
   ]
 }

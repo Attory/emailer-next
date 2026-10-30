@@ -101,6 +101,9 @@ if ('1' === getenv('EMAILER_REHEARSAL_NATIVE_LIVE_EVIDENCE')) {
             throw new RuntimeException('A legacy source Pause after recovery lost its independent intent.');
         }
     }
+    if ('1' === getenv('EMAILER_REHEARSAL_NATIVE_POSTCORE_PAUSE') && ('unknown' !== $state['owner'] || [] !== $state['holds'])) {
+        throw new RuntimeException('A legacy Pause acknowledged after core completion was lost at Finish.');
+    }
     $expectedAccepting = 'enabled' === $state['owner'] && [] === $state['holds'] ? 1 : 0;
 }
 $verified = 0;

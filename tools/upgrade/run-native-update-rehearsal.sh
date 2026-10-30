@@ -61,6 +61,7 @@ run() {
         -e EMAILER_ISOLATED_REHEARSAL=1 \
         -e EMAILER_REHEARSAL_NATIVE_TARGET=1 \
         -e "EMAILER_REHEARSAL_NATIVE_SOURCE=$source_version" \
+        -e "EMAILER_REHEARSAL_NATIVE_POSTCORE_PAUSE=${EMAILER_REHEARSAL_NATIVE_POSTCORE_PAUSE:-0}" \
         -e "EMAILER_REHEARSAL_NATIVE_SOURCE_ROOT=$source_name" \
         -e "EMAILER_REHEARSAL_NATIVE_CONVERTED=$converted" \
         -e "MARIADB_SERVER_VERSION=${MARIADB_SERVER_VERSION:-10.11.19-MariaDB}" \
@@ -158,6 +159,10 @@ if run bash -euc 'set -a; source /rehearsal/updater.env; export EMAILER_UPDATE_S
     exit 1
 fi
 run bash -euc 'set -a; source /rehearsal/updater.env; set +a; php /tools/tools/upgrade/observe-native-update.php after' >> "$log_root/preservation.log"
+if [ "${EMAILER_REHEARSAL_NATIVE_POSTCORE_PAUSE:-0}" = 1 ]; then
+    test "$source_version" = 1.3.4
+    rehearsal_user=1000 run bash -euc 'set -a; source /rehearsal/runtime.env; set +a; php /rehearsal/source-releases/1.3.4/bin/console emailer:delivery:quiesce --no-interaction' >> "$log_root/preservation.log" 2>&1
+fi
 run bash /tools/tools/upgrade/finish-native-with-live-services.sh >> "$log_root/preservation.log" 2>&1
 verify_converted_functionality
 printf 'Actual native Ripe %s to 1.3.5 update completed: %s\n' "$source_version" "$case_root"

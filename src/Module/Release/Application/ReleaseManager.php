@@ -188,6 +188,7 @@ final readonly class ReleaseManager
                     $controls->invalidateUnprovenLegacyIntent();
                 }
                 $controls->hold($operationId, 'native', ['proof_path' => EditionData::text($completeCheckpoint).'/native-operation.json', 'parent_operation' => $parent]);
+                $nativeJournal['delivery_control_source_aware'] = \is_array($sourceManifest['files'] ?? null) && isset($sourceManifest['files']['src/Shared/DeliveryControlFiles.php']);
                 $nativeJournal['delivery_control_owned'] = true;
                 $nativeJournal['delivery_control_parent'] = $parent;
                 $this->nativeJournal(EditionData::text($completeCheckpoint), $nativeJournal);
