@@ -1,12 +1,12 @@
 # Install Emailer Ripe
 
-Version 1.3.7 | Beginner guide | Ubuntu Apache or Debian Nginx VPS
+Version 1.3.8 | Beginner guide | Ubuntu Apache or Debian Nginx VPS
 
 Install a usable Emailer Ripe website with one guided server setup. You need your administrator email, a new password, and the address you want people to use. Email delivery can wait.
 
 Ubuntu 26.04 uses its maintained distribution PHP 8.5 packages; no external PHP source is added. A compatible existing MariaDB 10.11 or 11.8 service is reused without a major upgrade. Setup adds a dedicated Emailer PHP-FPM pool and keeps existing website pools, PHP alternatives and Virtualmin-managed websites in place. Missing PHP extension packages add their standard extension configuration; existing PHP settings are retained and shared PHP services are not restarted.
 
-Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.6 on Ubuntu 26.04 upgrade directly to Ripe 1.3.7; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance.
+Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.6 on Ubuntu 26.04 upgrade directly to Ripe 1.3.8; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance.
 
 Ubuntu 26.04.1 HTTPS acceptance used a local ACME server with real HTTP challenge validation and strict certificate/name verification. Public certificate issuance remains unverified because no dedicated non-production hostname and DNS authority were available. Customer setup uses the normal public ACME service; DNS must point to the server and Apache must be reachable on ports 80 and 443.
 
@@ -39,7 +39,7 @@ Choose a spare address such as `news.your-domain.com`. In your domain provider's
 
 ## 2. Download the official setup package
 
-While signed in to GitHub with access to the private [Emailer Ripe release](https://github.com/Attory/emailer-next/releases/tag/v1.3.7), download **emailer-ripe-1.3.7-setup.run**. Upload that one file to the server using your provider's file-transfer facility. An authorized privately supplied copy of the same signed setup file also works. Keep the file private. Do not paste a GitHub token or repository password into a download command.
+While signed in to GitHub with access to the private [Emailer Ripe release](https://github.com/Attory/emailer-next/releases/tag/v1.3.8), download **emailer-ripe-1.3.8-setup.run**. Upload that one file to the server using your provider's file-transfer facility. An authorized privately supplied copy of the same signed setup file also works. Keep the file private. Do not paste a GitHub token or repository password into a download command.
 
 You do not need a source checkout, Composer, a public-key file or separate verification sidecars. Those components are inside the setup package.
 
@@ -52,7 +52,7 @@ Ubuntu 22.04 also retrieves an authenticated MariaDB runtime of about 360 MB. Al
 From the folder containing the downloaded file, paste this single setup action:
 
 ```bash
-sudo sh emailer-ripe-1.3.7-setup.run
+sudo sh emailer-ripe-1.3.8-setup.run
 ```
 
 If setup finds an existing Light installation, choose **Install a separate fresh Ripe application** for this fresh-install guide. Choose its upgrade option only when you intend to convert Light, following the separate upgrade guide. The fresh Ripe site needs a different dedicated hostname.
@@ -117,9 +117,6 @@ After confirming current credentials for MFA management, choose Start or restart
 
 Successful verified maintenance automatically retires its temporary sending block and matching recovered predecessors. No separate Finish or Resume is required solely to release delivery. Existing independent owner pauses remain. A failed or interrupted service handoff remains unavailable with its concrete recovery action.
 
-
 ## Automatic maintenance completion
 
-Manually initiated setup temporarily excludes sending while files, database and services change. Successful live verification automatically removes that operation’s temporary exclusion and matching recovered predecessor blocks. No extra Finish or Resume is required after success. An edition transition that needs Accept automatically completes delivery release after successful Accept. Independent owner pauses, campaign approval, suppression/unsubscribe, MFA and SMTP sending rules remain enforced. Existing approved due work can continue; drafts are never approved and failed or uncertain messages are never retried.
-
-A failed or interrupted installation remains blocked with the concrete failure and its recovery action. Finish is an interrupted service-handoff recovery action, not a normal post-success delivery step. Historical recovery receipt omissions do not invalidate a later fully verified successful handoff. Original recovery journals and backups remain unchanged. Standalone native core migration is only part of a supervised operation: its caller must finish service verification and automatic completion within that same operation; core-only output is not whole-operation success.
+After a successful manually initiated install/update and live service verification, setup automatically releases the operation temporary sending exclusion. Successful edition Accept does the same. Normal owner pauses, campaign approval, suppression, authentication and SMTP rules remain. Already approved delivery may continue; drafts are never approved and failed or uncertain messages are never retried. A failed or incomplete operation names its concrete failure and recovery action, not a misleading successful-maintenance hold.

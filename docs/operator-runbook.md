@@ -452,3 +452,9 @@ in [CLIENT-LIGHT-UPGRADE-1.0.6.md](CLIENT-LIGHT-UPGRADE-1.0.6.md) and
 recovery, acceptance and isolated old-Light-backup export. No HTTP update or
 restore route is introduced. Contacts/lists remain independent of campaign-owned
 Light recipients. Delivery remains held until explicit accepted readiness/resume.
+
+## Maintenance session policy
+
+Ripe High keeps the existing 30-minute inactivity and 12-hour absolute limits. Ripe Normal has neither automatic limit. Explicit sign-out, revocation and credential/security invalidation remain effective. Browser closure still follows the existing session-cookie behavior. No timeout setting or schema migration is added.
+
+When a background poll loses authentication, sign in using the notice link in another tab, then return to the unchanged editor. Campaign fields and selected CSV remain in that tab; choose Refresh security check before saving. Template editor recovery continues to use its existing per-tab recovery copy. An authentication expiry is not a delivery fault; do not change SMTP, resume delivery or retry failed work to fix it.

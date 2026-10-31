@@ -1,3 +1,53 @@
+// Standalone asset: no import-map bootstrap is required on administration pages.
+// Keep the editor tab (including selected files) intact while signing in separately.
+async function authenticationExpired(response) {
+    const target = new URL(response.url || location.href, location.href);
+    const loginRedirect = response.redirected && target.origin === location.origin && target.pathname.endsWith('/login');
+    if (response.status !== 401 && !loginRedirect) return false;
+    let reason = target.searchParams.get('expiry');
+    let login = new URL('/login', location.origin);
+    if (loginRedirect) login = target;
+    if (response.status === 401) {
+        try {
+            const body = await response.clone().json();
+            reason = body.expiry;
+            const supplied = new URL(body.login_url, location.href);
+            if (supplied.origin === location.origin && supplied.pathname.endsWith('/login')) login = supplied;
+        } catch { /* An unstructured 401 still requires sign-in, never a delivery diagnosis. */ }
+    }
+    let notice = document.querySelector('[data-authentication-expired]');
+    if (!notice) {
+        notice = document.createElement('section');
+        notice.dataset.authenticationExpired = 'true';
+        notice.className = 'alert';
+        notice.setAttribute('role', 'alert');
+        (document.querySelector('main') || document.body).prepend(notice);
+    }
+    const message = reason === 'idle'
+        ? 'You’ve been signed out due to inactivity. Sign in again to continue.'
+        : reason === 'absolute'
+            ? 'Your session reached its 12-hour limit. Sign in again to continue.'
+            : 'Your session is no longer authenticated. Sign in again to continue.';
+    login.searchParams.set('return', location.pathname + location.search);
+    const link = document.createElement('a');
+    link.href = login.href; link.target = '_blank'; link.rel = 'noopener';
+    link.textContent = 'Sign in again';
+    const campaignRefresh = document.querySelector('[data-campaign-refresh-security]');
+    if (campaignRefresh) campaignRefresh.hidden = false;
+    const recovery = campaignRefresh
+        ? ' in another tab, then return here and choose Refresh security check. Your fields and selected CSV stay here.'
+        : document.querySelector('[data-template-editor]')
+            ? ' in another tab, then return here. Keep this tab open; after sign-in, reload and choose Restore draft to recover your unsaved template.'
+            : ' in another tab, then return here to continue.';
+    notice.replaceChildren(document.createTextNode(message + ' '), link, document.createTextNode(recovery));
+    return true;
+}
+
+function authenticationRestored() {
+    document.querySelector('[data-authentication-expired]')?.remove();
+}
+
+
 // An expired background poll must not replace Symfony's post-login page target.
 // Poll only bounded, authenticated status. Never reload a form or replace its contents.
 const banner = document.querySelector('[data-update-status]');
@@ -36,6 +86,7 @@ if (banner) {
         const timeout = setTimeout(() => controller.abort(), 7000);
         try {
             const response = await fetch(banner.dataset.statusUrl, {credentials: 'same-origin', cache: 'no-store', headers: {Accept: 'application/json', 'X-Requested-With': 'XMLHttpRequest'}, signal: controller.signal});
+            if (await authenticationExpired(response)) return;
             if (response.status === 503 && response.headers.get('X-Emailer-Update-State') === 'in-progress') {
                 apply({blocked: true, phase: 'in_progress', message: 'Update in progress; sending temporarily unavailable. Your unsaved work is retained.', paused_campaign_ids: []});
             } else if (response.status === 503 && response.headers.get('X-Emailer-Update-State') === 'failed') {
@@ -50,6 +101,7 @@ if (banner) {
                 if (!response.ok || response.redirected || !response.headers.get('content-type')?.includes('application/json')) throw new Error('unavailable');
                 const status = await response.json();
                 if (typeof status.blocked !== 'boolean' || typeof status.message !== 'string' || !Array.isArray(status.paused_campaign_ids) || !status.paused_campaign_ids.every(id => typeof id === 'string')) throw new Error('invalid');
+                authenticationRestored();
                 apply(status);
             }
             failures = 0;

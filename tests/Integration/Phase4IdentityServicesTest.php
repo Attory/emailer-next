@@ -168,6 +168,63 @@ final class Phase4IdentityServicesTest extends KernelTestCase
         self::assertFalse($connection->fetchOne('SELECT 1 FROM user_session WHERE id_hash = ?', [$registry->currentHash('retained-tombstone')]));
     }
 
+    public function testNormalSessionsIgnoreBothDeadlinesButStillRevoke(): void
+    {
+        self::bootKernel();
+        $connection = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($connection);
+        $user = $this->createPhase4User($connection, 'normal-session@example.test', 'synthetic-normal-session-password');
+        $connection->update('organisation_settings', ['security_level' => 'normal'], ['singleton_key' => '1']);
+        $handler = $this->phase4Service(DatabaseSessionHandler::class);
+        $registry = $this->phase4Service(SessionRegistry::class);
+        $handler->write('normal-session', 'retained-authority');
+        $registry->bind('normal-session', $user->id(), null, null);
+        $connection->executeStatement("UPDATE user_session SET idle_expires_at = '2020-01-01', absolute_expires_at = '2020-01-01'");
+        self::assertSame(0, $handler->gc(1800));
+        self::assertTrue($handler->validateId('normal-session'));
+        self::assertSame('retained-authority', $handler->read('normal-session'));
+        self::assertCount(1, $registry->listForUser($user->id(), 'normal-session'));
+        self::assertSame(1, $registry->revokeAll($user->id()));
+        $handler->write('normal-session', 'late-response');
+        self::assertFalse($handler->validateId('normal-session'));
+        self::assertSame('', $handler->read('normal-session'));
+    }
+
+    public function testHighExpiryReasonsIncludeStrictBoundaryAndGarbageCollectedSession(): void
+    {
+        self::bootKernel();
+        $connection = $this->phase4Service(Connection::class);
+        $this->preparePhase4State($connection);
+        $handler = $this->phase4Service(DatabaseSessionHandler::class);
+        $request = new \Symfony\Component\HttpFoundation\Request();
+        $stack = $this->phase4Service(\Symfony\Component\HttpFoundation\RequestStack::class);
+        $stack->push($request);
+        try {
+            $handler->write('high-idle', 'payload');
+            $row = $connection->fetchAssociative('SELECT created_at, idle_expires_at, absolute_expires_at FROM user_session');
+            self::assertIsArray($row);
+            self::assertIsString($row['created_at']);
+            self::assertIsString($row['idle_expires_at']);
+            self::assertIsString($row['absolute_expires_at']);
+            self::assertEquals(1800, (new \DateTimeImmutable($row['idle_expires_at']))->getTimestamp() - (new \DateTimeImmutable($row['created_at']))->getTimestamp());
+            self::assertEquals(43200, (new \DateTimeImmutable($row['absolute_expires_at']))->getTimestamp() - (new \DateTimeImmutable($row['created_at']))->getTimestamp());
+            self::assertTrue($handler->validateId('high-idle'));
+            $connection->executeStatement('UPDATE user_session SET idle_expires_at = UTC_TIMESTAMP(6)');
+            self::assertFalse($handler->validateId('high-idle'));
+            self::assertSame('idle', $request->attributes->get('identity.session_expiry'));
+            $handler->gc(1800);
+            $request->attributes->remove('identity.session_expiry');
+            self::assertFalse($handler->validateId('high-idle'));
+            self::assertSame('idle', $request->attributes->get('identity.session_expiry'));
+            $handler->write('high-absolute', 'payload');
+            $connection->executeStatement('UPDATE user_session SET absolute_expires_at = UTC_TIMESTAMP(6)');
+            self::assertFalse($handler->validateId('high-absolute'));
+            self::assertSame('absolute', $request->attributes->get('identity.session_expiry'));
+        } finally {
+            $stack->pop();
+        }
+    }
+
     public function testSessionRevocationIsMonotonicAcrossSeparateConnectionInterleaving(): void
     {
         self::bootKernel();

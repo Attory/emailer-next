@@ -162,8 +162,18 @@ try:
     node_environment = os.environ.copy()
     node_environment['EMAILER_BROWSER_CONFIG'] = str(private / 'browser.json')
     focus = os.environ.get('EMAILER_BROWSER_FOCUS', '')
-    if focus not in ('', 'smtp', 'mfa', 'actions') or (focus and os.environ.get('EMAILER_BROWSER_SOURCE_TREE') != '1'):
+    if focus not in ('', 'smtp', 'mfa', 'actions', 'inactivity') or (focus and os.environ.get('EMAILER_BROWSER_SOURCE_TREE') != '1'):
         raise RuntimeError('Focused suites are available only for explicit source-level verification.')
+    if focus == 'inactivity':
+        command(['node', str(root / 'tools/browser/session-expiry.cjs')], env=node_environment)
+        php('tools/browser/verify-editor-delivery.php', 'mfa')
+        shutil.copyfile(private / 'mfa-no-send-result.json', output / 'session-no-send-result.json')
+        php('vendor/bin/phpunit', '--filter', 'testDatabaseSessionsEnforceIdleAbsoluteExpiryAndRevocation|testNormalSessionsIgnoreBothDeadlinesButStillRevoke|testHighExpiryReasonsIncludeStrictBoundaryAndGarbageCollectedSession|testSessionRevocationIsMonotonicAcrossSeparateConnectionInterleaving|testRoleEscalationSessionRevocationAndFinalOwnerInvariant|testPasswordResetIsHashedExpiringSingleUseAndRevokesAuthority', 'tests/Integration/Phase4IdentityServicesTest.php')
+    if focus == 'inactivity':
+        summary = re.findall(r'OK \(\d+ tests, \d+ assertions\)', (private / 'runner.log').read_text())
+        if len(summary) != 1:
+            raise RuntimeError('Focused PHPUnit success summary missing.')
+        (output / 'session-phpunit-result.json').write_text(json.dumps({'status': 'PASS', 'summary': summary[0]}))
     if focus == '':
         command(['node', str(root / 'tools/browser/template-editor.cjs')], env=node_environment)
         shutil.copyfile(output / 'browser-result.json', private / 'browser-result.json')

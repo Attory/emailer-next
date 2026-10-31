@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Module\Identity\Application;
 
+use App\Module\Identity\Application\Contract\SecurityLevelReader;
 use Doctrine\DBAL\Connection;
 
 final readonly class SessionRegistry
@@ -11,6 +12,7 @@ final readonly class SessionRegistry
     public function __construct(
         private Connection $connection,
         private SensitiveValueHasher $hasher,
+        private ?SecurityLevelReader $securityLevel = null,
     ) {
     }
 
@@ -43,9 +45,10 @@ SQL, [
     public function listForUser(string $userId, string $currentSessionId): array
     {
         $current = $this->hashId($currentSessionId);
+        $limits = null === $this->securityLevel || 'normal' !== $this->securityLevel->current();
         $rows = $this->connection->fetchAllAssociative(
-            'SELECT id_hash, created_at, last_seen_at, idle_expires_at, absolute_expires_at FROM user_session WHERE user_id = ? AND revoked_at IS NULL AND idle_expires_at > ? AND absolute_expires_at > ? ORDER BY last_seen_at DESC',
-            [$userId, IdentityUtil::now(), IdentityUtil::now()],
+            'SELECT id_hash, created_at, last_seen_at, idle_expires_at, absolute_expires_at FROM user_session WHERE user_id = ? AND revoked_at IS NULL '.($limits ? ' AND idle_expires_at > ? AND absolute_expires_at > ?' : '').' ORDER BY last_seen_at DESC',
+            $limits ? [$userId, IdentityUtil::now(), IdentityUtil::now()] : [$userId],
         );
 
         $result = [];
