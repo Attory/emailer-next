@@ -1,12 +1,12 @@
 # Upgrade Emailer Light to Ripe
 
-Ripe 1.3.6 | Beginner guide for Light 1.0.0, 1.1.0 and 1.2.0 through 1.2.12
+Ripe 1.3.7 | Beginner guide for Light 1.0.0, 1.1.0 and 1.2.0 through 1.2.12
 
-Upgrade with the private Ripe 1.3.6 setup file. Your Light administrator becomes an Owner and keeps the same password. Accept the validated upgrade after verification. Successful acceptance retires only this installer’s hold; existing owner pauses remain and actual readiness still blocks sending.
+Upgrade with the private Ripe 1.3.7 setup file. Your Light administrator becomes an Owner and keeps the same password. Accept the validated upgrade after verification. Successful acceptance retires only this installer’s hold; existing owner pauses remain and actual readiness still blocks sending.
 
 Ubuntu 26.04 uses its maintained distribution PHP 8.5 packages; no external PHP source is added. A compatible existing MariaDB 10.11 or 11.8 service is reused without a major upgrade. Setup adds a dedicated Emailer PHP-FPM pool and keeps existing website pools, PHP alternatives and Virtualmin-managed websites in place. Missing PHP extension packages add their standard extension configuration; existing PHP settings are retained and shared PHP services are not restarted.
 
-Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.6 on Ubuntu 26.04 upgrade directly to Ripe 1.3.6; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance.
+Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.6 on Ubuntu 26.04 upgrade directly to Ripe 1.3.7; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance.
 
 Ubuntu 26.04.1 HTTPS acceptance used a local ACME server with real HTTP challenge validation and strict certificate/name verification. Public certificate issuance remains unverified because no dedicated non-production hostname and DNS authority were available. Customer setup uses the normal public ACME service; DNS must point to the server and Apache must be reachable on ports 80 and 443.
 
@@ -14,23 +14,23 @@ Ubuntu 26.04.1 HTTPS acceptance used a local ACME server with real HTTP challeng
 
 | Installed source | Target and route |
 | --- | --- |
-| Original published Light 1.0.0 | Ripe 1.3.6, direct guided upgrade. |
-| Official Light 1.1.0 | Ripe 1.3.6, direct guided upgrade. |
-| Official Light 1.2.0 | Ripe 1.3.6, direct guided upgrade. |
-| Official Light 1.2.1 | Ripe 1.3.6, direct guided upgrade. |
-| Official Light 1.2.2 | Ripe 1.3.6, direct guided upgrade. |
-| Official Light 1.2.3 | Ripe 1.3.6, direct guided upgrade. |
-| Official Light 1.2.4 | Ripe 1.3.6, direct guided upgrade. |
-| Official Light 1.2.5 | Ripe 1.3.6, direct guided upgrade. |
-| Official Light 1.2.6 | Ripe 1.3.6, direct guided upgrade. |
-| Official Light 1.2.7 | Ripe 1.3.6, direct guided upgrade. |
-| Official Light 1.2.8 | Ripe 1.3.6, direct guided upgrade. |
-| Official Light 1.2.9 | Ripe 1.3.6, direct guided upgrade. |
-| Official Light 1.2.10, 1.2.11 and 1.2.12 | Ripe 1.3.6, direct guided upgrade. |
-| Light updated through a supported path to any supported source above | Ripe 1.3.6, same guided edition upgrade. |
-| Native Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2 and 1.3.0 through 1.3.5 | Ripe 1.3.6, normal Update menu. Original 1.0.5 first uses its signed 1.3.4 repair. |
+| Original published Light 1.0.0 | Ripe 1.3.7, direct guided upgrade. |
+| Official Light 1.1.0 | Ripe 1.3.7, direct guided upgrade. |
+| Official Light 1.2.0 | Ripe 1.3.7, direct guided upgrade. |
+| Official Light 1.2.1 | Ripe 1.3.7, direct guided upgrade. |
+| Official Light 1.2.2 | Ripe 1.3.7, direct guided upgrade. |
+| Official Light 1.2.3 | Ripe 1.3.7, direct guided upgrade. |
+| Official Light 1.2.4 | Ripe 1.3.7, direct guided upgrade. |
+| Official Light 1.2.5 | Ripe 1.3.7, direct guided upgrade. |
+| Official Light 1.2.6 | Ripe 1.3.7, direct guided upgrade. |
+| Official Light 1.2.7 | Ripe 1.3.7, direct guided upgrade. |
+| Official Light 1.2.8 | Ripe 1.3.7, direct guided upgrade. |
+| Official Light 1.2.9 | Ripe 1.3.7, direct guided upgrade. |
+| Official Light 1.2.10, 1.2.11 and 1.2.12 | Ripe 1.3.7, direct guided upgrade. |
+| Light updated through a supported path to any supported source above | Ripe 1.3.7, same guided edition upgrade. |
+| Native Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2 and 1.3.0 through 1.3.5 | Ripe 1.3.7, normal Update menu. Original 1.0.5 first uses its signed 1.3.4 repair. |
 
-Use the Ripe 1.3.6 installer for original Light 1.0.0, 1.1.0 and signed 1.2.0 through 1.2.12. The installer authenticates each explicit source with the established Light identity and checks its exact schema. Native Ripe 1.0.5 first requires the published one-time 1.3.4 repair; other supported native releases retain their direct update route. There is no general Ripe-to-Light downgrade.
+Use the Ripe 1.3.7 installer for original Light 1.0.0, 1.1.0 and signed 1.2.0 through 1.2.12. The installer authenticates each explicit source with the established Light identity and checks its exact schema. Native Ripe 1.0.5 first requires the published one-time 1.3.4 repair; other supported native releases retain their direct update route. There is no general Ripe-to-Light downgrade.
 
 Use Ubuntu 22.04/24.04/26.04 amd64/systemd with Apache, or Debian 13 with Nginx, PHP 8.4 (PHP 8.5 on Ubuntu 26.04) and supported MariaDB 10.11/11.8. Ubuntu 22.04 fresh installations use an isolated MariaDB 10.11.19 beside any existing host database. The installer discovers protected standard settings under /etc/emailer-light or /etc/emailer, a dedicated application database account, private/key storage and an existing trusted HTTPS hostname without a custom port/subfolder. A dedicated Emailer virtual-host file must not also serve unrelated routes or applications. Unknown customized targets stop before handoff; keep their existing configuration. The automatic handoff requires the recorded dedicated Emailer PHP-FPM service so it can drain only this application. A shared/custom PHP service is preserved and rejected before hold or website mutation; use the operator reference for a supervised quiescent handoff.
 
@@ -40,10 +40,10 @@ Finish intentional sending and allow a short maintenance period. Keep the curren
 
 ## 2. Download and start Ripe setup
 
-While signed in with access, download **emailer-ripe-1.3.6-setup.run** from the [official private release](https://github.com/Attory/emailer-next/releases/tag/v1.3.6), or use an authorized private copy. Upload that one file to the existing server through your provider's file-transfer facility. Do not put a GitHub token in a shell command. In the folder containing the file, run:
+While signed in with access, download **emailer-ripe-1.3.7-setup.run** from the [official private release](https://github.com/Attory/emailer-next/releases/tag/v1.3.7), or use an authorized private copy. Upload that one file to the existing server through your provider's file-transfer facility. Do not put a GitHub token in a shell command. In the folder containing the file, run:
 
 ```bash
-sudo sh emailer-ripe-1.3.6-setup.run
+sudo sh emailer-ripe-1.3.7-setup.run
 ```
 
 Initial trust comes from the official HTTPS or authorized private delivery channel. Embedded established signing identities authenticate the Ripe package and all ten supported Light predecessor packages. You do not need to assemble verifier source, sidecars, version arguments or commit hashes.
@@ -101,3 +101,10 @@ An interrupted or recovered operation retains its operation identifier, lifecycl
 ## Scan an authenticator QR code privately
 
 After confirming current credentials for MFA management, choose Start or restart enrollment. In a standard authenticator choose Add account and Scan QR code; scan the displayed code. If scanning is unavailable, choose manual entry and copy the adjacent setup key. Both represent the same account. Store recovery codes privately and confirm a current six-digit code. QR generation happens locally; no external QR service is contacted. Do not share or capture the enrollment screen. Existing enrolled accounts keep their factor and do not enrol again.
+
+
+## Automatic maintenance completion
+
+Manually initiated setup temporarily excludes sending while files, database and services change. Successful live verification automatically removes that operation’s temporary exclusion and matching recovered predecessor blocks. No extra Finish or Resume is required after success. An edition transition that needs Accept automatically completes delivery release after successful Accept. Independent owner pauses, campaign approval, suppression/unsubscribe, MFA and SMTP sending rules remain enforced. Existing approved due work can continue; drafts are never approved and failed or uncertain messages are never retried.
+
+A failed or interrupted installation remains blocked with the concrete failure and its recovery action. Finish is an interrupted service-handoff recovery action, not a normal post-success delivery step. Historical recovery receipt omissions do not invalidate a later fully verified successful handoff. Original recovery journals and backups remain unchanged. Standalone native core migration is only part of a supervised operation: its caller must finish service verification and automatic completion within that same operation; core-only output is not whole-operation success.

@@ -1,6 +1,6 @@
 {
   "title": "Install Emailer Ripe",
-  "subtitle": "Version 1.3.6 | Beginner guide | Ubuntu Apache or Debian Nginx VPS",
+  "subtitle": "Version 1.3.7 | Beginner guide | Ubuntu Apache or Debian Nginx VPS",
   "blocks": [
     {
       "type": "p",
@@ -12,7 +12,7 @@
     },
     {
       "type": "p",
-      "text": "Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.6 on Ubuntu 26.04 upgrade directly to Ripe 1.3.6; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance."
+      "text": "Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.6 on Ubuntu 26.04 upgrade directly to Ripe 1.3.7; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance."
     },
     {
       "type": "p",
@@ -99,7 +99,7 @@
     },
     {
       "type": "p",
-      "text": "While signed in to GitHub with access to the private <a href=\"https://github.com/Attory/emailer-next/releases/tag/v1.3.6\">Emailer Ripe release</a>, download <b>emailer-ripe-1.3.6-setup.run</b>. Upload that one file to the server using your provider's file-transfer facility. An authorized privately supplied copy of the same signed setup file also works. Keep the file private. Do not paste a GitHub token or repository password into a download command."
+      "text": "While signed in to GitHub with access to the private <a href=\"https://github.com/Attory/emailer-next/releases/tag/v1.3.7\">Emailer Ripe release</a>, download <b>emailer-ripe-1.3.7-setup.run</b>. Upload that one file to the server using your provider's file-transfer facility. An authorized privately supplied copy of the same signed setup file also works. Keep the file private. Do not paste a GitHub token or repository password into a download command."
     },
     {
       "type": "p",
@@ -123,7 +123,7 @@
     },
     {
       "type": "code",
-      "text": "sudo sh emailer-ripe-1.3.6-setup.run"
+      "text": "sudo sh emailer-ripe-1.3.7-setup.run"
     },
     {
       "type": "p",
@@ -265,7 +265,15 @@
     },
     {
       "type": "p",
-      "text": "Standalone native updates that reopen an older source writer before Finish cannot prove whether that source acknowledged a database-only Pause. Finish releases its completed installer hold but leaves inferred owner intent unknown for explicit review and supported Resume. Newer independently recorded owner actions are preserved. Guided host updates keep the source continuously fenced through completion and can restore proven enabled intent automatically."
+      "text": "Successful verified maintenance automatically retires its temporary sending block and matching recovered predecessors. No separate Finish or Resume is required solely to release delivery. Existing independent owner pauses remain. A failed or interrupted service handoff remains unavailable with its concrete recovery action."
+    },
+    {
+      "type": "h2",
+      "text": "Automatic maintenance completion"
+    },
+    {
+      "type": "p",
+      "text": "After a successful manually initiated install/update and live service verification, setup automatically releases the operation temporary sending exclusion. Successful edition Accept does the same. Normal owner pauses, campaign approval, suppression, authentication and SMTP rules remain. Already approved delivery may continue; drafts are never approved and failed or uncertain messages are never retried. A failed or incomplete operation names its concrete failure and recovery action, not a misleading successful-maintenance hold."
     }
   ]
 }
