@@ -61,8 +61,8 @@ class EditionManager(Manager):
         if choice == '3' and operation is None:
             raise ManagementError('There is no retained native operation to recover or finish.')
         source_version = operation['source_version'] if operation else self.source_version
-        if self.installer.version == '1.3.5' and source_version == '1.0.5':
-            raise ManagementError('Use the original signed 1.3.4 one-time repair for 1.0.5, then update normally to 1.3.5.')
+        if self.installer.version == '1.3.6' and source_version == '1.0.5':
+            raise ManagementError('Use the original signed 1.3.4 one-time repair for 1.0.5, then update normally to 1.3.6.')
         if source_version not in ('1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2', '1.3.3', '1.3.4'):
             raise ManagementError('The new installer supports native updates from Ripe 1.0.5 (one-time repair), 1.0.6, 1.1.0, 1.2.1, 1.2.2, 1.3.0, 1.3.1, 1.3.2, 1.3.3 or 1.3.4. Earlier installations must complete their published supported update path first.')
         self.environment['EMAILER_UPDATE_SOURCE_VERSION'] = source_version
@@ -109,8 +109,8 @@ class EditionManager(Manager):
 
     def transition_menu(self):
         source_version = self.record.get('transition_source', self.source_version)
-        if source_version not in ('1.0.0', '1.1.0', '1.2.0', '1.2.1', '1.2.2', '1.2.3', '1.2.4', '1.2.5', '1.2.6', '1.2.7', '1.2.8', '1.2.9', '1.2.10', '1.2.11'):
-            raise ManagementError('Only Light 1.0.0, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.2.5, 1.2.6, 1.2.7, 1.2.8, 1.2.9, 1.2.10 and 1.2.11 are supported sources.')
+        if source_version not in ('1.0.0', '1.1.0', '1.2.0', '1.2.1', '1.2.2', '1.2.3', '1.2.4', '1.2.5', '1.2.6', '1.2.7', '1.2.8', '1.2.9', '1.2.10', '1.2.11', '1.2.12'):
+            raise ManagementError('Only Light 1.0.0, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.2.5, 1.2.6, 1.2.7, 1.2.8, 1.2.9, 1.2.10, 1.2.11 and 1.2.12 are supported sources.')
         print(f'\nLight {source_version} → Ripe {self.installer.version}')
         print('Application address: ' + installation_address(self.values))
         print('Protected settings: ' + str(self.configuration))

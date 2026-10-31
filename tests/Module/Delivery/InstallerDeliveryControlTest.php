@@ -291,7 +291,12 @@ final class InstallerDeliveryControlTest extends TestCase
         $record = ['control_operation_id' => self::OPERATION, 'control_installation_uuid' => self::INSTALLATION, 'control_private_directory' => $this->directory.'/private', 'completed' => ['Creating your administrator account']];
         file_put_contents($path, json_encode($record, JSON_THROW_ON_ERROR));
         $control = new InstallerDeliveryControl($this->db, $this->directory.'/private');
-        $control->beginFresh(self::OPERATION, $path, 1000, 1000);
+        $mask = umask(0o077);
+        try {
+            $control->beginFresh(self::OPERATION, $path, 1000, 1000);
+        } finally {
+            umask($mask);
+        }
         self::assertSame(0, $this->accepting());
         self::assertCount(1, $this->files()->status()['holds']);
         $record['completed'][] = 'Checking application health and initial backup';
@@ -320,7 +325,7 @@ final class InstallerDeliveryControlTest extends TestCase
         $files = $this->files();
         $files->prepare(1000, 1000, 'enabled');
         $base = $this->directory.'/native-update-recovery';
-        $common = ['delivery_control_source_aware' => true, 'format' => 'emailer-native-update-recovery-v1', 'installation_uuid' => self::INSTALLATION, 'private_directory' => $this->directory.'/private', 'source_archive_sha256' => str_repeat('a', 64), 'target_archive_sha256' => str_repeat('b', 64), 'source_root' => $this->directory.'/releases/1.3.4', 'source_version' => '1.3.4', 'target_version' => '1.3.5', 'fence_restored' => true];
+        $common = ['delivery_control_source_aware' => true, 'format' => 'emailer-native-update-recovery-v1', 'installation_uuid' => self::INSTALLATION, 'private_directory' => $this->directory.'/private', 'source_archive_sha256' => str_repeat('a', 64), 'target_archive_sha256' => str_repeat('b', 64), 'source_root' => $this->directory.'/releases/1.3.4', 'source_version' => '1.3.4', 'target_version' => '1.3.6', 'fence_restored' => true];
         foreach ([self::OTHER => 'recovered', self::OPERATION => 'completed'] as $id => $phase) {
             mkdir($base.'/'.$id, 0o700, true);
             $path = $base.'/'.$id.'/native-operation.json';
@@ -382,7 +387,7 @@ final class InstallerDeliveryControlTest extends TestCase
         $base = $this->directory.'/native-update-recovery/'.self::OPERATION;
         mkdir($base, 0o700, true);
         $proof = $base.'/native-operation.json';
-        file_put_contents($proof, json_encode(['format' => 'emailer-native-update-recovery-v1', 'installation_uuid' => self::INSTALLATION, 'private_directory' => $this->directory.'/private', 'operation_id' => self::OPERATION, 'phase' => 'completed', 'source_archive_sha256' => str_repeat('a', 64), 'source_root' => $this->directory.'/releases/1.3.4', 'source_version' => '1.3.4', 'target_version' => '1.3.5', 'fence_restored' => true, 'retain_source_fence' => $fenced, 'delivery_control_source_aware' => $aware], JSON_THROW_ON_ERROR));
+        file_put_contents($proof, json_encode(['format' => 'emailer-native-update-recovery-v1', 'installation_uuid' => self::INSTALLATION, 'private_directory' => $this->directory.'/private', 'operation_id' => self::OPERATION, 'phase' => 'completed', 'source_archive_sha256' => str_repeat('a', 64), 'source_root' => $this->directory.'/releases/1.3.4', 'source_version' => '1.3.4', 'target_version' => '1.3.6', 'fence_restored' => true, 'retain_source_fence' => $fenced, 'delivery_control_source_aware' => $aware], JSON_THROW_ON_ERROR));
         chmod($proof, 0o600);
         $files->hold(self::OPERATION, 'native', ['proof_path' => $proof, 'parent_operation' => '']);
         $this->db->insert('release_operation', ['id' => self::OPERATION, 'operation' => 'update', 'status' => 'succeeded', 'started_at' => '2026-01-01 00:00:00']);
@@ -445,7 +450,12 @@ final class InstallerDeliveryControlTest extends TestCase
     private function begin(): InstallerDeliveryControl
     {
         $control = new InstallerDeliveryControl($this->db, $this->directory.'/private');
-        $control->beginHost(self::OPERATION, $this->directory.'/management.json', 1000, 1000);
+        $mask = umask(0o077);
+        try {
+            $control->beginHost(self::OPERATION, $this->directory.'/management.json', 1000, 1000);
+        } finally {
+            umask($mask);
+        }
         $this->db->executeStatement('UPDATE delivery_runtime SET accepting_work=0');
 
         return $control;

@@ -132,7 +132,7 @@ class SourceMaintenanceBoundaries(unittest.TestCase):
                 source_values={'LOCK_DSN': 'flock://' + str(private / 'locks')},
                 account=types.SimpleNamespace(pw_uid=os.getuid(), pw_gid=os.getgid()),
                 record={}, environment={}, error=ManagementError,
-                installer=types.SimpleNamespace(product='emailer-ripe', version='1.3.5', php='/usr/bin/php8.4'),
+                installer=types.SimpleNamespace(product='emailer-ripe', version='1.3.6', php='/usr/bin/php8.4'),
                 bootstrap=Path('/immutable'), directory=Path(d))
             h = HostHandoff(m)
             h.state['installation_uuid'] = '01900000-0000-7000-8000-000000000001'
