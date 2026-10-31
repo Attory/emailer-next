@@ -5,7 +5,7 @@ declare(strict_types=1);
 if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL')) {
     throw new RuntimeException('Rehearsal cleanup verification is isolated-only.');
 }
-require '/rehearsal/source-releases/ripe-1.3.5/vendor/autoload.php';
+require '/rehearsal/source-releases/ripe-1.3.6/vendor/autoload.php';
 $p = (new Doctrine\DBAL\Tools\DsnParser(['mysql' => 'pdo_mysql']))->parse((string) getenv('EMAILER_TRANSITION_RECOVERY_DATABASE_URL'));
 if ('database' !== ($p['host'] ?? null) || !str_starts_with($p['dbname'] ?? '', 'ripe106_') || !str_ends_with($p['dbname'], '_edition_recovery')) {
     throw new RuntimeException('Cleanup evidence refuses non-harness access.');

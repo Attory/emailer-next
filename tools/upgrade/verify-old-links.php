@@ -6,7 +6,7 @@ if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL')) {
     throw new RuntimeException('Old-link verification is isolated-only.');
 }
 $sourceRoot = realpath('/rehearsal/source-releases/current');
-if (!in_array($sourceRoot, ['/rehearsal/source-releases/ripe-1.3.5', '/rehearsal/source-releases/1.3.5'], true)) {
+if (!in_array($sourceRoot, ['/rehearsal/source-releases/ripe-1.3.6', '/rehearsal/source-releases/1.3.6'], true)) {
     throw new RuntimeException('Only the isolated accepted target root is permitted.');
 }
 require $sourceRoot.'/vendor/autoload.php';

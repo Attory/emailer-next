@@ -92,7 +92,7 @@ final class UpdateReleaseCommand extends Command
             return Command::SUCCESS;
         }
         $this->releases->update($package, $sourcePackage);
-        $output->writeln('1.3.5' === $approvedTarget
+        $output->writeln(\in_array($approvedTarget, ['1.3.5', '1.3.6'], true)
             ? '<info>Core update committed. Keep its operation hold until the verified setup completes the host handoff, or use the exact native Finish after live target-service verification. Completion releases only this operation; Doctor names remaining readiness and owner pauses.</info>'
             : '<info>Update completed and passed maintenance Doctor. Delivery remains quiesced; restart supervised worker/scheduler services, then run emailer:delivery:resume.</info>');
 

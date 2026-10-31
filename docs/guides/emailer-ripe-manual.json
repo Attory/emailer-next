@@ -1,6 +1,6 @@
 {
   "title": "Emailer Ripe user manual",
-  "subtitle": "Version 1.3.5 | Accounts, setup and everyday newsletters",
+  "subtitle": "Version 1.3.6 | Accounts, setup and everyday newsletters",
   "blocks": [
     {
       "type": "p",
@@ -12,7 +12,7 @@
     },
     {
       "type": "p",
-      "text": "Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.6 on Ubuntu 26.04 upgrade directly to Ripe 1.3.5; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance."
+      "text": "Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.6 on Ubuntu 26.04 upgrade directly to Ripe 1.3.6; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance."
     },
     {
       "type": "p",
@@ -24,7 +24,7 @@
     },
     {
       "type": "p",
-      "text": "The 1.3.5 setup file supports Ubuntu 22.04/24.04/26.04 with Apache and Debian 13 with Nginx. It creates a dedicated PHP runtime, application services, backups and a command launcher. Ubuntu 22.04 gets an isolated supported database beside existing sites. Administrator email is the default login name on fresh setup; existing accounts keep their identifier and password. You can sign in, prepare templates and campaigns, and configure SMTP later. See the beginner installation guide for the tested hosting profile and one-file setup action."
+      "text": "The 1.3.6 setup file supports Ubuntu 22.04/24.04/26.04 with Apache and Debian 13 with Nginx. It creates a dedicated PHP runtime, application services, backups and a command launcher. Ubuntu 22.04 gets an isolated supported database beside existing sites. Administrator email is the default login name on fresh setup; existing accounts keep their identifier and password. You can sign in, prepare templates and campaigns, and configure SMTP later. See the beginner installation guide for the tested hosting profile and one-file setup action."
     },
     {
       "type": "h2",
@@ -418,7 +418,7 @@
     },
     {
       "type": "p",
-      "text": "Native Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2 and 1.3.0 through 1.3.4 retain their supported direct update route to 1.3.5. Start the official setup and choose Update with a verified backup. The one-time 1.0.5 repair belongs only to the original signed 1.3.4 package; complete it before updating normally. Successful maintenance retires only its own hold and reports actual readiness."
+      "text": "Native Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2 and 1.3.0 through 1.3.4 retain their supported direct update route to 1.3.6. Start the official setup and choose Update with a verified backup. The one-time 1.0.5 repair belongs only to the original signed 1.3.4 package; complete it before updating normally. Successful maintenance retires only its own hold and reports actual readiness."
     },
     {
       "type": "callout",

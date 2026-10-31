@@ -26,7 +26,9 @@ final class LightSourceProfileTest extends TestCase
         self::assertContains('1.2.11', LightSourcePackage::SUPPORTED_VERSIONS);
         self::assertSame(LightSourcePackage::migrationsFor('1.2.10'), LightSourcePackage::migrationsFor('1.2.11'));
         self::assertSame(LightSourcePackage::migrationsFor('1.2.9'), LightSourcePackage::migrationsFor('1.2.10'));
+        self::assertContains('1.2.12', LightSourcePackage::SUPPORTED_VERSIONS);
+        self::assertSame(LightSourcePackage::migrationsFor('1.2.11'), LightSourcePackage::migrationsFor('1.2.12'));
         $this->expectException(\RuntimeException::class);
-        LightSourcePackage::schemaFor('1.2.12');
+        LightSourcePackage::schemaFor('1.2.13');
     }
 }

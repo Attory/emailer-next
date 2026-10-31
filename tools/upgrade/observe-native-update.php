@@ -8,7 +8,7 @@ if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL') || 2 !== $argc || !in_array($ar
 $sourceVersion = getenv('EMAILER_REHEARSAL_NATIVE_SOURCE') ?: '1.0.6';
 $sourceName = getenv('EMAILER_REHEARSAL_NATIVE_SOURCE_ROOT') ?: $sourceVersion;
 $converted = '1' === getenv('EMAILER_REHEARSAL_NATIVE_CONVERTED');
-if (!in_array($sourceVersion, ['1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2', '1.3.3', '1.3.4'], true) || !in_array($sourceName, [$sourceVersion, 'ripe-'.$sourceVersion], true)) {
+if (!in_array($sourceVersion, ['1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2', '1.3.3', '1.3.4', '1.3.5'], true) || !in_array($sourceName, [$sourceVersion, 'ripe-'.$sourceVersion], true)) {
     throw new RuntimeException('Unsupported isolated native source.');
 }
 require '/tools/vendor/autoload.php';
@@ -91,18 +91,21 @@ if ('1' === getenv('EMAILER_REHEARSAL_NATIVE_LIVE_EVIDENCE')) {
     $proof = App\Module\Release\Application\EditionData::read($path);
     $controls = new App\Shared\DeliveryControlFiles('/rehearsal/private', $installation);
     $hold = $controls->operationState($latest['id']);
-    if ('completed' !== ($proof['phase'] ?? null) || true !== ($proof['fence_restored'] ?? null) || $latest['id'] !== ($proof['operation_id'] ?? null) || $installation !== ($proof['installation_uuid'] ?? null) || $sourceVersion !== ($proof['source_version'] ?? null) || '1.3.5' !== ($proof['target_version'] ?? null) || '/rehearsal/private' !== ($proof['private_directory'] ?? null) || hash_file('sha256', '/native-source/emailer-next-'.$sourceVersion.'.zip') !== ($proof['source_archive_sha256'] ?? null) || hash_file('sha256', '/package/emailer-next-1.3.5.zip') !== ($proof['target_archive_sha256'] ?? null) || 'native' !== $hold['kind'] || 'released' !== $hold['phase'] || ['proof_path' => $path, 'parent_operation' => ''] !== $hold['evidence']) {
+    if ('completed' !== ($proof['phase'] ?? null) || true !== ($proof['fence_restored'] ?? null) || $latest['id'] !== ($proof['operation_id'] ?? null) || $installation !== ($proof['installation_uuid'] ?? null) || $sourceVersion !== ($proof['source_version'] ?? null) || '1.3.6' !== ($proof['target_version'] ?? null) || '/rehearsal/private' !== ($proof['private_directory'] ?? null) || hash_file('sha256', '/native-source/emailer-next-'.$sourceVersion.'.zip') !== ($proof['source_archive_sha256'] ?? null) || hash_file('sha256', '/package/emailer-next-1.3.6.zip') !== ($proof['target_archive_sha256'] ?? null) || 'native' !== $hold['kind'] || 'released' !== $hold['phase'] || ['proof_path' => $path, 'parent_operation' => ''] !== $hold['evidence']) {
         throw new RuntimeException('Native Finish release provenance is not verified.');
     }
     $state = $controls->status();
     if (is_file('/rehearsal/recovered-source-pause.json')) {
         $pause = App\Module\Release\Application\EditionData::read('/rehearsal/recovered-source-pause.json');
-        if ('emailer-recovered-source-pause-v1' !== ($pause['format'] ?? null) || ($proof['previous_operation_id'] ?? null) !== ($pause['operation'] ?? null) || 'unknown' !== $state['owner']) {
+        if ('emailer-recovered-source-pause-v1' !== ($pause['format'] ?? null) || ($proof['previous_operation_id'] ?? null) !== ($pause['operation'] ?? null) || ('1.3.5' === $sourceVersion ? 'paused' : 'unknown') !== $state['owner']) {
             throw new RuntimeException('A legacy source Pause after recovery lost its independent intent.');
         }
     }
     if ('1' === getenv('EMAILER_REHEARSAL_NATIVE_POSTCORE_PAUSE') && ('unknown' !== $state['owner'] || [] !== $state['holds'])) {
         throw new RuntimeException('A legacy Pause acknowledged after core completion was lost at Finish.');
+    }
+    if ('1.3.5' === $sourceVersion && (['01900000-0000-7000-8000-000000000135'] !== array_column($state['holds'], 'operation_id') || ('paused' === $state['owner'] && 0 >= $state['generation']))) {
+        throw new RuntimeException('Published135 repair lost an independent hold or acknowledged owner generation.');
     }
     $expectedAccepting = 'enabled' === $state['owner'] && [] === $state['holds'] ? 1 : 0;
 }
@@ -151,7 +154,7 @@ foreach ($e['tables'] as $table => $evidence) {
                 continue;
             }
             if ('product_identity' === $table && 'product_version' === $key) {
-                if (('after' === $argv[1] ? '1.3.5' : $sourceVersion) !== $actual[$key]) {
+                if (('after' === $argv[1] ? '1.3.6' : $sourceVersion) !== $actual[$key]) {
                     throw new RuntimeException('Native product identity version is inconsistent.');
                 }
                 continue;
@@ -180,7 +183,7 @@ if ('1.0.5' === $sourceVersion && 'after' === $argv[1]) {
 }
 foreach (('1.0.5' === $sourceVersion && 'after' === $argv[1] ? [] : $e['schema']) as $table => $expected) {
     $ddl = $c->fetchAssociative('SHOW CREATE TABLE '.$c->quoteSingleIdentifier($table));
-    if ('after' === $argv[1] && 'campaign' === $table && !in_array($sourceVersion, ['1.3.3', '1.3.4'], true)) {
+    if ('after' === $argv[1] && 'campaign' === $table && !in_array($sourceVersion, ['1.3.3', '1.3.4', '1.3.5'], true)) {
         $expected = str_replace('`template_version_id` char(36) NOT NULL,', '`template_version_id` char(36) DEFAULT NULL,', $expected, $changes);
         if (1 !== $changes) {
             throw new RuntimeException('Source campaign nullable migration proof is not exact.');
@@ -214,7 +217,7 @@ if ($converted) {
         throw new RuntimeException('Native list workflow changed.');
     }
 }
-if (17 !== (int) $c->fetchOne('SELECT COUNT(*) FROM doctrine_migration_versions') || '/rehearsal/source-releases/1.3.5' !== realpath('/rehearsal/source-releases/current')) {
+if (17 !== (int) $c->fetchOne('SELECT COUNT(*) FROM doctrine_migration_versions') || '/rehearsal/source-releases/1.3.6' !== realpath('/rehearsal/source-releases/current')) {
     throw new RuntimeException('Native target schema or active root is inconsistent.');
 }
-echo json_encode(['actual_native_update' => true, 'source_version' => $sourceVersion, 'target_version' => '1.3.5', 'converted_source' => $converted, 'original_business_audit_and_backup_rows_verified' => $verified, 'original_crypto_unchanged' => true, 'new_emitted_messages' => 0], JSON_THROW_ON_ERROR)."\n";
+echo json_encode(['actual_native_update' => true, 'source_version' => $sourceVersion, 'target_version' => '1.3.6', 'converted_source' => $converted, 'original_business_audit_and_backup_rows_verified' => $verified, 'original_crypto_unchanged' => true, 'new_emitted_messages' => 0], JSON_THROW_ON_ERROR)."\n";

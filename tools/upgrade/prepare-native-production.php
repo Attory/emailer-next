@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL') || !in_array(getenv('EMAILER_REHEARSAL_NATIVE_SOURCE'), ['1.0.5', '1.3.3', '1.3.4'], true)) {
+if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL') || !in_array(getenv('EMAILER_REHEARSAL_NATIVE_SOURCE'), ['1.0.5', '1.3.3', '1.3.4', '1.3.5'], true)) {
     throw new RuntimeException('Explicit native production-shaped fixture required.');
 }
 require '/tools/vendor/autoload.php';
