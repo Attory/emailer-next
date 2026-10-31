@@ -8,6 +8,7 @@ use App\Module\Configuration\Application\Contract\ConfigurationSetup;
 use App\Module\Configuration\Application\Contract\MailInput;
 use App\Module\Configuration\Application\Contract\OrganisationInput;
 use App\Module\Configuration\Application\Contract\PolicyInput;
+use App\Module\Identity\Application\Contract\MfaQrCode;
 use App\Module\Identity\Application\Contract\OwnerSetup;
 use App\Module\Setup\Application\ActiveChallengeExists;
 use App\Module\Setup\Application\ChallengeIssuer;
@@ -50,6 +51,7 @@ final class SetupController extends AbstractController
         #[Target('setup_wizard')]
         private readonly RateLimiterFactoryInterface $wizardLimiter,
         private readonly string $proofPath,
+        private readonly MfaQrCode $mfaQrCode,
     ) {
     }
 
@@ -243,7 +245,7 @@ final class SetupController extends AbstractController
                 return $this->noStore($this->render('setup/mfa-enrollment.html.twig', [
                     'seed' => $enrollment->seed,
                     'recovery_codes' => $enrollment->recoveryCodes,
-                    'provisioning_uri' => $enrollment->provisioningUri,
+                    'enrollment_qr' => $this->mfaQrCode->dataUri($enrollment->provisioningUri),
                 ]));
             }
 
@@ -389,7 +391,8 @@ final class SetupController extends AbstractController
 
     private function noStore(Response $response): Response
     {
-        $response->headers->set('Cache-Control', 'no-store, max-age=0');
+        $response->headers->set('Cache-Control', 'private, no-store, max-age=0');
+        $response->headers->set('Referrer-Policy', 'no-referrer');
         $response->headers->set('Pragma', 'no-cache');
 
         return $response;

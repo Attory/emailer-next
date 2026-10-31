@@ -22,6 +22,7 @@
         "ext-session": "*",
         "ext-sodium": "*",
         "ext-zip": "*",
+        "bacon/bacon-qr-code": "^3.0",
         "doctrine/dbal": "^4.4",
         "doctrine/doctrine-bundle": "^3.0",
         "doctrine/doctrine-migrations-bundle": "^3.4",
@@ -50,14 +51,15 @@
     "require-dev": {
         "deptrac/deptrac": "^4.7",
         "friendsofphp/php-cs-fixer": "^3.95",
+        "khanamiryan/qrcode-detector-decoder": "^2.0",
         "phpstan/phpstan": "^2.1",
         "phpstan/phpstan-doctrine": "^2.0",
         "phpstan/phpstan-strict-rules": "^2.0",
         "phpstan/phpstan-symfony": "^2.0",
         "phpunit/phpunit": "^12.2",
-        "symfony/flex": "^2.7",
         "symfony/browser-kit": "7.4.*",
-        "symfony/css-selector": "7.4.*"
+        "symfony/css-selector": "7.4.*",
+        "symfony/flex": "^2.7"
     },
     "config": {
         "allow-plugins": {

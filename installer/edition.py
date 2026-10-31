@@ -25,7 +25,7 @@ def native_source_root(releases, version, recorded):
         parent = releases.resolve(strict=True)
         expected = (str(parent / version), str(parent / ('ripe-' + version)))
         source = Path(recorded) if isinstance(recorded, str) else None
-        if version not in ('1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2', '1.3.3') or recorded not in expected or source is None or source.is_symlink() or not source.is_dir() or str(source.resolve(strict=True)) != recorded:
+        if version not in ('1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2', '1.3.3', '1.3.4') or recorded not in expected or source is None or source.is_symlink() or not source.is_dir() or str(source.resolve(strict=True)) != recorded:
             raise ValueError()
     except (OSError, ValueError):
         raise ManagementError('The retained update source directory changed or is outside this installation. Keep delivery held and retain its recovery record; no release or data was changed.') from None
@@ -47,7 +47,7 @@ class EditionManager(Manager):
         matches = []
         for path in journals:
             journal = json.loads(protected(path).read_text())
-            if journal.get('source_version') in ('1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2', '1.3.3') and journal.get('target_version') == self.installer.version and journal.get('private_directory') == str(self.private):
+            if journal.get('source_version') in ('1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2', '1.3.3', '1.3.4') and journal.get('target_version') == self.installer.version and journal.get('private_directory') == str(self.private):
                 native_source_root(self.releases, journal['source_version'], journal.get('source_root'))
                 matches.append(journal)
         if matches:
@@ -61,8 +61,10 @@ class EditionManager(Manager):
         if choice == '3' and operation is None:
             raise ManagementError('There is no retained native operation to recover or finish.')
         source_version = operation['source_version'] if operation else self.source_version
-        if source_version not in ('1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2', '1.3.3'):
-            raise ManagementError('The new installer supports native updates from Ripe 1.0.5 (one-time repair), 1.0.6, 1.1.0, 1.2.1, 1.2.2, 1.3.0, 1.3.1, 1.3.2 or 1.3.3. Earlier installations must complete their published supported update path first.')
+        if self.installer.version == '1.3.5' and source_version == '1.0.5':
+            raise ManagementError('Use the original signed 1.3.4 one-time repair for 1.0.5, then update normally to 1.3.5.')
+        if source_version not in ('1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2', '1.3.3', '1.3.4'):
+            raise ManagementError('The new installer supports native updates from Ripe 1.0.5 (one-time repair), 1.0.6, 1.1.0, 1.2.1, 1.2.2, 1.3.0, 1.3.1, 1.3.2, 1.3.3 or 1.3.4. Earlier installations must complete their published supported update path first.')
         self.environment['EMAILER_UPDATE_SOURCE_VERSION'] = source_version
         source = self.package.parent / ('emailer-next-' + source_version + '.zip')
         arguments = ['emailer:release:update', str(self.package), '--source-package=' + str(source), '--approved-target=' + self.installer.version, '--no-interaction']
@@ -107,8 +109,8 @@ class EditionManager(Manager):
 
     def transition_menu(self):
         source_version = self.record.get('transition_source', self.source_version)
-        if source_version not in ('1.0.0', '1.1.0', '1.2.0', '1.2.1', '1.2.2', '1.2.3', '1.2.4', '1.2.5', '1.2.6', '1.2.7', '1.2.8'):
-            raise ManagementError('Only Light 1.0.0, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.2.5, 1.2.6, 1.2.7 and 1.2.8 are supported sources.')
+        if source_version not in ('1.0.0', '1.1.0', '1.2.0', '1.2.1', '1.2.2', '1.2.3', '1.2.4', '1.2.5', '1.2.6', '1.2.7', '1.2.8', '1.2.9', '1.2.10', '1.2.11'):
+            raise ManagementError('Only Light 1.0.0, 1.1.0, 1.2.0, 1.2.1, 1.2.2, 1.2.3, 1.2.4, 1.2.5, 1.2.6, 1.2.7, 1.2.8, 1.2.9, 1.2.10 and 1.2.11 are supported sources.')
         print(f'\nLight {source_version} → Ripe {self.installer.version}')
         print('Application address: ' + installation_address(self.values))
         print('Protected settings: ' + str(self.configuration))
@@ -116,6 +118,9 @@ class EditionManager(Manager):
         print('Your administrator becomes an Owner. Ripe requires MFA enrollment. Delivery remains held until you accept the upgrade and explicitly resume it.')
         print('1. Upgrade with verified recovery material\n2. Recover an interrupted upgrade\n3. Accept a validated upgrade\n4. Check the upgraded application\n5. Resume delivery after reviewing readiness\n0. Exit')
         choice = input('Choose an action [0]: ').strip() or '0'
+        if choice in ('1', '2', '3'):
+            self.record['control_requested_action'] = choice
+            self.save()
         if choice == '0':
             return
         if choice not in ('1', '2', '3', '4', '5'):

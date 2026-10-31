@@ -2,7 +2,8 @@
 {% block title %}MFA enrollment — Emailer Next{% endblock %}
 {% block admin_body %}
 <h1>Save MFA recovery material</h1>
-<p>Open your authenticator app, add an account, and choose to enter a setup key. Give the account a name you will recognise, such as your Emailer login, and choose time-based codes.</p>
+<p>Open your authenticator app, add an account and scan this QR code. If scanning is unavailable, choose manual entry and enter the setup key below using time-based codes.</p>
+<img class="mfa-enrollment-qr" src="{{ enrollment_qr }}" alt="Scan with your authenticator to set up time-based codes" width="300" height="300">
 <p>Setup key (shown only on this page): <code>{{ enrollment.seed }}</code></p>
 <p>Save the recovery codes below somewhere private, away from this server. Each code works once if you cannot use your authenticator.</p>
 <ul>{% for code in enrollment.recoveryCodes %}<li><code>{{ code }}</code></li>{% endfor %}</ul>

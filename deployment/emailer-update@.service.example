@@ -17,8 +17,9 @@ ExecStart=/usr/bin/env EMAILER_RUNTIME_DIR=/run/emailer-update-%i /usr/bin/php /
 NoNewPrivileges=true
 PrivateTmp=true
 ProtectSystem=strict
+# Before enabling this unit: sudo install -d -o root -g root -m 0755 /var/lib/emailer/delivery-control
 # Complete recovery atomically restores private keys and runtime configuration.
-ReadWritePaths=/srv/emailer/releases /var/lib/emailer/private /var/backups/emailer /run/emailer-update-%i /var/lib/emailer/native-update-recovery /var/lib/emailer/keys /etc/emailer
+ReadWritePaths=/srv/emailer/releases /var/lib/emailer/private /var/backups/emailer /run/emailer-update-%i /var/lib/emailer/native-update-recovery /var/lib/emailer/delivery-control /var/lib/emailer/keys /etc/emailer
 ReadOnlyPaths=/var/lib/emailer-candidate /etc/emailer/release-signing.pub
 
 [Install]

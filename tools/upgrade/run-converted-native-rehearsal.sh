@@ -33,4 +33,15 @@ docker run --rm --user root --network "${EMAILER_REHEARSAL_NETWORK:?}" \
     -v "$historical:/tools:ro" -v "$case_root:/rehearsal" -v "$key:/package/ripe.pub:ro" \
     -e EMAILER_ISOLATED_REHEARSAL=1 "${EMAILER_REHEARSAL_APP_IMAGE:-emailer-next-app:latest}" \
     bash -euc 'set -a; source /rehearsal/runtime.env; export EMAILER_RUNTIME_DIR=/rehearsal/converted-native-source-owner-runtime; set +a; php /tools/tools/upgrade/verify-owner-login.php' >>"$log" 2>&1
+# The historical root-run conversion creates its Ripe recovery package root-only.
+# Prepare the following supervised update through the source application's own
+# supported export, without changing or discarding either historical package.
+docker run --rm --user 1000 --network "${EMAILER_REHEARSAL_NETWORK:?}" \
+    -v "$case_root:/rehearsal" -v "$key:/package/ripe.pub:ro" \
+    -e EMAILER_ISOLATED_REHEARSAL=1 "${EMAILER_REHEARSAL_APP_IMAGE:-emailer-next-app:latest}" \
+    bash -euc 'set -a; source /rehearsal/runtime.env; export EMAILER_RECOVERY_KEY_FILE=/rehearsal/keys/converted-native-recovery.key; export EMAILER_RUNTIME_DIR=/rehearsal/source-runtime/native-recovery-export; set +a; printf "%s\n%s\n" "Synthetic converted native recovery passphrase" "Synthetic converted native recovery passphrase" | php /rehearsal/source-releases/ripe-1.1.0/bin/console emailer:secrets:export-recovery-key' >>"$log" 2>&1
+docker run --rm --user root --network "${EMAILER_REHEARSAL_NETWORK:?}" \
+    -v "$project_root:/tools:ro" -v "$case_root:/rehearsal" \
+    -e EMAILER_ISOLATED_REHEARSAL=1 "${EMAILER_REHEARSAL_APP_IMAGE:-emailer-next-app:latest}" \
+    php /tools/tools/upgrade/select-converted-native-recovery.php >>"$log" 2>&1
 EMAILER_REHEARSAL_NATIVE_SOURCE=1.1.0 EMAILER_REHEARSAL_NATIVE_CONVERTED_ROOT="$case_root" bash "$project_root/tools/upgrade/run-native-update-rehearsal.sh" "$archive" "$key" "$source" "$output" "$commit"

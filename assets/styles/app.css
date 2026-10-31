@@ -26,3 +26,5 @@ button.update-disabled, button[data-update-send]:disabled { opacity: .55; cursor
 .template-version-actions .template-text-action:hover{background:none;color:var(--ink);text-decoration-thickness:2px}
 .template-version-actions .template-text-action:focus-visible{outline:2px solid currentColor;outline-offset:4px;border-radius:2px}
 @media(max-width:600px){.template-version-actions{min-width:11rem;gap:.25rem .85rem}.template-version-actions .template-text-action{min-height:2.75rem}}
+
+.mfa-enrollment-qr { width:auto; max-width: 100%; height: auto; image-rendering: pixelated; }

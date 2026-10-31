@@ -9,6 +9,7 @@ import os
 from pathlib import Path
 import pwd
 import re
+import secrets
 import shutil
 import stat
 import sys
@@ -45,6 +46,7 @@ def read_environment(path):
 class Manager:
     def __init__(self, installer, configuration):
         self.installer = installer
+        self.invocation_id = secrets.token_hex(16)
         self.error = ManagementError
         self.root = Path(configuration).parent
         self.original_configuration = Path(configuration)
@@ -55,7 +57,8 @@ class Manager:
             product = selected.get('product', '')
             if not re.fullmatch(r'emailer-[a-z]+', product):
                 raise ManagementError('The active installation edition is invalid.')
-            candidates = [Path('/etc') / (self.root.name + '-' + product.removeprefix('emailer-') + '-' + suffix) / 'runtime.env' for suffix in ('110', '120', '121', '122', '123', '124', '125', '126', '127', '128', '130', '131', '132', '133', '134')]
+            suffixes = ('110', '120', '121', '122', '123', '124', '125', '126', '127', '128', '129', '1210', '1211') if product == 'emailer-light' else ('110', '120', '121', '122', '130', '131', '132', '133', '134', '135')
+            candidates = [Path('/etc') / (self.root.name + '-' + product.removeprefix('emailer-') + '-' + suffix) / 'runtime.env' for suffix in suffixes]
             expected = Path(selected.get('runtime', ''))
             if selected.get('format') != 'emailer-active-installation-v1' or expected not in candidates:
                 raise ManagementError('The active installation pointer is invalid. It was preserved.')
@@ -130,7 +133,9 @@ class Manager:
         self.installer.durable(self.record_file, json.dumps(self.record, indent=2) + '\n')
 
     def call(self, arguments, *, environment=None, data=None):
-        result = subprocess.run(arguments, input=data, text=True, env={**(os.environ if environment is None else environment), 'EMAILER_INSTALLER_DIAGNOSTICS': '1'}, capture_output=True)
+        descriptor = getattr(self, 'maintenance_descriptor', None)
+        inherit = (descriptor,) if descriptor is not None and self.bootstrap is not None and arguments[:2] == [self.installer.php, str(self.bootstrap / 'bin/console')] else ()
+        result = subprocess.run(arguments, input=data, text=True, env={**(os.environ if environment is None else environment), 'EMAILER_INSTALLER_DIAGNOSTICS': '1'}, capture_output=True, pass_fds=inherit)
         if result.returncode:
             step = arguments[2] if arguments[0] in ('/usr/bin/php8.4', '/usr/bin/php8.5') and len(arguments) > 2 else Path(arguments[0]).name
             diagnostic = {'step': step, 'exit_code': result.returncode}
@@ -411,7 +416,7 @@ class Manager:
             try:
                 handoff = HostHandoff(self)
                 snapshot = handoff.current_update_snapshot()
-                completed = bool(snapshot and snapshot.get('phase') == 'complete')
+                completed = bool(snapshot and snapshot.get('phase') == 'complete' and (not handoff.owned_delivery() or self.record.get('control_release_completed') is True))
                 if completed:
                     reason = 'This update already completed. Its verified receipt and delivery state were preserved. Choose Check the installation; recovery cannot downgrade it.'
                 else:
@@ -423,6 +428,10 @@ class Manager:
             if isinstance(error, ManagementError) and not completed:
                 raise
             raise ManagementError(reason) from None
+        finally:
+            context = self.__dict__.pop('owned_maintenance_context', None)
+            if context is not None:
+                context.__exit__(None, None, None)
 
     def run(self):
         with self.guarded_action():
@@ -439,6 +448,12 @@ class Manager:
             from host import HostHandoff
             handoff = HostHandoff(self)
             snapshot = handoff.current_update_snapshot()
+            if handoff.owned_delivery() and self.record.get('control_operation_id') and not self.record.get('control_release_completed') and handoff.state.get('phase') == 'complete':
+                self.stage()
+                self.maintenance_environment()
+                handoff.complete()
+                self.report_update_completion()
+                return
             if snapshot and snapshot.get('phase') not in ('complete', 'recovered'):
                 self.stage()
                 self.maintenance_environment()
@@ -465,12 +480,24 @@ class Manager:
                 print('Application runtime verified. Delivery ' + ('is ready.' if report['delivery_ready'] else 'is held or needs configuration; open Doctor in the application.'))
             return
         if choice == '5':
+            from host import HostHandoff
+            recovery = HostHandoff(self)
+            if recovery.owned_delivery() and self.source_version != self.installer.version and recovery.state.get('phase') == 'recovered':
+                raise ManagementError('The recovered source remains safely held. Use this verified setup to retry and complete the update before Resume; the old release cannot enforce the new independent holds. Keep its recovery material and do not invoke the historical raw Resume command.')
             print('This removes the operational delivery hold only if the normal sending checks pass. It does not approve a campaign or retry uncertain messages. Review any reported uncertain delivery history first.')
             if input('Resume delivery now? [y/N]: ').strip().lower() != 'y':
                 return
             from host import HostHandoff
             handoff = HostHandoff(self)
             snapshot = handoff.current_update_snapshot()
+            if handoff.owned_delivery() and self.record.get('delivery_review_operation_id'):
+                self.stage()
+                self.maintenance_environment()
+                if input('Have you reviewed the uncertain delivery outcomes without retrying them? [y/N]: ').strip().lower() != 'y':
+                    return
+                self.record['delivery_review_acknowledged'] = True
+                self.save()
+                handoff.database('control-review-ack')
             if snapshot and snapshot.get('phase') != 'complete':
                 if handoff.state.get('phase') not in ('complete', 'recovered'):
                     raise ManagementError('Host setup is unfinished. Choose Finish before resuming delivery.')
@@ -496,6 +523,8 @@ class Manager:
             return
         if choice not in ('1', '2', '3'):
             raise ManagementError('Choose one of the displayed actions.')
+        self.record['control_requested_action'] = choice
+        self.save()
         self.stage()
         self.maintenance_environment()
         result = self.native_action(choice)

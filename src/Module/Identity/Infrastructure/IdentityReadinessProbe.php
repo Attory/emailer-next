@@ -7,7 +7,7 @@ namespace App\Module\Identity\Infrastructure;
 use App\Module\Health\Application\Contract\LightweightReadinessProbe;
 use Doctrine\DBAL\Connection;
 
-final readonly class IdentityReadinessProbe implements LightweightReadinessProbe
+final readonly class IdentityReadinessProbe implements LightweightReadinessProbe, \App\Module\Health\Application\Contract\SendingGateReadinessProbe
 {
     public function __construct(private Connection $connection, private string $environment)
     {
