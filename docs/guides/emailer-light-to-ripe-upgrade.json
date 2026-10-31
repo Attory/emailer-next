@@ -1,10 +1,10 @@
 {
   "title": "Upgrade Emailer Light to Ripe",
-  "subtitle": "Ripe 1.3.7 | Beginner guide for Light 1.0.0, 1.1.0 and 1.2.0 through 1.2.12",
+  "subtitle": "Ripe 1.3.8 | Beginner guide for Light 1.0.0, 1.1.0 and 1.2.0 through 1.2.12",
   "blocks": [
     {
       "type": "p",
-      "text": "Upgrade with the private Ripe 1.3.7 setup file. Your Light administrator becomes an Owner and keeps the same password. Accept the validated upgrade after verification. Successful acceptance retires only this installer’s hold; existing owner pauses remain and actual readiness still blocks sending."
+      "text": "Upgrade with the private Ripe 1.3.8 setup file. Your Light administrator becomes an Owner and keeps the same password. Accept the validated upgrade after verification. Successful acceptance retires only this installer’s hold; existing owner pauses remain and actual readiness still blocks sending."
     },
     {
       "type": "p",
@@ -12,7 +12,7 @@
     },
     {
       "type": "p",
-      "text": "Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.6 on Ubuntu 26.04 upgrade directly to Ripe 1.3.7; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance."
+      "text": "Ubuntu 26.04.1 / Virtualmin coexistence uses a spare Emailer hostname and preserves the existing Virtualmin domains and PHP pools. Setup creates its own Apache site; it does not register a Virtualmin domain. Keep that site under Emailer installer management. Light 1.2.4 and 1.2.6 on Ubuntu 26.04 upgrade directly to Ripe 1.3.8; the original Light signing identity, administrator credentials and installation identity are retained. Delivery remains held until the guided readiness acceptance."
     },
     {
       "type": "p",
@@ -31,69 +31,69 @@
       "rows": [
         [
           "Original published Light 1.0.0",
-          "Ripe 1.3.7, direct guided upgrade."
+          "Ripe 1.3.8, direct guided upgrade."
         ],
         [
           "Official Light 1.1.0",
-          "Ripe 1.3.7, direct guided upgrade."
+          "Ripe 1.3.8, direct guided upgrade."
         ],
         [
           "Official Light 1.2.0",
-          "Ripe 1.3.7, direct guided upgrade."
+          "Ripe 1.3.8, direct guided upgrade."
         ],
         [
           "Official Light 1.2.1",
-          "Ripe 1.3.7, direct guided upgrade."
+          "Ripe 1.3.8, direct guided upgrade."
         ],
         [
           "Official Light 1.2.2",
-          "Ripe 1.3.7, direct guided upgrade."
+          "Ripe 1.3.8, direct guided upgrade."
         ],
         [
           "Official Light 1.2.3",
-          "Ripe 1.3.7, direct guided upgrade."
+          "Ripe 1.3.8, direct guided upgrade."
         ],
         [
           "Official Light 1.2.4",
-          "Ripe 1.3.7, direct guided upgrade."
+          "Ripe 1.3.8, direct guided upgrade."
         ],
         [
           "Official Light 1.2.5",
-          "Ripe 1.3.7, direct guided upgrade."
+          "Ripe 1.3.8, direct guided upgrade."
         ],
         [
           "Official Light 1.2.6",
-          "Ripe 1.3.7, direct guided upgrade."
+          "Ripe 1.3.8, direct guided upgrade."
         ],
         [
           "Official Light 1.2.7",
-          "Ripe 1.3.7, direct guided upgrade."
+          "Ripe 1.3.8, direct guided upgrade."
         ],
         [
           "Official Light 1.2.8",
-          "Ripe 1.3.7, direct guided upgrade."
+          "Ripe 1.3.8, direct guided upgrade."
         ],
         [
           "Official Light 1.2.9",
-          "Ripe 1.3.7, direct guided upgrade."
+          "Ripe 1.3.8, direct guided upgrade."
         ],
         [
           "Official Light 1.2.10, 1.2.11 and 1.2.12",
-          "Ripe 1.3.7, direct guided upgrade."
+          "Ripe 1.3.8, direct guided upgrade."
         ],
         [
           "Light updated through a supported path to any supported source above",
-          "Ripe 1.3.7, same guided edition upgrade."
+          "Ripe 1.3.8, same guided edition upgrade."
         ],
         [
           "Native Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2 and 1.3.0 through 1.3.5",
-          "Ripe 1.3.7, normal Update menu. Original 1.0.5 first uses its signed 1.3.4 repair."
+          "Ripe 1.3.8, normal Update menu. Original 1.0.5 first uses its signed 1.3.4 repair."
         ]
       ]
     },
     {
       "type": "p",
-      "text": "Use the Ripe 1.3.7 installer for original Light 1.0.0, 1.1.0 and signed 1.2.0 through 1.2.12. The installer authenticates each explicit source with the established Light identity and checks its exact schema. Native Ripe 1.0.5 first requires the published one-time 1.3.4 repair; other supported native releases retain their direct update route. There is no general Ripe-to-Light downgrade."
+      "text": "Use the Ripe 1.3.8 installer for original Light 1.0.0, 1.1.0 and signed 1.2.0 through 1.2.12. The installer authenticates each explicit source with the established Light identity and checks its exact schema. Native Ripe 1.0.5 first requires the published one-time 1.3.4 repair; other supported native releases retain their direct update route. There is no general Ripe-to-Light downgrade."
     },
     {
       "type": "p",
@@ -113,11 +113,11 @@
     },
     {
       "type": "p",
-      "text": "While signed in with access, download <b>emailer-ripe-1.3.7-setup.run</b> from the <a href=\"https://github.com/Attory/emailer-next/releases/tag/v1.3.7\">official private release</a>, or use an authorized private copy. Upload that one file to the existing server through your provider's file-transfer facility. Do not put a GitHub token in a shell command. In the folder containing the file, run:"
+      "text": "While signed in with access, download <b>emailer-ripe-1.3.8-setup.run</b> from the <a href=\"https://github.com/Attory/emailer-next/releases/tag/v1.3.8\">official private release</a>, or use an authorized private copy. Upload that one file to the existing server through your provider's file-transfer facility. Do not put a GitHub token in a shell command. In the folder containing the file, run:"
     },
     {
       "type": "code",
-      "text": "sudo sh emailer-ripe-1.3.7-setup.run"
+      "text": "sudo sh emailer-ripe-1.3.8-setup.run"
     },
     {
       "type": "p",

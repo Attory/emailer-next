@@ -160,9 +160,9 @@ const login = async context => {
     for (const observed of [observedStatus, observedProgress]) {
         const response = await expiredSummary.evaluate(async ({url, requestedWith}) => {
             const result = await fetch(url, {credentials: 'same-origin', headers: {Accept: 'application/json', 'X-Requested-With': requestedWith}});
-            return {redirected: result.redirected, path: new URL(result.url).pathname};
+            return {redirected: result.redirected, status: result.status};
         }, {url: observed.url(), requestedWith: observed.headers()['x-requested-with']});
-        assert.equal(response.redirected, true); assert.equal(response.path, '/login');
+        assert.equal(response.redirected, false); assert.equal(response.status, 401);
     }
     const renewed = await login(expiredContext);
     assert.equal(new URL(renewed.url()).pathname, '/admin');

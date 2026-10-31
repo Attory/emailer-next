@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Module\Identity\Infrastructure;
 
+use App\Module\Identity\Application\Contract\SecurityLevelReader;
 use App\Module\Identity\Application\IdentityUtil;
 use App\Module\Identity\Application\SensitiveValueHasher;
 use Doctrine\DBAL\Connection;
+use Symfony\Component\HttpFoundation\RequestStack;
 
 final readonly class DatabaseSessionHandler implements \SessionHandlerInterface, \SessionUpdateTimestampHandlerInterface
 {
@@ -16,6 +18,8 @@ final readonly class DatabaseSessionHandler implements \SessionHandlerInterface,
     public function __construct(
         private Connection $connection,
         private SensitiveValueHasher $hasher,
+        private ?RequestStack $requests = null,
+        private ?SecurityLevelReader $securityLevel = null,
     ) {
     }
 
@@ -35,18 +39,18 @@ final readonly class DatabaseSessionHandler implements \SessionHandlerInterface,
             'SELECT payload, idle_expires_at, absolute_expires_at, revoked_at FROM user_session WHERE id_hash = ?',
             [$this->digest($id)],
         );
-        if (false === $record || null !== ($record['revoked_at'] ?? null)) {
+        if (false === $record) {
             return '';
         }
 
         $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
-        if (!$this->future($record['idle_expires_at'] ?? null, $now) || !$this->future($record['absolute_expires_at'] ?? null, $now)) {
+        if (null !== $this->expiryReason($record, $now)) {
             $this->destroy($id);
 
             return '';
         }
 
-        return \is_string($record['payload'] ?? null) ? $record['payload'] : '';
+        return null === ($record['revoked_at'] ?? null) && \is_string($record['payload'] ?? null) ? $record['payload'] : '';
     }
 
     public function write(string $id, string $data): bool
@@ -93,10 +97,10 @@ SQL, [$this->digest($id), $now, $now, $now, $now, $now]);
     public function gc(int $max_lifetime): int
     {
         $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
-        $revoked = $this->connection->executeStatement(
+        $revoked = $this->limitsApply() ? $this->connection->executeStatement(
             "UPDATE user_session SET payload = '', revoked_at = COALESCE(revoked_at, ?) WHERE revoked_at IS NULL AND (idle_expires_at <= ? OR absolute_expires_at <= ?) LIMIT 1000",
             [$now->format('Y-m-d H:i:s.u'), $now->format('Y-m-d H:i:s.u'), $now->format('Y-m-d H:i:s.u')],
-        );
+        ) : 0;
         $deleted = $this->connection->executeStatement(
             'DELETE FROM user_session WHERE revoked_at <= ? AND absolute_expires_at <= ? LIMIT 1000',
             [$now->modify('-7 days')->format('Y-m-d H:i:s.u'), $now->format('Y-m-d H:i:s.u')],
@@ -113,15 +117,44 @@ SQL, [$this->digest($id), $now, $now, $now, $now, $now]);
         );
         $now = new \DateTimeImmutable('now', new \DateTimeZone('UTC'));
 
-        return false !== $record
-            && null === ($record['revoked_at'] ?? null)
-            && $this->future($record['idle_expires_at'] ?? null, $now)
-            && $this->future($record['absolute_expires_at'] ?? null, $now);
+        if (false === $record) {
+            return false;
+        }
+
+        $expiry = $this->expiryReason($record, $now);
+
+        return null === ($record['revoked_at'] ?? null) && null === $expiry;
     }
 
     public function updateTimestamp(string $id, string $data): bool
     {
         return $this->write($id, $data);
+    }
+
+    private function limitsApply(): bool
+    {
+        return null === $this->securityLevel || 'normal' !== $this->securityLevel->current();
+    }
+
+    /** @param array<string, mixed> $record */
+    private function expiryReason(array $record, \DateTimeImmutable $now): ?string
+    {
+        if (!$this->limitsApply()) {
+            return null;
+        }
+        // Absolute age takes precedence when both deadlines have passed.
+        foreach (['absolute' => 'absolute_expires_at', 'idle' => 'idle_expires_at'] as $reason => $column) {
+            if (!$this->future($record[$column] ?? null, $now)) {
+                $revoked = $record['revoked_at'] ?? null;
+                if (null === $revoked || (\is_string($revoked) && \is_string($record[$column] ?? null) && $revoked >= $record[$column])) {
+                    $this->requests?->getCurrentRequest()?->attributes->set('identity.session_expiry', $reason);
+                }
+
+                return $reason;
+            }
+        }
+
+        return null;
     }
 
     private function digest(string $id): string

@@ -97,8 +97,8 @@ deny-by-default route and service authorization, password/TOTP authentication,
 purpose-bound re-authentication, database sessions, password recovery through
 Mailpit, a server-rendered administration shell, and append-only redacted audit
 events. Session identifiers and source metadata are stored only as
-purpose-separated HMACs. Sessions have 30-minute idle and 12-hour absolute
-limits and rotate when authentication authority changes. A central registry
+purpose-separated HMACs. High sessions have 30-minute idle and 12-hour absolute
+limits; Normal sessions have neither automatic limit and rotate when authentication authority changes. A central registry
 defines every `admin_` route's methods and minimum role; an unregistered route
 fails closed. Identity services repeat authorization and serialize final-Owner
 mutations with row locks.
@@ -384,3 +384,9 @@ need not accept 1.0.5. Full Doctor severities and sending gates remain unchanged
 Ripe 1.3.6 and Light 1.2.12 correct delivery-control directory access under restrictive installer umask0077. Root-owned control base, installation namespace and holds are explicitly root:root0755; only the owner directory is application-owned0700, with private0600 intent and lock files. An unreadable, malformed or inaccessible namespace blocks sending with delivery_control_unavailable; it is never accepted as absent legacy state.
 
 The root updater publishes an installation-bound access-repair receipt before mode changes. Interrupted replay retains ambiguous zero-generation intent as unknown while preserving newer owner generations. No root operation record becomes application-writable. Nonroot actor and actual service-namespace checks supplement root health; affected releases remain advisory/immutable.
+
+## Maintenance session policy
+
+Ripe High keeps the existing 30-minute inactivity and 12-hour absolute limits. Ripe Normal has neither automatic limit. Explicit sign-out, revocation and credential/security invalidation remain effective. Browser closure still follows the existing session-cookie behavior. No timeout setting or schema migration is added.
+
+When a background poll loses authentication, sign in using the notice link in another tab, then return to the unchanged editor. Campaign fields and selected CSV remain in that tab; choose Refresh security check before saving. Template editor recovery continues to use its existing per-tab recovery copy. An authentication expiry is not a delivery fault; do not change SMTP, resume delivery or retry failed work to fix it.

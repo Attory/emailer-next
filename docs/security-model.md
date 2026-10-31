@@ -251,7 +251,7 @@ re-authentication, and setup proof success as applicable. Users can view and
 revoke their sessions.
 
 The Phase 4 implementation stores session IDs and source/user-agent metadata as
-purpose-separated HMACs, applies 30-minute idle and 12-hour absolute deadlines,
+purpose-separated HMACs, applies 30-minute idle and 12-hour absolute deadlines only at High,
 and retains monotonic revocation tombstones so a late response cannot recreate
 logout, expired, reset, account/role, password, or MFA authority. Login failure
 and recovery responses are generic. Account and source
@@ -511,3 +511,9 @@ ID; it still fails authentication but cannot replace the newer browser cookie.
 Reauthentication and MFA mutations retain ID rotation, revocation, purpose/expiry,
 authorization and CSRF checks. MFA uses a server-owned purpose-to-route return;
 no external return URL or enrollment POST is replayed.
+
+## Maintenance session policy
+
+Ripe High keeps the existing 30-minute inactivity and 12-hour absolute limits. Ripe Normal has neither automatic limit. Explicit sign-out, revocation and credential/security invalidation remain effective. Browser closure still follows the existing session-cookie behavior. No timeout setting or schema migration is added.
+
+When a background poll loses authentication, sign in using the notice link in another tab, then return to the unchanged editor. Campaign fields and selected CSV remain in that tab; choose Refresh security check before saving. Template editor recovery continues to use its existing per-tab recovery copy. An authentication expiry is not a delivery fault; do not change SMTP, resume delivery or retry failed work to fix it.

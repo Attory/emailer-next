@@ -530,7 +530,8 @@ Roles:
   - `HttpOnly`
   - `SameSite=Lax` or stricter after explicit compatibility testing
   - narrow path and host scope
-- Idle and absolute expiration.
+- Ripe High: 30-minute idle and 12-hour absolute expiration.
+- Ripe Normal and Light: neither automatic limit; explicit logout, revocation and credential/security invalidation remain enforced.
 - Per-user session list and revocation.
 - Logout invalidates the server-side session.
 - Trusted proxies configured explicitly; never trust arbitrary forwarded headers.
