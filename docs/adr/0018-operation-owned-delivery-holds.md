@@ -42,3 +42,12 @@ between recovery and retry is a release regression gate.
 
 
 Standalone native updates that reopen an older source writer before Finish cannot prove whether that source acknowledged a database-only Pause. Finish releases its completed installer hold but leaves inferred owner intent unknown for explicit review and supported Resume. Newer independently recorded owner actions are preserved. Guided host updates keep the source continuously fenced through completion and can restore proven enabled intent automatically.
+
+
+## Automatic maintenance completion
+
+Manually initiated setup temporarily excludes sending while files, database and services change. Successful live verification automatically removes that operation’s temporary exclusion and matching recovered predecessor blocks. No extra Finish or Resume is required after success. An edition transition that needs Accept automatically completes delivery release after successful Accept. Independent owner pauses, campaign approval, suppression/unsubscribe, MFA and SMTP sending rules remain enforced. Existing approved due work can continue; drafts are never approved and failed or uncertain messages are never retried.
+
+A failed or interrupted installation remains blocked with the concrete failure and its recovery action. Finish is an interrupted service-handoff recovery action, not a normal post-success delivery step. Historical recovery receipt omissions do not invalidate a later fully verified successful handoff. Original recovery journals and backups remain unchanged. Standalone native core migration is only part of a supervised operation: its caller must finish service verification and automatic completion within that same operation; core-only output is not whole-operation success.
+
+This authorized maintenance policy supersedes earlier requirements for separate post-success Resume or recovered predecessor fence-restored receipts. No new hold or receipt mechanism is added.

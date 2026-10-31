@@ -57,7 +57,7 @@ class Manager:
             product = selected.get('product', '')
             if not re.fullmatch(r'emailer-[a-z]+', product):
                 raise ManagementError('The active installation edition is invalid.')
-            suffixes = ('110', '120', '121', '122', '123', '124', '125', '126', '127', '128', '129', '1210', '1211') if product == 'emailer-light' else ('110', '120', '121', '122', '130', '131', '132', '133', '134', '135')
+            suffixes = ('110', '120', '121', '122', '123', '124', '125', '126', '127', '128', '129', '1210', '1211', '1212', '1213') if product == 'emailer-light' else ('110', '120', '121', '122', '130', '131', '132', '133', '134', '135', '136', '137')
             candidates = [Path('/etc') / (self.root.name + '-' + product.removeprefix('emailer-') + '-' + suffix) / 'runtime.env' for suffix in suffixes]
             expected = Path(selected.get('runtime', ''))
             if selected.get('format') != 'emailer-active-installation-v1' or expected not in candidates:
@@ -559,7 +559,7 @@ class Manager:
         operation = self.original_configuration.parent / ('native-updates/light-' + source_version + '-to-' + self.installer.version + '.json')
         if self.source_version == self.installer.version and choice == '1' and not operation.exists():
             raise ManagementError('This release is already installed. Choose Check the installation.')
-        if source_version not in ('1.0.0', '1.1.0', '1.2.0', '1.2.1', '1.2.2'):
+        if source_version not in ('1.0.0', '1.1.0', '1.2.0', '1.2.1', '1.2.2', '1.2.3', '1.2.4', '1.2.5', '1.2.6', '1.2.7', '1.2.8', '1.2.9', '1.2.10', '1.2.11', '1.2.12'):
             raise ManagementError('This installer supports native Light updates from 1.0.0, 1.1.0, 1.2.0, 1.2.1 or 1.2.2.')
         self.record['native_source'] = source_version
         self.save()

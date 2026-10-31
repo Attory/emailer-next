@@ -7,7 +7,7 @@ namespace App\Module\Release\Application;
 /** Authenticate only the explicitly supported Light releases under Light's original identity. */
 final class LightSourcePackage
 {
-    public const SUPPORTED_VERSIONS = ['1.0.0', '1.1.0', '1.2.0', '1.2.1', '1.2.2', '1.2.3', '1.2.4', '1.2.5', '1.2.6', '1.2.7', '1.2.8', '1.2.9', '1.2.10', '1.2.11', '1.2.12'];
+    public const SUPPORTED_VERSIONS = ['1.0.0', '1.1.0', '1.2.0', '1.2.1', '1.2.2', '1.2.3', '1.2.4', '1.2.5', '1.2.6', '1.2.7', '1.2.8', '1.2.9', '1.2.10', '1.2.11', '1.2.12', '1.2.13'];
 
     private const ORIGINAL_HASH = 'cfd9afb133c3bbfe7da6053aa2d121d325200c46f4db51e784699356d28d0e77';
     private const LIGHT_SIGNER = '2zO47r_uQtv-lcMryvh_wWijpyCF1YAfBXBGi9W8B1E';
@@ -18,7 +18,7 @@ final class LightSourcePackage
         if (\is_string($hash) && hash_equals(self::ORIGINAL_HASH, $hash)) {
             return '1.0.0';
         }
-        if (1 !== preg_match('/^emailer-light-(1\.(?:1\.0|2\.(?:[0123456789]|10|11|12)))\.zip$/D', basename($archive), $match)) {
+        if (1 !== preg_match('/^emailer-light-(1\.(?:1\.0|2\.(?:[0123456789]|10|11|12|13)))\.zip$/D', basename($archive), $match)) {
             throw new \RuntimeException('Only original published Light 1.0.0 and signed Light 1.1.0/1.2.0/1.2.1/1.2.2/1.2.3/1.2.4/1.2.5/1.2.6/1.2.7/1.2.8/1.2.9/1.2.10/1.2.11/1.2.12 are supported.');
         }
         $manifestBytes = self::read($archive.'.manifest.json', 1048576);
@@ -47,7 +47,7 @@ final class LightSourcePackage
             throw new \RuntimeException('This Light release has no supported source schema profile.');
         }
 
-        return \in_array($version, ['1.2.6', '1.2.7', '1.2.8', '1.2.9', '1.2.10', '1.2.11', '1.2.12'], true) ? '20261025000000' : '20261014000000';
+        return \in_array($version, ['1.2.6', '1.2.7', '1.2.8', '1.2.9', '1.2.10', '1.2.11', '1.2.12', '1.2.13'], true) ? '20261025000000' : '20261014000000';
     }
 
     /** @return list<string> */

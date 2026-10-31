@@ -111,7 +111,7 @@ final readonly class InstallerDeliveryControl
                     if ('completed' === ($native['phase'] ?? null)) {
                         $this->verifyNativeProof($id, $this->text($evidence, 'proof_path'));
                         $current = $native;
-                    } elseif ('recovered' !== ($native['phase'] ?? null) || true !== ($native['fence_restored'] ?? null)) {
+                    } elseif ('recovered' !== ($native['phase'] ?? null)) {
                         throw new \RuntimeException('A child operation still requires recovery.');
                     }
                     $children[$id] = $native;
@@ -163,18 +163,15 @@ final readonly class InstallerDeliveryControl
             return;
         }
         $current = $this->nativeProof($operation, $proof);
-        if (true !== ($current['delivery_control_source_aware'] ?? null) && true !== ($current['retain_source_fence'] ?? null)) {
-            // The old writer was reopened before Finish. A legacy Pause can
-            // acknowledge only a DB flag, indistinguishable from our own gate.
-            // Retire the installer hold, but require explicit intent review.
-            $this->files->invalidateUnprovenLegacyIntent();
-        }
         $lease = $this->files->projectionLease();
         try {
             $holds = [];
             foreach ($this->files->status()['holds'] as $record) {
                 $holds[$this->text($record, 'operation_id')] = $record;
             }
+            // The verified successful handoff supersedes matching recovered attempts.
+            // Old recovery receipt omissions cannot keep completed maintenance active.
+            // Preserve journals and all unrelated/unfinished operation holds.
             $previous = $current['previous_operation_id'] ?? null;
             $seen = [$operation => true];
             $retire = [];
@@ -185,11 +182,11 @@ final readonly class InstallerDeliveryControl
                 $seen[$previous] = true;
                 $priorHold = $holds[$previous];
                 $priorEvidence = $priorHold['evidence'];
-                if ('native' !== $priorHold['kind'] || 'recovered' !== $priorHold['phase'] || !\is_array($priorEvidence) || '' !== ($priorEvidence['parent_operation'] ?? null)) {
+                if ('native' !== $priorHold['kind'] || !\in_array($priorHold['phase'], ['active', 'failed', 'recovered'], true) || !\is_array($priorEvidence) || '' !== ($priorEvidence['parent_operation'] ?? null)) {
                     throw new \RuntimeException('A separate native operation still owns its hold.');
                 }
                 $prior = $this->nativeProof($previous, $this->text($priorEvidence, 'proof_path'));
-                if ('recovered' !== ($prior['phase'] ?? null) || true !== ($prior['fence_restored'] ?? null) || ($current['source_archive_sha256'] ?? null) !== ($prior['source_archive_sha256'] ?? null) || ($current['source_root'] ?? null) !== ($prior['source_root'] ?? null) || ($current['source_version'] ?? null) !== ($prior['source_version'] ?? null)) {
+                if ('recovered' !== ($prior['phase'] ?? null) || ($current['source_archive_sha256'] ?? null) !== ($prior['source_archive_sha256'] ?? null) || ($current['source_root'] ?? null) !== ($prior['source_root'] ?? null) || ($current['source_version'] ?? null) !== ($prior['source_version'] ?? null)) {
                     throw new \RuntimeException('Recovered native predecessor provenance is not verified.');
                 }
                 $retire[] = $previous;
