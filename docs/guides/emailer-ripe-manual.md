@@ -199,7 +199,7 @@ Already-open pages update within a few seconds without reloading your unsaved fi
 
 Fresh setup enables daily encrypted local backup copies. Under Backups inspect verification and transfer evidence, adjust policy or create and verify an on-demand backup. Keep the recovery-key package and its password separately. Same-server copies do not protect against server loss; arrange an independent backup destination. Restore drills are supervised, never automatic.
 
-Native Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2 and 1.3.0 through 1.3.4 retain their supported direct update route to 1.3.6. Start the official setup and choose Update with a verified backup. The one-time 1.0.5 repair belongs only to the original signed 1.3.4 package; complete it before updating normally. Successful maintenance retires only its own hold and reports actual readiness.
+Native Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2 and 1.3.0 through 1.3.5 retain their supported direct update route to 1.3.6. Start the official setup and choose Update with a verified backup. The one-time 1.0.5 repair belongs only to the original signed 1.3.4 package; complete it before updating normally. Successful maintenance retires only its own hold and reports actual readiness.
 
 This maintenance release keeps the existing database schema. Update with the guided setup file and keep its recovery material. Normal restore needs the same database schema. Recover older backups with their matching release in an isolated environment. For interrupted updates choose Recover in setup; a completed update cannot be downgraded through recovery.
 

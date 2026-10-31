@@ -28,7 +28,7 @@ Ubuntu 26.04.1 HTTPS acceptance used a local ACME server with real HTTP challeng
 | Official Light 1.2.9 | Ripe 1.3.6, direct guided upgrade. |
 | Official Light 1.2.10, 1.2.11 and 1.2.12 | Ripe 1.3.6, direct guided upgrade. |
 | Light updated through a supported path to any supported source above | Ripe 1.3.6, same guided edition upgrade. |
-| Native Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2 and 1.3.0 through 1.3.4 | Ripe 1.3.6, normal Update menu. Original 1.0.5 first uses its signed 1.3.4 repair. |
+| Native Ripe 1.0.6, 1.1.0, 1.2.1, 1.2.2 and 1.3.0 through 1.3.5 | Ripe 1.3.6, normal Update menu. Original 1.0.5 first uses its signed 1.3.4 repair. |
 
 Use the Ripe 1.3.6 installer for original Light 1.0.0, 1.1.0 and signed 1.2.0 through 1.2.12. The installer authenticates each explicit source with the established Light identity and checks its exact schema. Native Ripe 1.0.5 first requires the published one-time 1.3.4 repair; other supported native releases retain their direct update route. There is no general Ripe-to-Light downgrade.
 
