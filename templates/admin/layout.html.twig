@@ -13,7 +13,7 @@
 {% set brand_logo = brand_logo is not null and brand_logo starts with '/' and not (brand_logo starts with '//') ? brand_logo : null %}
 <a class="skip-link" href="#main-content">Skip to main content</a>
 <header class="admin-header">
-    <a class="brand" href="{{ path('admin_dashboard') }}">{% if brand_logo %}<img class="brand-logo" src="{{ brand_logo }}" alt="" width="32" height="32" data-brand-logo-image>{% endif %}<span class="brand-mark" aria-hidden="true">en</span>Emailer Next</a>
+    <a class="brand" href="{{ path('admin_dashboard') }}">{% if brand_logo %}<img class="brand-logo" src="{{ brand_logo }}" alt="" width="32" height="32" data-brand-logo-image>{% endif %}<img class="brand-mark" src="{{ asset('identity/emailer-app-icon.svg') }}" alt="" width="32" height="32">Emailer Next</a>
     <nav aria-label="Administration">
         {% set current_route = app.request.attributes.get('_route')|default('') %}
         {% for label, route in {'Overview': 'admin_dashboard', 'Campaigns': 'admin_campaigns', 'Lists': 'admin_lists', 'Templates': 'admin_templates', 'Contacts': 'admin_contacts'} %}
