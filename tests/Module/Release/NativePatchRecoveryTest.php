@@ -43,6 +43,18 @@ final class NativePatchRecoveryTest extends TestCase
         self::assertFalse($pair->invoke($manager, '1.3.9', '1.3.11'));
     }
 
+    public function testSpacingMaintenanceAcceptsOnly1310WithCompleteNativeRecovery(): void
+    {
+        $manager = $this->manager(self::createStub(Connection::class), '/unused-spacing-route', '1.3.10');
+        $pair = new \ReflectionMethod(ReleaseManager::class, 'completeNativePair');
+        self::assertTrue($pair->invoke($manager, '1.3.10', '1.3.11'));
+        self::assertFalse($pair->invoke($manager, '1.3.9', '1.3.11'));
+        self::assertFalse($pair->invoke($manager, '1.0.5', '1.3.11'));
+        self::assertFalse($pair->invoke($manager, '1.3.11', '1.3.11'));
+        self::assertFalse($pair->invoke($manager, '1.3.11', '1.3.10'));
+        self::assertFalse($pair->invoke($manager, '1.3.10', '1.3.12'));
+    }
+
     public function testPublished131RecoveryReachesTheDatabaseLockWithoutExecutingRecoveryWhenItIsBusy(): void
     {
         $root = sys_get_temp_dir().'/ripe-patch-recovery-'.bin2hex(random_bytes(8));
