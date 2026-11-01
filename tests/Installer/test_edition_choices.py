@@ -13,6 +13,15 @@ from manage import ManagementError
 
 
 class EditionChoices(unittest.TestCase):
+    def test_unfold_native_source_accepts_retained138_and_rejects_an_unlisted_source(self):
+        with tempfile.TemporaryDirectory() as directory:
+            releases = Path(directory) / 'releases'
+            source = releases / '1.3.8'
+            source.mkdir(parents=True)
+            self.assertEqual(str(source), native_source_root(releases, '1.3.8', str(source)))
+            with self.assertRaises(ManagementError):
+                native_source_root(releases, '1.3.10', str(source))
+
     def test_action_menu_identifies_the_source_target_address_and_configuration(self):
         manager = object.__new__(EditionManager)
         manager.record = {}
