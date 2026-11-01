@@ -3,6 +3,7 @@
 set -euo pipefail
 
 project_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
+source "$project_root/tools/upgrade/rehearsal-target.sh"
 if [ "$(id -u)" -ne 0 ]; then
     printf 'Production privilege check must run as root.\n' >&2
     exit 2
@@ -40,7 +41,7 @@ php "$project_root/tools/release/generate-test-keypair.php" "$temporary_root/sig
 php "$project_root/tools/release/build-package.php" \
     --artifact="$project_root/build/artifact" \
     --output="$temporary_root/output" \
-    --version=1.3.6 \
+    --version=${EMAILER_REHEARSAL_TARGET_VERSION} \
     --source="$(git -C "$project_root" rev-parse HEAD)" \
     --minimum-source=1.0.6 \
     --supported-sources=1.0.6,1.1.0,1.2.1,1.2.2,1.3.0,1.3.1,1.3.2,1.3.3,1.3.4,1.3.5 \
@@ -62,13 +63,13 @@ EMAILER_RELEASE_PUBLIC_KEY_FILE="$temporary_root/release.pub" \
 EMAILER_RELEASES_DIR="$temporary_root/releases" \
 EMAILER_UPDATE_SOURCE_VERSION=1.0.6 \
 LOCK_DSN=flock \
-php "$temporary_root/runner/bin/console" emailer:release:install "$temporary_root/output/emailer-next-1.3.6.zip" --no-interaction >/dev/null
+php "$temporary_root/runner/bin/console" emailer:release:install "$temporary_root/output/emailer-next-${EMAILER_REHEARSAL_TARGET_VERSION}.zip" --no-interaction >/dev/null
 
-test "$(stat -c '%u:%a' "$temporary_root/releases/1.3.6")" = '0:555'
-test "$(stat -c '%u:%a' "$temporary_root/releases/1.3.6/bin/console")" = '0:444'
+test "$(stat -c '%u:%a' "$temporary_root/releases/${EMAILER_REHEARSAL_TARGET_VERSION}")" = '0:555'
+test "$(stat -c '%u:%a' "$temporary_root/releases/${EMAILER_REHEARSAL_TARGET_VERSION}/bin/console")" = '0:444'
 test -d "$temporary_root/update-runtime/cache/prod"
 test ! -e "$temporary_root/private/cache"
-if setpriv --reuid="$service_uid" --regid="$service_gid" --clear-groups chmod u+w "$temporary_root/releases/1.3.6/bin/console" 2>/dev/null; then
+if setpriv --reuid="$service_uid" --regid="$service_gid" --clear-groups chmod u+w "$temporary_root/releases/${EMAILER_REHEARSAL_TARGET_VERSION}/bin/console" 2>/dev/null; then
     printf 'Ordinary application identity could make the published release writable.\n' >&2
     exit 1
 fi

@@ -20,6 +20,10 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
 
         $tooling = (string) file_get_contents($root.'/tools/release/check-candidate-tooling.sh');
         $rehearsals = (string) file_get_contents($root.'/tools/ci/run-edition-rehearsals.sh');
+        $privileges = (string) file_get_contents($root.'/tools/release/check-production-privileges.sh');
+        self::assertStringContainsString('source "$project_root/tools/upgrade/rehearsal-target.sh"', $privileges);
+        self::assertStringContainsString('--version=${EMAILER_REHEARSAL_TARGET_VERSION}', $privileges);
+        self::assertStringContainsString('releases/${EMAILER_REHEARSAL_TARGET_VERSION}/bin/console', $privileges);
         $extractorPattern = <<<'REGEX'
 ~target_version="\$\(awk '\n(.*?)\n' "\$project_root/config/services.yaml"\)" \|\| \{~s
 REGEX;
