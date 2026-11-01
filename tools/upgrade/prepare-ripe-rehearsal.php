@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
+$targetVersion = require __DIR__.'/rehearsal-target.php';
+
 if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL') || 5 !== $argc) {
     throw new RuntimeException('Isolated prepare expects a disposable database, source archive and pinned Ripe public key.');
 }
 [$script, $database, $sourceArchive, $ripePublicKey, $version] = $argv;
-if (1 !== preg_match('/^ripe106_[a-z0-9_]{1,40}$/D', $database) || !in_array($version, ['1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2', '1.3.3', '1.3.4', '1.3.5', '1.3.6'], true)) {
+if (1 !== preg_match('/^ripe106_[a-z0-9_]{1,40}$/D', $database) || !in_array($version, ['1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2', '1.3.3', '1.3.4', '1.3.5', '1.3.6', $targetVersion], true)) {
     throw new RuntimeException('Disposable native identity is invalid.');
 }
 require '/tools/vendor/autoload.php';

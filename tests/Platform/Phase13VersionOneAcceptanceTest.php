@@ -12,7 +12,9 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
     {
         $root = \dirname(__DIR__, 2);
         $services = (string) file_get_contents($root.'/config/services.yaml');
-        self::assertSame(1, preg_match("/^\\s*emailer\\.app_version: '((?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*))'$/m", $services, $matches));
+        if (1 !== preg_match("/^\\s*emailer\\.app_version: '((?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*))'$/m", $services, $matches)) {
+            self::fail('Expected one canonical stable application version.');
+        }
         $version = $matches[1];
         self::assertStringContainsString("emailer.schema_version: '20261025000000'", $services);
 
@@ -22,7 +24,9 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
 ~target_version="\$\(awk '\n(.*?)\n' "\$project_root/config/services.yaml"\)" \|\| \{~s
 REGEX;
         foreach ([$tooling, $rehearsals] as $script) {
-            self::assertSame(1, preg_match($extractorPattern, $script, $extractor));
+            if (1 !== preg_match($extractorPattern, $script, $extractor)) {
+                self::fail('Expected the canonical version extractor.');
+            }
             foreach ([
                 [$services, 0, $version."\n"],
                 ["    emailer.app_version: '2.0.0'\n", 0, "2.0.0\n"],
@@ -57,6 +61,42 @@ REGEX;
         self::assertStringContainsString('for supported_source in 1.0.6 1.1.0 1.2.1 1.2.2 1.3.0 1.3.1 1.3.2 1.3.3 1.3.4 1.3.5;', $tooling);
         self::assertStringContainsString('EMAILER_UPDATE_SOURCE_VERSION="$supported_source"', $tooling);
         self::assertStringContainsString('build/artifact/bin/console" emailer:release:inspect', $tooling);
+    }
+
+    public function testCurrentRehearsalPhpTargetRejectsAmbiguousConfiguration(): void
+    {
+        $directory = sys_get_temp_dir().'/emailer-target-contract-'.bin2hex(random_bytes(8));
+        mkdir($directory.'/tools/upgrade', 0o700, true);
+        mkdir($directory.'/config', 0o700);
+        $helper = $directory.'/tools/upgrade/rehearsal-target.php';
+        copy(\dirname(__DIR__, 2).'/tools/upgrade/rehearsal-target.php', $helper);
+        try {
+            foreach ([
+                ["    emailer.app_version: '1.3.8'\n", 0, '1.3.8'],
+                ["    emailer.app_version: '2.0.0'\n", 0, '2.0.0'],
+                ['', 1, ''],
+                ["    emailer.app_version: 'invalid'\n", 1, ''],
+                ["    emailer.app_version: '1.3.8'\n    emailer.app_version: 'invalid'\n", 1, ''],
+                ["    emailer.app_version: '1.3.8'\n    emailer.app_version: \"1.3.9\"\n", 1, ''],
+            ] as [$input, $status, $output]) {
+                file_put_contents($directory.'/config/services.yaml', $input);
+                $process = proc_open([PHP_BINARY, '-r', 'try { echo require $argv[1]; } catch (Throwable) { exit(1); }', $helper], [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']], $pipes);
+                self::assertIsResource($process);
+                fclose($pipes[0]);
+                $actual = stream_get_contents($pipes[1]);
+                fclose($pipes[1]);
+                fclose($pipes[2]);
+                self::assertSame($status, proc_close($process));
+                self::assertSame($output, $actual);
+            }
+        } finally {
+            unlink($directory.'/config/services.yaml');
+            unlink($helper);
+            rmdir($directory.'/tools/upgrade');
+            rmdir($directory.'/tools');
+            rmdir($directory.'/config');
+            rmdir($directory);
+        }
     }
 
     public function testNetworkIsolatedSuiteMountsAcceptedHistoryReadOnlyWithoutBakingItIntoTheImage(): void

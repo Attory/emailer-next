@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
+$targetVersion = require __DIR__.'/rehearsal-target.php';
+
 if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL')) {
     throw new RuntimeException('Activation fault is isolated-only.');
 }
-$target = '1' === getenv('EMAILER_REHEARSAL_NATIVE_TARGET') ? '/rehearsal/source-releases/1.3.6' : '/rehearsal/source-releases/ripe-1.3.6';
+$target = '1' === getenv('EMAILER_REHEARSAL_NATIVE_TARGET') ? ('/rehearsal/source-releases/'.$targetVersion) : ('/rehearsal/source-releases/ripe-'.$targetVersion);
 $deadline = microtime(true) + 45;
 while (microtime(true) < $deadline) {
     clearstatcache(true);
