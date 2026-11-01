@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+$targetVersion = require __DIR__.'/rehearsal-target.php';
+
 if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL') || 2 !== $argc || !in_array($argv[1], ['before', 'after', 'restored'], true)) {
     throw new RuntimeException('Isolated preservation observer requires an explicit phase.');
 }
@@ -110,7 +112,7 @@ if ('after' === $argv[1]) {
         }
     }
     $identity = $c->fetchAssociative("SELECT product_id, product_version, schema_version FROM product_identity WHERE singleton_key = '1'");
-    if (['product_id' => 'emailer-ripe', 'product_version' => '1.3.6', 'schema_version' => '20261025000000'] !== $identity) {
+    if (['product_id' => 'emailer-ripe', 'product_version' => $targetVersion, 'schema_version' => '20261025000000'] !== $identity) {
         throw new RuntimeException('Target edition identity is not explicit.');
     }
     $receipt = $c->fetchAssociative('SELECT source_identity_json, source_migration_json FROM ripe_edition_transition');

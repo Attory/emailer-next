@@ -92,7 +92,7 @@ final class UpdateReleaseCommand extends Command
             return Command::SUCCESS;
         }
         $this->releases->update($package, $sourcePackage);
-        $output->writeln(\in_array($approvedTarget, ['1.3.5', '1.3.6', '1.3.7', '1.3.8'], true)
+        $output->writeln(\in_array($approvedTarget, ['1.3.5', '1.3.6', '1.3.7', '1.3.8', '1.3.9'], true)
             ? '<info>Core migration committed; service handoff is not yet complete. Setup automatically verifies live services and releases its temporary sending exclusion within this operation. An interrupted handoff needs its recorded recovery action. Doctor names actual sending requirements and owner pauses.</info>'
             : '<info>Update completed and passed maintenance Doctor. Delivery remains quiesced; restart supervised worker/scheduler services, then run emailer:delivery:resume.</info>');
 

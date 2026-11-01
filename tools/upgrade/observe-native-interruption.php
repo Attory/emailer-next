@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+$targetVersion = require __DIR__.'/rehearsal-target.php';
+
 if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL') || 2 !== $argc || !in_array($argv[1], ['journal', 'preparing', 'migrating', 'recovering', 'operation'], true)) {
     throw new RuntimeException('Native interruption observation is isolated-only.');
 }
@@ -17,7 +19,7 @@ while (microtime(true) < $deadline) {
     if ([] !== $files) {
         sort($files, SORT_STRING);
         $journal = json_decode((string) file_get_contents($files[array_key_last($files)]), true, 512, JSON_THROW_ON_ERROR);
-        if (($journal['source_version'] ?? null) !== (getenv('EMAILER_REHEARSAL_NATIVE_SOURCE') ?: '1.0.6') || '1.3.6' !== ($journal['target_version'] ?? null)) {
+        if (($journal['source_version'] ?? null) !== (getenv('EMAILER_REHEARSAL_NATIVE_SOURCE') ?: '1.0.6') || $targetVersion !== ($journal['target_version'] ?? null)) {
             throw new RuntimeException('Native journal belongs to another release pair.');
         }
         if ('operation' === $argv[1]) {

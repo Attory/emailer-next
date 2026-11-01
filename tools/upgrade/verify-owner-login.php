@@ -2,11 +2,13 @@
 
 declare(strict_types=1);
 
+$targetVersion = require __DIR__.'/rehearsal-target.php';
+
 if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL')) {
     throw new RuntimeException('Owner acceptance is isolated-only.');
 }
-$version = $argv[1] ?? 'ripe-1.3.6';
-if (!in_array($version, ['1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2', '1.3.3', '1.3.4', '1.3.5', '1.3.6', 'ripe-1.3.6'], true)) {
+$version = $argv[1] ?? 'ripe-'.$targetVersion;
+if (!in_array($version, ['1.0.5', '1.0.6', '1.1.0', '1.2.1', '1.2.2', '1.3.0', '1.3.1', '1.3.2', '1.3.3', '1.3.4', '1.3.5', '1.3.6', $targetVersion, 'ripe-'.$targetVersion], true)) {
     throw new RuntimeException('Unsupported isolated Owner acceptance version.');
 }
 require '/rehearsal/source-releases/'.$version.'/vendor/autoload.php';
@@ -33,7 +35,7 @@ if (0 !== (int) $c->fetchOne('SELECT COUNT(*) FROM mfa_credential') || 'high' !=
 $client = new Symfony\Component\HttpKernel\HttpKernelBrowser(new App\Kernel('dev', false));
 $client->setServerParameters(['HTTPS' => 'on', 'HTTP_HOST' => 'localhost', 'REMOTE_ADDR' => '127.0.0.1']);
 $sourceSessionVerified = false;
-if ('ripe-1.3.6' === $version) {
+if ('ripe-'.$targetVersion === $version) {
     $oldSession = json_decode((string) file_get_contents('/rehearsal/original-light-session.json'), true, 512, JSON_THROW_ON_ERROR);
     $client->getCookieJar()->set(new Symfony\Component\BrowserKit\Cookie($oldSession['cookie_name'], $oldSession['cookie'], null, '/', 'localhost', true));
     // Even renaming the original cookie to the native name cannot restore authority.

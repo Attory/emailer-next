@@ -2,14 +2,16 @@
 
 declare(strict_types=1);
 
+$targetVersion = require __DIR__.'/rehearsal-target.php';
+
 if ('1' !== getenv('EMAILER_ISOLATED_REHEARSAL')) {
     throw new RuntimeException('Tamper fixture is isolated-only.');
 }
 mkdir('/rehearsal/tampered', 0o700);
-foreach (glob('/package/emailer-next-1.3.6.zip*') as $source) {
+foreach (glob('/package/emailer-next-'.$targetVersion.'.zip*') as $source) {
     copy($source, '/rehearsal/tampered/'.basename($source));
 }
-$file = fopen('/rehearsal/tampered/emailer-next-1.3.6.zip', 'r+b');
+$file = fopen('/rehearsal/tampered/emailer-next-'.$targetVersion.'.zip', 'r+b');
 if (false === $file) {
     throw new RuntimeException('Disposable package fixture is unavailable.');
 }

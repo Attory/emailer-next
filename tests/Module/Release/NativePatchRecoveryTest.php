@@ -19,6 +19,18 @@ use Symfony\Component\Lock\Store\InMemoryStore;
 
 final class NativePatchRecoveryTest extends TestCase
 {
+    public function testUnfoldMaintenanceAcceptsTheAuthenticated138RouteWithoutAllowingDowngrades(): void
+    {
+        $manager = $this->manager(self::createStub(Connection::class), '/unused-unfold-route', '1.3.8');
+        $pair = new \ReflectionMethod(ReleaseManager::class, 'completeNativePair');
+        self::assertTrue($pair->invoke($manager, '1.3.8', '1.3.9'));
+        self::assertTrue($pair->invoke($manager, '1.3.7', '1.3.9'));
+        self::assertFalse($pair->invoke($manager, '1.0.5', '1.3.9'));
+        self::assertFalse($pair->invoke($manager, '1.3.9', '1.3.9'));
+        self::assertFalse($pair->invoke($manager, '1.3.9', '1.3.8'));
+        self::assertFalse($pair->invoke($manager, '1.3.8', '1.3.10'));
+    }
+
     public function testPublished131RecoveryReachesTheDatabaseLockWithoutExecutingRecoveryWhenItIsBusy(): void
     {
         $root = sys_get_temp_dir().'/ripe-patch-recovery-'.bin2hex(random_bytes(8));
