@@ -12,11 +12,44 @@ final class Phase13VersionOneAcceptanceTest extends TestCase
     {
         $root = \dirname(__DIR__, 2);
         $services = (string) file_get_contents($root.'/config/services.yaml');
-        self::assertStringContainsString("emailer.app_version: '1.3.6'", $services);
+        self::assertSame(1, preg_match("/^\\s*emailer\\.app_version: '((?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*)\\.(?:0|[1-9][0-9]*))'$/m", $services, $matches));
+        $version = $matches[1];
         self::assertStringContainsString("emailer.schema_version: '20261025000000'", $services);
 
         $tooling = (string) file_get_contents($root.'/tools/release/check-candidate-tooling.sh');
-        self::assertStringContainsString('--version=1.3.6', $tooling);
+        $rehearsals = (string) file_get_contents($root.'/tools/ci/run-edition-rehearsals.sh');
+        $extractorPattern = <<<'REGEX'
+~target_version="\$\(awk '\n(.*?)\n' "\$project_root/config/services.yaml"\)" \|\| \{~s
+REGEX;
+        foreach ([$tooling, $rehearsals] as $script) {
+            self::assertSame(1, preg_match($extractorPattern, $script, $extractor));
+            foreach ([
+                [$services, 0, $version."\n"],
+                ["    emailer.app_version: '2.0.0'\n", 0, "2.0.0\n"],
+                ['', 1, ''],
+                [$services."\n    emailer.app_version: '2.0.0'\n", 1, ''],
+                ["    emailer.app_version: 'invalid'\n", 1, ''],
+                ["    emailer.app_version: '01.3.8'\n", 1, ''],
+                ["    emailer.app_version: '1.3.8' trailing\n", 1, ''],
+            ] as [$input, $status, $output]) {
+                $process = proc_open(['awk', $extractor[1]], [['pipe', 'r'], ['pipe', 'w'], ['pipe', 'w']], $pipes);
+                self::assertIsResource($process);
+                fwrite($pipes[0], $input);
+                fclose($pipes[0]);
+                $actualOutput = stream_get_contents($pipes[1]);
+                $error = stream_get_contents($pipes[2]);
+                fclose($pipes[1]);
+                fclose($pipes[2]);
+                self::assertSame($status, proc_close($process), (string) $error);
+                self::assertSame($output, $actualOutput);
+            }
+        }
+        foreach (['--version="$target_version"', '--expected-version="$target_version"', 'emailer-next-$target_version.zip', 'EMAILER_UPDATE_SOURCE_VERSION="$target_version"', 'releases/$target_version/bin/console', "printf 'Deterministic signed %s"] as $cue) {
+            self::assertStringContainsString($cue, $tooling);
+        }
+        self::assertStringContainsString('--version="$3"', $rehearsals);
+        self::assertStringContainsString("' bash \"\$source_commit\" \"\$source_epoch\" \"\$target_version\"", $rehearsals);
+        self::assertStringContainsString('target="$state_root/target-package/emailer-next-$target_version.zip"', $rehearsals);
         self::assertStringContainsString('--minimum-source=1.0.6', $tooling);
         self::assertStringContainsString('--supported-sources=1.0.6,1.1.0,1.2.1,1.2.2,1.3.0,1.3.1,1.3.2,1.3.3,1.3.4,1.3.5', $tooling);
         self::assertStringContainsString('--minimum-schema=20261015000000', $tooling);
