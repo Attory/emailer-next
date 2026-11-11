@@ -87,20 +87,39 @@ final readonly class CampaignManager implements Contract\CampaignUpdateStatus
     {
         $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Auditor, 'campaign.view');
         $this->uuid($id);
-        $row = $this->connection->fetchAssociative('SELECT c.*, COALESCE(a.recipient_count, (SELECT COUNT(*) FROM campaign_audience_recipient ar WHERE ar.campaign_id = c.id)) recipient_count, a.audience_sha256, t.name template_name, v.version_number template_version, v.published_at template_published_at, t.status template_status, s.open_tracking snapshot_open_tracking, s.click_tracking snapshot_click_tracking, s.rsvp_enabled snapshot_rsvp_enabled, s.rsvp_repeat_policy snapshot_rsvp_repeat_policy FROM campaign c LEFT JOIN template_version v ON v.id = c.template_version_id LEFT JOIN email_template t ON t.id = v.template_id LEFT JOIN campaign_audience_snapshot a ON a.campaign_id = c.id LEFT JOIN campaign_content_snapshot s ON s.campaign_id = c.id WHERE c.id = ?', [$id]);
+        $row = $this->connection->fetchAssociative('SELECT c.*, COALESCE(a.recipient_count, (SELECT COUNT(*) FROM campaign_audience_recipient ar WHERE ar.campaign_id = c.id)) recipient_count, a.audience_sha256, t.name template_name, v.version_number template_version, v.published_at template_published_at, t.status template_status, s.open_tracking snapshot_open_tracking, s.click_tracking snapshot_click_tracking, s.rsvp_enabled snapshot_rsvp_enabled, s.rsvp_repeat_policy snapshot_rsvp_repeat_policy, s.subject snapshot_subject, s.sender_name snapshot_sender_name, s.sender_address snapshot_sender_address, s.reply_to_address snapshot_reply_to_address, s.one_click_dkim_confirmed snapshot_one_click_dkim_confirmed, a.recipient_count snapshot_recipient_count FROM campaign c LEFT JOIN template_version v ON v.id = c.template_version_id LEFT JOIN email_template t ON t.id = v.template_id LEFT JOIN campaign_audience_snapshot a ON a.campaign_id = c.id LEFT JOIN campaign_content_snapshot s ON s.campaign_id = c.id WHERE c.id = ?', [$id]);
         if (false === $row) {
             throw new \InvalidArgumentException('Campaign is unavailable.');
+        }
+        $approved = null !== $row['approved_at'];
+        $row['approved_summary'] = null;
+        if ($approved) {
+            if (!\is_string($row['snapshot_subject']) || !\is_string($row['snapshot_sender_name'])
+                || !\is_string($row['snapshot_sender_address']) || !is_numeric($row['snapshot_recipient_count'])
+                || (null !== $row['snapshot_reply_to_address'] && !\is_string($row['snapshot_reply_to_address']))
+            ) {
+                throw new \UnexpectedValueException('Approved campaign snapshot is unavailable.');
+            }
+            $row['approved_summary'] = [
+                'subject' => $row['snapshot_subject'],
+                'sender_name' => $row['snapshot_sender_name'],
+                'sender_address' => $row['snapshot_sender_address'],
+                'reply_to_address' => $row['snapshot_reply_to_address'],
+                'recipient_count' => $this->intValue($row['snapshot_recipient_count']),
+            ];
         }
         $row['delivery_counts'] = $this->connection->fetchAllAssociative('SELECT state, COUNT(*) count FROM campaign_recipient WHERE campaign_id = ? GROUP BY state ORDER BY state', [$id]);
         $row['latest_test'] = $this->connection->fetchAssociative('SELECT state, failure_class, requested_at, accepted_at, draft_version FROM campaign_test_delivery WHERE campaign_id = ? ORDER BY requested_at DESC LIMIT 1', [$id]);
         if (\is_array($row['latest_test'])) {
             $row['latest_test']['current_revision'] = !\in_array($row['state'], ['draft', 'review'], true) || $this->intValue($row['latest_test']['draft_version']) === $this->intValue($row['operation_version']);
         }
-        $audience = $this->connection->fetchAssociative("SELECT COUNT(DISTINCT c.id) selected_count, COUNT(DISTINCT CASE WHEN s.suppression_id IS NOT NULL THEN c.id END) suppressed_count FROM campaign_list_selection x INNER JOIN contact_list l ON l.id = x.list_id AND l.archived_at IS NULL INNER JOIN list_membership m ON m.list_id = x.list_id INNER JOIN contact c ON c.id = m.contact_id AND c.status = 'active' AND c.archived_at IS NULL LEFT JOIN suppression_match s ON s.email_match_key = LOWER(c.email_canonical) WHERE x.campaign_id = ?", [$id]);
-        if ('campaign_owned' === $row['audience_model']) {
-            $audience = $this->connection->fetchAssociative('SELECT COUNT(a.recipient_id) selected_count, COUNT(s.suppression_id) suppressed_count FROM campaign_audience_recipient a LEFT JOIN suppression_match s ON s.email_match_key = LOWER(a.email_canonical) WHERE a.campaign_id = ?', [$id]);
+        // After approval, list membership and current contact details are no longer the audience.
+        if ($approved || 'campaign_owned' === $row['audience_model']) {
+            $audience = $this->connection->fetchAssociative('SELECT COUNT(*) selected_count, COUNT(s.suppression_id) suppressed_count FROM campaign_audience_recipient a LEFT JOIN suppression_match s ON s.email_match_key = LOWER(a.email_canonical) WHERE a.campaign_id = ?', [$id]);
+        } else {
+            $audience = $this->connection->fetchAssociative("SELECT COUNT(DISTINCT c.id) selected_count, COUNT(DISTINCT CASE WHEN s.suppression_id IS NOT NULL THEN c.id END) suppressed_count FROM campaign_list_selection x INNER JOIN contact_list l ON l.id = x.list_id AND l.archived_at IS NULL INNER JOIN list_membership m ON m.list_id = l.id INNER JOIN contact c ON c.id = m.contact_id AND c.status = 'active' AND c.archived_at IS NULL LEFT JOIN suppression_match s ON s.email_match_key = LOWER(c.email_canonical) WHERE x.campaign_id = ?", [$id]);
         }
-        $selected = false === $audience ? 0 : $this->intValue($audience['selected_count']);
+        $selected = $approved ? $this->intValue($row['snapshot_recipient_count']) : (false === $audience ? 0 : $this->intValue($audience['selected_count']));
         $suppressed = false === $audience ? 0 : $this->intValue($audience['suppressed_count']);
         $configuration = $this->configuration->current();
         $row['selected_lists'] = $this->connection->fetchFirstColumn('SELECT list_id FROM campaign_list_selection WHERE campaign_id = ?', [$id]);
@@ -114,9 +133,9 @@ final readonly class CampaignManager implements Contract\CampaignUpdateStatus
             'selected_count' => $selected,
             'suppressed_count' => $suppressed,
             'eligible_count' => max(0, $selected - $suppressed),
-            'sender_address' => $configuration['sender_address'],
-            'sender_name' => $configuration['sender_name'],
-            'one_click' => $configuration['one_click_dkim_confirmed'] ? 'Enabled by provider DKIM attestation' : 'Disabled',
+            'sender_address' => $approved ? $row['snapshot_sender_address'] : $configuration['sender_address'],
+            'sender_name' => $approved ? $row['snapshot_sender_name'] : $configuration['sender_name'],
+            'one_click' => ($approved ? 1 === $this->intValue($row['snapshot_one_click_dkim_confirmed']) : $configuration['one_click_dkim_confirmed']) ? 'Enabled by provider DKIM attestation' : 'Disabled',
             'tracking' => $openTracking || $clickTracking ? \sprintf('Open: %s; click: %s', $openTracking ? 'on' : 'off', $clickTracking ? 'on' : 'off') : 'Off',
             'rsvp' => (is_numeric($row['snapshot_rsvp_enabled']) ? 1 === $this->intValue($row['snapshot_rsvp_enabled']) : 1 === $this->intValue($row['rsvp_enabled'])) ? 'Enabled; repeat policy: '.(\is_string($row['snapshot_rsvp_repeat_policy']) ? $row['snapshot_rsvp_repeat_policy'] : $configuration['rsvp_repeat_policy']) : 'Off',
             'time_zone' => \is_string($timeZone) && '' !== $timeZone ? $timeZone : 'UTC',
