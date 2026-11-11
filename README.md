@@ -1,8 +1,10 @@
 # Emailer Ripe
 
-Emailer Ripe 1.3.1 includes guided Ubuntu 22.04/24.04/26.04 Apache and Debian 13 Nginx VPS installers,
-ordinary Ripe 1.0.6/1.1.0/1.2.1/1.2.2/1.3.0 updates, and Light 1.0.0/1.1.0/1.2.0/1.2.1/1.2.2/1.2.3/1.2.4 upgrades with verified recovery and
-explicit acceptance/resume. SMTP is optional during fresh setup.
+Emailer Ripe is a self-hosted campaign application for one organisation per
+installation, with multiple staff accounts, reusable contacts and templates,
+approvals, delivery controls and recovery tools. The public distribution packages
+runtime 1.3.12 for fresh installation; see [public installation instructions](PUBLIC-INSTALL.md).
+SMTP is optional during setup.
 
 - [Beginner installation](docs/guides/emailer-ripe-install.md)
 - [Light to Ripe upgrade](docs/guides/emailer-light-to-ripe-upgrade.md)
@@ -10,9 +12,23 @@ explicit acceptance/resume. SMTP is optional during fresh setup.
 - [Operator and troubleshooting reference](docs/guides/emailer-ripe-operator.md)
 - [HTML/PDF downloads](docs/guides/README.md)
 
-Download the private official `emailer-ripe-1.3.1-setup.run` through an authorized
-channel, upload that one file to the server, then start `sudo sh emailer-ripe-1.3.1-setup.run`.
-The guide explains DNS and host permission. The installer supplies runtime,
+## Public source and downloads
+
+First-party Ripe code in this licensed revision is available under
+[AGPL-3.0-or-later](LICENSE), matching Emailer Light. Commercial use is permitted.
+Redistribution and network service operation must satisfy the license's
+corresponding-source obligations. [Third-party notices](THIRD_PARTY_NOTICES.md)
+identify components that keep their own licenses.
+
+Use the [official GitHub releases](https://github.com/Attory/emailer-next/releases)
+and the exact installation instructions attached to the intended public release.
+Each public installer must identify its signed runtime source commit and include
+license/notices and corresponding source. Source archives are not installers.
+A historical private installer is not converted into an AGPL installer by this
+README. Historical versions, signed assets and previous client agreements retain
+their original terms; see [distribution policy](docs/license-policy.md).
+
+The beginner guide explains DNS and host permission. The installer supplies runtime,
 verification, database, secrets, isolated services, HTTPS, backups and launcher.
 Customers do not need Docker, Composer, Mailpit or manual service definitions.
 

@@ -11,7 +11,7 @@ $root = dirname(__DIR__, 2);
 $composer = json_decode((string) file_get_contents($root.'/composer.json'), true, 32, JSON_THROW_ON_ERROR);
 $lock = json_decode((string) file_get_contents($root.'/composer.lock'), true, 64, JSON_THROW_ON_ERROR);
 
-if ('proprietary' !== ($composer['license'] ?? null)) {
+if ('AGPL-3.0-or-later' !== ($composer['license'] ?? null)) {
     fwrite(STDERR, "The Emailer Next distribution license declaration is missing or unexpected.\n");
     exit(1);
 }

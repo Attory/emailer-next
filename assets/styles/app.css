@@ -28,3 +28,5 @@ button.update-disabled, button[data-update-send]:disabled { opacity: .55; cursor
 @media(max-width:600px){.template-version-actions{min-width:11rem;gap:.25rem .85rem}.template-version-actions .template-text-action{min-height:2.75rem}}
 
 .mfa-enrollment-qr { width:auto; max-width: 100%; height: auto; image-rendering: pixelated; }
+
+.source-footer{padding:1rem;text-align:center;font-size:.8rem}

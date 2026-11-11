@@ -1,5 +1,41 @@
 # Release
 
+## Public distribution preparation — 11 November 2026
+
+The new `v1.3.12-public.1` distribution packages the current 1.3.12 runtime
+from the exact licensed merge commit. It is separate from historical `v1.3.12`
+assets; do not replace or alter those assets. First-party code and cleared
+materials in the new revision are AGPL-3.0-or-later. Historical versions and
+client agreements retain their original terms. Anton confirmed Soular controls
+the necessary rights on 11 November 2026; third-party notices remain binding.
+
+Use `tools/release/build-public-1.3.12.sh` with the existing Ripe signing
+identity, independently pinned public key and empty external output directory.
+The builder compares two package/setup passes, includes LICENSE and dependency
+notices, and embeds the exact Git source ZIP and signed source offer. The runtime
+footer points to its build commit. No dependency update or schema migration.
+
+This is a fresh-install distribution, with matching-operation resume only.
+It deliberately omits historical application packages and refuses use against
+an earlier installation. It does not expand conversion or native update paths,
+redeploy installations, rebuild Light or regenerate guide PDFs. See
+[PUBLIC-INSTALL.md](../PUBLIC-INSTALL.md) for the exact download and instructions.
+
+Before visibility, review all remote history/branches/tags/PR refs, issue and PR
+text/attachments, available Actions logs/artifacts, and every historical release
+attachment. Stop for any unresolved exposure; never rewrite history to clear it.
+Existing proprietary assets may become readable, but this is not a grant to
+redistribute them under AGPL. Preserve all original third-party conditions.
+
+Under the explicit minimum-verification budget for this rollout, check licenses,
+source/signatures/inventories, secret/private-data exposure and changed-file
+syntax/format. Reuse unchanged acceptance; do not run aggregate CI, installer
+matrices, staging or full-package download-backs. Record skipped checks as skipped.
+Publish only the cleared new signed download, then verify anonymous repository,
+LICENSE, exact source and release access before deploying Soular's page.
+
+The older release procedures below are historical operator evidence.
+
 ## Current 1.1.0 installation release
 
 Build final packages only from a clean reviewed merge commit. The installer and

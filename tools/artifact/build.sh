@@ -36,11 +36,18 @@ mkdir -p "$artifact_root/bin"
 cp "$project_root/bin/console" "$artifact_root/bin/console"
 chmod 0755 "$artifact_root/bin/console"
 cp \
+    "$project_root/LICENSE" \
+    "$project_root/THIRD_PARTY_NOTICES.md" \
     "$project_root/composer.json" \
     "$project_root/composer.lock" \
     "$project_root/importmap.php" \
     "$project_root/symfony.lock" \
     "$artifact_root/"
+
+# Bind the network source offer to this artifact's exact committed source.
+source_commit="$(git -C "$project_root" rev-parse HEAD)"
+sed -i "s|https://github.com/Attory/emailer-next/tree/main|https://github.com/Attory/emailer-next/tree/$source_commit|" \
+    "$artifact_root/config/packages/twig.yaml"
 
 composer --working-dir="$artifact_root" install \
     --no-dev \
