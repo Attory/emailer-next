@@ -126,6 +126,22 @@ class Installer:
         self.step = 'Checking this server'
         self.durable = durable
 
+    def check_public_install_scope(self):
+        if self.meta.get('fresh_install_only') is not True:
+            return
+        if self.journal.exists() or self.journal.is_symlink():
+            from manage import ManagementError, protected
+            try:
+                state = json.loads(protected(self.journal).read_text())
+            except ManagementError as error:
+                raise SetupError(str(error)) from None
+            if (state.get('product') != self.product or state.get('version') != self.version
+                    or state.get('package_sha256') != self.meta['files'][self.meta['archive']]):
+                raise SetupError('This public fresh-install package cannot manage an earlier installation. Keep its original package and recovery records.')
+        elif any(path.exists() or path.is_symlink() for path in
+                 (self.config, self.base, self.private.parent, Path('/etc/emailer-light'))):
+            raise SetupError('This public package is for a fresh installation only. Existing Emailer files were preserved; use the original matching upgrade procedure.')
+
     @property
     def php_version(self):
         return getattr(self, 'php', '/usr/bin/php8.4').removeprefix('/usr/bin/php')
@@ -994,11 +1010,12 @@ def main():
     installer = None
     try:
         installer = Installer(sys.argv[1])
+        installer.check_public_install_scope()
         from edition import dispatch
         from packages import HostLock, ServicePolicy
         with HostLock('/run/lock/emailer-host-installation.lock', SetupError):
             ServicePolicy(installer).recover()
-            if not dispatch(installer, SetupError):
+            if installer.meta.get('fresh_install_only') is True or not dispatch(installer, SetupError):
                 installer.execute()
     except (SetupError, OSError, ValueError, KeyError) as error:
         print('\nSetup stopped during: ' + (installer.step if installer else 'Package validation'), file=sys.stderr)

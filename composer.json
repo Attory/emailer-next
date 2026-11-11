@@ -2,7 +2,7 @@
     "name": "attory/emailer-next",
     "description": "A secure, self-hosted email campaign application for one organisation per installation.",
     "type": "project",
-    "license": "proprietary",
+    "license": "AGPL-3.0-or-later",
     "minimum-stability": "stable",
     "prefer-stable": true,
     "require": {

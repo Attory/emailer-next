@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 // Release tooling only. The existing edition signing identity is supplied externally.
-$options = getopt('', ['candidate:', 'source:', 'version:', 'public-key:', 'signing-key:', 'output:', 'test-only', 'predecessors:']);
+$options = getopt('', ['candidate:', 'source:', 'version:', 'public-key:', 'signing-key:', 'output:', 'test-only', 'predecessors:', 'public-fresh-source:']);
 foreach (['candidate', 'source', 'version', 'public-key', 'signing-key', 'output'] as $name) {
     if (!is_string($options[$name] ?? null)) {
         throw new RuntimeException('Missing bundle input.');
@@ -36,17 +36,18 @@ try {
     foreach (['', '.manifest.json', '.sha256', '.spdx.json', '.sig'] as $suffix) {
         $contents[$archive.$suffix] = (string) file_get_contents($options['candidate'].'/'.$archive.$suffix);
     }
-    if (!is_string($options['predecessors'] ?? null)) {
+    $publicFresh = is_string($options['public-fresh-source'] ?? null);
+    if (!$publicFresh && !is_string($options['predecessors'] ?? null)) {
         throw new RuntimeException('The self-contained installer requires its authenticated predecessor package set.');
     }
     $priorArchives = ['emailer-next-1.3.8.zip', 'emailer-next-1.3.7.zip', 'emailer-next-1.3.6.zip', 'emailer-light-1.2.14.zip', 'emailer-light-1.2.13.zip', 'emailer-next-1.3.5.zip', 'emailer-light-1.2.12.zip', 'emailer-light-1.2.11.zip', 'emailer-light-1.2.10.zip', 'emailer-next-1.3.4.zip', 'emailer-light-1.2.9.zip', 'emailer-next-1.0.5.zip', 'emailer-next-1.3.3.zip', 'emailer-next-1.0.6.zip', 'emailer-next-1.1.0.zip', 'emailer-next-1.2.1.zip', 'emailer-next-1.2.2.zip', 'emailer-next-1.3.0.zip', 'emailer-next-1.3.1.zip', 'emailer-next-1.3.2.zip', 'emailer-light-1.0.0.zip', 'emailer-light-1.1.0.zip', 'emailer-light-1.2.0.zip', 'emailer-light-1.2.1.zip', 'emailer-light-1.2.2.zip', 'emailer-light-1.2.3.zip', 'emailer-light-1.2.4.zip', 'emailer-light-1.2.5.zip', 'emailer-light-1.2.6.zip', 'emailer-light-1.2.7.zip', 'emailer-light-1.2.8.zip'];
     require_once $root.'/src/Module/Release/Application/LightSourcePackage.php';
-    foreach (['1.0.0', '1.1.0', '1.2.0', '1.2.1', '1.2.2', '1.2.3', '1.2.4', '1.2.5', '1.2.6', '1.2.7', '1.2.8', '1.2.9', '1.2.10', '1.2.11', '1.2.12', '1.2.13', '1.2.14'] as $lightVersion) {
+    foreach ($publicFresh ? [] : ['1.0.0', '1.1.0', '1.2.0', '1.2.1', '1.2.2', '1.2.3', '1.2.4', '1.2.5', '1.2.6', '1.2.7', '1.2.8', '1.2.9', '1.2.10', '1.2.11', '1.2.12', '1.2.13', '1.2.14'] as $lightVersion) {
         if ($lightVersion !== App\Module\Release\Application\LightSourcePackage::authenticate($options['predecessors'].'/emailer-light-'.$lightVersion.'.zip')) {
             throw new RuntimeException('The Light predecessor identity is incompatible.');
         }
     }
-    foreach ($priorArchives as $prior) {
+    foreach ($publicFresh ? [] : $priorArchives as $prior) {
         if (str_starts_with($prior, 'emailer-next-')) {
             $priorVersion = substr($prior, strlen('emailer-next-'), -strlen('.zip'));
             (new App\Module\Release\Application\PackageInspector($options['public-key'], $priorVersion))->inspectInstalledSource($options['predecessors'].'/'.$prior);
@@ -69,10 +70,40 @@ try {
     }
     $contents['verify-package.php'] = (string) file_get_contents($root.'/tools/release/verify-package.php');
     $contents['PackageInspector.php'] = (string) file_get_contents($root.'/src/Module/Release/Application/PackageInspector.php');
+    if ($publicFresh) {
+        $composer = json_decode((string) file_get_contents($root.'/composer.json'), true, flags: JSON_THROW_ON_ERROR);
+        if ('AGPL-3.0-or-later' !== ($composer['license'] ?? null)) {
+            throw new RuntimeException('Public fresh distribution requires the declared AGPL license.');
+        }
+        foreach (['LICENSE', 'THIRD_PARTY_NOTICES.md', 'PUBLIC-INSTALL.md'] as $notice) {
+            $contents[$notice] = (string) file_get_contents($root.'/'.$notice);
+        }
+        $sourceName = 'emailer-next-'.$options['version'].'-source.zip';
+        $contents[$sourceName] = (string) file_get_contents($options['public-fresh-source']);
+        $sourceProcess = proc_open(['git', '-C', $root, 'archive', '--format=zip', '--prefix=emailer-next-'.$options['version'].'-source/', $options['source']], [1 => ['pipe', 'w'], 2 => ['pipe', 'w']], $sourcePipes);
+        if (!is_resource($sourceProcess)) {
+            throw new RuntimeException('Corresponding source could not be authenticated.');
+        }
+        $expectedSource = stream_get_contents($sourcePipes[1]);
+        fclose($sourcePipes[1]);
+        stream_get_contents($sourcePipes[2]);
+        fclose($sourcePipes[2]);
+        if (0 !== proc_close($sourceProcess) || false === $expectedSource || !hash_equals(hash('sha256', $expectedSource), hash('sha256', $contents[$sourceName]))) {
+            throw new RuntimeException('Corresponding source differs from the exact committed installer/runtime source.');
+        }
+        $contents['SOURCE-OFFER.json'] = json_encode([
+            'license' => 'AGPL-3.0-or-later',
+            'source_commit' => $options['source'],
+            'source_url' => 'https://github.com/Attory/emailer-next/tree/'.$options['source'],
+            'source_archive' => $sourceName,
+            'source_sha256' => hash('sha256', $contents[$sourceName]),
+            'scope' => 'This licensed revision only; historical versions and prior client agreements retain their original terms.',
+        ], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n";
+    }
     $contents['release.pub'] = $public."\n";
     ksort($contents, SORT_STRING);
     $digests = array_map(static fn (string $bytes): string => hash('sha256', $bytes), $contents);
-    $manifest = json_encode(['format' => 'emailer-installer-v1', 'product' => $product, 'test_only' => $testOnly, 'schema_version' => $inspection['schema_version'], 'version' => $options['version'], 'source_commit' => $options['source'], 'archive' => $archive, 'files' => $digests], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n";
+    $manifest = json_encode(['format' => 'emailer-installer-v1', 'product' => $product, 'test_only' => $testOnly, 'fresh_install_only' => $publicFresh, 'schema_version' => $inspection['schema_version'], 'version' => $options['version'], 'source_commit' => $options['source'], 'archive' => $archive, 'files' => $digests], JSON_THROW_ON_ERROR | JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)."\n";
     $contents['installer.json'] = $manifest;
     $contents['installer.json.sig'] = sodium_crypto_sign_detached($manifest, $key);
     $contents['setup'] = str_replace(['@PUBLIC_KEY@', '@PRODUCT@', '@BOOTSTRAP@'], [$public, $product, (string) file_get_contents(__DIR__.'/bootstrap.sh.in')], (string) file_get_contents(__DIR__.'/setup.in'));
