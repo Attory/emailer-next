@@ -67,6 +67,18 @@ final class NativePatchRecoveryTest extends TestCase
         self::assertFalse($pair->invoke($manager, '1.3.11', '1.3.13'));
     }
 
+    public function testAdministrationUxMaintenanceAcceptsOnly1312WithCompleteNativeRecovery(): void
+    {
+        $manager = $this->manager(self::createStub(Connection::class), '/unused-admin-ux-route', '1.3.12');
+        $pair = new \ReflectionMethod(ReleaseManager::class, 'completeNativePair');
+        self::assertTrue($pair->invoke($manager, '1.3.12', '1.3.13'));
+        self::assertFalse($pair->invoke($manager, '1.3.11', '1.3.13'));
+        self::assertFalse($pair->invoke($manager, '1.0.5', '1.3.13'));
+        self::assertFalse($pair->invoke($manager, '1.3.13', '1.3.13'));
+        self::assertFalse($pair->invoke($manager, '1.3.13', '1.3.12'));
+        self::assertFalse($pair->invoke($manager, '1.3.12', '1.3.14'));
+    }
+
     public function testPublished131RecoveryReachesTheDatabaseLockWithoutExecutingRecoveryWhenItIsBusy(): void
     {
         $root = sys_get_temp_dir().'/ripe-patch-recovery-'.bin2hex(random_bytes(8));
