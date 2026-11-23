@@ -6,6 +6,7 @@
 <p>{{ list.member_count }} members. Unsubscribed contacts are excluded when a campaign is approved and checked again before sending.</p>
 {% if is_granted('ROLE_ADMINISTRATOR') and security_requires_recent() %}<p><a href="{{ path('admin_reauthenticate', {purpose: 'contact_data_access'}) }}">Re-authenticate to download this list</a>.</p>{% endif %}
 {% include 'admin/_list-actions.html.twig' %}
+<details class="compact-details"><summary>Rename list</summary><form method="post" action="{{ path('admin_list_edit', {id: list.id}) }}"><input type="hidden" name="_token" value="{{ csrf_token('list-edit-' ~ list.id) }}"><label>List name <input name="name" value="{{ list.name }}" maxlength="160" required></label><button type="submit">Save name</button></form></details>
 <nav aria-label="List membership"><a href="{{ path('admin_list', {id: list.id}) }}"{% if not available %} aria-current="page"{% endif %}>Members</a> · <a href="{{ path('admin_list', {id: list.id, available: 1}) }}"{% if available %} aria-current="page"{% endif %}>Add contacts</a></nav>
 <h2>{{ available ? 'Contacts you can add' : 'List members' }}</h2>
 <form method="post" action="{{ path('admin_list_browse', {id: list.id}) }}">

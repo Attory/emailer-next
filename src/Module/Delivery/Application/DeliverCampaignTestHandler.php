@@ -30,6 +30,7 @@ final readonly class DeliverCampaignTestHandler
         try {
             $this->sendingGate->assertReady();
         } catch (\DomainException) {
+            $this->connection->update('campaign_test_delivery', ['failure_class' => 'waiting_ready'], ['id' => $message->testDeliveryId, 'state' => 'pending']);
             $this->gateway->dispatchTestAfter($message->testDeliveryId, 30_000);
 
             return;
@@ -37,6 +38,7 @@ final readonly class DeliverCampaignTestHandler
         try {
             $lease = $this->control?->claimLease();
         } catch (\DomainException) {
+            $this->connection->update('campaign_test_delivery', ['failure_class' => 'waiting_hold'], ['id' => $message->testDeliveryId, 'state' => 'pending']);
             $this->gateway->dispatchTestAfter($message->testDeliveryId, 30_000);
 
             return;
@@ -58,7 +60,7 @@ final readonly class DeliverCampaignTestHandler
 
                     return false;
                 }
-                $this->connection->update('campaign_test_delivery', ['state' => 'processing'], ['id' => $message->testDeliveryId]);
+                $this->connection->update('campaign_test_delivery', ['state' => 'processing', 'failure_class' => null], ['id' => $message->testDeliveryId]);
 
                 return $row;
             });
@@ -71,7 +73,7 @@ final readonly class DeliverCampaignTestHandler
         $transportInvoked = false;
         try {
             if ($this->suppressions->isSuppressed($row['recipient_address'])) {
-                throw new DeliveryTransportFailure('permanent', 'Campaign test recipient is suppressed.');
+                throw new DeliveryTransportFailure('permanent', 'Campaign test recipient is suppressed.', reason: 'suppressed');
             }
             $template = $this->templates->get($row['template_version_id']);
             $configuration = $this->configuration->current();
@@ -93,10 +95,10 @@ final readonly class DeliverCampaignTestHandler
             $this->transport->send($outbound);
             $this->connection->update('campaign_test_delivery', ['state' => 'accepted', 'accepted_at' => Identity::now()], ['id' => $message->testDeliveryId, 'state' => 'processing']);
         } catch (DeliveryTransportFailure $failure) {
-            $this->connection->update('campaign_test_delivery', ['state' => 'failed', 'failure_class' => $failure->classification], ['id' => $message->testDeliveryId, 'state' => 'processing']);
+            $this->connection->update('campaign_test_delivery', ['state' => 'failed', 'failure_class' => $failure->reason ?? $failure->classification], ['id' => $message->testDeliveryId, 'state' => 'processing']);
             throw new UnrecoverableMessageHandlingException('Campaign test delivery failed.');
         } catch (\Throwable) {
-            $classification = $transportInvoked ? 'ambiguous' : 'permanent';
+            $classification = $transportInvoked ? 'ambiguous' : 'prepare';
             $this->connection->update('campaign_test_delivery', ['state' => 'failed', 'failure_class' => $classification], ['id' => $message->testDeliveryId, 'state' => 'processing']);
             throw new UnrecoverableMessageHandlingException($transportInvoked ? 'Campaign test delivery outcome is ambiguous.' : 'Campaign test could not be prepared.');
         }

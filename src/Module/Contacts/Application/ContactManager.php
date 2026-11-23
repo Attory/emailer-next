@@ -272,15 +272,34 @@ final readonly class ContactManager
         return $newId;
     }
 
-    public function createList(AdministrativeActor $actor, string $name): string
+    /** @param list<string> $sourceLists */
+    public function createList(AdministrativeActor $actor, string $name, array $sourceLists = []): string
     {
         $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'contacts.lists.create');
         $id = Identity::uuidV7();
         $now = Identity::now();
         $name = $this->requiredText($name, 160);
-        $this->connection->transactional(function () use ($actor, $id, $name, $now): void {
+        if (100 < \count($sourceLists)) {
+            throw new \InvalidArgumentException('Choose no more than 100 source lists.');
+        }
+        foreach ($sourceLists as $source) {
+            $this->assertUuid($source);
+        }
+        $sourceLists = array_values(array_unique($sourceLists));
+        sort($sourceLists); // Consistent lock order for overlapping source selections.
+        $this->connection->transactional(function () use ($actor, $id, $name, $now, $sourceLists): void {
+            foreach ($sourceLists as $source) {
+                if (false === $this->connection->fetchOne('SELECT id FROM contact_list WHERE id = ? AND archived_at IS NULL FOR UPDATE', [$source])) {
+                    throw new \InvalidArgumentException('A source list is unavailable. Refresh the list selection.');
+                }
+            }
             $this->connection->insert('contact_list', ['id' => $id, 'name' => $name, 'created_at' => $now, 'updated_at' => $now, 'archived_at' => null]);
-            $this->audit->append(new AuditRecord($actor->id(), 'contact.list.created', $id, 'success'));
+            $count = 0;
+            if ([] !== $sourceLists) {
+                $placeholders = implode(',', array_fill(0, \count($sourceLists), '?'));
+                $count = $this->connection->executeStatement("INSERT INTO list_membership (list_id, contact_id, source, created_at) SELECT ?, contact_id, ?, ? FROM list_membership WHERE list_id IN ($placeholders) GROUP BY contact_id", [$id, 'copy', $now, ...$sourceLists]);
+            }
+            $this->audit->append(new AuditRecord($actor->id(), 'contact.list.created', $id, 'success', ['source_lists' => \count($sourceLists), 'copied_memberships' => $count]));
         });
 
         return $id;

@@ -26,6 +26,7 @@ final class ContactsController extends AbstractController
         private readonly ContactExporter $exporter,
         private readonly ListCsvExporter $listExporter,
         private readonly ReauthenticationService $reauthentication,
+        private readonly \Doctrine\DBAL\Connection $connection,
     ) {
     }
 
@@ -274,11 +275,40 @@ final class ContactsController extends AbstractController
         if (!$this->csrf($request, 'list-create')) {
             return $this->badRequest();
         }
+        $file = $request->files->get('csv_file');
+        $hasFile = $file instanceof UploadedFile && UPLOAD_ERR_NO_FILE !== $file->getError();
+        if (($hasFile && !$file->isValid()) || ('upload' === $request->request->getString('intent') && !$hasFile)) {
+            $this->addFlash('error', 'Choose a valid CSV file to upload, or use Create new without a file.');
+
+            return $this->redirectToRoute('admin_lists', status: Response::HTTP_SEE_OTHER);
+        }
         try {
-            $this->contacts->createList($this->user(), $request->request->getString('name'));
-            $this->addFlash('success', 'List created.');
+            $sources = [];
+            foreach ($request->request->all('source_lists') as $source) {
+                if (!\is_string($source)) {
+                    throw new \InvalidArgumentException('Invalid source list selection.');
+                }
+                $sources[] = $source;
+            }
+            if (100 < \count($sources)) {
+                throw new \InvalidArgumentException('Invalid source list selection.');
+            }
+            $result = $this->connection->transactional(function () use ($request, $sources, $hasFile, $file): array {
+                $id = $this->contacts->createList($this->user(), $request->request->getString('name'), $sources);
+                $import = null;
+                if ($hasFile) {
+                    $import = $this->imports->upload($this->user(), $id, $request->request->getString('mode'), $file->getPathname());
+                }
+
+                return ['id' => $id, 'import' => $import];
+            });
+            $this->addFlash('success', null === $result['import'] ? 'List created. Copied memberships were deduplicated; source lists and unsubscribe rules are unchanged.' : 'List created. Review the CSV mapping and rejection counts before adding its rows to this list.');
+
+            return null === $result['import']
+                ? $this->redirectToRoute('admin_list', ['id' => $result['id']], Response::HTTP_SEE_OTHER)
+                : $this->redirectToRoute('admin_import_details', ['id' => $result['import']], Response::HTTP_SEE_OTHER);
         } catch (\Throwable) {
-            $this->addFlash('error', 'List creation was not accepted.');
+            $this->addFlash('error', 'List creation was not accepted. Use a unique name of up to 160 characters, active source lists and a valid CSV (up to 10 MiB). No source list was changed.');
         }
 
         return $this->redirectToRoute('admin_lists', status: Response::HTTP_SEE_OTHER);

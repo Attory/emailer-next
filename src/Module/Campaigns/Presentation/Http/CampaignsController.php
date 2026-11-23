@@ -75,7 +75,7 @@ final class CampaignsController extends AbstractController
             $request->getSession()->set('campaign.pending_imports', $bag);
             $this->addFlash('success', 'Reviewed recipients imported. Global unsubscribe protections were checked again.');
         } catch (\Throwable) {
-            $this->addFlash('error', 'Recipient import was not accepted. Review the private import status before proceeding.');
+            $this->addFlash('error', 'Recipient import was not accepted. Review the import status before proceeding.');
         }
 
         return $this->redirectToRoute('admin_campaign', ['id' => $id], Response::HTTP_SEE_OTHER);
@@ -87,6 +87,11 @@ final class CampaignsController extends AbstractController
         try {
             $campaign = $this->campaigns->detail($this->user(), $id);
             $campaign['pending_import'] = $this->pendingImport($request, $id);
+            $ownTest = $this->isGranted('ROLE_OPERATOR') ? $this->campaigns->latestOwnTest($this->user(), $id) : null;
+            $campaign['own_test'] = $ownTest;
+            $campaign['test_actor_id'] = $this->user()->id();
+            $campaign['test_request_id'] = null !== $ownTest && !$ownTest['terminal'] ? $ownTest['id'] : \App\Shared\Identity::uuidV7();
+            $campaign['test_destination'] = $this->isGranted('ROLE_OPERATOR') ? (new \App\Shared\EmailAddress($this->user()->loginIdentifier()))->canonical : '';
 
             return $this->render('admin/campaign.html.twig', ['campaign' => $campaign, 'confirmation_expires_at' => $this->reauthentication->expiresAt($request->getSession(), 'campaign_approval')]);
         } catch (\Throwable) {
@@ -242,7 +247,55 @@ final class CampaignsController extends AbstractController
     #[Route('/{id}/test', name: 'admin_campaign_test', requirements: ['id' => '[0-9a-f-]{36}'], methods: ['POST'])]
     public function test(Request $request, string $id): Response
     {
-        return $this->mutate($request, $id, 'campaign-test', fn () => $this->campaigns->requestTest($this->user(), $id), 'Campaign test queued for the signed-in administrator.');
+        if (!$this->validCsrf($request, 'campaign-test-'.$id)) {
+            return $this->testError($request, $id, 'The security check expired. Sign in again in another tab, then refresh this campaign before requesting a test.', 400);
+        }
+        try {
+            if (null !== $this->pendingImport($request, $id)) {
+                throw new \DomainException('Review and commit the pending recipients import before requesting a test.');
+            }
+            $requestId = $request->request->getString('request_id');
+            $testId = $this->campaigns->requestTest($this->user(), $id, '' === $requestId ? null : $requestId);
+            // Read-only bounded wait. SMTP remains exclusively in the existing CLI worker.
+            $deadline = hrtime(true) + 2_000_000_000;
+            do {
+                $result = $this->campaigns->testResult($this->user(), $id, $testId, false);
+                if ($result['terminal'] || !$request->isXmlHttpRequest()) {
+                    break;
+                }
+                usleep(100_000);
+            } while (hrtime(true) < $deadline);
+            $result = $this->campaigns->testResult($this->user(), $id, $testId);
+            if ($request->isXmlHttpRequest()) {
+                return $this->json($result, $result['terminal'] ? 200 : 202, ['Cache-Control' => 'private, no-store']);
+            }
+        } catch (\DomainException $exception) {
+            return $this->testError($request, $id, $exception->getMessage(), 409);
+        } catch (\Throwable) {
+            return $this->testError($request, $id, 'The test request could not be confirmed. Check this test’s status before requesting another; ask the server operator to inspect the queue if it remains unavailable.', 503);
+        }
+
+        return $this->redirectToRoute('admin_campaign', ['id' => $id], Response::HTTP_SEE_OTHER);
+    }
+
+    #[Route('/{id}/tests/{testId}', name: 'admin_campaign_test_result', requirements: ['id' => '[0-9a-f-]{36}', 'testId' => '[0-9a-f-]{36}'], methods: ['GET', 'HEAD'])]
+    public function testResult(string $id, string $testId): Response
+    {
+        try {
+            return $this->json($this->campaigns->testResult($this->user(), $id, $testId), 200, ['Cache-Control' => 'private, no-store']);
+        } catch (\InvalidArgumentException) {
+            return $this->json(['message' => 'This test request is not recorded for your account.'], 404, ['Cache-Control' => 'private, no-store']);
+        }
+    }
+
+    private function testError(Request $request, string $id, string $message, int $status): Response
+    {
+        if ($request->isXmlHttpRequest()) {
+            return $this->json(['message' => $message], $status, ['Cache-Control' => 'private, no-store']);
+        }
+        $this->addFlash('error', $message);
+
+        return $this->redirectToRoute('admin_campaign', ['id' => $id], Response::HTTP_SEE_OTHER);
     }
 
     #[Route('/{id}/approve', name: 'admin_campaign_approve', requirements: ['id' => '[0-9a-f-]{36}'], methods: ['POST'])]

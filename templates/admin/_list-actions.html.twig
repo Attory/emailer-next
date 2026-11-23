@@ -1,6 +1,4 @@
 <div class="actions" aria-label="Actions for {{ list.name }}">
-    <a href="{{ path('admin_list', {id: list.id}) }}">View</a>
-    <a href="{{ path('admin_list_edit', {id: list.id}) }}">Edit</a>
     <a href="{{ path('admin_campaigns', {list: list.id}) }}">Send to</a>
     <a href="{{ path('admin_list_duplicate', {id: list.id}) }}">Duplicate</a>
     {% if is_granted('ROLE_ADMINISTRATOR') %}

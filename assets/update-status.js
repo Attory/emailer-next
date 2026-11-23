@@ -61,10 +61,11 @@ if (banner) {
     const apply = status => {
         last = status;
         banner.hidden = !status.blocked;
+        banner.dataset.blocked = String(status.blocked);
         if (banner.textContent !== status.message) banner.textContent = status.message;
         document.querySelectorAll('[data-update-send]').forEach(button => {
             if (!originals.has(button)) originals.set(button, button.dataset.updateOriginalDisabled === 'true' || (button.disabled && button.dataset.updateOriginalDisabled !== 'false'));
-            button.disabled = status.blocked || originals.get(button);
+            button.disabled = status.blocked || originals.get(button) || button.closest('[data-campaign-test]')?.dataset.pending === 'true';
             button.classList.toggle('update-disabled', status.blocked);
             button.setAttribute('aria-disabled', String(button.disabled));
             button.setAttribute('aria-describedby', 'update-send-explanation');

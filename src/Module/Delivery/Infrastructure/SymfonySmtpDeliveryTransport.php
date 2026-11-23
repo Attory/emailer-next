@@ -51,7 +51,7 @@ final readonly class SymfonySmtpDeliveryTransport implements DeliveryTransport
                 $transport->setUsername((string) $configuration['username']);
                 $transport->setPassword($password);
             } catch (\Throwable $exception) {
-                throw new DeliveryTransportFailure('permanent', 'SMTP credential is unavailable.', $exception, true);
+                throw new DeliveryTransportFailure('permanent', 'SMTP credential is unavailable.', $exception, true, reason: 'smtp_auth');
             }
         }
         $email = $this->messages->create($message);
@@ -66,7 +66,15 @@ final readonly class SymfonySmtpDeliveryTransport implements DeliveryTransport
         } catch (TransportExceptionInterface $exception) {
             $code = $exception->getCode();
             $class = $exception instanceof SmtpAuthenticationRequired || (500 <= $code && 600 > $code) ? 'permanent' : 'transient';
-            throw new DeliveryTransportFailure($class, 'SMTP delivery was not accepted.', $exception, $exception instanceof SmtpAuthenticationRequired || 'transient' === $class);
+            $detail = $exception->getMessage(); // Inspect in memory only; never expose SMTP transcripts or credentials.
+            $reason = match (true) {
+                $exception instanceof SmtpAuthenticationRequired, str_contains($detail, 'Failed to authenticate') => 'smtp_auth',
+                1 === preg_match('/certificate|STARTTLS|SSL operation|TLS/i', $detail) => 'smtp_tls',
+                1 === preg_match('/Connection could not be established|Connection refused|Network is unreachable|getaddrinfo/i', $detail) => 'smtp_connect',
+                400 <= $code && 600 > $code => 'smtp_rejected',
+                default => 'ambiguous', // A broken connection after DATA is not proof that the server rejected it.
+            };
+            throw new DeliveryTransportFailure($class, 'SMTP delivery was not accepted.', $exception, $exception instanceof SmtpAuthenticationRequired || 'transient' === $class, reason: $reason);
         } catch (\Throwable $exception) {
             throw new DeliveryTransportFailure('ambiguous', 'SMTP delivery outcome is ambiguous.', $exception);
         }

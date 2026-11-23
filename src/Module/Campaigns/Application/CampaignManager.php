@@ -428,38 +428,111 @@ final readonly class CampaignManager implements Contract\CampaignUpdateStatus
         });
     }
 
-    public function requestTest(AdministrativeActor $actor, string $campaignId): string
+    public function requestTest(AdministrativeActor $actor, string $campaignId, ?string $requestId = null): string
     {
         $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'campaign.test.request');
         $this->maintenance?->acquire();
         try {
-            return $this->requestTestWithMaintenance($actor, $campaignId);
+            return $this->requestTestWithMaintenance($actor, $campaignId, $requestId);
         } finally {
             $this->maintenance?->release();
         }
     }
 
-    private function requestTestWithMaintenance(AdministrativeActor $actor, string $campaignId): string
+    private function requestTestWithMaintenance(AdministrativeActor $actor, string $campaignId, ?string $requestId): string
     {
-        $this->updateState?->assertSendingAllowed();
         $this->uuid($campaignId);
+        $id = $requestId ?? Identity::uuidV7();
+        $this->uuid($id);
         $address = new EmailAddress($actor->loginIdentifier());
-        $id = Identity::uuidV7();
-        $this->connection->transactional(function () use ($actor, $campaignId, $address, $id): void {
+        $created = false;
+        $id = $this->connection->transactional(function () use ($actor, $campaignId, $address, $id, &$created): string {
             $campaign = $this->connection->fetchAssociative('SELECT state, operation_version, template_version_id FROM campaign WHERE id = ? FOR UPDATE', [$campaignId]);
+            $existing = $this->connection->fetchAssociative('SELECT campaign_id, requested_by FROM campaign_test_delivery WHERE id = ?', [$id]);
+            if (false !== $existing) {
+                if ($existing['campaign_id'] !== $campaignId || $existing['requested_by'] !== $actor->id()) {
+                    throw new \DomainException('This test request is unavailable. Refresh the campaign before requesting another test.');
+                }
+
+                return $id; // Replayed request: inspect the original outcome, never dispatch again.
+            }
             if (false === $campaign || !\in_array($campaign['state'], ['draft', 'review'], true)) {
                 throw new \DomainException('Campaign test is not available in this state.');
             }
+            $pending = $this->connection->fetchOne("SELECT id FROM campaign_test_delivery WHERE campaign_id = ? AND requested_by = ? AND state IN ('pending', 'processing') ORDER BY requested_at DESC LIMIT 1", [$campaignId, $actor->id()]);
+            if (\is_string($pending)) {
+                return $pending; // Campaign lock serializes concurrent clicks, including other browser tabs.
+            }
+            $this->updateState?->assertSendingAllowed();
             if (!\is_string($campaign['template_version_id'])) {
                 throw new \DomainException('Select a published template before sending a test.');
             }
             $this->templates->get($campaign['template_version_id']);
             $this->connection->insert('campaign_test_delivery', ['id' => $id, 'campaign_id' => $campaignId, 'draft_version' => $this->intValue($campaign['operation_version']), 'requested_by' => $actor->id(), 'recipient_address' => $address->canonical, 'state' => 'pending', 'failure_class' => null, 'requested_at' => Identity::now(), 'accepted_at' => null]);
             $this->audit->append(new AuditRecord($actor->id(), 'campaign.test.queued', $campaignId, 'success'));
+            $created = true;
+
+            return $id;
         });
-        $this->delivery->dispatchTest($id);
+        if ($created) {
+            try {
+                $this->delivery->dispatchTest($id);
+            } catch (\Throwable) {
+                // A partially dispatched queue write must not cause a second send or overwrite an active result.
+                $this->connection->update('campaign_test_delivery', ['state' => 'failed', 'failure_class' => 'queue'], ['id' => $id, 'state' => 'pending']);
+            }
+        }
 
         return $id;
+    }
+
+    /** @phpstan-impure
+     * @return array{id: string, state: string, destination: string, message: string, terminal: bool}
+     */
+    public function testResult(AdministrativeActor $actor, string $campaignId, string $testId, bool $explainDelay = true): array
+    {
+        $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'campaign.test.result');
+        $this->uuid($campaignId);
+        $this->uuid($testId);
+        $row = $this->connection->fetchAssociative('SELECT id, state, recipient_address, failure_class FROM campaign_test_delivery WHERE id = ? AND campaign_id = ? AND requested_by = ?', [$testId, $campaignId, $actor->id()]);
+        if (false === $row) {
+            throw new \InvalidArgumentException('This test request is not recorded for your account.');
+        }
+        $delay = null;
+        if ($explainDelay && 'pending' === $row['state']) {
+            $update = $this->updateState?->status();
+            if (true === ($update['blocked'] ?? false)) {
+                $delay = $update['message'];
+            } elseif (0 === $this->intValue($this->connection->fetchOne("SELECT accepting_work FROM delivery_runtime WHERE singleton_key = '1'"))) {
+                $delay = 'Delivery is paused. Ask an Owner to check delivery controls; this test has not been submitted to SMTP.';
+            } else {
+                try {
+                    $this->sendingGate->assertReady();
+                } catch (\DomainException) {
+                    $delay = 'Sending prerequisites are not ready. Open Doctor to resolve the reported requirement; the worker will check again automatically.';
+                }
+                if (null === $delay) {
+                    $heartbeat = $this->connection->fetchOne("SELECT heartbeat_at FROM worker_heartbeat WHERE worker_kind = 'worker' ORDER BY heartbeat_at DESC LIMIT 1");
+                    if (!\is_string($heartbeat) || strtotime($heartbeat.' UTC') < time() - 120) {
+                        $delay = 'The delivery worker has no recent heartbeat. Ask the server operator to check the worker service; do not submit another test.';
+                    } elseif (\in_array($row['failure_class'], ['waiting_ready', 'waiting_hold'], true)) {
+                        $delay = 'The worker deferred this test while sending was blocked. It checks again automatically, normally within 30 seconds.';
+                    }
+                }
+            }
+        }
+
+        return CampaignTestFeedback::describe($row, $delay);
+    }
+
+    /** @return array{id: string, state: string, destination: string, message: string, terminal: bool}|null */
+    public function latestOwnTest(AdministrativeActor $actor, string $campaignId): ?array
+    {
+        $this->authorization->assertAtLeastRank($actor, AdministrativeAccessLevel::Operator, 'campaign.test.result');
+        $this->uuid($campaignId);
+        $id = $this->connection->fetchOne('SELECT id FROM campaign_test_delivery WHERE campaign_id = ? AND requested_by = ? ORDER BY requested_at DESC LIMIT 1', [$campaignId, $actor->id()]);
+
+        return \is_string($id) ? $this->testResult($actor, $campaignId, $id) : null;
     }
 
     public function approve(AdministrativeActor $actor, string $id, int $reviewedRevision, bool $waiveTest = false): void
