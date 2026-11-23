@@ -94,6 +94,7 @@ final class RoutePolicyRegistry
         'admin_campaign_review' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
         'admin_campaign_rsvp' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
         'admin_campaign_test' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
+        'admin_campaign_test_result' => ['role' => AdministrativeRole::Operator, 'methods' => ['GET', 'HEAD'], 'sensitive' => false],
         'admin_campaign_approve' => ['role' => AdministrativeRole::Administrator, 'methods' => ['POST'], 'sensitive' => true],
         'admin_campaign_schedule' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],
         'admin_campaign_queue' => ['role' => AdministrativeRole::Operator, 'methods' => ['POST'], 'sensitive' => false],

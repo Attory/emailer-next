@@ -30,3 +30,5 @@ button.update-disabled, button[data-update-send]:disabled { opacity: .55; cursor
 .mfa-enrollment-qr { width:auto; max-width: 100%; height: auto; image-rendering: pixelated; }
 
 .source-footer{padding:1rem;text-align:center;font-size:.8rem}
+
+.lists-heading{display:flex;align-items:center;gap:1rem;margin-bottom:1rem}.lists-heading h1{margin:0}dialog[data-list-create-dialog]{max-height:calc(100dvh - 2rem);overflow:auto}dialog [data-source-checkboxes]{margin-top:1rem}

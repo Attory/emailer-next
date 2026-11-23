@@ -4,6 +4,7 @@
         <link rel="stylesheet" href="{{ asset('styles/skins.css') }}">
         <link rel="stylesheet" href="{{ path('admin_appearance_tokens') }}">
         <script type="module" src="{{ asset('appearance.js') }}"></script>
+        <script type="module" src="{{ asset('admin-tools.js') }}"></script>
         <script type="module" src="{{ asset('update-status.js') }}"></script>
 {% endblock %}
 {% block body_attributes %}{% set appearance = app.request.attributes.get('appearance')|default({}) %}{% set skin = appearance.skin|default('classic') %} data-skin="{{ skin in ['classic', 'website', 'studio', 'warm'] ? skin : 'classic' }}" data-motion="{{ appearance.motion|default('system') == 'reduced' ? 'reduced' : 'system' }}"{% if appearance.branding.logo_url|default(null) %} data-brand-logo="present"{% endif %}{% endblock %}
@@ -21,7 +22,7 @@
             <a href="{{ path(route) }}"{% if current_route == route or (route == 'admin_campaigns' and current_route starts with 'admin_campaign') or (route == 'admin_templates' and current_route starts with 'admin_template') or (route == 'admin_lists' and current_route starts with 'admin_list') or (route == 'admin_contacts' and current_route starts with 'admin_contact') %} aria-current="page"{% endif %}>{{ label }}</a>
             {% endif %}
         {% endfor %}
-        <details><summary>Settings &amp; tools</summary><div class="tools-menu">
+        <details data-tools-menu><summary>Settings &amp; tools</summary><div class="tools-menu">
             {% if is_granted('ROLE_ADMINISTRATOR') %}<a href="{{ path('admin_security_settings') }}">Security</a><a href="{{ path('admin_mail_settings') }}">Mail settings</a><a href="{{ path('admin_delivery_settings') }}">Delivery limits</a><a href="{{ path('admin_users') }}">Users</a>{% endif %}
             {% if is_granted('ROLE_OPERATOR') %}<a href="{{ path('admin_imports') }}">Imports</a><a href="{{ path('admin_suppressions') }}">Unsubscribes</a>{% endif %}
             <a href="{{ path('admin_analytics') }}">Analytics</a><a href="{{ path('admin_rsvp') }}">RSVP</a><a href="{{ path('admin_doctor') }}">Doctor</a><a href="{{ path('admin_audit') }}">Audit</a>

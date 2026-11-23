@@ -24,7 +24,7 @@ final readonly class PollSessionCookieSubscriber implements EventSubscriberInter
             return;
         }
         $path = $request->getPathInfo();
-        if ('/admin/update-status' !== $path && 1 !== preg_match('~^/admin/campaigns/[0-9a-f-]{36}/progress$~D', $path)) {
+        if ('/admin/update-status' !== $path && 1 !== preg_match('~^/admin/campaigns/[0-9a-f-]{36}/(?:progress|tests/[0-9a-f-]{36})$~D', $path)) {
             return;
         }
         $name = $request->getSession()->getName();

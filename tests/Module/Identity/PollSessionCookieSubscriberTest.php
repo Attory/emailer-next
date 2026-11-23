@@ -21,6 +21,7 @@ final class PollSessionCookieSubscriberTest extends TestCase
     public static function requests(): iterable
     {
         yield 'revoked status poll' => ['/admin/update-status', 'GET', false];
+        yield 'specific test status' => ['/admin/campaigns/01900000-0000-7000-8000-000000000001/tests/01900000-0000-7000-8000-000000000002', 'GET', false];
         yield 'campaign HEAD poll' => ['/admin/campaigns/01900000-0000-7000-8000-000000000001/progress', 'HEAD', false];
         yield 'reauthentication rotation' => ['/admin/reauthenticate', 'POST', true];
         yield 'MFA confirmation rotation' => ['/admin/mfa/confirm', 'POST', true];
